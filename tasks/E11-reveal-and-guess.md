@@ -1,0 +1,125 @@
+# E11 — Reveal and guess
+
+Accent **ultramarine**. This screen must work equally well at 6 cards and 12, and at
+`.accessibility5` on an iPhone SE.
+
+---
+
+### E11-01 — `FlightCard`
+
+**Status:** todo · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
+**Touches:** `DesignSystem/Components/FlightCard.swift`, `Features/Reveal/RevealScreen.swift`
+**Verify:** snapshot matrix at 6 and 12 cards
+
+Vertical stack, **never a grid**. It should read like a flight sheet: number large and left,
+artwork and metadata to the right.
+
+- [ ] `displayXL` number in `ultramarine`, capped at 1.6× scale
+- [ ] 88pt artwork, `Radius.artwork`, nothing layered on it
+- [ ] Above `.accessibility1` the number moves above the artwork row rather than beside it
+- [ ] A **single** accessibility element announcing number, title, artist, and current guess
+      — do not let VoiceOver walk into three sub-elements (36 swipes for 12 cards)
+- [ ] Preview control nested as both a child and a custom action
+- [ ] Custom rotor "Songs" so a VoiceOver user can jump between numbers
+- [ ] Cards render in ascending `card_no`, exactly as the server ordered them
+
+---
+
+### E11-02 — Guess interaction
+
+**Status:** todo · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
+**Touches:** `Features/Reveal/{GuessSheet,RevealStore}.swift`
+**Verify:** UI test covering both interaction directions
+
+Both directions, because teenagers will try both.
+
+- [ ] Tap card → tap name: card gets an `ultramarine` focus ring, assignment advances focus to
+      the next unassigned card
+- [ ] Tap name → tap card: chip selects, next card tap assigns
+- [ ] Tapping a consumed name **moves** it and clears its previous card — the move is the
+      default behaviour rather than a blocked action
+- [ ] `✕` on an inline chip clears it
+- [ ] **No gesture-only interaction.** No drag-and-drop, no swipe-to-assign, no required
+      long-press (`docs/12` §5, and taps are faster for the 90-second budget)
+- [ ] Assigning posts a VoiceOver announcement: "No. 3 assigned to Cal"
+- [ ] Progress subtitle "%lld of %lld assigned"
+- [ ] Your own card is displayed with a *Yours* label in `amberText` and no chip — the one
+      place amber appears on this screen, because your card is still your secret
+
+---
+
+### E11-03 — Name pool and the 12-member layout
+
+**Status:** todo · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/12` §6
+**Touches:** `Features/Reveal/GuessSheet.swift`
+**Verify:** `A11yReachabilityTests` at SE × 12 members × `.accessibility5`
+
+The PRD calls this case out specifically, so it gets its own task.
+
+- [ ] Pool is exactly this round's submitters minus the caller
+- [ ] Duplicate display names disambiguated: `Sam B.` / `Sam K.`, falling back to `Sam (2)`
+- [ ] Pinned bottom, horizontally scrollable, with a trailing fade that makes overflow visible
+- [ ] Above `.accessibility3`: a 2-row wrapping grid capped at 40% of screen height with its
+      own vertical scroll and a visible indicator
+- [ ] Consumed chips carry an accessibility value change, not just opacity
+- [ ] Test: at SE × 12 × `.accessibility5`, every chip and every card is reachable with no
+      clipped or zero-size hit region
+
+---
+
+### E11-04 — The unseal animation
+
+**Status:** todo · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
+**Touches:** `DesignSystem/Motion/UnsealAnimation.swift`, `Core/Persistence/LocalFlags.swift`
+**Verify:** Instruments at 12 cards on iPhone 12, zero hitches
+
+The counterpart to the seal. Amber gives way to ultramarine — **the only moment both accents
+exist on one screen**, and exactly what the transition is for.
+
+- [ ] Per-card phases A–E at the timings in `docs/09` §3
+- [ ] `stagger = min(80, 900 / max(1, cardCount - 1))`
+- [ ] **One** haptic, `.soft`, at the first card's cover release. Twelve haptics is a massage
+      chair.
+- [ ] The number fades in; it does **not** count up. Numbers that spin are a slot machine.
+- [ ] Cards below the fold animate when scrolled into view if the sequence has passed them —
+      nothing appears pre-unsealed
+- [ ] `hasSeenUnseal(roundId)` persisted; runs exactly once per round across relaunch
+- [ ] Reduced motion: 240ms crossfade per card, stagger 40ms, capped at 400ms total, **colour
+      interpolation retained** because it carries meaning
+- [ ] Tests: stagger clamp values, haptic count, once-per-round across relaunch
+
+---
+
+### E11-05 — Non-submitter and joined-late states
+
+**Status:** todo · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
+**Touches:** `Features/Reveal/RevealScreen.swift`
+**Verify:** snapshot; fixture with `can_guess: false`
+
+This is the participation-pressure mechanic. The user must **see** exactly what they missed.
+
+- [ ] Guess apparatus visibly **disabled**, not hidden — chips greyed, pool greyed, button
+      replaced by the explanatory line
+- [ ] Distinct copy for `not_a_submitter` and `joined_late`
+- [ ] Disabled controls carry the reason in their accessibility label (`docs/12` §2)
+- [ ] Cards and previews remain fully usable — they can look
+- [ ] The client trusts `can_guess` from the server and never derives it locally
+
+---
+
+### E11-06 — Debounced guess save
+
+**Status:** todo · **Deps:** E11-02, E05-02 · **Reads:** `docs/08` §6, `docs/13` §6
+**Touches:** `Features/Reveal/RevealStore.swift`
+**Verify:** unit test on debounce and cancellation
+
+- [ ] Saves on every change, debounced 600ms, whole-sheet upsert
+- [ ] One `Task` held by the store, cancelled and replaced per edit. Never detached, never a
+      timer that outlives the screen.
+- [ ] **Lock in guesses** is a confirmation and a dismissal, not the only save — a user who
+      closes the app keeps their sheet
+- [ ] After locking, chips render locked-styled but stay editable via **Change a guess**; the
+      countdown continues to 10:00 PM
+- [ ] Save failure surfaces inline and the sheet stays editable — never lose a user's work to
+      a network blip
+- [ ] Test: rapid edits produce one request; the store cancels cleanly on disappear
