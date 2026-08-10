@@ -1,0 +1,37 @@
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.mobileprovision
+
+# ── Node / Deno ──────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+.deno/
+deno.lock
+
+# ── Supabase ─────────────────────────────────────────────────────────────────
+server/supabase/.temp/
+server/supabase/.branches/
+server/.supabase/
+
+# ── Xcode ────────────────────────────────────────────────────────────────────
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+.swiftpm/
+# Zero package dependencies (docs/01 §1) — Package.resolved must never appear.
+Package.resolved
+
+# ── Test output ──────────────────────────────────────────────────────────────
+server/supabase/tests/.out/
+ios/BlindDropTests/__Snapshots__/__Failures__/
+*.instrumentstrace
+
+# ── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store

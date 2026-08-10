@@ -1,0 +1,23 @@
+{
+  "name": "blind-drop-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Blind Drop — Supabase project: migrations, Edge Functions, tests.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "test:db": "node scripts/test-db.mjs",
+    "test:functions": "node scripts/test-functions.mjs",
+    "audit:leak": "node scripts/audit-leak.mjs",
+    "test": "npm run test:db && npm run test:functions && npm run audit:leak"
+  },
+  "devDependencies": {
+    "deno": "^2.9.5",
+    "supabase": "^2.34.3"
+  }
+}
