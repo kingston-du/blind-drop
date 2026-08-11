@@ -29,7 +29,15 @@
 // `tick_rounds()` wrote; no handler compares a clock to `reveals_at` to work out what phase
 // it is (docs/02 §2, CLAUDE.md §2.2). A round is `revealed` because the server said so.
 
-import { ApiError, ok, optional, parseBody, serveFunction, str } from "../_shared/http.ts";
+import {
+  ApiError,
+  ok,
+  optional,
+  parseBody,
+  serveFunction,
+  str,
+  type Validator,
+} from "../_shared/http.ts";
 import {
   enforceRateLimit,
   type MemberCtx,
@@ -39,7 +47,19 @@ import {
   requireUser,
 } from "../_shared/auth.ts";
 import { dbFailure } from "../_shared/db.ts";
-import { roundDTO, submissionDTO, type SubmissionDTO } from "../_shared/dto.ts";
+import {
+  type CannotGuessReason,
+  type CardDTO,
+  cardDTO,
+  type GuessDTO,
+  guessSheetDTO,
+  type MemberDTO,
+  memberDTO,
+  revealedRoundDTO,
+  roundDTO,
+  submissionDTO,
+  type SubmissionDTO,
+} from "../_shared/dto.ts";
 import { localDate, type RoundState, serverNow } from "../_shared/time.ts";
 import { storefrontFor } from "../_shared/music/appleMusic.ts";
 import { resolveTrack } from "../_shared/music/resolve.ts";
@@ -50,6 +70,63 @@ import { linkTrack } from "../_shared/music/trackLinks.ts";
 const SUBMIT_LIMIT_PER_MINUTE = 20;
 const ONE_MINUTE_IN_SECONDS = 60;
 
+// docs/04 §8. Sixty a minute, against a client that debounces at 600ms: the sheet is meant to
+// be edited freely while people think, and the limit is there for a stuck retry loop, not for
+// a player.
+const GUESS_LIMIT_PER_MINUTE = 60;
+
+/** Comfortably above the twelve-member ceiling in docs/08, and bounded, which is the point —
+ *  an unbounded array in a request body is a way to make the server do arbitrary work. */
+const MAX_ASSIGNMENTS = 64;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface Assignment {
+  card_no: number;
+  /** `null` is a value here, not an omission: it is how a card is cleared (docs/04 §4). */
+  guessed_user_id: string | null;
+}
+
+/**
+ * The one nested body in this API, so its validator lives with its route rather than in
+ * `_shared/http.ts`.
+ *
+ * It holds to the same rule as everything there: unknown keys are rejected, not ignored
+ * (docs/14 §7). What it does *not* do is check that a `card_no` is in range or that a user id
+ * is in the name pool — those need the round, which the parse step does not have, and they
+ * happen in the handler in the order docs/04 §4 sets out.
+ */
+function assignmentList(): Validator<Assignment[]> {
+  return {
+    optional: false,
+    parse(value, field) {
+      if (!Array.isArray(value)) throw new ApiError("INVALID_INPUT", { field });
+      if (value.length > MAX_ASSIGNMENTS) throw new ApiError("INVALID_INPUT", { field });
+
+      return value.map((entry) => {
+        if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+          throw new ApiError("INVALID_INPUT", { field });
+        }
+        const row = entry as Record<string, unknown>;
+        for (const key of Object.keys(row)) {
+          if (key !== "card_no" && key !== "guessed_user_id") {
+            throw new ApiError("INVALID_INPUT", { field: key });
+          }
+        }
+        if (typeof row.card_no !== "number" || !Number.isInteger(row.card_no)) {
+          throw new ApiError("INVALID_INPUT", { field: "card_no" });
+        }
+        // Absent and explicitly null are the same thing here — both clear the card — because
+        // a client that omits the key while sending the entry has said the same thing.
+        const guessed = row.guessed_user_id ?? null;
+        if (guessed !== null && (typeof guessed !== "string" || !UUID.test(guessed))) {
+          throw new ApiError("INVALID_INPUT", { field: "guessed_user_id" });
+        }
+        return { card_no: row.card_no, guessed_user_id: guessed as string | null };
+      });
+    },
+  };
+}
+
 interface RoundRow {
   id: string;
   local_date: string;
@@ -57,8 +134,9 @@ interface RoundRow {
   opens_at: string;
   reveals_at: string;
   scores_at: string;
+  card_order: string[] | null;
 }
-const ROUND_COLUMNS = "id, local_date, state, opens_at, reveals_at, scores_at";
+const ROUND_COLUMNS = "id, local_date, state, opens_at, reveals_at, scores_at, card_order";
 
 /**
  * Today's round for the caller's group, keyed by the group's *local* calendar date.
@@ -126,6 +204,112 @@ async function mySubmission(ctx: MemberCtx, roundId: string): Promise<Submission
   return data ? submissionDTO(data) : null;
 }
 
+// ─── the reveal ──────────────────────────────────────────────────────────────
+// Everything below this line runs only when `rounds.state` is already `revealed` or `scored`.
+// The guard is `requirePhase` against the stored state, never a clock comparison: `card_order`
+// exists because `tick_rounds()` wrote it at the transition, and its existence is the fact
+// that the blind window is over (docs/02 §2).
+
+interface CardRow {
+  id: string;
+  user_id: string;
+  track_meta: unknown;
+}
+
+/**
+ * The round's submissions, in `card_order`.
+ *
+ * `card_order` is the authority, not the shuffle seed and not any ordering the database
+ * happens to return — it was generated once at the reveal, stored, and is identical for every
+ * member (docs/02 §2). Position `i` is `card_no = i + 1`.
+ *
+ * A submission missing from `card_order` cannot happen: `rounds_card_order_is_permutation_trg`
+ * (0002) is a deferred constraint trigger that makes it unwritable. The filter below is
+ * therefore not defensive coding but a statement of what the mapping means — every card comes
+ * from the stored order, and nothing else gets a number.
+ */
+async function cardsInOrder(ctx: MemberCtx, round: RoundRow): Promise<{ cards: CardDTO[]; rows: Map<string, CardRow>; order: string[] }> {
+  const order = round.card_order ?? [];
+  const { data, error } = await ctx.db
+    .from("submissions")
+    .select("id, user_id, track_meta")
+    .eq("round_id", round.id);
+  if (error) throw dbFailure("rounds.cards", error);
+
+  const rows = new Map<string, CardRow>((data as CardRow[]).map((row) => [row.id, row]));
+  const cards = order
+    .map((submissionId, index) => {
+      const row = rows.get(submissionId);
+      return row ? cardDTO(index + 1, row.track_meta) : null;
+    })
+    .filter((card): card is CardDTO => card !== null);
+
+  return { cards, rows, order };
+}
+
+/**
+ * The name pool: exactly this round's submitters, the caller included (docs/02 §3).
+ *
+ * Display names come from `profiles` rather than from the roster, so someone who has since
+ * left the group still appears under the name they had — the round happened, and a hole in the
+ * pool would make it unsolvable for everyone else (docs/02 §3, "historical rounds keep their
+ * attribution").
+ */
+async function namePool(ctx: MemberCtx, submitterIds: string[]): Promise<MemberDTO[]> {
+  if (submitterIds.length === 0) return [];
+  const { data, error } = await ctx.db
+    .from("profiles")
+    .select("id, display_name")
+    .in("id", submitterIds)
+    .order("display_name", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) throw dbFailure("rounds.namePool", error);
+  return data.map((p) => memberDTO({ user_id: p.id, display_name: p.display_name }));
+}
+
+/** The caller's own saved sheet, translated from submission ids to card numbers. Keyed by
+ *  `guesser_id`, so it can only ever return the caller's rows. */
+async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Promise<GuessDTO[]> {
+  const { data, error } = await ctx.db
+    .from("guesses")
+    .select("submission_id, guessed_user_id")
+    .eq("round_id", round.id)
+    .eq("guesser_id", ctx.userId);
+  if (error) throw dbFailure("rounds.myGuesses", error);
+
+  return data
+    .map((g) => ({ card_no: order.indexOf(g.submission_id) + 1, guessed_user_id: g.guessed_user_id }))
+    .filter((g) => g.card_no > 0)
+    .sort((a, b) => a.card_no - b.card_no);
+}
+
+/**
+ * Why the caller may not guess, or `null` if they may. docs/02 §3, docs/04 §4.
+ *
+ * **`joined_late` is checked first, which is the opposite of the order docs/04 §4 numbers.**
+ * See the open question in `tasks/E05`. The short version: joining after `reveals_at` implies
+ * having no submission — you cannot submit to a round that is no longer `open` — so checking
+ * for a submission first makes `joined_late` unreachable for everyone except the rare member
+ * who submitted, left, and rejoined the same evening. A reason code that can never be returned
+ * is a reason code that does not exist, and its copy ("You joined after the reveal. You're in
+ * from tomorrow.") is the true and kinder thing to tell a new member, where "You didn't drop a
+ * song tonight" blames them for a window they were not present for.
+ *
+ * Neither ordering discloses anything: both facts are the caller's own.
+ *
+ * Both are states of the round rather than errors — `GET /current` reports them so the client
+ * can render a disabled sheet with an explanation instead of hiding the feature (docs/02 §3).
+ */
+function cannotGuessReason(
+  ctx: MemberCtx,
+  round: RoundRow,
+  mySubmissionId: string | null,
+): CannotGuessReason | null {
+  if (new Date(ctx.joinedAt).getTime() >= new Date(round.reveals_at).getTime()) return "joined_late";
+  if (!mySubmissionId) return "not_a_submitter";
+  return null;
+}
+
 serveFunction("rounds", {
   // ─── the workhorse ─────────────────────────────────────────────────────────
   // The client calls this on launch, on foreground, and when a countdown reaches zero.
@@ -136,12 +320,30 @@ serveFunction("rounds", {
   // and unscored, and **no count of how many did submit**: "only 2 dropped" identifies people
   // in a group of eight (docs/08 §5).
   //
-  // `revealed` and `scored` land in E05-01. Until then they return the same base shape, which
-  // is a true subset of what they will return and leaks nothing.
+  // `revealed` widens the payload — cards, the name pool, the caller's sheet — because at that
+  // point the blind window is over and docs/02 §3 accepts that participation becomes visible.
+  // `scored` returns the base shape and the client fetches `GET /rounds/{id}/results`
+  // separately (E05-04), which keeps the launch call small and lets the results screen be
+  // deep-linked from the push.
   "GET /current": async (req, route) => {
     const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
     const round = await currentRound(ctx);
-    return ok(roundDTO(round, await mySubmission(ctx, round.id)));
+    const mine = await mySubmission(ctx, round.id);
+    const base = roundDTO(round, mine);
+    if (round.state !== "revealed") return ok(base);
+
+    const { cards, rows, order } = await cardsInOrder(ctx, round);
+    const mySubmissionId = order.find((id) => rows.get(id)?.user_id === ctx.userId) ?? null;
+
+    return ok(
+      revealedRoundDTO(base, {
+        myCardNo: mySubmissionId === null ? null : order.indexOf(mySubmissionId) + 1,
+        cannotGuessReason: cannotGuessReason(ctx, round, mySubmissionId),
+        cards,
+        namePool: await namePool(ctx, order.map((id) => rows.get(id)?.user_id).filter((id): id is string => !!id)),
+        myGuesses: await myGuesses(ctx, round, order),
+      }),
+    );
   },
 
   // ─── drop a song ───────────────────────────────────────────────────────────
@@ -191,5 +393,117 @@ serveFunction("rounds", {
     if (error) throw dbFailure("rounds.submit", error);
 
     return ok(submissionDTO(data as { track_meta: unknown; updated_at: string }));
+  },
+
+  // ─── the guess sheet ───────────────────────────────────────────────────────
+  // A whole-sheet upsert: the client sends the sheet as it currently stands and the server
+  // diffs. docs/04 §4 lists seven validations and they are implemented in that order, so the
+  // error a client gets for a request that breaks two rules is predictable.
+  //
+  // Everything is addressed by `card_no`. The client has never seen a submission id (ADR-003)
+  // and the server resolves numbers against the round's own `card_order`, which means an
+  // out-of-range number is caught by arithmetic rather than by a lookup that might succeed
+  // against some other round's row.
+  "PUT /current/guesses": async (req, route) => {
+    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
+    await enforceRateLimit(
+      ctx.db,
+      `guess:u:${ctx.userId}`,
+      GUESS_LIMIT_PER_MINUTE,
+      ONE_MINUTE_IN_SECONDS,
+    );
+
+    const body = await parseBody(req, { assignments: assignmentList() });
+    const round = await currentRound(ctx);
+
+    // 1. Phase. Guesses are editable until `scores_at`, which is to say for exactly as long as
+    //    the round is `revealed` — `tick_rounds()` moves it to `scored` at that instant and
+    //    this stops accepting writes without a clock comparison of its own (docs/02 §2).
+    requirePhase(round, ["revealed"]);
+
+    const { rows, order } = await cardsInOrder(ctx, round);
+    const owners = order.map((id) => rows.get(id)?.user_id ?? null);
+    const mySubmissionId = order.find((id) => rows.get(id)?.user_id === ctx.userId) ?? null;
+
+    // 2 and 3. Only submitters may guess, and only those who were in the round before it
+    //    revealed — enforced here, server-side, not merely disabled in the UI (CLAUDE.md §2.3).
+    //    The same helper as the read path, so the code a write is refused with and the reason
+    //    the sheet is shown as disabled can never disagree. On the ordering, see its comment
+    //    and the open question in tasks/E05.
+    const reason = cannotGuessReason(ctx, round, mySubmissionId);
+    if (reason === "joined_late") throw new ApiError("JOINED_LATE");
+    if (reason === "not_a_submitter") throw new ApiError("NOT_A_SUBMITTER");
+
+    const pool = new Set(owners.filter((id): id is string => id !== null));
+    const myCardNo = mySubmissionId === null ? null : order.indexOf(mySubmissionId) + 1;
+
+    const toUpsert: { submission_id: string; guessed_user_id: string }[] = [];
+    const toClear: string[] = [];
+
+    for (const assignment of body.assignments) {
+      // 4. `card_no` in 1..N, and not the caller's own card. Guessing at your own song is
+      //    meaningless and the `guesses_not_self` trigger (0002) would refuse it anyway; this
+      //    turns a database exception into the documented 400.
+      if (assignment.card_no < 1 || assignment.card_no > order.length) {
+        throw new ApiError("INVALID_INPUT", { field: "card_no" });
+      }
+      if (assignment.card_no === myCardNo) {
+        throw new ApiError("INVALID_INPUT", { field: "card_no" });
+      }
+      const submissionId = order[assignment.card_no - 1];
+
+      // 7. An omitted `card_no` is left untouched; an explicit null clears that card. This is
+      //    what makes the endpoint safe to call with a partial sheet, which the client does on
+      //    every debounce.
+      if (assignment.guessed_user_id === null) {
+        toClear.push(submissionId);
+        continue;
+      }
+
+      // 5. The named person must be in this round's name pool, and must not be the caller.
+      //    The pool is the round's submitters — naming somebody who sat the round out is not a
+      //    wrong guess, it is a malformed one.
+      if (!pool.has(assignment.guessed_user_id) || assignment.guessed_user_id === ctx.userId) {
+        throw new ApiError("INVALID_INPUT", { field: "guessed_user_id" });
+      }
+
+      // 6. Duplicates across two cards are *allowed*, deliberately: players double-assign
+      //    while they think, the UI discourages it, and scoring handles it naturally
+      //    (docs/04 §4). There is no check here and there should not be one.
+      toUpsert.push({ submission_id: submissionId, guessed_user_id: assignment.guessed_user_id });
+    }
+
+    if (toClear.length > 0) {
+      const { error } = await ctx.db
+        .from("guesses")
+        .delete()
+        .eq("round_id", round.id)
+        .eq("guesser_id", ctx.userId)
+        .in("submission_id", toClear);
+      if (error) throw dbFailure("rounds.guesses.clear", error);
+    }
+
+    if (toUpsert.length > 0) {
+      const now = serverNow().toISOString();
+      const { error } = await ctx.db.from("guesses").upsert(
+        toUpsert.map((g) => ({
+          round_id: round.id,
+          guesser_id: ctx.userId,
+          submission_id: g.submission_id,
+          guessed_user_id: g.guessed_user_id,
+          updated_at: now,
+        })),
+        { onConflict: "round_id,guesser_id,submission_id" },
+      );
+      if (error) throw dbFailure("rounds.guesses.upsert", error);
+    }
+
+    // The sheet as it now stands, read back rather than reconstructed from the request — a
+    // partial update means the response is not a function of the body alone.
+    const saved = await myGuesses(ctx, round, order);
+    // `assignable_count` is S − 1: every card the caller could be asked about (docs/02 §4.1).
+    // It is derived from the round's own card count, which the caller can already see in
+    // `cards`, so it discloses nothing they did not have.
+    return ok(guessSheetDTO(saved, Math.max(order.length - 1, 0)));
   },
 });

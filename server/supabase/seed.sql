@@ -254,3 +254,31 @@ end $$;
 alter function public.tick_rounds_at(timestamptz) owner to postgres;
 revoke all on function public.tick_rounds_at(timestamptz) from public, anon, authenticated;
 grant execute on function public.tick_rounds_at(timestamptz) to service_role;
+
+-- ─── local-only: a membership that began after a reveal ──────────────────────
+--
+-- `memberships.joined_at` defaults to `now()` and is written by `POST /groups/join`, so an
+-- Edge Function test cannot produce a member who joined *after* a round revealed: the round
+-- has to exist before its own reveal for `ensure_rounds()` to create it (0004), which puts
+-- `reveals_at` in the future, which puts every join before it. The gap is an hour of real
+-- time, and no amount of care in the test closes it.
+--
+-- docs/02 §3 gives that member specific behaviour — they may view the reveal, may not guess,
+-- and are excluded from the round's scoring entirely — so it needs a test. This moves one
+-- membership's `joined_at`, which is the whole scenario in one column.
+--
+-- Same reasoning as `tick_rounds_at` above: seed-only, so no deployed database has it.
+create or replace function public.set_membership_joined_at(p_user uuid, p_at timestamptz)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.memberships set joined_at = p_at
+   where user_id = p_user and left_at is null;
+$$;
+
+alter function public.set_membership_joined_at(uuid, timestamptz) owner to postgres;
+revoke all on function public.set_membership_joined_at(uuid, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.set_membership_joined_at(uuid, timestamptz) to service_role;

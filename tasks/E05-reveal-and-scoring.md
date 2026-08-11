@@ -4,68 +4,97 @@
 
 ### E05-01 — `GET /rounds/current`: revealed
 
-**Status:** wip · **Deps:** E03-04, E04-02 · **Reads:** `docs/04` §4, `docs/02` §3, `docs/01` ADR-003
+**Status:** done · **Deps:** E03-04, E04-02 · **Reads:** `docs/04` §4, `docs/02` §3, `docs/01` ADR-003
 **Touches:** `functions/rounds/index.ts`, `functions/_shared/dto.ts`
 **Verify:** `npm run test:functions -- reveal`
 
 Cards addressed by `card_no` only. `submission_id` never crosses the wire before `scored`.
 
-- [ ] `cards` includes **every** card, the caller's own included — the numbering must not
+- [x] `cards` includes **every** card, the caller's own included — the numbering must not
       have a hole (`docs/08` §6)
-- [ ] `my_card_no` tells the client which one to exclude from the sheet
-- [ ] `name_pool` is exactly this round's submitters, caller included; the client removes
+- [x] `my_card_no` tells the client which one to exclude from the sheet
+- [x] `name_pool` is exactly this round's submitters, caller included; the client removes
       itself
-- [ ] `can_guess` + `cannot_guess_reason` (`not_a_submitter` | `joined_late` | null)
-- [ ] `my_guesses` is the caller's own sheet only
-- [ ] **No endpoint returns another user's guesses in this phase.** Assert this by enumerating
+- [x] `can_guess` + `cannot_guess_reason` (`not_a_submitter` | `joined_late` | null)
+- [x] `my_guesses` is the caller's own sheet only
+- [x] **No endpoint returns another user's guesses in this phase.** Assert this by enumerating
       routes, not by inspection
-- [ ] Test: all 8 members receive an identical `[card_no → track_key]` sequence (AC-5)
-- [ ] Test: no `submission_id` appears anywhere in the `revealed` payload
+- [x] Test: all 8 members receive an identical `[card_no → track_key]` sequence (AC-5)
+- [x] Test: no `submission_id` appears anywhere in the `revealed` payload
+
+> **Open question:** `docs/04` §4 numbers the guess validations so that `NOT_A_SUBMITTER`
+> (rule 2) is checked before `JOINED_LATE` (rule 3). Implemented in that order, `JOINED_LATE`
+> is unreachable: joining after `reveals_at` implies having no submission, because a round
+> stops accepting submissions the moment it leaves `open`. The only caller who could ever see
+> it is someone who submitted, left the group, and rejoined the same evening.
+>
+> A reason code that cannot be returned is a reason code that does not exist, and it has copy
+> in `docs/11` — *"You joined after the reveal. You're in from tomorrow."* — that is both true
+> and considerably kinder than telling a member who arrived at 20:30 that they "didn't drop a
+> song tonight".
+>
+> **Interpretation taken:** `joined_late` is checked first, in both the read path
+> (`cannot_guess_reason`) and the write path (the error code), from one shared helper so the
+> two can never disagree. Neither ordering discloses anything — both facts are the caller's
+> own — so the blind window does not decide this one; reachability and copy do. Owner's call
+> to confirm, and to renumber `docs/04` §4 if they agree.
 
 ---
 
 ### E05-02 — `PUT /rounds/current/guesses`
 
-**Status:** wip · **Deps:** E05-01 · **Reads:** `docs/04` §4, `docs/02` §3
+**Status:** done · **Deps:** E05-01 · **Reads:** `docs/04` §4, `docs/02` §3
 **Touches:** `functions/rounds/index.ts`
 **Verify:** `npm run test:functions -- guess`
 
 Whole-sheet upsert with a server-side diff. The seven validations in `docs/04` §4 are the
 spec; implement them in that order so the error codes are predictable.
 
-- [ ] `WRONG_PHASE` outside `revealed`
-- [ ] `NOT_A_SUBMITTER` (403) when the caller has no submission
-- [ ] `JOINED_LATE` (403) when `joined_at >= reveals_at`
-- [ ] `card_no` validated in `1..N` and not the caller's own
-- [ ] `guessed_user_id` validated against the name pool and not the caller
-- [ ] Duplicate `guessed_user_id` across two cards is **allowed** — players double-assign
+- [x] `WRONG_PHASE` outside `revealed`
+- [x] `NOT_A_SUBMITTER` (403) when the caller has no submission
+- [x] `JOINED_LATE` (403) when `joined_at >= reveals_at`
+- [x] `card_no` validated in `1..N` and not the caller's own
+- [x] `guessed_user_id` validated against the name pool and not the caller
+- [x] Duplicate `guessed_user_id` across two cards is **allowed** — players double-assign
       while thinking
-- [ ] Omitted `card_no` entries are untouched; explicit `null` clears
-- [ ] Editable until `scores_at`
-- [ ] Response returns `assigned_count` / `assignable_count`
-- [ ] Rate limit 60/min
+- [x] Omitted `card_no` entries are untouched; explicit `null` clears
+- [x] Editable until `scores_at`
+- [x] Response returns `assigned_count` / `assignable_count`
+- [x] Rate limit 60/min
 
 ---
 
 ### E05-03 — Scoring views
 
-**Status:** wip · **Deps:** E01-04 · **Reads:** `docs/02` §4, `docs/03` §5
+**Status:** done · **Deps:** E01-04 · **Reads:** `docs/02` §4, `docs/03` §5
 **Touches:** `migrations/0005_scoring.sql`
 **Verify:** `npm run test:db -- scoring`
 
 Four views: `round_submitter_counts`, `guess_results`, `round_scores`, `standings`. Derived,
 never stored (ADR-004).
 
-- [ ] `guess_results.is_correct` implements the duplicate rule in `docs/02` §4.3 — correct iff
+- [x] `guess_results.is_correct` implements the duplicate rule in `docs/02` §4.3 — correct iff
       the guessed person submitted **that `track_key`** this round
-- [ ] `readability` denominator is `S − 1` regardless of who guessed
-- [ ] `ear` is `null` when the user made zero guesses, **not zero**
-- [ ] `standings.ear_all_time` pools correct/possible, excluding zero-guess rounds from both
+- [x] `readability` denominator is `S − 1` regardless of who guessed
+- [x] `ear` is `null` when the user made zero guesses, **not zero**
+- [x] `standings.ear_all_time` pools correct/possible, excluding zero-guess rounds from both
       sums
-- [ ] `standings.readability_all_time` is a **mean of per-round rates**, not a pooled ratio —
+- [x] `standings.readability_all_time` is a **mean of per-round rates**, not a pooled ratio —
       the asymmetry is deliberate (`docs/02` §4.2)
-- [ ] Voided rounds contribute to nothing
+- [x] Voided rounds contribute to nothing
 - [ ] Test: `explain` shows the duplicate join uses `submissions_round_trackkey`
+
+> **Not ticked, deliberately.** `tests/db/scoring.sql` asserts that
+> `submissions_round_trackkey` exists and is on `(round_id, track_key)` — the join predicate —
+> but not that a plan uses it. On the nine-row §4.4 fixture the planner will correctly choose a
+> sequential scan, so an `explain` assertion there would be asserting the fixture's size and
+> would have to be defeated with `enable_seqscan = off`, at which point it proves only that the
+> index *can* be used, which `has_index` already told us.
+>
+> The assertion is worth making against data that can justify a plan. `E05-05` already
+> requires a 12 members × 200 rounds performance fixture; the `explain` check belongs there,
+> alongside the 150ms budget, where a seq scan would be a real regression rather than the right
+> answer.
 
 ---
 
@@ -104,17 +133,17 @@ never stored (ADR-004).
 
 ### E05-06 — Hand-checked scoring test
 
-**Status:** wip · **Deps:** E05-03 · **Reads:** `docs/02` §4.4, `docs/15` AC-8
+**Status:** done · **Deps:** E05-03 · **Reads:** `docs/02` §4.4, `docs/15` AC-8
 **Touches:** `tests/db/scoring.sql`, `tests/db/standings.sql`
 **Verify:** `npm run test:db -- scoring standings`
 
 The §4.4 table, asserted row by row. **Do not change the numbers without changing the doc.**
 
-- [ ] Every per-user readability and ear matches §4.4
-- [ ] Eli: `ear is null`, and Eli still has a readability of 1/7
-- [ ] Ivy: absent from both
-- [ ] Ben: 3 blanks count as wrong, denominator still 7
-- [ ] Ana and Ben's duplicate: a guess of "Ana" on Ben's card is correct, and it counts toward
+- [x] Every per-user readability and ear matches §4.4
+- [x] Eli: `ear is null`, and Eli still has a readability of 1/7
+- [x] Ivy: absent from both
+- [x] Ben: 3 blanks count as wrong, denominator still 7
+- [x] Ana and Ben's duplicate: a guess of "Ana" on Ben's card is correct, and it counts toward
       both the guesser's ear and Ben's readability
-- [ ] All-time over three rounds of sizes 8, 5, 3 — verifies pooled ear vs mean readability
+- [x] All-time over three rounds of sizes 8, 5, 3 — verifies pooled ear vs mean readability
       produce different numbers, so a regression that conflates them fails

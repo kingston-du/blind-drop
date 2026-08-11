@@ -1,0 +1,66 @@
+{
+  "about": "GET /rounds/current for a `revealed` round. Wider than `open` by design — docs/02 §3 accepts that the name pool discloses who participated, because the game is unsolvable otherwise. A card carries a number and a track and nothing that identifies its owner: `submission_id` never crosses the wire before `scored` (ADR-003).",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "can_guess",
+    "cannot_guess_reason",
+    "cards",
+    "local_date",
+    "my_card_no",
+    "my_guesses",
+    "my_submission",
+    "name_pool",
+    "opens_at",
+    "reveals_at",
+    "round_id",
+    "scores_at",
+    "state"
+  ],
+  "nested": {
+    "my_submission": [
+      "sealed_at",
+      "track"
+    ],
+    "my_submission.track": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ],
+    "cards[]": [
+      "card_no",
+      "track"
+    ],
+    "cards[].track": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ],
+    "name_pool[]": [
+      "display_name",
+      "user_id"
+    ]
+  }
+}

@@ -181,6 +181,18 @@ export async function tickRoundsAt(hoursFromNow: number): Promise<void> {
 }
 
 /**
+ * Moves a member's `joined_at`, for the one scenario the API cannot reach.
+ *
+ * docs/02 §3 gives someone who joined after a reveal specific behaviour, but a round only
+ * exists if its reveal was still ahead when it was created (0004) — so every join a test can
+ * make lands before it, by an hour of real time. `set_membership_joined_at` is installed by
+ * `seed.sql` and exists in no deployed database, for the same reason `tick_rounds_at` does.
+ */
+export async function setJoinedAt(userId: string, at: Date): Promise<void> {
+  await serviceRpc("set_membership_joined_at", { p_user: userId, p_at: at.toISOString() });
+}
+
+/**
  * A fixed-offset IANA zone in which the local wall clock currently reads `hour`.
  *
  * `Etc/GMT±N` has no DST, so the offset is exact and the same all year — which is what makes a

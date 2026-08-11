@@ -1,0 +1,18 @@
+{
+  "about": "PUT /rounds/current/guesses — the caller's own sheet, and two counts that are both about the caller. Neither says whether anybody else has guessed, and there is no field here that could.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "assignable_count",
+    "assigned_count",
+    "assignments"
+  ],
+  "nested": {
+    "assignments[]": [
+      "card_no",
+      "guessed_user_id"
+    ]
+  }
+}

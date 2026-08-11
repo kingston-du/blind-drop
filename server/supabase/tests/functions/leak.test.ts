@@ -210,6 +210,54 @@ Deno.test("golden: POST /tracks/resolve", async () => {
   await assertGolden("tracks_resolve", res.body, "POST /tracks/resolve.");
 });
 
+Deno.test("golden: GET /rounds/current, revealed", async () => {
+  const { user, group } = await newGroupOwner("Ana", {
+    name: "Golden Revealed",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+  });
+  const others = [
+    await newMember(group.invite_code as string, "Ben"),
+    await newMember(group.invite_code as string, "Cal"),
+  ];
+  for (const [i, member] of [user, ...others].entries()) {
+    await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: member.token,
+      body: { apple_music_id: ["1440818664", "1440765580", "1452874255"][i] },
+    });
+  }
+  await tickRoundsAt(2);
+
+  const view = await call("rounds", "/current", { token: user.token });
+  assertEquals((view.body.data as Record<string, unknown>).state, "revealed");
+  await assertGolden(
+    "round_revealed",
+    view.body,
+    "GET /rounds/current for a `revealed` round. Wider than `open` by design — docs/02 §3 " +
+      "accepts that the name pool discloses who participated, because the game is unsolvable " +
+      "otherwise. A card carries a number and a track and nothing that identifies its owner: " +
+      "`submission_id` never crosses the wire before `scored` (ADR-003).",
+  );
+
+  const anaCard = (view.body.data as Record<string, unknown>).my_card_no as number;
+  const target = ((view.body.data as Record<string, unknown>).cards as { card_no: number }[])
+    .find((c) => c.card_no !== anaCard)!;
+  const sheet = await call("rounds", "/current/guesses", {
+    method: "PUT",
+    token: user.token,
+    body: { assignments: [{ card_no: target.card_no, guessed_user_id: others[0].id }] },
+  });
+  assertEquals(sheet.status, 200);
+  await assertGolden(
+    "guess_sheet",
+    sheet.body,
+    "PUT /rounds/current/guesses — the caller's own sheet, and two counts that are both about " +
+      "the caller. Neither says whether anybody else has guessed, and there is no field here " +
+      "that could.",
+  );
+});
+
 // ─── the errors ──────────────────────────────────────────────────────────────
 
 Deno.test("a WRONG_PHASE body contains the state and nothing else", async () => {
@@ -297,6 +345,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups POST /current/leave": null, // 204
     "rounds GET /current": "round_open",
     "rounds PUT /current/submission": "submission",
+    // Reachable only once the round is `revealed`, which is to say only once the blind window
+    // is over — but it is captured all the same, because "this route cannot be called during
+    // `open`" is a claim that needs a golden file behind it as much as any other.
+    "rounds PUT /current/guesses": "guess_sheet",
     "tracks GET /search": "tracks_search",
     "tracks POST /resolve": "tracks_resolve",
   };

@@ -261,6 +261,110 @@ export function roundFields(): readonly string[] {
   return ["round_id", "local_date", "state", "opens_at", "reveals_at", "scores_at", "my_submission"];
 }
 
+// ─── the reveal — docs/04 §4, docs/02 §3 ─────────────────────────────────────
+
+/**
+ * A card: a number and a song, and deliberately nothing that identifies whose it is.
+ *
+ * **`submission_id` never crosses the wire before `scored`** (ADR-003). Cards are addressed by
+ * `card_no` everywhere in the revealed phase — the guess sheet posts `card_no`, the server
+ * resolves it against the round's stored `card_order`. A submission id in a card would be a
+ * durable handle to a row whose owner is the answer to the game, and no amount of care
+ * elsewhere would make it safe to hand out.
+ */
+export interface CardDTO {
+  card_no: number;
+  track: TrackDTO;
+}
+
+export function cardDTO(cardNo: number, meta: unknown): CardDTO {
+  return { card_no: cardNo, track: trackDTO(meta) };
+}
+
+/** One saved assignment on the caller's own sheet. `card_no`, never a submission id. */
+export interface GuessDTO {
+  card_no: number;
+  guessed_user_id: string;
+}
+
+export type CannotGuessReason = "not_a_submitter" | "joined_late";
+
+/**
+ * The `revealed` payload. docs/04 §4.
+ *
+ * Two of these fields look like leaks and are not, and the reasoning matters because the
+ * instinct to trim them is wrong:
+ *
+ *   · **`cards` includes the caller's own card.** The client removes it from the *guessing*
+ *     sheet using `my_card_no`, but the card is still listed — the numbering is the game's
+ *     spine and a hole in it is worse than the information it would save (docs/08 §6).
+ *   · **`name_pool` is exactly this round's submitters, caller included.** That does reveal
+ *     who participated, and docs/02 §3 accepts it explicitly: the game is unsolvable
+ *     otherwise, and a padded pool is both less fun and worked out within two rounds. It is
+ *     safe *now* and would not have been an hour ago — which is why nothing resembling it
+ *     exists on the `open` payload.
+ *
+ * `my_guesses` is the caller's own sheet and nothing else. There is no endpoint at any URL
+ * that returns another user's guesses before `scored`.
+ */
+export interface RevealedRoundDTO extends RoundDTO {
+  my_card_no: number | null;
+  can_guess: boolean;
+  cannot_guess_reason: CannotGuessReason | null;
+  cards: CardDTO[];
+  name_pool: MemberDTO[];
+  my_guesses: GuessDTO[];
+}
+
+export function revealedRoundDTO(
+  base: RoundDTO,
+  parts: {
+    myCardNo: number | null;
+    cannotGuessReason: CannotGuessReason | null;
+    cards: CardDTO[];
+    namePool: MemberDTO[];
+    myGuesses: GuessDTO[];
+  },
+): RevealedRoundDTO {
+  return {
+    round_id: base.round_id,
+    local_date: base.local_date,
+    state: base.state,
+    opens_at: base.opens_at,
+    reveals_at: base.reveals_at,
+    scores_at: base.scores_at,
+    my_submission: base.my_submission,
+    my_card_no: parts.myCardNo,
+    // Derived from the reason rather than passed alongside it, so the two cannot contradict
+    // each other — a `can_guess: true` with a reason set would be a client bug nobody could
+    // debug from the payload.
+    can_guess: parts.cannotGuessReason === null,
+    cannot_guess_reason: parts.cannotGuessReason,
+    cards: parts.cards,
+    name_pool: parts.namePool,
+    my_guesses: parts.myGuesses,
+  };
+}
+
+/** `PUT /rounds/current/guesses` — docs/04 §4.
+ *
+ *  `assignable_count` is `S − 1`: every card the caller could be asked about. Both counts are
+ *  about the caller's own sheet, so neither says anything about whether anyone else has
+ *  guessed — and there is no field here that could. */
+export interface GuessSheetDTO {
+  assignments: GuessDTO[];
+  assigned_count: number;
+  assignable_count: number;
+}
+
+export function guessSheetDTO(assignments: GuessDTO[], assignableCount: number): GuessSheetDTO {
+  return {
+    assignments,
+    assigned_count: assignments.length,
+    assignable_count: assignableCount,
+  };
+}
+
 // ─── shared field helpers ────────────────────────────────────────────────────
 
 /** Every timestamp that reaches a client goes through here, so the wire format is one format

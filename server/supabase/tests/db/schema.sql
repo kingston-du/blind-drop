@@ -1,7 +1,7 @@
 -- schema.sql — tasks/E01-01. Every table, column type, and index in docs/03 §2 exists.
 begin;
 set search_path = public, extensions, tests;
-select plan(131);
+select plan(132);
 
 -- ─── extensions (docs/03 §2, 0001) ───────────────────────────────────────────
 select has_extension('pgcrypto', 'pgcrypto is installed (gen_random_uuid)');
@@ -129,13 +129,29 @@ from unnest(array['track_key','isrc','apple_music_id','apple_music_url','spotify
 select col_is_pk('public','track_links','track_key','track_key is the pk (docs/06 §3)');
 select has_index('public','track_links','track_links_needs_resolve', 'track_links track_links_needs_resolve');
 
--- ─── ADR-004: no score columns anywhere ──────────────────────────────────────
+-- ─── ADR-004: no score columns on any table ──────────────────────────────────
+-- Scores are derived, never stored (CLAUDE.md §2.8). Since E05-03 the words do appear in the
+-- schema — on the `round_scores` and `standings` *views*, which is the whole point of them —
+-- so this is scoped to base tables. A view computes on read and cannot disagree with the rows
+-- underneath it; a column can, and that is the failure ADR-004 exists to prevent.
 select is_empty($$
-  select table_name || '.' || column_name from information_schema.columns
-  where table_schema = 'public'
-    and (column_name ~ '(readability|ear|score)' )
-    and table_name <> 'rounds'
-$$, 'ADR-004: no stored score columns — scores are derived on read');
+  select c.table_name || '.' || c.column_name
+    from information_schema.columns c
+    join information_schema.tables t
+      on t.table_schema = c.table_schema and t.table_name = c.table_name
+   where c.table_schema = 'public'
+     and t.table_type = 'BASE TABLE'
+     and c.column_name ~ '(readability|ear|score)'
+     and c.table_name <> 'rounds'
+$$, 'ADR-004: no stored score columns on any table — scores are derived on read');
+
+-- And the corollary, which is what makes the narrowing above safe: the four scoring views
+-- exist, so "no score columns" cannot be satisfied by having deleted them.
+select is_empty($$
+  select v
+    from unnest(array['round_submitter_counts','guess_results','round_scores','standings']) v
+   where to_regclass('public.' || v) is null
+$$, 'the four E05-03 scoring views exist');
 
 select * from finish();
 rollback;
