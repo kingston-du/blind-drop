@@ -16,7 +16,7 @@
 // In fixture mode it substitutes the *hop*, not the code — see `fixtures.ts`.
 
 import { UpstreamError } from "./errors.ts";
-import { fixtureUpstream, fixturesEnabled } from "./fixtures.ts";
+import { fixturesEnabled, fixtureUpstream } from "./fixtures.ts";
 
 /** The complete set of hosts this server may talk to. Not a prefix or suffix match:
  *  `new URL(u).hostname` must equal one of these, so `api.spotify.com.evil.test`,

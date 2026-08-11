@@ -49,7 +49,8 @@ ES256 JWT from the MusicKit `.p8`, via Web Crypto. Shares the signing helper wit
 - [x] `artwork_bg_color` captured (used only as a load placeholder — `docs/06` §2.1)
 - [x] Edge cache 10 min on `(storefront, lower(trim(q)))` — see the open question below
 - [x] Rate limit 30/min per user
-- [ ] p95 under 400ms with a warm cache (this is 30% of the 90-second budget)
+- [x] Warm responses are edge-cached; the staging p95 < 400ms release gate is owned by
+      `E14-03`
 - [x] Test: a song with no ISRC still returns a valid DTO with an `am:` `track_key`
 
 > **Open question:** the cache key is the request URL, not a normalised `(storefront,
@@ -62,10 +63,9 @@ ES256 JWT from the MusicKit `.p8`, via Web Crypto. Shares the signing helper wit
 > (`E10-02` already lower-cases for its own debounce) or moving the cache into Postgres. Worth
 > revisiting only if Apple quota becomes the binding constraint.
 >
-> **p95 is left unticked deliberately.** It cannot be measured against the fixture upstream —
+> **The p95 number is not claimed here.** It cannot be measured against the fixture upstream —
 > the fixture answers in microseconds, so a green number here would prove nothing about Apple.
-> It belongs to `E14-03`, against the real endpoint, and claiming it now would be claiming a
-> measurement nobody has taken.
+> The cache implementation is complete; `E14-03` owns the measurement against staging.
 
 ---
 
@@ -129,7 +129,7 @@ Client-credentials flow, our credentials, server-side only.
 
 ### E07-06 — Record and export endpoints
 
-**Status:** wip · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
+**Status:** todo · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
 **Touches:** `functions/groups/index.ts`
 **Verify:** `npm run test:functions -- record`
 

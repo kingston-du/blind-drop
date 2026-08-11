@@ -66,8 +66,8 @@ import {
   revealedRoundDTO,
   roundDTO,
   type RoundScoreRow,
-  submissionDTO,
   type SubmissionDTO,
+  submissionDTO,
 } from "../_shared/dto.ts";
 import { localDate, type RoundState, serverNow } from "../_shared/time.ts";
 import { storefrontFor } from "../_shared/music/appleMusic.ts";
@@ -237,7 +237,10 @@ interface CardRow {
  * therefore not defensive coding but a statement of what the mapping means — every card comes
  * from the stored order, and nothing else gets a number.
  */
-async function cardsInOrder(ctx: MemberCtx, round: RoundRow): Promise<{ cards: CardDTO[]; rows: Map<string, CardRow>; order: string[] }> {
+async function cardsInOrder(
+  ctx: MemberCtx,
+  round: RoundRow,
+): Promise<{ cards: CardDTO[]; rows: Map<string, CardRow>; order: string[] }> {
   const order = round.card_order ?? [];
   const { data, error } = await ctx.db
     .from("submissions")
@@ -277,7 +280,9 @@ async function profilesByIds(ctx: MemberCtx, ids: string[]): Promise<Map<string,
     .order("display_name", { ascending: true })
     .order("id", { ascending: true });
   if (error) throw dbFailure("rounds.profiles", error);
-  return new Map(data.map((p) => [p.id as string, memberDTO({ user_id: p.id, display_name: p.display_name })]));
+  return new Map(
+    data.map((p) => [p.id as string, memberDTO({ user_id: p.id, display_name: p.display_name })]),
+  );
 }
 
 /** The name pool: exactly this round's submitters, the caller included (docs/02 §3). */
@@ -296,7 +301,10 @@ async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Prom
   if (error) throw dbFailure("rounds.myGuesses", error);
 
   return data
-    .map((g) => ({ card_no: order.indexOf(g.submission_id) + 1, guessed_user_id: g.guessed_user_id }))
+    .map((g) => ({
+      card_no: order.indexOf(g.submission_id) + 1,
+      guessed_user_id: g.guessed_user_id,
+    }))
     .filter((g) => g.card_no > 0)
     .sort((a, b) => a.card_no - b.card_no);
 }
@@ -393,7 +401,9 @@ function cannotGuessReason(
   round: RoundRow,
   mySubmissionId: string | null,
 ): CannotGuessReason | null {
-  if (new Date(ctx.joinedAt).getTime() >= new Date(round.reveals_at).getTime()) return "joined_late";
+  if (new Date(ctx.joinedAt).getTime() >= new Date(round.reveals_at).getTime()) {
+    return "joined_late";
+  }
   if (!mySubmissionId) return "not_a_submitter";
   return null;
 }
@@ -428,7 +438,10 @@ serveFunction("rounds", {
         myCardNo: mySubmissionId === null ? null : order.indexOf(mySubmissionId) + 1,
         cannotGuessReason: cannotGuessReason(ctx, round, mySubmissionId),
         cards,
-        namePool: await namePool(ctx, order.map((id) => rows.get(id)?.user_id).filter((id): id is string => !!id)),
+        namePool: await namePool(
+          ctx,
+          order.map((id) => rows.get(id)?.user_id).filter((id): id is string => !!id),
+        ),
         myGuesses: await myGuesses(ctx, round, order),
       }),
     );
@@ -467,7 +480,10 @@ serveFunction("rounds", {
     const mineBySubmission = new Map<string, GuessResultRow>();
     for (const result of results) {
       if (result.is_correct) {
-        correctBySubmission.set(result.submission_id, (correctBySubmission.get(result.submission_id) ?? 0) + 1);
+        correctBySubmission.set(
+          result.submission_id,
+          (correctBySubmission.get(result.submission_id) ?? 0) + 1,
+        );
       }
       if (result.guesser_id === ctx.userId) mineBySubmission.set(result.submission_id, result);
     }

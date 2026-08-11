@@ -76,7 +76,9 @@ export async function developerToken(now: Date = new Date()): Promise<string> {
   if (cached && issuedAt < cached.staleAt) return cached.jwt;
 
   const header = base64url(
-    new TextEncoder().encode(JSON.stringify({ alg: "ES256", kid: secret("APPLE_MUSIC_KEY_ID"), typ: "JWT" })),
+    new TextEncoder().encode(
+      JSON.stringify({ alg: "ES256", kid: secret("APPLE_MUSIC_KEY_ID"), typ: "JWT" }),
+    ),
   );
   const claims = base64url(
     new TextEncoder().encode(
@@ -172,7 +174,9 @@ export interface AppleSong {
 export function trackFromAppleSong(song: AppleSong): TrackDTO {
   const a = song.attributes ?? {};
   const isrc = normaliseIsrc(a.isrc);
-  if (!isrc) console.log(`apple song ${song.id} has no ISRC; keying as am: and unresolvable on Spotify`);
+  if (!isrc) {
+    console.log(`apple song ${song.id} has no ISRC; keying as am: and unresolvable on Spotify`);
+  }
 
   return {
     track_key: trackKey(isrc, song.id),
@@ -204,7 +208,11 @@ async function catalog<T>(path: string, budgetMs = CATALOG_BUDGET_MS): Promise<T
   });
 }
 
-export async function searchSongs(storefront: string, term: string, limit: number): Promise<TrackDTO[]> {
+export async function searchSongs(
+  storefront: string,
+  term: string,
+  limit: number,
+): Promise<TrackDTO[]> {
   const query = new URLSearchParams({ term, types: "songs", limit: String(limit) });
   const body = await catalog<{ results?: { songs?: { data?: AppleSong[] } } }>(
     `/v1/catalog/${storefront}/search?${query}`,

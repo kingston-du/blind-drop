@@ -7,6 +7,7 @@
 // and both are cheap to remove at the door.
 
 // C0 and C1 control characters, including newline and tab.
+// deno-lint-ignore no-control-regex -- matching control characters is the sanitiser's purpose.
 const CONTROL = /[\u0000-\u001F\u007F-\u009F]/gu;
 
 // Invisibles and bidirectional overrides:

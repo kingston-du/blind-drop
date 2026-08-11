@@ -93,7 +93,9 @@ Deno.test("the developer token is an ES256 JWT that verifies against the key", a
     ["verify"],
   );
   const raw = Uint8Array.from(
-    atob(signature.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - signature.length % 4) % 4)),
+    atob(
+      signature.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - signature.length % 4) % 4),
+    ),
     (c) => c.charCodeAt(0),
   );
   assert(
@@ -111,7 +113,11 @@ Deno.test("the developer token is cached, and regenerated at 80% of its lifetime
   resetDeveloperToken();
   const at = new Date("2026-08-11T00:00:00Z");
   const first = await developerToken(at);
-  assertEquals(await developerToken(new Date(at.getTime() + 60_000)), first, "re-signed within its life");
+  assertEquals(
+    await developerToken(new Date(at.getTime() + 60_000)),
+    first,
+    "re-signed within its life",
+  );
 
   // 80% of 180 days is 144 days. A second past that, a new token.
   const stale = new Date(at.getTime() + (0.8 * 15_552_000 * 1000) + 1_000);
@@ -121,7 +127,12 @@ Deno.test("the developer token is cached, and regenerated at 80% of its lifetime
 
 Deno.test("an unknown storefront falls back to us rather than erroring", () => {
   const of = (value?: string) =>
-    storefrontFor(new Request("https://x.test", value === undefined ? {} : { headers: { "x-storefront": value } }));
+    storefrontFor(
+      new Request(
+        "https://x.test",
+        value === undefined ? {} : { headers: { "x-storefront": value } },
+      ),
+    );
 
   assertEquals(of("gb"), "gb");
   assertEquals(of("GB"), "gb", "the header is case-insensitive");
@@ -356,7 +367,10 @@ Deno.test("resolve never matches on title or artist", () => {
   // where an identifier belongs fails validation, which is the only outcome available.
   const err = assertThrows(() => targetFromInput({ isrc: "Ribs" }), ApiError);
   assertEquals((err as InstanceType<typeof ApiError>).detail.field, "isrc");
-  assertEquals(assertThrows(() => targetFromInput({ apple_music_id: "Ribs" }), ApiError) instanceof ApiError, true);
+  assertEquals(
+    assertThrows(() => targetFromInput({ apple_music_id: "Ribs" }), ApiError) instanceof ApiError,
+    true,
+  );
 });
 
 // ─── E07-02 · search ─────────────────────────────────────────────────────────

@@ -219,7 +219,11 @@ serveFunction("groups", {
 
       if (!error) {
         const group = data as GroupRow;
-        return ok(groupDTO(group, true, [memberDTO({ user_id: ctx.userId, display_name: ctx.displayName })]));
+        return ok(
+          groupDTO(group, true, [
+            memberDTO({ user_id: ctx.userId, display_name: ctx.displayName }),
+          ]),
+        );
       }
       if (error.code === ALREADY_IN_GROUP) throw new ApiError("ALREADY_IN_GROUP");
       if (!isUniqueViolation(error)) throw dbFailure("groups.create", error);
@@ -237,7 +241,12 @@ serveFunction("groups", {
     // the same. Charging only for failures would make the quota itself the oracle the
     // identical `NOT_FOUND` below exists to deny: an attacker whose counter never moved would
     // have learned that the code was real (docs/14 §8).
-    await enforceRateLimit(ctx.db, `join:u:${ctx.userId}`, JOIN_LIMIT_PER_USER, ONE_HOUR_IN_SECONDS);
+    await enforceRateLimit(
+      ctx.db,
+      `join:u:${ctx.userId}`,
+      JOIN_LIMIT_PER_USER,
+      ONE_HOUR_IN_SECONDS,
+    );
     await enforceRateLimit(
       ctx.db,
       await ipBucket("join", clientIp(req)),
@@ -362,7 +371,9 @@ serveFunction("groups", {
         a.member.user_id.localeCompare(b.member.user_id)
       );
 
-    const bestEar = ranked(earRows.map((entry) => ({ ...entry, ear_all_time: entry.row.ear_all_time! })))
+    const bestEar = ranked(
+      earRows.map((entry) => ({ ...entry, ear_all_time: entry.row.ear_all_time! })),
+    )
       .map(({ rank, row }) =>
         earStandingDTO(rank, row.member, {
           ear_all_time: row.ear_all_time,

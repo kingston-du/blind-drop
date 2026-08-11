@@ -3,7 +3,7 @@
 // Black box: every assertion here is made against the bytes a device would receive.
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { call, isRfc3339Z, keysOf, newGroupOwner, newUser, newNamedUser } from "./_harness.ts";
+import { call, isRfc3339Z, keysOf, newGroupOwner, newNamedUser, newUser } from "./_harness.ts";
 
 const me = (path: string, opts: Parameters<typeof call>[2] = {}) => call("me", path, opts);
 
@@ -53,7 +53,11 @@ Deno.test("PUT /me trims, collapses whitespace, and enforces 1–24 characters",
   }
 
   // Twenty-four characters is twenty-four characters, emoji included.
-  const long = await me("/", { method: "PUT", token: user.token, body: { display_name: "🎧".repeat(24) } });
+  const long = await me("/", {
+    method: "PUT",
+    token: user.token,
+    body: { display_name: "🎧".repeat(24) },
+  });
   assertEquals(long.status, 200);
   assertEquals(long.body.data.display_name, "🎧".repeat(24));
 });
@@ -62,16 +66,16 @@ Deno.test("PUT /me strips control, zero-width and RTL-override characters — do
   const user = await newUser();
 
   const cases: [string, string][] = [
-    ["Ana\u202EBen", "AnaBen"],   // right-to-left override: would reorder the guess sheet
-    ["Ana\u200BBen", "AnaBen"],   // zero width space: two visually identical names
+    ["Ana\u202EBen", "AnaBen"], // right-to-left override: would reorder the guess sheet
+    ["Ana\u200BBen", "AnaBen"], // zero width space: two visually identical names
     ["Ana\u200D\u2066Ben", "AnaBen"], // joiner and isolate
-    ["An\u0000a", "Ana"],         // NUL
+    ["An\u0000a", "Ana"], // NUL
     // docs/14 §7 says newlines are *stripped*, not turned into spaces: the name is one
     // line by construction, and gluing the words is the honest result of pasting two.
     ["Ana\nBen", "AnaBen"],
     ["Ana\tBen", "AnaBen"],
-    ["Ana\u00ADBen", "AnaBen"],   // soft hyphen
-    ["\uFEFFAna", "Ana"],         // byte order mark
+    ["Ana\u00ADBen", "AnaBen"], // soft hyphen
+    ["\uFEFFAna", "Ana"], // byte order mark
   ];
 
   for (const [sent, stored] of cases) {
@@ -105,7 +109,11 @@ Deno.test("PUT /me rejects an unknown key rather than ignoring it", async () => 
 
 Deno.test("PUT /me is a change, not just a create", async () => {
   const user = await newNamedUser("Ana");
-  const renamed = await me("/", { method: "PUT", token: user.token, body: { display_name: "Ana L" } });
+  const renamed = await me("/", {
+    method: "PUT",
+    token: user.token,
+    body: { display_name: "Ana L" },
+  });
   assertEquals(renamed.body.data.display_name, "Ana L");
   assertEquals((await me("/", { token: user.token })).body.data.display_name, "Ana L");
 });

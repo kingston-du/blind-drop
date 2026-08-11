@@ -13,14 +13,15 @@ game with a music substrate. Check every implementation decision against that se
 
 ## Status
 
-Foundations and identity are in. `E00` (repo/tooling), `E01` (database), and `E02`
-(profiles/groups/account lifecycle) are done; round lifecycle work is underway in `E03`.
+The backend game loop through reveal and scoring is in, along with the Apple Music catalog
+proxy and Spotify bridge. Push delivery (`E06`) and Record/export endpoints (`E07-06`) are
+the remaining backend epics; iOS foundation work is underway in `E08`.
 
 | Area | State |
 |---|---|
 | Spec | Complete — `docs/` |
 | Task board | `tasks/BOARD.md` |
-| Backend | Authenticated profile/group endpoints and reveal/void scheduling are covered by pgTAP and function tests. |
+| Backend | Auth, groups, lifecycle, submissions, reveal, guessing, scoring, and music bridging are covered by pgTAP and function tests. |
 | iOS client | Project foundation is underway in `E08`; palette tokens and contrast tests are in. |
 
 ---
@@ -157,8 +158,8 @@ npm run audit:leak           # the AC-1 group — see docs/15 §1
 npm test                     # all three
 ```
 
-`npm run audit:leak` is the most important command in this repo. It is currently a stub that
-says so out loud; it becomes real in E04-03/E04-04 and gates release in E14-01.
+`npm run audit:leak` is the most important command in this repo. It runs the golden payload,
+byte-length, timing-correlation, and PostgREST-lockdown suites and gates release in E14-01.
 
 The pgTAP suite never sleeps. Lifecycle code calls `public.now_()` rather than `now()`, and
 tests move the clock with `tests.set_test_now(…)`; the runner fails the run if `pg_sleep`

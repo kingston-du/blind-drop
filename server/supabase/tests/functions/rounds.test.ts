@@ -13,8 +13,8 @@ import {
   keysOf,
   newGroupOwner,
   newMember,
-  tickRoundsAt,
   type TestUser,
+  tickRoundsAt,
   zoneWhereLocalHourIs,
 } from "./_harness.ts";
 
@@ -242,7 +242,10 @@ Deno.test("replacing a song moves sealed_at; there is no un-submitting", async (
 
   // docs/02 §3: "Once sealed, you are in the round." There is no DELETE route, and asking for
   // one gets the same NOT_FOUND as any other path that does not exist.
-  const deleted = await call("rounds", "/current/submission", { method: "DELETE", token: user.token });
+  const deleted = await call("rounds", "/current/submission", {
+    method: "DELETE",
+    token: user.token,
+  });
   assertEquals(deleted.status, 404);
 });
 
@@ -332,7 +335,10 @@ Deno.test("submission is rate limited at 20 a minute, with a Retry-After", async
   assertEquals(blocked.status, 429);
   assertEquals(blocked.body.error.code, "RATE_LIMITED");
   const retryAfter = Number(blocked.headers.get("retry-after"));
-  assert(retryAfter > 0 && retryAfter <= 60, `Retry-After was ${blocked.headers.get("retry-after")}`);
+  assert(
+    retryAfter > 0 && retryAfter <= 60,
+    `Retry-After was ${blocked.headers.get("retry-after")}`,
+  );
 });
 
 Deno.test("the round is closed to anonymous callers and to people with no group", async () => {

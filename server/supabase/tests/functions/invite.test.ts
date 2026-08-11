@@ -5,13 +5,7 @@
 // 30 per hour per IP are. These tests assert the counters, because the counters are the control.
 
 import { assert, assertEquals, assertNotEquals } from "jsr:@std/assert@1";
-import {
-  call,
-  newGroupOwner,
-  newNamedUser,
-  randomTestIp,
-  type TestUser,
-} from "./_harness.ts";
+import { call, newGroupOwner, newNamedUser, randomTestIp, type TestUser } from "./_harness.ts";
 import {
   generateInviteCode,
   INVITE_ALPHABET,
@@ -115,7 +109,11 @@ Deno.test("a bad code and a valid-but-unusable code are byte-identical, and cost
   // an attacker could probe shape for free and learn which codes are worth spending a guess on.
   // Three attempts have been made above, so seven remain of the ten.
   for (let i = 0; i < 7; i += 1) {
-    assertEquals((await join(joiner, "K7MQ2Z", ip)).status, 404, `attempt ${i + 4} should be a 404`);
+    assertEquals(
+      (await join(joiner, "K7MQ2Z", ip)).status,
+      404,
+      `attempt ${i + 4} should be a 404`,
+    );
   }
   const eleventh = await join(joiner, "K7MQ2Z", ip);
   assertEquals(eleventh.status, 429, "the malformed attempts must have been charged too");

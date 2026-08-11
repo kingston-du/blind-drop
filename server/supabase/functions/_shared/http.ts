@@ -28,19 +28,55 @@ export type ErrorCode =
   | "INTERNAL";
 
 const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: string }> = {
-  UNAUTHENTICATED: { status: 401, message: "Sign in again to keep playing.", copyKey: "error.unauthenticated" },
+  UNAUTHENTICATED: {
+    status: 401,
+    message: "Sign in again to keep playing.",
+    copyKey: "error.unauthenticated",
+  },
   NO_PROFILE: { status: 409, message: "Pick a name first.", copyKey: "error.noprofile" },
   NO_GROUP: { status: 409, message: "You're not in a group yet.", copyKey: "error.nogroup" },
   NOT_FOUND: { status: 404, message: "That doesn't exist.", copyKey: "error.notfound" },
-  WRONG_PHASE: { status: 409, message: "That's not available right now.", copyKey: "error.wrongphase" },
-  NOT_A_SUBMITTER: { status: 403, message: "You didn't drop a song tonight.", copyKey: "error.notsubmitter" },
-  JOINED_LATE: { status: 403, message: "You joined after the reveal. You're in from tomorrow.", copyKey: "error.joinedlate" },
-  ROUND_VOIDED: { status: 409, message: "Not enough drops tonight. Nothing revealed.", copyKey: "error.roundvoided" },
-  INVALID_INPUT: { status: 400, message: "Check that and try again.", copyKey: "error.invalidinput" },
-  ALREADY_IN_GROUP: { status: 409, message: "You're already in a group. Leave it first.", copyKey: "error.alreadyingroup" },
-  NOT_ADMIN: { status: 403, message: "Only the group's admin can change that.", copyKey: "error.notadmin" },
+  WRONG_PHASE: {
+    status: 409,
+    message: "That's not available right now.",
+    copyKey: "error.wrongphase",
+  },
+  NOT_A_SUBMITTER: {
+    status: 403,
+    message: "You didn't drop a song tonight.",
+    copyKey: "error.notsubmitter",
+  },
+  JOINED_LATE: {
+    status: 403,
+    message: "You joined after the reveal. You're in from tomorrow.",
+    copyKey: "error.joinedlate",
+  },
+  ROUND_VOIDED: {
+    status: 409,
+    message: "Not enough drops tonight. Nothing revealed.",
+    copyKey: "error.roundvoided",
+  },
+  INVALID_INPUT: {
+    status: 400,
+    message: "Check that and try again.",
+    copyKey: "error.invalidinput",
+  },
+  ALREADY_IN_GROUP: {
+    status: 409,
+    message: "You're already in a group. Leave it first.",
+    copyKey: "error.alreadyingroup",
+  },
+  NOT_ADMIN: {
+    status: 403,
+    message: "Only the group's admin can change that.",
+    copyKey: "error.notadmin",
+  },
   RATE_LIMITED: { status: 429, message: "Slow down a second.", copyKey: "error.ratelimited" },
-  UPSTREAM_UNAVAILABLE: { status: 502, message: "The music catalog isn't answering. Try again in a minute.", copyKey: "error.upstream" },
+  UPSTREAM_UNAVAILABLE: {
+    status: 502,
+    message: "The music catalog isn't answering. Try again in a minute.",
+    copyKey: "error.upstream",
+  },
   INTERNAL: { status: 500, message: "That didn't work. Try again.", copyKey: "error.generic" },
 };
 
@@ -235,7 +271,9 @@ function invalid(field: string): never {
   throw new ApiError("INVALID_INPUT", { field });
 }
 
-export function str(opts: { min?: number; max?: number; pattern?: RegExp } = {}): Validator<string> {
+export function str(
+  opts: { min?: number; max?: number; pattern?: RegExp } = {},
+): Validator<string> {
   return {
     optional: false,
     parse(value, field) {
@@ -305,7 +343,9 @@ export async function parseBody<S extends Schema>(req: Request, schema: S): Prom
   const out: Record<string, unknown> = {};
   for (const [key, validator] of Object.entries(schema)) {
     const value = body[key];
-    if (value === undefined && !validator.optional) throw new ApiError("INVALID_INPUT", { field: key });
+    if (value === undefined && !validator.optional) {
+      throw new ApiError("INVALID_INPUT", { field: key });
+    }
     out[key] = validator.parse(value, key);
   }
   return out as Parsed<S>;

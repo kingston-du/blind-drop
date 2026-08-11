@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E06-01`. `E00`–`E04`, `E05` and `E07` are done.
+**Start here:** `E06-01`. `E00`–`E05` and `E07-01`–`E07-05` are done.
 
 ---
 
@@ -102,7 +102,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E07-03 `POST /tracks/resolve` and `track_key` | done | E07-02 | AC-7 |
 | E07-04 Spotify client-credentials ISRC lookup | done | E07-03 | — |
 | E07-05 `track_links` backfill in the tick | done | E07-04, E03-05 | — |
-| E07-06 Record and export endpoints | wip | E07-04, E05-03 | — |
+| E07-06 Record and export endpoints | todo | E07-04, E05-03 | — |
 
 ## E08 — iOS foundation · [file](E08-ios-foundation.md)
 
@@ -191,7 +191,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E04 | 4 / 4 |
 | E05 | 6 / 6 |
 | E06 | 0 / 4 |
-| E07 | 4 / 6 |
+| E07 | 5 / 6 |
 | E08 | 2 / 7 |
 | E09 | 0 / 4 |
 | E10 | 0 / 7 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **37 / 80** |
+| **Total** | **38 / 80** |

@@ -77,13 +77,22 @@ Deno.test("search takes the storefront from the header and shrugs at a bad one",
       token: user.token,
       headers: { "x-storefront": storefront },
     });
-    assertEquals(res.status, 200, `storefront ${JSON.stringify(storefront)} should not fail a search`);
+    assertEquals(
+      res.status,
+      200,
+      `storefront ${JSON.stringify(storefront)} should not fail a search`,
+    );
   }
 });
 
 Deno.test("search rejects a one-character query and a silly limit", async () => {
   const user = await newNamedUser("Ana");
-  for (const [query, field] of [["/search?q=a", "q"], ["/search", "q"], ["/search?q=Ribs&limit=500", "limit"]]) {
+  for (
+    const [query, field] of [["/search?q=a", "q"], ["/search", "q"], [
+      "/search?q=Ribs&limit=500",
+      "limit",
+    ]]
+  ) {
     const res = await call("tracks", query, { token: user.token });
     assertEquals(res.status, 400, query);
     assertEquals(res.body.error.code, "INVALID_INPUT");

@@ -59,7 +59,11 @@ export async function linkTrack(
   // the first moment rather than after three futile lookups (docs/06 §5). A title/artist
   // search returns the wrong recording often enough to be worse than nothing.
   if (!track.isrc) {
-    await writeLink(db, track, { unresolvable: true, attempts: cached?.resolve_attempts ?? 0, now });
+    await writeLink(db, track, {
+      unresolvable: true,
+      attempts: cached?.resolve_attempts ?? 0,
+      now,
+    });
     return track;
   }
 
@@ -217,7 +221,9 @@ async function writeLink(
     },
     { onConflict: "track_key" },
   );
-  if (error) console.error(`track_links write ${track.track_key}: ${error.code ?? "?"} ${error.message}`);
+  if (error) {
+    console.error(`track_links write ${track.track_key}: ${error.code ?? "?"} ${error.message}`);
+  }
 }
 
 /**

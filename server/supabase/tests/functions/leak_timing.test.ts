@@ -88,7 +88,9 @@ Deno.test({
           token: member.token,
           // Distinct tracks, so a leak would have distinct things to leak and a join would
           // have real work to do.
-          body: { apple_music_id: ["1440765580", "1452874255", "1440830827", "1442571948"][others % 4] },
+          body: {
+            apple_music_id: ["1440765580", "1452874255", "1440830827", "1442571948"][others % 4],
+          },
         });
         others += 1;
       }
@@ -108,7 +110,9 @@ Deno.test({
     const r = pearson(xs, ys);
     const summary = COUNTS.map((c) => `${c}:${median(byCount[c]).toFixed(1)}ms`).join("  ");
     console.log(`  submitters → median latency   ${summary}`);
-    console.log(`  Pearson r = ${r.toFixed(4)} over ${xs.length} samples (threshold ±${THRESHOLD})`);
+    console.log(
+      `  Pearson r = ${r.toFixed(4)} over ${xs.length} samples (threshold ±${THRESHOLD})`,
+    );
 
     assert(
       Math.abs(r) < THRESHOLD,

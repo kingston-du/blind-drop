@@ -88,9 +88,15 @@ Deno.test("POST /groups/join is case-insensitive and whitespace-tolerant", async
   const { group } = await newGroupOwner("Ana");
   const code = String(group.invite_code);
 
-  for (const typed of [code, code.toLowerCase(), ` ${code} `, `${code.slice(0, 3)} ${code.slice(3)}`]) {
+  for (
+    const typed of [code, code.toLowerCase(), ` ${code} `, `${code.slice(0, 3)} ${code.slice(3)}`]
+  ) {
     const joiner = await newNamedUser("Ben");
-    const res = await groups("/join", { method: "POST", token: joiner.token, body: { invite_code: typed } });
+    const res = await groups("/join", {
+      method: "POST",
+      token: joiner.token,
+      body: { invite_code: typed },
+    });
     assertEquals(res.status, 200, `typed ${JSON.stringify(typed)}`);
     assertEquals(res.body.data.id, group.id);
     assertEquals(res.body.data.is_admin, false);
@@ -101,9 +107,21 @@ Deno.test("a bad code and a valid-but-unusable code are the same NOT_FOUND", asy
   const { group } = await newGroupOwner("Ana");
 
   const joiner = await newNamedUser("Ben");
-  const unknown = await groups("/join", { method: "POST", token: joiner.token, body: { invite_code: "K7MQ2Z" } });
-  const malformed = await groups("/join", { method: "POST", token: joiner.token, body: { invite_code: "I1LO0!" } });
-  const tooShort = await groups("/join", { method: "POST", token: joiner.token, body: { invite_code: "ABC" } });
+  const unknown = await groups("/join", {
+    method: "POST",
+    token: joiner.token,
+    body: { invite_code: "K7MQ2Z" },
+  });
+  const malformed = await groups("/join", {
+    method: "POST",
+    token: joiner.token,
+    body: { invite_code: "I1LO0!" },
+  });
+  const tooShort = await groups("/join", {
+    method: "POST",
+    token: joiner.token,
+    body: { invite_code: "ABC" },
+  });
 
   for (const res of [unknown, malformed, tooShort]) {
     assertEquals(res.status, 404);
@@ -111,7 +129,11 @@ Deno.test("a bad code and a valid-but-unusable code are the same NOT_FOUND", asy
   }
 
   // Someone already in a group asking about a real code learns nothing about that group.
-  await groups("/join", { method: "POST", token: joiner.token, body: { invite_code: group.invite_code } });
+  await groups("/join", {
+    method: "POST",
+    token: joiner.token,
+    body: { invite_code: group.invite_code },
+  });
   const second = await groups("/join", {
     method: "POST",
     token: joiner.token,
@@ -126,7 +148,11 @@ Deno.test("a bad code and a valid-but-unusable code are the same NOT_FOUND", asy
 Deno.test("GET /groups/current carries user_id and display_name only — docs/14 §3", async () => {
   const { user: owner, group } = await newGroupOwner("Ana");
   const ben = await newNamedUser("Ben");
-  await groups("/join", { method: "POST", token: ben.token, body: { invite_code: group.invite_code } });
+  await groups("/join", {
+    method: "POST",
+    token: ben.token,
+    body: { invite_code: group.invite_code },
+  });
 
   const res = await groups("/current", { token: owner.token });
   assertEquals(res.status, 200);
@@ -137,7 +163,10 @@ Deno.test("GET /groups/current carries user_id and display_name only — docs/14
     // is an inference channel — and nothing else about participation belongs here either.
     assertEquals(keysOf(member), ["display_name", "user_id"]);
   }
-  assertEquals(res.body.data.members.map((m: { display_name: string }) => m.display_name), ["Ana", "Ben"]);
+  assertEquals(res.body.data.members.map((m: { display_name: string }) => m.display_name), [
+    "Ana",
+    "Ben",
+  ]);
 
   // The joiner sees the same group, and is not its admin.
   const fromBen = await groups("/current", { token: ben.token });
@@ -180,9 +209,17 @@ Deno.test("a member of one group sees nothing of another — there is no id to t
 Deno.test("PATCH /groups/current is admin only", async () => {
   const { group } = await newGroupOwner("Ana");
   const ben = await newNamedUser("Ben");
-  await groups("/join", { method: "POST", token: ben.token, body: { invite_code: group.invite_code } });
+  await groups("/join", {
+    method: "POST",
+    token: ben.token,
+    body: { invite_code: group.invite_code },
+  });
 
-  const res = await groups("/current", { method: "PATCH", token: ben.token, body: { name: "Ben's Cove" } });
+  const res = await groups("/current", {
+    method: "PATCH",
+    token: ben.token,
+    body: { name: "Ben's Cove" },
+  });
   assertEquals(res.status, 403);
   assertEquals(res.body.error.code, "NOT_ADMIN");
 });
@@ -190,13 +227,21 @@ Deno.test("PATCH /groups/current is admin only", async () => {
 Deno.test("PATCH /groups/current changes name and reveal_hour, and echoes effective_from", async () => {
   const { user, group } = await newGroupOwner("Ana");
 
-  const renamed = await groups("/current", { method: "PATCH", token: user.token, body: { name: "  The Cove II " } });
+  const renamed = await groups("/current", {
+    method: "PATCH",
+    token: user.token,
+    body: { name: "  The Cove II " },
+  });
   assertEquals(renamed.status, 200);
   assertEquals(renamed.body.data.name, "The Cove II");
   // Renaming takes effect at once, so there is no date to wait for.
   assertEquals(renamed.body.data.effective_from, null);
 
-  const rehoured = await groups("/current", { method: "PATCH", token: user.token, body: { reveal_hour: 18 } });
+  const rehoured = await groups("/current", {
+    method: "PATCH",
+    token: user.token,
+    body: { reveal_hour: 18 },
+  });
   assertEquals(rehoured.status, 200);
   assertEquals(keysOf(rehoured.body.data), [...GROUP_KEYS, "effective_from"].sort());
   assertEquals(rehoured.body.data.reveal_hour, 18);
@@ -220,7 +265,10 @@ Deno.test("PATCH /groups/current refuses to change the timezone", async () => {
   });
   assertEquals(res.status, 400);
   assertEquals(res.body.error.details, { field: "timezone" });
-  assertEquals((await groups("/current", { token: user.token })).body.data.timezone, "America/New_York");
+  assertEquals(
+    (await groups("/current", { token: user.token })).body.data.timezone,
+    "America/New_York",
+  );
 });
 
 Deno.test("PATCH /groups/current with nothing to change is INVALID_INPUT", async () => {
@@ -235,7 +283,11 @@ Deno.test("PATCH /groups/current with nothing to change is INVALID_INPUT", async
 Deno.test("POST /groups/current/leave is a 204, and the live token then gets NO_GROUP", async () => {
   const { user, group } = await newGroupOwner("Ana");
   const ben = await newNamedUser("Ben");
-  await groups("/join", { method: "POST", token: ben.token, body: { invite_code: group.invite_code } });
+  await groups("/join", {
+    method: "POST",
+    token: ben.token,
+    body: { invite_code: group.invite_code },
+  });
 
   const left = await groups("/current/leave", { method: "POST", token: ben.token });
   assertEquals(left.status, 204);
@@ -256,10 +308,18 @@ Deno.test("leaving frees the one-group rule, and rejoining is allowed", async ()
   const { group } = await newGroupOwner("Ana");
   const ben = await newNamedUser("Ben");
 
-  await groups("/join", { method: "POST", token: ben.token, body: { invite_code: group.invite_code } });
+  await groups("/join", {
+    method: "POST",
+    token: ben.token,
+    body: { invite_code: group.invite_code },
+  });
   await groups("/current/leave", { method: "POST", token: ben.token });
 
-  const rejoined = await groups("/join", { method: "POST", token: ben.token, body: { invite_code: group.invite_code } });
+  const rejoined = await groups("/join", {
+    method: "POST",
+    token: ben.token,
+    body: { invite_code: group.invite_code },
+  });
   assertEquals(rejoined.status, 200);
   assertEquals(rejoined.body.data.id, group.id);
 });

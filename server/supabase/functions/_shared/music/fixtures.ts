@@ -76,12 +76,44 @@ function song(
 const CATALOGUE: readonly FixtureSong[] = [
   song("1440818664", "Ribs", "Lorde", "Pure Heroine", 249000, "USUM71311296", "1d2b3a"),
   song("1440765580", "Nights", "Frank Ocean", "Blonde", 307000, "USQX91600321", "2b2b2b"),
-  song("1452874255", "Redbone", "Childish Gambino", "“Awaken, My Love!”", 326000, "USQX91601480", "6b3a1f"),
-  song("1440830827", "Motion Sickness", "Phoebe Bridgers", "Stranger in the Alps", 239000, "USDW11700831", "3d4a52"),
-  song("1442571948", "Sunflower", "Post Malone & Swae Lee", "Spider-Man: Into the Spider-Verse", 158000, "USUM71812409", "c46a2a"),
+  song(
+    "1452874255",
+    "Redbone",
+    "Childish Gambino",
+    "“Awaken, My Love!”",
+    326000,
+    "USQX91601480",
+    "6b3a1f",
+  ),
+  song(
+    "1440830827",
+    "Motion Sickness",
+    "Phoebe Bridgers",
+    "Stranger in the Alps",
+    239000,
+    "USDW11700831",
+    "3d4a52",
+  ),
+  song(
+    "1442571948",
+    "Sunflower",
+    "Post Malone & Swae Lee",
+    "Spider-Man: Into the Spider-Verse",
+    158000,
+    "USUM71812409",
+    "c46a2a",
+  ),
   song("1656689279", "Kill Bill", "SZA", "SOS", 153000, "USRC12204245", "1a1a2e"),
   song("1468055107", "Bags", "Clairo", "Immunity", 258000, "USQX91901234", "93a7c4"),
-  song("1440908896", "Time to Pretend", "MGMT", "Oracular Spectacular", 261000, "GBAYE0601498", "4a2b6b"),
+  song(
+    "1440908896",
+    "Time to Pretend",
+    "MGMT",
+    "Oracular Spectacular",
+    261000,
+    "GBAYE0601498",
+    "4a2b6b",
+  ),
 
   // A second Apple catalogue id for the *same recording* — the single release beside the
   // album one. docs/06 §3: both must produce `isrc:USUM71311296`, or the duplicate-track
@@ -90,7 +122,15 @@ const CATALOGUE: readonly FixtureSong[] = [
 
   // A different *recording* of the same song. Different ISRC, therefore a different key, and
   // the duplicate rule correctly does not fire. docs/06 §3 says this is right.
-  song("9000000004", "Ribs (Live)", "Lorde", "Live at Vector Arena", 271000, "USUM71311297", "1d2b3a"),
+  song(
+    "9000000004",
+    "Ribs (Live)",
+    "Lorde",
+    "Live at Vector Arena",
+    271000,
+    "USUM71311297",
+    "1d2b3a",
+  ),
 
   // No ISRC at all: keys as `am:9000000001` and is `unresolvable` on Spotify from the start,
   // because a title/artist search returns the wrong recording often enough to be worse than
@@ -99,18 +139,39 @@ const CATALOGUE: readonly FixtureSong[] = [
 
   // Has an ISRC that Spotify's catalogue does not carry — a regional exclusive. Submitting it
   // must succeed with `spotify_id: null` (docs/06 §7).
-  song("9000000002", "Regional Exclusive", "Someone Local", "Only Here", 184000, "GBXXX0000001", "334455"),
+  song(
+    "9000000002",
+    "Regional Exclusive",
+    "Someone Local",
+    "Only Here",
+    184000,
+    "GBXXX0000001",
+    "334455",
+  ),
 
   // Spotify answers for this one, but slowly. The 700ms budget must cut it off and the
   // submission must still succeed (docs/06 §5, E07-04).
   song("9000000003", "Slow Lookup", "The Timeouts", "Eventually", 200000, "GBXXX0000002", "445566"),
 
   // No preview. docs/06 §7: the card renders with no play control, and this is not an error.
-  song("9000000005", "No Preview Available", "Silent Partner", "Rights Issues", 195000, "GBXXX0000004", "667788", { preview: false }),
+  song(
+    "9000000005",
+    "No Preview Available",
+    "Silent Partner",
+    "Rights Issues",
+    195000,
+    "GBXXX0000004",
+    "667788",
+    { preview: false },
+  ),
 ];
 
 /** ISRCs Spotify has no track for. Everything else in the catalogue resolves. */
-const SPOTIFY_MISSES: ReadonlySet<string> = new Set(["GBXXX0000001", "GBXXX0000003", "GBXXX0000004"]);
+const SPOTIFY_MISSES: ReadonlySet<string> = new Set([
+  "GBXXX0000001",
+  "GBXXX0000003",
+  "GBXXX0000004",
+]);
 /** ISRCs whose Spotify lookup takes longer than any budget this app allows. */
 const SPOTIFY_SLOW: ReadonlySet<string> = new Set(["GBXXX0000002"]);
 

@@ -21,9 +21,9 @@ import {
 } from "../../functions/_shared/http.ts";
 import {
   enforceRateLimit,
+  type MemberCtx,
   requireAdmin,
   requireJoinedBefore,
-  type MemberCtx,
   requireMembership,
   requirePhase,
   requireProfile,
@@ -72,7 +72,9 @@ Deno.test("fail() is { server_now, error: { code, message } }", async () => {
 });
 
 Deno.test("every error code carries the status docs/04 §1 gives it", async () => {
-  const contract = await Deno.readTextFile(new URL("../../../../docs/04-API-CONTRACT.md", import.meta.url));
+  const contract = await Deno.readTextFile(
+    new URL("../../../../docs/04-API-CONTRACT.md", import.meta.url),
+  );
   let checked = 0;
   for (const code of ALL_CODES) {
     const row = contract.match(new RegExp(`^\\| \`${code}\` \\| (\\d{3}) \\|`, "m"));
@@ -84,10 +86,14 @@ Deno.test("every error code carries the status docs/04 §1 gives it", async () =
 });
 
 Deno.test("every error message is the string docs/11 gives it", async () => {
-  const deck = await Deno.readTextFile(new URL("../../../../docs/11-COPY-DECK.md", import.meta.url));
+  const deck = await Deno.readTextFile(
+    new URL("../../../../docs/11-COPY-DECK.md", import.meta.url),
+  );
   for (const code of ALL_CODES) {
     const spec = errorSpec(code);
-    const row = deck.match(new RegExp(`^\\| \`${spec.copyKey}\` \\| \`?${code}\`? \\| (.+?) \\|`, "m"));
+    const row = deck.match(
+      new RegExp(`^\\| \`${spec.copyKey}\` \\| \`?${code}\`? \\| (.+?) \\|`, "m"),
+    );
     assert(row, `docs/11 has no row keyed ${spec.copyKey} for ${code}`);
     assertEquals(spec.message, row[1].trim(), `${code} copy`);
   }

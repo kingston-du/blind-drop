@@ -12,7 +12,14 @@
 // surface is the same one production has.
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { ANON_KEY, API_URL, call, newGroupOwner, newMember, zoneWhereLocalHourIs } from "./_harness.ts";
+import {
+  ANON_KEY,
+  API_URL,
+  call,
+  newGroupOwner,
+  newMember,
+  zoneWhereLocalHourIs,
+} from "./_harness.ts";
 
 /** Every table in docs/03 §2. Listed by hand: a table added later and not added here is
  *  caught by the count assertion at the bottom, which reads the schema. */
@@ -72,7 +79,9 @@ Deno.test("an authenticated PostgREST select on every table returns no row", asy
 
 Deno.test("an anonymous PostgREST select is refused too", async () => {
   for (const table of TABLES) {
-    const res = await fetch(`${API_URL}/rest/v1/${table}?select=*`, { headers: { apikey: ANON_KEY } });
+    const res = await fetch(`${API_URL}/rest/v1/${table}?select=*`, {
+      headers: { apikey: ANON_KEY },
+    });
     const text = await res.text();
     if (res.ok) assertEquals(JSON.parse(text), [], table);
     else assert([401, 403, 404].includes(res.status), `${table}: ${res.status} ${text}`);
@@ -95,7 +104,12 @@ Deno.test("PostgREST will not write either", async () => {
       authorization: `Bearer ${user.token}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ round_id: crypto.randomUUID(), user_id: user.id, track_key: "x", track_meta: {} }),
+    body: JSON.stringify({
+      round_id: crypto.randomUUID(),
+      user_id: user.id,
+      track_key: "x",
+      track_meta: {},
+    }),
   });
   await res.body?.cancel();
   assert(!res.ok, `PostgREST accepted a forged submission (${res.status})`);
@@ -110,11 +124,17 @@ Deno.test("no RPC in the public schema is callable by a client", async () => {
 
   // The functions a client would most like to reach: one that creates rounds, one that moves
   // them, and the two that write submissions. All are `service_role`-only by explicit grant.
-  for (const fn of ["ensure_rounds", "tick_rounds", "upsert_submission", "patch_track_meta_spotify"]) {
+  for (
+    const fn of ["ensure_rounds", "tick_rounds", "upsert_submission", "patch_track_meta_spotify"]
+  ) {
     for (const token of [ANON_KEY, user.token]) {
       const res = await fetch(`${API_URL}/rest/v1/rpc/${fn}`, {
         method: "POST",
-        headers: { apikey: ANON_KEY, authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: {
+          apikey: ANON_KEY,
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
         body: "{}",
       });
       await res.body?.cancel();
@@ -171,7 +191,9 @@ Deno.test("there is no route that takes a resource id from the client", async ()
 
   // Real ids belonging to a real other group, in every shape a route could plausibly take.
   const foreign = [b.group.id as string, bRound.round_id as string, b.user.id];
-  const paths = foreign.flatMap((id) => [`/${id}`, `/current/${id}`, `/${id}/results`, `/${id}/submission`]);
+  const paths = foreign.flatMap((
+    id,
+  ) => [`/${id}`, `/current/${id}`, `/${id}/results`, `/${id}/submission`]);
 
   // Percent-encoded separators and a repeated function name, which are the two shapes that
   // survive the URL parser and actually reach `routePath`. A literal `/../` is *not* in this

@@ -25,8 +25,8 @@ import {
   newGroupOwner,
   newMember,
   newUser,
-  tickRoundsAt,
   type TestUser,
+  tickRoundsAt,
   zoneWhereLocalHourIs,
 } from "./_harness.ts";
 
@@ -169,7 +169,11 @@ Deno.test("golden: PUT /rounds/current/submission", async () => {
     token: user.token,
     body: { apple_music_id: "1440818664" },
   });
-  await assertGolden("submission", res.body, "PUT /rounds/current/submission — the caller's own sealed track.");
+  await assertGolden(
+    "submission",
+    res.body,
+    "PUT /rounds/current/submission — the caller's own sealed track.",
+  );
 });
 
 Deno.test("golden: GET /groups/current", async () => {
@@ -275,7 +279,9 @@ Deno.test("golden: GET /groups/current/standings", async () => {
     reveal_hour: 18,
   });
   const others: TestUser[] = [];
-  for (const name of ["Ben", "Cal"]) others.push(await newMember(group.invite_code as string, name));
+  for (const name of ["Ben", "Cal"]) {
+    others.push(await newMember(group.invite_code as string, name));
+  }
   for (const [i, member] of [user, ...others].entries()) {
     await call("rounds", "/current/submission", {
       method: "PUT",
@@ -341,7 +347,9 @@ Deno.test("a WRONG_PHASE body contains the state and nothing else", async () => 
     reveal_hour: 18,
   });
   const others: TestUser[] = [];
-  for (const name of ["Ben", "Cal"]) others.push(await newMember(group.invite_code as string, name));
+  for (const name of ["Ben", "Cal"]) {
+    others.push(await newMember(group.invite_code as string, name));
+  }
   for (const [i, member] of [user, ...others].entries()) {
     await call("rounds", "/current/submission", {
       method: "PUT",

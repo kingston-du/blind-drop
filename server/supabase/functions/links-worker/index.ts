@@ -30,8 +30,8 @@ import { serviceClient } from "../_shared/db.ts";
 import {
   BACKFILL_BATCH,
   backfillTrack,
-  type DueLink,
   dueForBackfill,
+  type DueLink,
 } from "../_shared/music/trackLinks.ts";
 
 /**

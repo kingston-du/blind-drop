@@ -39,8 +39,14 @@ const REVEALED_KEYS = [
 
 /** Eight Apple ids from the fixture catalogue, all distinct recordings. */
 const TRACKS = [
-  "1440818664", "1440765580", "1452874255", "1440830827",
-  "1442571948", "1656689279", "1468055107", "1440908896",
+  "1440818664",
+  "1440765580",
+  "1452874255",
+  "1440830827",
+  "1442571948",
+  "1656689279",
+  "1468055107",
+  "1440908896",
 ];
 
 interface Revealed {
@@ -128,9 +134,14 @@ Deno.test("no submission_id appears anywhere in a revealed payload", async () =>
 
   // Stronger: no uuid in the payload may be a submission id. The only uuids that legitimately
   // appear are user ids — in `name_pool` and `my_guesses` — so anything else is a leak.
-  const uuids = new Set(serialised.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? []);
+  const uuids = new Set(
+    serialised.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [],
+  );
   const pool = (data as Record<string, unknown>).name_pool as { user_id: string }[];
-  const allowed = new Set([...pool.map((p) => p.user_id), (data as Record<string, unknown>).round_id as string]);
+  const allowed = new Set([
+    ...pool.map((p) => p.user_id),
+    (data as Record<string, unknown>).round_id as string,
+  ]);
   for (const id of uuids) {
     assert(allowed.has(id), `an unexpected uuid ${id} is in the revealed payload`);
   }
@@ -169,7 +180,11 @@ Deno.test("the name pool is exactly this round's submitters, caller included", a
   for (const absentee of members.slice(3)) {
     assert(!poolIds.has(absentee.id), "somebody who did not submit is in the pool");
   }
-  assertEquals(keysOf(pool[0]), ["display_name", "user_id"], "and a pool entry is name and id only");
+  assertEquals(
+    keysOf(pool[0]),
+    ["display_name", "user_id"],
+    "and a pool entry is name and id only",
+  );
 });
 
 Deno.test("a non-submitter can see the reveal but is told why they cannot guess", async () => {
@@ -266,7 +281,11 @@ Deno.test("no route returns another user's guesses in this phase", async () => {
   assert(routes.length >= 10, `only found ${routes.length} routes to probe`);
 
   for (const route of routes) {
-    const res = await call(route.fn, route.path, { method: route.method, token: ben.token, body: {} });
+    const res = await call(route.fn, route.path, {
+      method: route.method,
+      token: ben.token,
+      body: {},
+    });
     const serialised = JSON.stringify(res.body ?? {});
     // Ana's guess is "Cal, on card N". Ben may legitimately see Cal's *name and id* — the name
     // pool is public in this phase — so what must not be obtainable is the pairing. The only
@@ -424,7 +443,10 @@ Deno.test("guessed_user_id must be in the name pool and cannot be the caller", a
     assertEquals(res.body.error.details, { field: "guessed_user_id" });
   }
 
-  const malformed = await putGuesses(ana.token, [{ card_no: others[0], guessed_user_id: "not-a-uuid" }]);
+  const malformed = await putGuesses(ana.token, [{
+    card_no: others[0],
+    guessed_user_id: "not-a-uuid",
+  }]);
   assertEquals(malformed.status, 400);
   assertEquals(malformed.body.error.details, { field: "guessed_user_id" });
 });
@@ -487,5 +509,9 @@ Deno.test("guesses stay editable, and a rejected request changes nothing", async
   ]);
   assertEquals(rejected.status, 400);
   const after = (await call("rounds", "/current", { token: ana.token })).body.data.my_guesses;
-  assertEquals(after, [{ card_no: others[0], guessed_user_id: cal.id }], "nothing was half-written");
+  assertEquals(
+    after,
+    [{ card_no: others[0], guessed_user_id: cal.id }],
+    "nothing was half-written",
+  );
 });

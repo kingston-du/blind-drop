@@ -157,7 +157,9 @@ const TRACK_FIELDS: readonly (keyof TrackDTO)[] = [
  */
 export function trackDTO(meta: unknown): TrackDTO {
   const raw = (meta ?? {}) as Record<string, unknown>;
-  const str = (key: keyof TrackDTO): string => (typeof raw[key] === "string" ? raw[key] as string : "");
+  const str = (
+    key: keyof TrackDTO,
+  ): string => (typeof raw[key] === "string" ? raw[key] as string : "");
   const nullable = (key: keyof TrackDTO): string | null =>
     typeof raw[key] === "string" && raw[key] !== "" ? raw[key] as string : null;
 
@@ -258,7 +260,15 @@ export function roundDTO(
 /** The `open`/`voided` key set, for the golden-file test. Exported so the assertion and the
  *  builder cannot drift apart. */
 export function roundFields(): readonly string[] {
-  return ["round_id", "local_date", "state", "opens_at", "reveals_at", "scores_at", "my_submission"];
+  return [
+    "round_id",
+    "local_date",
+    "state",
+    "opens_at",
+    "reveals_at",
+    "scores_at",
+    "my_submission",
+  ];
 }
 
 // ─── the reveal — docs/04 §4, docs/02 §3 ─────────────────────────────────────
@@ -517,7 +527,12 @@ export interface ResultsDTO {
 
 export function resultsDTO(
   round: { id: string; local_date: string },
-  parts: { submitterCount: number; cards: ResultCardDTO[]; me: PersonalScoreDTO; people: PersonScoreDTO[] },
+  parts: {
+    submitterCount: number;
+    cards: ResultCardDTO[];
+    me: PersonalScoreDTO;
+    people: PersonScoreDTO[];
+  },
 ): ResultsDTO {
   return {
     round_id: round.id,

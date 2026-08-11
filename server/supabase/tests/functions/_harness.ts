@@ -37,7 +37,10 @@ function base64url(bytes: Uint8Array): string {
     .replace(/=+$/, "");
 }
 
-export async function mintToken(userId: string, opts: { expiresIn?: number } = {}): Promise<string> {
+export async function mintToken(
+  userId: string,
+  opts: { expiresIn?: number } = {},
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = base64url(encoder.encode(JSON.stringify({ alg: "HS256", typ: "JWT" })));
   const payload = base64url(
@@ -93,7 +96,11 @@ export async function newUser(): Promise<TestUser> {
 /** A user who has been through onboarding step 2 and has a display name. */
 export async function newNamedUser(displayName: string): Promise<TestUser> {
   const user = await newUser();
-  const named = await call("me", "/", { method: "PUT", token: user.token, body: { display_name: displayName } });
+  const named = await call("me", "/", {
+    method: "PUT",
+    token: user.token,
+    body: { display_name: displayName },
+  });
   if (named.status !== 200) throw new Error(`could not name a test user: ${named.status}`);
   return user;
 }
@@ -113,7 +120,9 @@ export async function newGroupOwner(
       ...(group.reveal_hour === undefined ? {} : { reveal_hour: group.reveal_hour }),
     },
   });
-  if (created.status !== 200) throw new Error(`could not create a group: ${created.status} ${JSON.stringify(created.body)}`);
+  if (created.status !== 200) {
+    throw new Error(`could not create a group: ${created.status} ${JSON.stringify(created.body)}`);
+  }
   return { user, group: created.body.data as Record<string, unknown> };
 }
 

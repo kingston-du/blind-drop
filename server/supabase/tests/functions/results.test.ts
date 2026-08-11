@@ -91,7 +91,11 @@ function as(person: keyof typeof PERSON): Promise<string> {
 
 async function resultsAs(person: keyof typeof PERSON, roundId = SCORED_ROUND): Promise<Json> {
   const res = await call("rounds", `/${roundId}/results`, { token: await as(person) });
-  assertEquals(res.status, 200, `${person} could not read the results: ${JSON.stringify(res.body)}`);
+  assertEquals(
+    res.status,
+    200,
+    `${person} could not read the results: ${JSON.stringify(res.body)}`,
+  );
   return res.body.data;
 }
 
@@ -224,7 +228,11 @@ Deno.test("Eli guessed nothing, so Eli's ear is null — and so is its fraction"
   const data = await resultsAs("Eli");
 
   assertEquals(data.me.ear, null, "null, never 0 — docs/02 §4.1 drops the round from the average");
-  assertEquals(data.me.ear_correct, null, "and no fraction, because there is no honest one to show");
+  assertEquals(
+    data.me.ear_correct,
+    null,
+    "and no fraction, because there is no honest one to show",
+  );
   assertEquals(data.me.ear_possible, null);
 
   // Eli still has a readability: how much of the room read you does not depend on whether you
@@ -296,7 +304,11 @@ Deno.test("an unscored round returns WRONG_PHASE, and the error body carries no 
     assertEquals(res.status, 409, `${phase} should be refused`);
     assertEquals(res.body.error.code, "WRONG_PHASE");
     assertEquals(res.body.error.state, phase);
-    assertEquals(keysOf(res.body.error), ["code", "message", "state"], "the state, and nothing else");
+    assertEquals(
+      keysOf(res.body.error),
+      ["code", "message", "state"],
+      "the state, and nothing else",
+    );
     assertEquals(keysOf(res.body), ["error", "server_now"], "no data key at all");
     refusals[phase] = res.body;
   }
