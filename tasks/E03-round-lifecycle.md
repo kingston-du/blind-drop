@@ -107,20 +107,21 @@ guarded update, outbox insert in the same transaction.
 
 ### E03-04 — `card_order` shuffle
 
-**Status:** todo · **Deps:** E03-02 · **Reads:** `docs/02` §2 (card_order), `docs/01` ADR-003
-**Touches:** `migrations/0004_round_lifecycle.sql`
+**Status:** done · **Deps:** E03-02 · **Reads:** `docs/02` §2 (card_order), `docs/01` ADR-003
+**Touches:** `migrations/0013_tick_rounds_reveal.sql`,
+`migrations/0015_tick_rounds_score_nudge.sql`, `tests/db/shuffle.sql`
 **Verify:** `npm run test:db -- shuffle`
 
 Fisher–Yates seeded with `hashtext(round_id::text)`. The **stored array** is authoritative;
 the seed exists only so tests are reproducible.
 
-- [ ] Stored as a JSON array of submission ids; position `i` is `card_no = i + 1`
-- [ ] Length equals the round's submission count; it is a permutation of them
-- [ ] Generated exactly once, at the reveal transition; never regenerated, never per-user
-- [ ] Test: over 1000 synthetic rounds, Spearman correlation between submission `created_at`
+- [x] Stored as a JSON array of submission ids; position `i` is `card_no = i + 1`
+- [x] Length equals the round's submission count; it is a permutation of them
+- [x] Generated exactly once, at the reveal transition; never regenerated, never per-user
+- [x] Test: over 1000 synthetic rounds, Spearman correlation between submission `created_at`
       rank and `card_no` is within ±0.1 of zero
-- [ ] Test: no correlation with `user_id` ordering either
-- [ ] Test: the same round shuffled twice (forced) would produce the same array — proving the
+- [x] Test: no correlation with `user_id` ordering either
+- [x] Test: the same round shuffled twice (forced) would produce the same array — proving the
       seed is deterministic — but the code path can only run once
 
 ---
