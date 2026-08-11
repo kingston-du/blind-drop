@@ -115,7 +115,7 @@ Client-credentials flow, our credentials, server-side only.
 
 ### E07-05 — `track_links` backfill
 
-**Status:** todo · **Deps:** E07-04, E03-05 · **Reads:** `docs/06` §5
+**Status:** wip · **Deps:** E07-04, E03-05 · **Reads:** `docs/06` §5
 **Touches:** `functions/push-worker/index.ts` or a sibling, `migrations/0007_track_links.sql`
 **Verify:** `npm run test:db -- links`
 
@@ -129,7 +129,7 @@ Client-credentials flow, our credentials, server-side only.
 
 ### E07-06 — Record and export endpoints
 
-**Status:** todo · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
+**Status:** wip · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
 **Touches:** `functions/groups/index.ts`
 **Verify:** `npm run test:functions -- record`
 

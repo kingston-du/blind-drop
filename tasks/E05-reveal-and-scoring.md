@@ -100,7 +100,7 @@ never stored (ADR-004).
 
 ### E05-04 — `GET /rounds/{id}/results`
 
-**Status:** todo · **Deps:** E05-03 · **Reads:** `docs/04` §4
+**Status:** wip · **Deps:** E05-03 · **Reads:** `docs/04` §4
 **Touches:** `functions/rounds/index.ts`
 **Verify:** `npm run test:functions -- results`
 
@@ -116,7 +116,7 @@ never stored (ADR-004).
 
 ### E05-05 — `GET /groups/current/standings`
 
-**Status:** todo · **Deps:** E05-03 · **Reads:** `docs/04` §4, `docs/02` §4.5
+**Status:** wip · **Deps:** E05-03 · **Reads:** `docs/04` §4, `docs/02` §4.5
 **Touches:** `functions/groups/index.ts`
 **Verify:** `npm run test:functions -- standings`
 

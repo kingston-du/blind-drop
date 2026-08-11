@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E05-04`. `E00`–`E04`, `E05-01..03`, `E05-06` and `E07-01..04` are done.
+**Start here:** `E06-01`. `E00`–`E04`, `E05` and `E07` are done.
 
 ---
 
@@ -80,8 +80,8 @@ E04..E07 + E13  ─ E14 QA & release
 | E05-01 `GET /rounds/current` — revealed | done | E03-04, E04-02 | AC-1, AC-5, AC-6 |
 | E05-02 `PUT /rounds/current/guesses` | done | E05-01 | AC-6 |
 | E05-03 Scoring views | done | E01-04 | AC-7, AC-8 |
-| E05-04 `GET /rounds/{id}/results` | todo | E05-03 | AC-8 |
-| E05-05 `GET /groups/current/standings` | todo | E05-03 | AC-8 |
+| E05-04 `GET /rounds/{id}/results` | wip | E05-03 | AC-8 |
+| E05-05 `GET /groups/current/standings` | wip | E05-03 | AC-8 |
 | E05-06 §4.4 hand-checked scoring test | done | E05-03 | AC-7, AC-8 |
 
 ## E06 — Push notifications · [file](E06-push.md)
@@ -101,8 +101,8 @@ E04..E07 + E13  ─ E14 QA & release
 | E07-02 `GET /tracks/search` and cache | done | E07-01 | AC-10 |
 | E07-03 `POST /tracks/resolve` and `track_key` | done | E07-02 | AC-7 |
 | E07-04 Spotify client-credentials ISRC lookup | done | E07-03 | — |
-| E07-05 `track_links` backfill in the tick | todo | E07-04, E03-05 | — |
-| E07-06 Record and export endpoints | todo | E07-04, E05-03 | — |
+| E07-05 `track_links` backfill in the tick | wip | E07-04, E03-05 | — |
+| E07-06 Record and export endpoints | wip | E07-04, E05-03 | — |
 
 ## E08 — iOS foundation · [file](E08-ios-foundation.md)
 
