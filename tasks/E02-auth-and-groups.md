@@ -113,7 +113,7 @@ Create, join, current, patch, leave.
 
 ### E02-04 — Invite code generation
 
-**Status:** todo · **Deps:** E02-03 · **Reads:** `docs/03` §2 (groups), `docs/14` §8
+**Status:** wip · **Deps:** E02-03 · **Reads:** `docs/03` §2 (groups), `docs/14` §8
 **Touches:** `functions/groups/index.ts`, `migrations/0002_core_tables.sql`
 **Verify:** `npm run test:functions -- invite`
 
