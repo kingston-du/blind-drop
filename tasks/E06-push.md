@@ -52,7 +52,7 @@ Drains the outbox. Claim → send → mark, with `for update skip locked`.
 
 ### E06-03 — `POST /devices`
 
-**Status:** todo · **Deps:** E02-02 · **Reads:** `docs/04` §2, `docs/05` §4
+**Status:** wip · **Deps:** E02-02 · **Reads:** `docs/04` §2, `docs/05` §4
 **Touches:** `functions/devices/index.ts`
 **Verify:** `npm run test:functions -- devices`
 
@@ -66,7 +66,7 @@ Drains the outbox. Claim → send → mark, with `for update skip locked`.
 
 ### E06-04 — Idempotency, expiry, and 410 handling
 
-**Status:** todo · **Deps:** E06-02 · **Reads:** `docs/05` §2, §6, `docs/15` AC-3
+**Status:** wip · **Deps:** E06-02 · **Reads:** `docs/05` §2, §6, `docs/15` AC-3
 **Touches:** `tests/functions/push.test.ts`
 **Verify:** `npm run test:functions -- push`
 

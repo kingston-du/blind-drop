@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E06-03`. `E00`–`E05`, `E06-01`–`E06-02`, and `E07-01`–`E07-05` are done.
+**Start here:** `E07-06`. `E00`–`E05`, `E06-01`–`E06-02`, and `E07-01`–`E07-05` are done.
 
 ---
 
@@ -90,8 +90,8 @@ E04..E07 + E13  ─ E14 QA & release
 |---|---|---|---|
 | E06-01 Outbox and APNs JWT | done | E03-03 | AC-3 |
 | E06-02 `push-worker` | done | E06-01 | AC-3, AC-4 |
-| E06-03 `POST /devices` | todo | E02-02 | — |
-| E06-04 Idempotency, expiry, 410 handling | todo | E06-02 | AC-3 |
+| E06-03 `POST /devices` | wip | E02-02 | — |
+| E06-04 Idempotency, expiry, 410 handling | wip | E06-02 | AC-3 |
 
 ## E07 — Music services · [file](E07-music-services.md)
 
