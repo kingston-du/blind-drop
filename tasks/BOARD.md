@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E06-01`. `E00`–`E05` and `E07-01`–`E07-05` are done.
+**Start here:** `E06-02`. `E00`–`E05`, `E06-01`, and `E07-01`–`E07-05` are done.
 
 ---
 
@@ -88,7 +88,7 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E06-01 Outbox and APNs JWT | wip | E03-03 | AC-3 |
+| E06-01 Outbox and APNs JWT | done | E03-03 | AC-3 |
 | E06-02 `push-worker` | todo | E06-01 | AC-3, AC-4 |
 | E06-03 `POST /devices` | todo | E02-02 | — |
 | E06-04 Idempotency, expiry, 410 handling | todo | E06-02 | AC-3 |
@@ -190,7 +190,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E03 | 6 / 6 |
 | E04 | 4 / 4 |
 | E05 | 6 / 6 |
-| E06 | 0 / 4 |
+| E06 | 1 / 4 |
 | E07 | 5 / 6 |
 | E08 | 2 / 7 |
 | E09 | 0 / 4 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **38 / 80** |
+| **Total** | **39 / 80** |

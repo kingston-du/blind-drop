@@ -13,6 +13,9 @@ import { UpstreamError } from "./errors.ts";
 import { upstreamJson } from "./upstream.ts";
 import { normaliseIsrc, trackKey } from "./identity.ts";
 import type { TrackDTO } from "../dto.ts";
+import { jwtSegment, signEs256 } from "../es256.ts";
+
+export { pemToPkcs8 } from "../es256.ts";
 
 const API = "https://api.music.apple.com";
 
@@ -41,72 +44,20 @@ function secret(name: string): string {
   return value;
 }
 
-function base64url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-/**
- * PEM → the DER bytes Web Crypto's `pkcs8` import wants.
- *
- * Both environments store the key as a single line with the newlines escaped as the two
- * characters `\` and `n` — that is what `server/.env.example` documents and what the local
- * stack's config carries, because the CLI's docker env file cannot hold a real newline. So
- * unescape first, then strip the armour and all whitespace.
- */
-export function pemToPkcs8(pem: string): Uint8Array<ArrayBuffer> {
-  const body = pem
-    .replace(/\\n/g, "\n")
-    .replace(/-----BEGIN [A-Z ]+-----/, "")
-    .replace(/-----END [A-Z ]+-----/, "")
-    .replace(/\s+/g, "");
-  const binary = atob(body);
-  // Backed by a plain `ArrayBuffer` explicitly: Web Crypto's `importKey` will not accept the
-  // `SharedArrayBuffer`-compatible view type `new Uint8Array(length)` infers.
-  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 /** Signs and caches a developer token. `now` is injectable so a test can prove the refresh
  *  boundary without waiting 144 days. */
 export async function developerToken(now: Date = new Date()): Promise<string> {
   const issuedAt = Math.floor(now.getTime() / 1000);
   if (cached && issuedAt < cached.staleAt) return cached.jwt;
 
-  const header = base64url(
-    new TextEncoder().encode(
-      JSON.stringify({ alg: "ES256", kid: secret("APPLE_MUSIC_KEY_ID"), typ: "JWT" }),
-    ),
-  );
-  const claims = base64url(
-    new TextEncoder().encode(
-      JSON.stringify({
-        iss: secret("APPLE_MUSIC_TEAM_ID"),
-        iat: issuedAt,
-        exp: issuedAt + TOKEN_LIFETIME_SECONDS,
-      }),
-    ),
-  );
-
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToPkcs8(secret("APPLE_MUSIC_PRIVATE_KEY")),
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["sign"],
-  );
-  // Web Crypto's ECDSA output is already the raw r‖s pair JWS wants — no DER unwrapping.
-  const signature = new Uint8Array(
-    await crypto.subtle.sign(
-      { name: "ECDSA", hash: "SHA-256" },
-      key,
-      new TextEncoder().encode(`${header}.${claims}`),
-    ),
-  );
-
-  const jwt = `${header}.${claims}.${base64url(signature)}`;
+  const header = jwtSegment({ alg: "ES256", kid: secret("APPLE_MUSIC_KEY_ID"), typ: "JWT" });
+  const claims = jwtSegment({
+    iss: secret("APPLE_MUSIC_TEAM_ID"),
+    iat: issuedAt,
+    exp: issuedAt + TOKEN_LIFETIME_SECONDS,
+  });
+  const input = `${header}.${claims}`;
+  const jwt = `${input}.${await signEs256(input, secret("APPLE_MUSIC_PRIVATE_KEY"))}`;
   cached = { jwt, staleAt: issuedAt + Math.floor(TOKEN_LIFETIME_SECONDS * REFRESH_AT) };
   return jwt;
 }

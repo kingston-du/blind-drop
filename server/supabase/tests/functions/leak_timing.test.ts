@@ -49,61 +49,68 @@ function median(values: number[]): number {
 
 Deno.test({
   name: "GET /rounds/current latency does not correlate with the number of submitters",
-  // Builds a twelve-person group and takes a hundred timings. It is the slowest test in the
-  // suite and it is the one that proves AC-1's hardest clause.
+  // Builds groups spanning the supported sample counts and takes a hundred timings. It is the
+  // slowest test in the suite and it is the one that proves AC-1's hardest clause.
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
-    const { user: ana, group } = await newGroupOwner("Ana", {
-      name: "Timing",
-      timezone: zoneWhereLocalHourIs(12),
-      reveal_hour: 20,
-    });
-    const code = group.invite_code as string;
-
-    // Ana's own submission is placed first and never changes, so the payload she receives is
-    // byte-identical at every count. Any timing difference is therefore the server's work,
-    // not the size of the response.
-    await call("rounds", "/current/submission", {
-      method: "PUT",
-      token: ana.token,
-      body: { apple_music_id: "1440818664" },
-    });
-
-    // Warm the isolate, the connection pool and the JWT verification path. Without this the
-    // first few samples are cold-start noise attributed to "0 submitters", which manufactures
-    // a correlation that is real in the numbers and false about the code.
-    for (let i = 0; i < 10; i += 1) await call("rounds", "/current", { token: ana.token });
-
-    const xs: number[] = [];
-    const ys: number[] = [];
-    const byCount: Record<number, number[]> = {};
-    let others = 0;
+    const fixtures: Array<{ count: number; token: string }> = [];
 
     for (const count of COUNTS) {
-      while (others < count) {
-        const member = await newMember(code, `T${others}`);
+      const { user: ana, group } = await newGroupOwner("Ana", {
+        name: `Timing ${count}`,
+        timezone: zoneWhereLocalHourIs(12),
+        reveal_hour: 20,
+      });
+      const code = group.invite_code as string;
+
+      // Ana's own submission is present in every fixture, so every response has the same shape.
+      await call("rounds", "/current/submission", {
+        method: "PUT",
+        token: ana.token,
+        body: { apple_music_id: "1440818664" },
+      });
+
+      for (let other = 0; other < count; other += 1) {
+        const member = await newMember(code, `T${other}`);
         await call("rounds", "/current/submission", {
           method: "PUT",
           token: member.token,
           // Distinct tracks, so a leak would have distinct things to leak and a join would
           // have real work to do.
           body: {
-            apple_music_id: ["1440765580", "1452874255", "1440830827", "1442571948"][others % 4],
+            apple_music_id: ["1440765580", "1452874255", "1440830827", "1442571948"][other % 4],
           },
         });
-        others += 1;
       }
 
-      byCount[count] = [];
-      for (let i = 0; i < SAMPLES_PER_COUNT; i += 1) {
+      fixtures.push({ count, token: ana.token });
+    }
+
+    // Warm every caller's JWT path and the shared isolate/connection pool before measuring.
+    for (const fixture of fixtures) {
+      for (let i = 0; i < 5; i += 1) {
+        await call("rounds", "/current", { token: fixture.token });
+      }
+    }
+
+    const xs: number[] = [];
+    const ys: number[] = [];
+    const byCount = Object.fromEntries(COUNTS.map((count) => [count, [] as number[]]));
+
+    // Rotate the fixture order for every sampling round. Measuring all zero-count requests,
+    // then all one-count requests, and so on makes ordinary machine load drift indistinguishable
+    // from participation-dependent work. Rotation balances every count across the run instead.
+    for (let sample = 0; sample < SAMPLES_PER_COUNT; sample += 1) {
+      for (let offset = 0; offset < fixtures.length; offset += 1) {
+        const fixture = fixtures[(sample + offset) % fixtures.length];
         const started = performance.now();
-        const res = await call("rounds", "/current", { token: ana.token });
+        const res = await call("rounds", "/current", { token: fixture.token });
         const elapsed = performance.now() - started;
         assertEquals(res.status, 200);
-        xs.push(count);
+        xs.push(fixture.count);
         ys.push(elapsed);
-        byCount[count].push(elapsed);
+        byCount[fixture.count].push(elapsed);
       }
     }
 

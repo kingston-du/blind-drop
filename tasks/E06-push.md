@@ -7,19 +7,19 @@ handler — that is what makes notification abuse structurally impossible.
 
 ### E06-01 — Outbox and the APNs JWT
 
-**Status:** wip · **Deps:** E03-03 · **Reads:** `docs/05` §2, §4, `docs/06` §8
+**Status:** done · **Deps:** E03-03 · **Reads:** `docs/05` §2, §4, `docs/06` §8
 **Touches:** `functions/_shared/apns.ts`, `migrations/0006_notifications.sql`
 **Verify:** `npm run test:functions -- apns`
 
 ES256 JWT signing with Web Crypto in Deno. No JWT library.
 
-- [ ] `.p8` parsed from a Supabase secret; **never** in the repo or the app bundle
-- [ ] JWT cached in module scope, regenerated at 50 minutes (Apple rejects regeneration more
+- [x] `.p8` parsed from a Supabase secret; **never** in the repo or the app bundle
+- [x] JWT cached in module scope, regenerated at 50 minutes (Apple rejects regeneration more
       often than every 20 and expires at 60)
-- [ ] Outbox `unique (round_id, kind)` in place — this **is** the idempotency guarantee
-- [ ] Bodies from the `docs/11` notifications table, verbatim
-- [ ] Test: two JWT requests within 50 minutes return the same token
-- [ ] Test: signature verifies against the public key
+- [x] Outbox `unique (round_id, kind)` in place — this **is** the idempotency guarantee
+- [x] Bodies from the `docs/11` notifications table, verbatim
+- [x] Test: two JWT requests within 50 minutes return the same token
+- [x] Test: signature verifies against the public key
 
 ---
 
