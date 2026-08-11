@@ -9,11 +9,21 @@ lands.
 > a development-mode app. We do not use Spotify preview URLs at all, so the 2024 restriction
 > on those should be irrelevant — confirm it and note the date you checked.
 
+**Checked 2026-08-11, against the vendors' own reference docs:**
+
+| Assumption | Verdict |
+|---|---|
+| Apple `Songs.Attributes` still carries `isrc` | **holds** — documented, and `GET /v1/catalog/{sf}/songs?filter[isrc]=` is a first-class route ("Get Multiple Catalog Songs by ISRC") |
+| Apple still carries `previews[].url`, `artwork.url` as a `{w}x{h}` template, `artwork.bgColor`, `durationInMillis` | **holds** — all four documented on `Songs.Attributes` / `Artwork` |
+| Spotify `GET /v1/search?q=isrc:{ISRC}&type=track` | **holds** — `isrc` is a documented track filter, alongside `track`, `artist`, `album`, `year`, `genre` |
+| The 2024 `preview_url` restriction is irrelevant to us | **holds, by construction** — no code path in this repo reads a Spotify `preview_url`; previews come from Apple only (`_shared/music/appleMusic.ts`). Nothing to break. |
+| Development mode caps a new Spotify app at 25 users | unchanged; the quota-mode page is unversioned so this is re-checked before `E13`, not here — the pilot is under 25 either way |
+
 ---
 
 ### E07-01 — Apple Music developer token
 
-**Status:** todo · **Deps:** E02-01 · **Reads:** `docs/06` §4, §8
+**Status:** wip · **Deps:** E02-01 · **Reads:** `docs/06` §4, §8
 **Touches:** `functions/_shared/music/appleMusic.ts`
 **Verify:** `npm run test:functions -- applemusic`
 
@@ -29,7 +39,7 @@ ES256 JWT from the MusicKit `.p8`, via Web Crypto. Shares the signing helper wit
 
 ### E07-02 — `GET /tracks/search`
 
-**Status:** todo · **Deps:** E07-01 · **Reads:** `docs/06` §2, §4, `docs/04` §6
+**Status:** wip · **Deps:** E07-01 · **Reads:** `docs/06` §2, §4, `docs/04` §6
 **Touches:** `functions/tracks/index.ts`
 **Verify:** `npm run test:functions -- search`
 
@@ -46,7 +56,7 @@ ES256 JWT from the MusicKit `.p8`, via Web Crypto. Shares the signing helper wit
 
 ### E07-03 — `POST /tracks/resolve` and `track_key`
 
-**Status:** todo · **Deps:** E07-02 · **Reads:** `docs/06` §3–4, `docs/14` §7
+**Status:** wip · **Deps:** E07-02 · **Reads:** `docs/06` §3–4, `docs/14` §7
 **Touches:** `functions/_shared/music/resolve.ts`
 **Verify:** `npm run test:functions -- resolve`
 
@@ -70,7 +80,7 @@ track_key = isrc ? 'isrc:' + isrc : 'am:' + apple_music_id
 
 ### E07-04 — Spotify ISRC lookup
 
-**Status:** todo · **Deps:** E07-03 · **Reads:** `docs/06` §5, §8
+**Status:** wip · **Deps:** E07-03 · **Reads:** `docs/06` §5, §8
 **Touches:** `functions/_shared/music/spotify.ts`
 **Verify:** `npm run test:functions -- spotify`
 

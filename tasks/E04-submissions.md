@@ -7,7 +7,7 @@ rests on — treat them as deliverables, not as chores at the end.
 
 ### E04-01 — `PUT /rounds/current/submission`
 
-**Status:** todo · **Deps:** E03-01, E07-03 · **Reads:** `docs/04` §4, `docs/02` §3, `docs/06` §3–4
+**Status:** wip · **Deps:** E03-01, E07-03 · **Reads:** `docs/04` §4, `docs/02` §3, `docs/06` §3–4
 **Touches:** `functions/rounds/index.ts`
 **Verify:** `npm run test:functions -- submit`
 
@@ -30,7 +30,7 @@ resolves through `E07-03` to a canonical Track.
 
 ### E04-02 — `GET /rounds/current`: open and voided
 
-**Status:** todo · **Deps:** E04-01 · **Reads:** `docs/04` §4, `docs/14` §3
+**Status:** wip · **Deps:** E04-01 · **Reads:** `docs/04` §4, `docs/14` §3
 **Touches:** `functions/rounds/index.ts`, `functions/_shared/dto.ts`
 **Verify:** `npm run test:functions -- round_open`
 
@@ -54,7 +54,7 @@ The `open` payload key set is **exactly**:
 
 ### E04-03 — Golden leak fixtures
 
-**Status:** todo · **Deps:** E04-02 · **Reads:** `docs/15` AC-1, `docs/14` §3
+**Status:** wip · **Deps:** E04-02 · **Reads:** `docs/15` AC-1, `docs/14` §3
 **Touches:** `tests/golden/*.json`, `tests/functions/leak.test.ts`
 **Verify:** `npm run test:functions -- leak`
 
@@ -75,7 +75,7 @@ a field to an `open`-phase response must therefore require a human to update a g
 
 ### E04-04 — `audit:leak` script
 
-**Status:** todo · **Deps:** E04-03 · **Reads:** `docs/14` §10, `docs/15` AC-1
+**Status:** wip · **Deps:** E04-03 · **Reads:** `docs/14` §10, `docs/15` AC-1
 **Touches:** `server/package.json`, `tests/functions/leak_timing.test.ts`, `tests/functions/postgrest_locked.test.ts`
 **Verify:** `npm run audit:leak`
 

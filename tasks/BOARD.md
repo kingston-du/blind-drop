@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E06-01`. `E00` through `E03` are done.
+**Start here:** `E05-01`. `E00`–`E03`, `E07-01..04` and `E04` are done.
 
 ---
 
@@ -68,10 +68,10 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E04-01 `PUT /rounds/current/submission` | todo | E03-01, E07-03 | AC-7 |
-| E04-02 `GET /rounds/current` — open and voided | todo | E04-01 | AC-1, AC-4 |
-| E04-03 Golden leak fixtures | todo | E04-02 | AC-1 |
-| E04-04 `audit:leak` script | todo | E04-03 | AC-1 |
+| E04-01 `PUT /rounds/current/submission` | wip | E03-01, E07-03 | AC-7 |
+| E04-02 `GET /rounds/current` — open and voided | wip | E04-01 | AC-1, AC-4 |
+| E04-03 Golden leak fixtures | wip | E04-02 | AC-1 |
+| E04-04 `audit:leak` script | wip | E04-03 | AC-1 |
 
 ## E05 — Reveal, guesses, scoring · [file](E05-reveal-and-scoring.md)
 
@@ -97,10 +97,10 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E07-01 Apple Music developer token | todo | E02-01 | — |
-| E07-02 `GET /tracks/search` and cache | todo | E07-01 | AC-10 |
-| E07-03 `POST /tracks/resolve` and `track_key` | todo | E07-02 | AC-7 |
-| E07-04 Spotify client-credentials ISRC lookup | todo | E07-03 | — |
+| E07-01 Apple Music developer token | wip | E02-01 | — |
+| E07-02 `GET /tracks/search` and cache | wip | E07-01 | AC-10 |
+| E07-03 `POST /tracks/resolve` and `track_key` | wip | E07-02 | AC-7 |
+| E07-04 Spotify client-credentials ISRC lookup | wip | E07-03 | — |
 | E07-05 `track_links` backfill in the tick | todo | E07-04, E03-05 | — |
 | E07-06 Record and export endpoints | todo | E07-04, E05-03 | — |
 
