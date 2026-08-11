@@ -125,6 +125,9 @@ for (const file of files) {
 
   const bad = out.filter((l) => l.startsWith("not ok"));
   const good = out.filter((l) => /^ok \d+/.test(l));
+  // pgTAP reports an invalid plan as a diagnostic while psql still exits zero. Treating
+  // that as green would let an accidentally deleted assertion silently reduce coverage.
+  const planProblems = out.filter((l) => l.startsWith("# Looks like you planned"));
   total += good.length + bad.length;
 
   console.log(`\n${dim("──")} ${label}`);
@@ -138,6 +141,7 @@ for (const file of files) {
     if (/ERROR:/.test(err)) failed += 1;
   }
   failed += bad.length;
+  failed += planProblems.length;
 }
 
 console.log("");

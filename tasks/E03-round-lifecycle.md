@@ -10,7 +10,7 @@ Everything here calls `public.now_()`, never `now()` — that is what makes the 
 ### E03-01 — `ensure_rounds()`
 
 **Status:** done · **Deps:** E01-05, E02-03 · **Reads:** `docs/02` §1, `docs/03` §4
-**Touches:** `migrations/0004_round_lifecycle.sql`
+**Touches:** `migrations/0013_tick_rounds_reveal.sql`, `tests/db/lifecycle.sql`
 **Verify:** `npm run test:db -- ensure_rounds`
 
 Materialise today's and tomorrow's round for every group, idempotently. Two days ahead only,
@@ -55,21 +55,29 @@ so the timezone offset used is never stale across a DST boundary.
 
 ### E03-02 — `tick_rounds()`: reveal and void
 
-**Status:** wip · **Deps:** E03-01 · **Reads:** `docs/02` §2–3, `docs/03` §4
+**Status:** done · **Deps:** E03-01 · **Reads:** `docs/02` §2–3, `docs/03` §4
 **Touches:** `migrations/0004_round_lifecycle.sql`
 **Verify:** `npm run test:db -- lifecycle`
 
 The `open → revealed | voided` branch. One transaction per round, `for update skip locked`,
 guarded update, outbox insert in the same transaction.
 
-- [ ] `count(submissions) < 3` → `voided` + one `void` outbox row
-- [ ] `>= 3` → `revealed` + `card_order` + one `reveal` outbox row
-- [ ] Every update guarded with `where state = 'open'`; branch on the affected row count
-- [ ] Outbox insert is `on conflict do nothing`
-- [ ] Transition and enqueue are in **one** transaction — never enqueue first
-- [ ] Test: running the tick 10× at the same instant produces one transition, one outbox row
-- [ ] Test: exactly 2 submitters voids; exactly 3 reveals
-- [ ] Test: a voided round has `card_order is null` and no `reveal` row
+> **Open question:** the task originally named `0004_round_lifecycle.sql`, but E03-01 already
+> committed and applied that migration. Editing it now would violate the repository's
+> forward-only migration rule and would leave existing databases without `tick_rounds()`.
+> The implementation therefore lands as `0013_tick_rounds_reveal.sql`. Each round's block is
+> a PL/pgSQL subtransaction, so a failed transition rolls back its matching outbox insert and
+> does not stop other due rounds; the function invocation itself remains one outer Postgres
+> transaction, as required by a function called through `select public.tick_rounds()`.
+
+- [x] `count(submissions) < 3` → `voided` + one `void` outbox row
+- [x] `>= 3` → `revealed` + `card_order` + one `reveal` outbox row
+- [x] Every update guarded with `where state = 'open'`; branch on the affected row count
+- [x] Outbox insert is `on conflict do nothing`
+- [x] Transition and enqueue are in **one** transaction — never enqueue first
+- [x] Test: running the tick 10× at the same instant produces one transition, one outbox row
+- [x] Test: exactly 2 submitters voids; exactly 3 reveals
+- [x] Test: a voided round has `card_order is null` and no `reveal` row
 
 ---
 
