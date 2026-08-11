@@ -84,7 +84,7 @@ row of the `docs/07` §2 contrast table.
 
 ### E08-03 — Typography and font bundling
 
-**Status:** todo · **Deps:** E08-01 · **Reads:** `docs/07` §3, `docs/12` §1
+**Status:** wip · **Deps:** E08-01 · **Reads:** `docs/07` §3, `docs/12` §1
 **Touches:** `DesignSystem/Typography.swift`, `Resources/Fonts/BricolageGrotesque.ttf`, `Info.plist`
 **Verify:** `xcodebuild test -only-testing:BlindDropTests/TypographyTests`
 

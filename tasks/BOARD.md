@@ -110,7 +110,7 @@ E04..E07 + E13  ─ E14 QA & release
 |---|---|---|---|
 | E08-01 App skeleton, light mode, environment | done | E00-03 | — |
 | E08-02 Palette and contrast test | done | E08-01 | AC-2 gates |
-| E08-03 Typography and font bundling | todo | E08-01 | — |
+| E08-03 Typography and font bundling | wip | E08-01 | — |
 | E08-04 Component library | todo | E08-02, E08-03 | — |
 | E08-05 `APIClient` and DTOs | todo | E08-01 | AC-1 |
 | E08-06 `ServerClock` and the `Date()` lint | todo | E08-05 | AC-2 |
