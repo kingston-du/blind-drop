@@ -141,7 +141,7 @@ retrofitting VoiceOver later means rebuilding the view hierarchy.
 
 ### E08-05 — `APIClient` and DTOs
 
-**Status:** todo · **Deps:** E08-01 · **Reads:** `docs/13` §3, §6, `docs/04` §1–6
+**Status:** wip · **Deps:** E08-01 · **Reads:** `docs/13` §3, §6, `docs/04` §1–6
 **Touches:** `Core/Networking/*`
 **Verify:** `xcodebuild test -only-testing:BlindDropTests/NetworkingTests`
 
