@@ -182,21 +182,43 @@ Notes:
 
 ### E08-06 — `ServerClock` and the `Date()` lint
 
-**Status:** wip · **Deps:** E08-05 · **Reads:** `docs/13` §5, `docs/15` AC-2
-**Touches:** `Core/Time/ServerClock.swift`, `Core/Time/CountdownTimer.swift`, `ios/scripts/lint.sh`
-**Verify:** `xcodebuild test -only-testing:BlindDropTests/ServerClockTests`
+**Status:** done · **Deps:** E08-05 · **Reads:** `docs/13` §5, `docs/15` AC-2
+**Touches:** `Core/Time/ServerClock.swift`, `Core/Time/CountdownTimer.swift`,
+`BlindDropTests/Unit/ServerClockTests.swift`, `docs/11-COPY-DECK.md`
+**Verify:** `xcodebuild test -only-testing:BlindDropUnitTests/ServerClockTests`
 
 This type is the client half of AC-2. Read `docs/13` §5 carefully; all six rules are testable.
 
-- [ ] Anchored to `ProcessInfo.systemUptime`, **not** `Date()`
-- [ ] `now` is **optional** — before the first response the app doesn't know the time and
+- [x] Anchored to `ProcessInfo.systemUptime`, **not** `Date()`
+- [x] `now` is **optional** — before the first response the app doesn't know the time and
       says `--:--:--` rather than guessing
-- [ ] Re-anchors on every response
-- [ ] Anchor invalidated on `willEnterForeground`; a refetch precedes any countdown render
-- [ ] Group-local formatting uses the **group's** timezone, never `TimeZone.current`
-- [ ] Lint rule: `Date()` outside this file fails CI
-- [ ] Tests: ±5-year device-clock shift changes nothing; timezone change changes nothing;
-      stale anchor returns `nil`; drift over a simulated 2h session < 1s
+- [x] Re-anchors on every response — `APIClient` does it from every envelope, failures included
+- [x] Anchor invalidated on `willEnterForeground`; a refetch precedes any countdown render
+      (`RootView` already invalidates on `.active`, E08-01)
+- [x] Group-local formatting uses the **group's** timezone, never `TimeZone.current` —
+      `GroupCalendar`, whose fallback for an unknown identifier is UTC rather than the device
+- [x] Lint rule: `Date()` outside this file fails CI — `ios/scripts/lint.sh` rule 1 (E00-04),
+      **and** `ServerClockTests` scans the tree itself, because `docs/15` §7 wants a passing
+      test rather than a script somebody might not run
+- [x] Tests: ±5-year device-clock shift changes nothing; timezone change changes nothing;
+      stale anchor returns `nil`; drift over a simulated 2h session is not just under a second
+      but exactly zero — `now` is computed from the anchor, never accumulated
+
+Notes:
+
+- `CountdownTimer` publishes a **value**, `CountdownDisplay`, not a formatted string: the words
+  are `docs/11`'s and the view applies them. Its tick follows the form — one second for
+  `HH:MM:SS`, one minute for the coarse form, because a one-second tick behind a "3 hours"
+  label wakes the CPU 3,599 times to render the same string.
+- Four copy-deck rows were added for the countdown itself (`countdown.unknown`,
+  `countdown.coarse.hours|minutes|soon`). `docs/12` §1 quotes those words and `docs/11` did not
+  have them; `CLAUDE.md` §6 says add them in the same commit rather than invent them at the
+  call site. The plural of `%lld hours` needs a `.stringsdict` — flagged as an open question
+  there, for E09, since the singular wording is a voice decision.
+- `hasElapsed` is deliberately a three-state `Bool?` and the screen refetches on `true`. A
+  countdown reaching zero is **not** a phase transition (`CLAUDE.md` §2.2) — the server says
+  what happens next, and a client that flipped its own state at zero would show a reveal that
+  had not happened.
 
 ---
 

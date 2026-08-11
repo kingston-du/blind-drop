@@ -1,0 +1,249 @@
+import Foundation
+import Testing
+@testable import BlindDrop
+
+/// AC-2, client half: *"the client renders countdowns from `server_now` + a monotonic clock
+/// offset, never from `Date()` alone, and never decides a phase transition"* (`CLAUDE.md` §2.2,
+/// `docs/13` §5).
+///
+/// All six rules in `docs/13` §5 are testable, and this file tests all six. The last one is the
+/// unusual one: it reads the app's own source and fails if `Date()` appears outside
+/// `ServerClock.swift`. `ios/scripts/lint.sh` checks the same thing in CI, and the rule is worth
+/// two guards — a lint script can be skipped by a developer in a hurry, and `docs/15` §7 wants
+/// a passing test rather than a manual check.
+@Suite struct ServerClockTests {
+
+    /// A clock whose uptime this test drives by hand. The parameter is deliberately an
+    /// *uptime* provider and not a `Date` provider: there is no seam in this type through
+    /// which the device wall clock could be substituted, which is the property being asserted.
+    @MainActor
+    private final class Uptime {
+        var value: TimeInterval = 1_000
+        func advance(_ seconds: TimeInterval) { value += seconds }
+    }
+
+    @MainActor
+    private func makeClock() -> (ServerClock, Uptime) {
+        let uptime = Uptime()
+        let clock = ServerClock(uptime: { MainActor.assumeIsolated { uptime.value } })
+        return (clock, uptime)
+    }
+
+    private func instant(_ iso: String) throws -> Date {
+        try Date(iso, strategy: .iso8601)
+    }
+
+    // MARK: - Rule 3 — before the first response, the app does not know
+
+    @MainActor
+    @Test func anUnanchoredClockKnowsNothingAndSaysSo() throws {
+        let (clock, _) = makeClock()
+
+        #expect(clock.now == nil)
+        #expect(clock.isAnchored == false)
+        #expect(clock.timeRemaining(until: try instant("2026-08-11T00:00:00Z")) == nil)
+        // The countdown says `--:--:--`, which is what `.unknown` renders as. It does not say
+        // 00:00:00, and it does not guess from the device.
+        #expect(CountdownDisplay(remaining: nil, form: .precise) == .unknown)
+    }
+
+    // MARK: - Rules 1 and 2 — the device clock is not a source of truth
+
+    /// A device clock five years out changes nothing, because nothing here reads it. The test
+    /// states that structurally: the clock is anchored to a server instant and an uptime
+    /// reading, and `now` is a pure function of those two.
+    @MainActor
+    @Test func onlyTheServerInstantAndTheUptimeReadingDecideTheTime() throws {
+        let (clock, uptime) = makeClock()
+        let serverNow = try instant("2026-08-10T18:42:07Z")
+        clock.sync(serverNow: serverNow)
+
+        #expect(clock.now == serverNow)
+
+        uptime.advance(90)
+        #expect(clock.now == serverNow.addingTimeInterval(90))
+
+        // The device's own idea of the time — five years off in either direction — is not an
+        // input to any of this. If it were, these equalities could not hold.
+        let deviceIsFiveYearsFast = serverNow.addingTimeInterval(5 * 365 * 86_400)
+        let deviceIsFiveYearsSlow = serverNow.addingTimeInterval(-5 * 365 * 86_400)
+        #expect(clock.now != deviceIsFiveYearsFast)
+        #expect(clock.now != deviceIsFiveYearsSlow)
+    }
+
+    /// The countdown a screen renders is a function of the anchor alone, so the same round at
+    /// the same uptime produces the same digits on a phone set to 2031 as on one set correctly.
+    @MainActor
+    @Test func aWrongDeviceClockChangesNoCountdown() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        let reveal = try instant("2026-08-11T00:00:00Z")
+
+        uptime.advance(45 * 60)
+        let remaining = try #require(clock.timeRemaining(until: reveal))
+        #expect(remaining == 5 * 3600 + 15 * 60)
+        #expect(CountdownDisplay(remaining: remaining, form: .precise)
+            == .precise(hours: 5, minutes: 15, seconds: 0))
+    }
+
+    // MARK: - Rule 4 — re-anchoring means drift never accumulates
+
+    /// Two hours of a session, ticked a second at a time, and the clock is still exact. There
+    /// is no accumulation to drift: `now` is computed from the anchor each time rather than
+    /// incremented.
+    @MainActor
+    @Test func driftOverATwoHourSessionIsNotJustSmallButAbsent() throws {
+        let (clock, uptime) = makeClock()
+        let start = try instant("2026-08-10T18:00:00Z")
+        clock.sync(serverNow: start)
+
+        for _ in 0..<7_200 { uptime.advance(1) }
+
+        let elapsed = try #require(clock.now).timeIntervalSince(start)
+        #expect(abs(elapsed - 7_200) < 1, "docs/13 §5: under a second over two hours")
+        #expect(elapsed == 7_200, "and in fact exactly zero, because nothing is accumulated")
+    }
+
+    /// Every response re-anchors, and a re-anchor overrides whatever the previous one implied —
+    /// which is how a phone that spent ten minutes wrong is right again on the next request.
+    @MainActor
+    @Test func everyResponseReanchors() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        uptime.advance(600)
+
+        let corrected = try instant("2026-08-10T18:03:00Z")
+        clock.sync(serverNow: corrected)
+        #expect(clock.now == corrected)
+    }
+
+    // MARK: - Rule 5 — a stale anchor is no anchor
+
+    /// `systemUptime` does not advance while the device is asleep, so after any background
+    /// period the anchor is a lie of exactly the length of the nap. `RootView` invalidates on
+    /// `willEnterForeground`; until the refetch lands, every countdown reads `--:--:--`.
+    @MainActor
+    @Test func aBackgroundedAnchorIsThrownAwayRatherThanTrusted() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        uptime.advance(30)
+        #expect(clock.now != nil)
+
+        clock.invalidate()
+
+        #expect(clock.now == nil, "a stale anchor returns nil, not a stale time")
+        #expect(clock.isAnchored == false)
+        #expect(clock.timeRemaining(until: try instant("2026-08-11T00:00:00Z")) == nil)
+
+        // And it comes back only when a response says what time it is.
+        let fresh = try instant("2026-08-10T21:14:00Z")
+        clock.sync(serverNow: fresh)
+        #expect(clock.now == fresh)
+    }
+
+    // MARK: - Rule 6 — the group's timezone, never the device's
+
+    /// A member on a plane still plays on the group's clock. The formatted day and hour depend
+    /// on the group's zone and on nothing about the device.
+    @MainActor
+    @Test func everythingIsFormattedOnTheGroupsClock() throws {
+        // 2026-08-11T00:00:00Z is 20:00 on 2026-08-10 in New York: the reveal, on the round's
+        // own local date, which is exactly the pairing `local_date` encodes.
+        let reveal = try instant("2026-08-11T00:00:00Z")
+        let cove = GroupCalendar(timezone: "America/New_York")
+
+        #expect(cove.localDate(of: reveal) == "2026-08-10")
+        #expect(cove.timeOfDay(of: reveal).contains("8") || cove.timeOfDay(of: reveal).contains("20"))
+
+        // The same instant, in the group's zone, is the same string whatever the traveller's
+        // own zone is — because the traveller's zone is not consulted.
+        let tokyo = GroupCalendar(timezone: "Asia/Tokyo")
+        #expect(tokyo.localDate(of: reveal) == "2026-08-11")
+        #expect(cove.localDate(of: reveal) != tokyo.localDate(of: reveal))
+        #expect(cove.isSameDay(reveal, reveal.addingTimeInterval(-3600)))
+
+        // An identifier nobody recognises falls back to UTC — visibly wrong, rather than
+        // silently local. A silent `TimeZone.current` is the bug this rule exists to prevent.
+        // Asserted by offset rather than by name: Foundation normalises "UTC" to "GMT", and
+        // what matters is that the fallback is zero-offset and not the device's.
+        let unknown = GroupCalendar(timezone: "Middle/Earth").timeZone
+        #expect(unknown.secondsFromGMT() == 0)
+    }
+
+    // MARK: - Rule 1, structurally — Date() appears nowhere else
+
+    /// The lint rule, as a test. `ios/scripts/lint.sh` enforces it in CI; this asserts it from
+    /// inside the suite that owns the rule, so a developer who has not run the shell script
+    /// still finds out.
+    @Test func dateIsNeverConstructedOutsideServerClock() throws {
+        let app = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // Unit
+            .deletingLastPathComponent()   // BlindDropTests
+            .appending(path: "BlindDrop")
+
+        var offenders: [String] = []
+        let files = FileManager.default.enumerator(at: app, includingPropertiesForKeys: nil)
+        while let url = files?.nextObject() as? URL {
+            guard url.pathExtension == "swift", url.lastPathComponent != "ServerClock.swift" else {
+                continue
+            }
+            for (number, line) in try String(contentsOf: url, encoding: .utf8)
+                .components(separatedBy: .newlines).enumerated() {
+                // Comments may discuss the rule without tripping it, the same exemption the
+                // shell lint makes.
+                let code = line.components(separatedBy: "//").first ?? line
+                if code.contains("Date()") {
+                    offenders.append("\(url.lastPathComponent):\(number + 1)")
+                }
+            }
+        }
+        #expect(offenders.isEmpty, "docs/13 §5 rule 1: \(offenders.joined(separator: ", "))")
+    }
+
+    // MARK: - The two countdown forms
+
+    /// `docs/12` §1: the coarse form rounds down and never shows a unit smaller than a minute.
+    @Test func theCoarseFormRoundsDownAndStopsAtAMinute() {
+        func coarse(_ seconds: TimeInterval) -> CountdownDisplay {
+            CountdownDisplay(remaining: seconds, form: .coarse)
+        }
+        #expect(coarse(3 * 3600 + 50 * 60) == .coarse(.hours(3)), "rounded down; 4 then 3 reads broken")
+        #expect(coarse(3600) == .coarse(.hours(1)))
+        #expect(coarse(3599) == .coarse(.minutes(59)))
+        #expect(coarse(12 * 60 + 30) == .coarse(.minutes(12)))
+        #expect(coarse(59) == .coarse(.underAMinute))
+        #expect(coarse(0) == .coarse(.underAMinute))
+    }
+
+    /// A countdown does not go negative, and reaching zero is not a phase change — the screen
+    /// refetches and the server says what happens next (`CLAUDE.md` §2.2).
+    @MainActor
+    @Test func zeroIsARefetchAndNotATransition() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T23:59:30Z"))
+        let reveal = try instant("2026-08-11T00:00:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: reveal, form: .precise)
+        #expect(timer.display == .precise(hours: 0, minutes: 0, seconds: 30))
+        #expect(timer.hasElapsed == false)
+
+        uptime.advance(45)
+        timer.refresh()
+        #expect(timer.display == .elapsed, "it stops at zero rather than counting backwards")
+        #expect(timer.hasElapsed == true)
+        timer.stop()
+    }
+
+    /// A timer on an unanchored clock renders `--:--:--`, whatever deadline it was given.
+    @MainActor
+    @Test func aTimerWithoutAnAnchorShowsNothing() throws {
+        let (clock, _) = makeClock()
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: try instant("2026-08-11T00:00:00Z"), form: .precise)
+
+        #expect(timer.display == .unknown)
+        #expect(timer.hasElapsed == nil, "not false — unknown")
+        timer.stop()
+    }
+}

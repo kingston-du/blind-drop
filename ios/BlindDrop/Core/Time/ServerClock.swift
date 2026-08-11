@@ -75,3 +75,59 @@ final class ServerClock {
     /// `now` against something.
     var isAnchored: Bool { anchor != nil }
 }
+
+/// Formatting on the **group's** clock (`docs/13` §5 rule 6).
+///
+/// Every date and hour the app prints is the group's, never the device's: a member who lands in
+/// Lisbon still plays a round that opens and reveals on the group's wall clock, and a screen
+/// that formatted `reveals_at` in `TimeZone.current` would tell them the reveal is at 3am.
+///
+/// `TimeZone.current` appears nowhere in this app. There is no fallback to it here either — an
+/// unknown identifier falls back to UTC, which is visibly wrong in a way that a silently local
+/// time is not.
+struct GroupCalendar: Sendable, Equatable {
+    let timeZone: TimeZone
+
+    init(timezone identifier: String) {
+        timeZone = TimeZone(identifier: identifier) ?? TimeZone(identifier: "UTC")!
+    }
+
+    /// The group-local calendar day of an instant, `YYYY-MM-DD` — the same string the server
+    /// puts in `local_date`, so the two can be compared without reformatting either.
+    ///
+    /// Fixed format and a fixed locale: this is an identifier, not something anybody reads. The
+    /// only thing about it that varies is the zone, which is the group's.
+    func localDate(of instant: Date) -> String {
+        instant.formatted(
+            Date.FormatStyle(date: .numeric, time: .omitted, timeZone: timeZone)
+                .year(.extended()).month(.twoDigits).day(.twoDigits)
+                .locale(Locale(identifier: "en_US_POSIX"))
+        )
+        .split(separator: "/")
+        .map(String.init)
+        .reordered()
+    }
+
+    /// The wall clock of an instant in the group's zone — "8:00 PM" — in the reader's locale,
+    /// because the *format* is theirs even though the *zone* is the group's.
+    func timeOfDay(of instant: Date) -> String {
+        var style = Date.FormatStyle(date: .omitted, time: .shortened)
+        style.timeZone = timeZone
+        return instant.formatted(style)
+    }
+
+    /// Whether two instants land on the same group-local day. The comparison the countdown
+    /// copy needs — "tonight" is a group-local night, not a device-local one.
+    func isSameDay(_ a: Date, _ b: Date) -> Bool {
+        localDate(of: a) == localDate(of: b)
+    }
+}
+
+private extension [String] {
+    /// `MM/DD/YYYY` → `YYYY-MM-DD`. The POSIX numeric style is the one format Foundation will
+    /// not vary on us; this puts its three parts back in the order `docs/04` uses.
+    func reordered() -> String {
+        guard count == 3 else { return joined(separator: "-") }
+        return "\(self[2])-\(self[0])-\(self[1])"
+    }
+}

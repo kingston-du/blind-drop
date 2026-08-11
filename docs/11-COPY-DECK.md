@@ -242,6 +242,35 @@ readability or commiserates a low one.
 
 ---
 
+## The countdown
+
+Every countdown on every screen renders through these. The label beside it belongs to the
+screen (`submit.countdown.label`, `sealed.countdown.label`, `reveal.countdown.label`); these
+are the number itself.
+
+| Key | String |
+|---|---|
+| `countdown.unknown` | --:--:-- |
+| `countdown.coarse.hours` | %lld hours |
+| `countdown.coarse.minutes` | %lld minutes |
+| `countdown.coarse.soon` | under a minute |
+
+`countdown.unknown` is what shows before the first response and after returning from the
+background, until a refetch lands (`13-IOS-APP-ARCHITECTURE.md` §5 rule 3). It is not a zero
+and it is not a spinner — the app does not know what time it is and says so.
+
+The three coarse strings replace `HH:MM:SS` above `.accessibility2`
+(`12-ACCESSIBILITY.md` §1). They round **down**: "3 hours" with three hours and fifty minutes
+left, because a countdown that says 4 and then drops to 3 eleven minutes later reads as broken.
+
+> **Open question:** the two `%lld` strings need a `.stringsdict` for the one/other plural,
+> or "1 hours" ships at `.accessibility3`. E09 owns `Localizable.strings`; the pluralisation
+> belongs in the same commit. Flagged here rather than solved, because the singular wording is
+> the owner's call — "1 hour" and "an hour" are both defensible and only one of them is the
+> app's voice.
+
+---
+
 ## Errors and system states
 
 | Key | Code | String |
