@@ -10,7 +10,7 @@ Runs against the fixture server (`E00-05`), so it does not wait on the backend.
 
 ### E08-01 — App skeleton, light mode, environment
 
-**Status:** todo · **Deps:** E00-03 · **Reads:** `docs/13` §1, §4, §8, `docs/07` (intro)
+**Status:** wip · **Deps:** E00-03 · **Reads:** `docs/13` §1, §4, §8, `docs/07` (intro)
 **Touches:** `App/BlindDropApp.swift`, `App/AppEnvironment.swift`, `App/RootView.swift`, `App/DeepLink.swift`
 **Verify:** app launches to a placeholder in the simulator
 
