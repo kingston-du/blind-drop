@@ -113,18 +113,45 @@ Create, join, current, patch, leave.
 
 ### E02-04 — Invite code generation
 
-**Status:** wip · **Deps:** E02-03 · **Reads:** `docs/03` §2 (groups), `docs/14` §8
-**Touches:** `functions/groups/index.ts`, `migrations/0002_core_tables.sql`
+**Status:** done · **Deps:** E02-03 · **Reads:** `docs/03` §2 (groups), `docs/14` §8
+**Touches:** `functions/groups/index.ts`, `tests/functions/invite.test.ts`,
+`tests/functions/_harness.ts`
 **Verify:** `npm run test:functions -- invite`
 
 Six characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` — no I, L, O, 0, or 1, because this
 code gets read aloud and typed by teenagers.
 
-- [ ] Generated with a CSPRNG, not `Math.random`
-- [ ] Retry on unique violation, up to 5 attempts, then 500
-- [ ] Rate limits: 10/hour per user, 30/hour per IP on join (`docs/04` §8)
-- [ ] A bad code and a valid-but-unusable code return the identical `NOT_FOUND`
-- [ ] Test: 10k generated codes contain no excluded character and no duplicate
+- [x] Generated with a CSPRNG, not `Math.random`
+- [x] Retry on unique violation, up to 5 attempts, then 500
+- [x] Rate limits: 10/hour per user, 30/hour per IP on join (`docs/04` §8)
+- [x] A bad code and a valid-but-unusable code return the identical `NOT_FOUND`
+- [x] Test: 10k generated codes contain no excluded character and no duplicate
+
+> **Note:** `migrations/0002_core_tables.sql` is listed under **Touches** in the original
+> plan, but 0002 is merged and `CLAUDE.md` §4 forbids editing a merged migration. The invite
+> alphabet's check constraint is already in it and is correct, so no migration changed here.
+> Generation and normalisation had already landed in E02-01/E02-03; what this task added is
+> the two limits, which are the control that actually stops a brute force.
+
+> **Open question:** the unique-violation retry cannot be *forced* through the black-box HTTP
+> suite — nothing outside the handler can make `generateInviteCode()` collide on demand, so
+> `docs/15`'s "a passing test, not a manual check" is met only in part. The branch is covered
+> by inspection plus a test that twelve created groups get twelve distinct well-formed codes.
+> Forcing it needs either an injectable generator (a seam in `_shared/invite.ts` that exists
+> only for tests) or a pgTAP test against `create_group` with a pre-seeded colliding code. The
+> latter is preferred — it tests the constraint that actually raises — and belongs with the
+> other `create_group` SQL tests. Ticked on that basis; owner to confirm.
+
+> **Open question:** the per-IP limit is real state in `rate_limit_events` that outlives a test
+> run, and roughly fifteen joins happen per suite run. A suite that shared one apparent IP
+> would therefore start 429-ing on its second run inside an hour for reasons unrelated to the
+> code under test. `tests/functions/_harness.ts` now sends a random RFC 2544 address as
+> `x-forwarded-for` on every call so each one gets its own bucket; the two tests that are
+> *about* the limits pin the header themselves. This assumes the edge runtime passes
+> `x-forwarded-for` through untouched, which the "fresh address still gets through" assertion
+> in `invite.test.ts` verifies rather than presumes. In production the header is set by the
+> platform's proxy, so the same code path is exercised — but if a future deployment sits
+> behind a second proxy, `clientIp()` takes the first entry and would need revisiting.
 
 ---
 

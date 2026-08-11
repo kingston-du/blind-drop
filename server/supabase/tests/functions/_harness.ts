@@ -119,6 +119,15 @@ export async function newGroupOwner(
 
 // ─── the call ────────────────────────────────────────────────────────────────
 
+/** An address from 198.18.0.0/15, reserved for benchmarking by RFC 2544 and never a real
+ *  client. 2^17 of them, so two calls colliding is rare and 30 colliding — the number it would
+ *  take to matter — is not going to happen. `crypto.getRandomValues` rather than `Math.random`
+ *  because `scripts/lint.mjs` fails the build on `Math.random` anywhere under `supabase/`. */
+export function randomTestIp(): string {
+  const [high, mid, low] = crypto.getRandomValues(new Uint8Array(3));
+  return `198.${18 + (high % 2)}.${mid}.${low}`;
+}
+
 export interface ApiResponse {
   status: number;
   // deno-lint-ignore no-explicit-any
@@ -139,6 +148,12 @@ export async function call(
   const headers: Record<string, string> = {
     apikey: ANON_KEY,
     "content-type": "application/json",
+    // Every call looks like a distinct client unless a test says otherwise. The per-IP half of
+    // the join limit (30/hour, docs/04 §8) is real state in `rate_limit_events` that outlives a
+    // test run, so a suite that shared one IP would poison itself: ~15 joins per run means the
+    // second run inside an hour would start getting 429s that have nothing to do with the code
+    // under test. Tests that are *about* the IP limit pin `x-forwarded-for` themselves.
+    "x-forwarded-for": randomTestIp(),
     ...opts.headers,
   };
   if (opts.token) headers.authorization = `Bearer ${opts.token}`;

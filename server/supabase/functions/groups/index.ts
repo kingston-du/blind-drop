@@ -12,6 +12,7 @@
 
 import {
   ApiError,
+  clientIp,
   int,
   noContent,
   ok,
@@ -21,6 +22,8 @@ import {
   str,
 } from "../_shared/http.ts";
 import {
+  enforceRateLimit,
+  ipBucket,
   type MemberCtx,
   requireAdmin,
   requireMembership,
@@ -106,6 +109,15 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
 
 const MAX_INVITE_ATTEMPTS = 5;
 
+// docs/04 §8: `POST /groups/join` is limited to 10/hour per user and, additionally, 30/hour
+// per hashed IP. The space of codes is 31^6 ≈ 8.9e8, which is not what stops a brute force —
+// these two counters are. Ten guesses an hour turns an exhaustive search into a project
+// measured in millennia, and the per-IP half stops one attacker from buying more attempts by
+// signing up more users.
+const JOIN_LIMIT_PER_USER = 10;
+const JOIN_LIMIT_PER_IP = 30;
+const ONE_HOUR_IN_SECONDS = 60 * 60;
+
 serveFunction("groups", {
   // ─── create ────────────────────────────────────────────────────────────────
   "POST /": async (req, route) => {
@@ -150,6 +162,20 @@ serveFunction("groups", {
   // ─── join ──────────────────────────────────────────────────────────────────
   "POST /join": async (req, route) => {
     const ctx = await requireProfile(await requireUser(req, route));
+
+    // Charged on *every* attempt, before the body is even parsed and long before the code is
+    // looked up, so that a malformed code, an unknown code and a real one all cost exactly
+    // the same. Charging only for failures would make the quota itself the oracle the
+    // identical `NOT_FOUND` below exists to deny: an attacker whose counter never moved would
+    // have learned that the code was real (docs/14 §8).
+    await enforceRateLimit(ctx.db, `join:u:${ctx.userId}`, JOIN_LIMIT_PER_USER, ONE_HOUR_IN_SECONDS);
+    await enforceRateLimit(
+      ctx.db,
+      await ipBucket("join", clientIp(req)),
+      JOIN_LIMIT_PER_IP,
+      ONE_HOUR_IN_SECONDS,
+    );
+
     const { invite_code } = await parseBody(req, { invite_code: str({ min: 1, max: 32 }) });
 
     const code = normaliseInviteCode(invite_code);
