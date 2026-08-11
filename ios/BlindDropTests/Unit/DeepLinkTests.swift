@@ -1,0 +1,50 @@
+import Foundation
+import Testing
+@testable import BlindDrop
+
+/// `docs/05` §5 lists four `blinddrop://` routes. This suite asserts all four parse, and that
+/// everything else parses to `nil` — a link we do not recognise must do nothing visible rather
+/// than fall back to the round.
+@Suite struct DeepLinkTests {
+
+    @Test func theFourRoutesFromDocs05Parse() {
+        #expect(DeepLink(URL(string: "blinddrop://round/current")!) == .round)
+        #expect(DeepLink(URL(string: "blinddrop://round/current/results")!) == .results)
+        #expect(DeepLink(URL(string: "blinddrop://record")!) == .record)
+        #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!) == .join(code: "K7MQ2X"))
+    }
+
+    /// docs/04 §3: invite codes are case-insensitive and whitespace-stripped. The fixture
+    /// server's only valid code is `K7MQ2X`, so a lowercase link has to reach it.
+    @Test func inviteCodesAreNormalised() {
+        #expect(DeepLink(URL(string: "blinddrop://join/k7mq2x")!) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(URL(string: "blinddrop://join/%20k7mq2x%20")!) == .join(code: "K7MQ2X"))
+    }
+
+    @Test(arguments: [
+        "blinddrop://",                          // no route at all
+        "blinddrop://round",                     // "current" is not optional
+        "blinddrop://round/current/guesses",     // not a route in docs/05 §5
+        "blinddrop://results",                   // results hang off the round, not the root
+        "blinddrop://join",                      // no code
+        "blinddrop://join/",                     // empty code
+        "blinddrop://join/A/B",                  // a code is one path component
+        "https://blinddrop.app/j/K7MQ2X",        // universal link — .onContinueUserActivity
+        "http://127.0.0.1:8787/rounds/current",  // the API, not a deep link
+    ])
+    func malformedOrForeignURLsParseToNil(_ raw: String) {
+        // `flatMap`, not a force-unwrap: a string Foundation refuses to make a URL from is
+        // just as much "does nothing" as one we parse and reject.
+        #expect(URL(string: raw).flatMap(DeepLink.init) == nil)
+    }
+
+    /// An unrecognised link must not wipe a good pending one — `receive(nil)` is a no-op, and
+    /// that is only true because `DeepLink.init?` is total.
+    @MainActor
+    @Test func anUnrecognisedLinkDoesNotClearAPendingOne() {
+        let router = Router()
+        router.receive(DeepLink(URL(string: "blinddrop://record")!))
+        router.receive(DeepLink(URL(string: "blinddrop://nope")!))
+        #expect(router.pending == .record)
+    }
+}

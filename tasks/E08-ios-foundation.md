@@ -6,22 +6,61 @@ here rather than inlining it.
 
 Runs against the fixture server (`E00-05`), so it does not wait on the backend.
 
+> **Open question:** `CLAUDE.md` §5 and this epic's **Verify** lines pin
+> `platform=iOS Simulator,name=iPhone 15`, which no longer ships in Xcode on the build
+> machine — the available devices are iPhone 17, 17 Pro, 17 Pro Max, 17e and Air. Agents are
+> using `name=iPhone 17`, which is the interpretation that lets verification actually run.
+> The owner needs to decide whether `CLAUDE.md` §5 and CI keep pinning a device that no
+> longer exists, pin a generic `platform=iOS Simulator,OS=latest` destination instead, or fix
+> the fleet. Until then a fresh checkout on a machine with a different Xcode will fail
+> verification for a reason that has nothing to do with the code.
+
+> **Open question:** the **Verify** lines for `E08-02`, `E08-03`, `E08-05`, `E08-06` and
+> `E08-07` name `-only-testing:BlindDropTests/…`. `BlindDropTests/` is the directory on disk;
+> the three test *targets* are `BlindDropUnitTests`, `BlindDropSnapshotTests` and
+> `BlindDropUITests` (`E00-03`). The runnable form is
+> `-only-testing:BlindDropUnitTests/<SuiteName>`.
+
 ---
 
 ### E08-01 — App skeleton, light mode, environment
 
-**Status:** wip · **Deps:** E00-03 · **Reads:** `docs/13` §1, §4, §8, `docs/07` (intro)
-**Touches:** `App/BlindDropApp.swift`, `App/AppEnvironment.swift`, `App/RootView.swift`, `App/DeepLink.swift`
-**Verify:** app launches to a placeholder in the simulator
+**Status:** done · **Deps:** E00-03 · **Reads:** `docs/13` §1, §4, §8, `docs/07` (intro)
+**Touches:** `App/BlindDropApp.swift`, `App/AppEnvironment.swift`, `App/AppConfiguration.swift`,
+`App/RootView.swift`, `App/Route.swift`, `App/Router.swift`, `App/DeepLink.swift`,
+`Core/Auth/SessionStore.swift`, `Core/Time/ServerClock.swift`, `Core/Networking/APIClient.swift`,
+`Features/{Onboarding,Round,Record,Settings}/*Screen.swift`,
+`BlindDropTests/Unit/{DeepLinkTests,RoutingTests,AppConfigurationTests}.swift`
+**Verify:** app launches to a placeholder in the simulator —
+`xcodebuild test -scheme BlindDrop -destination 'platform=iOS Simulator,name=iPhone 17'`
+(`PlaceholderUITests.testAppLaunches` launches with `-apiBaseURL` and asserts
+`.runningForeground`; the routing, configuration and deep-link rules are unit-tested so none
+of this is a manual check — `CLAUDE.md` §7)
 
-- [ ] `.preferredColorScheme(.light)` at the root; **no** `colorScheme` branching anywhere
-- [ ] `AppEnvironment` is the composition root and the only singleton, injected via
-      `.environment(_:)`
-- [ ] `-apiBaseURL` launch argument honoured so tests point at the fixture server
-- [ ] `RootView` routes on session state per `docs/13` §4
-- [ ] `NavigationStack` with a typed path; two destinations, one modal. **No tab bar.**
-- [ ] `blinddrop://` parsing for the four routes in `docs/05` §5, stored as `pendingRoute`
+- [x] `.preferredColorScheme(.light)` at the root; **no** `colorScheme` branching anywhere
+- [x] `AppEnvironment` is the composition root and the only singleton, injected via
+      `.environment(_:)` — deliberately **no** `static let shared`
+- [x] `-apiBaseURL` launch argument honoured so tests point at the fixture server
+- [x] `RootView` routes on session state per `docs/13` §4
+- [x] `NavigationStack` with a typed path; two destinations, one modal. **No tab bar.**
+- [x] `blinddrop://` parsing for the four routes in `docs/05` §5, stored as `pendingRoute`
       and consumed only after the round loads
+
+Notes for the tasks that build on this:
+
+- `SessionState` carries a fifth case, `.unknown`, on top of `docs/13` §4's four. It is
+  `docs/13` §5 rule 3 — "before the first response the app does not know" — applied to
+  identity: the root renders nothing rather than guessing `.signedOut` and showing a sign-in
+  wall to a signed-in user. E09-01 attaches the real transitions.
+- `ServerClock` and `APIClient` land here as shapes only, so the composition root does not
+  have to be rewritten by `E08-05`/`E08-06`. Both are one-line constructors with the wiring
+  (`APIClient` holds the *same* `ServerClock` instance every countdown reads) already correct.
+- `Router.consume(session:roundIsLoaded:)` is deliberately **not** given the round's phase.
+  `docs/05` §5 says a link never shortcuts a phase gate, and a phase parameter is the standing
+  temptation to gate on it. `.results` therefore pops to the root exactly like `.round` — the
+  server decides what renders.
+- The placeholder screens carry no copy. `docs/11` owns every string; inventing one to fill a
+  blank screen is how strings get written outside the copy deck.
 
 ---
 

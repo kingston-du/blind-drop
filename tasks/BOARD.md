@@ -108,7 +108,7 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E08-01 App skeleton, light mode, environment | wip | E00-03 | — |
+| E08-01 App skeleton, light mode, environment | done | E00-03 | — |
 | E08-02 Palette and contrast test | todo | E08-01 | AC-2 gates |
 | E08-03 Typography and font bundling | todo | E08-01 | — |
 | E08-04 Component library | todo | E08-02, E08-03 | — |
@@ -192,11 +192,11 @@ E04..E07 + E13  ─ E14 QA & release
 | E05 | 0 / 6 |
 | E06 | 0 / 4 |
 | E07 | 0 / 6 |
-| E08 | 0 / 7 |
+| E08 | 1 / 7 |
 | E09 | 0 / 4 |
 | E10 | 0 / 7 |
 | E11 | 0 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **14 / 80** |
+| **Total** | **15 / 80** |
