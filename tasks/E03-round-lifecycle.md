@@ -9,7 +9,7 @@ Everything here calls `public.now_()`, never `now()` — that is what makes the 
 
 ### E03-01 — `ensure_rounds()`
 
-**Status:** todo · **Deps:** E01-05, E02-03 · **Reads:** `docs/02` §1, `docs/03` §4
+**Status:** wip · **Deps:** E01-05, E02-03 · **Reads:** `docs/02` §1, `docs/03` §4
 **Touches:** `migrations/0004_round_lifecycle.sql`
 **Verify:** `npm run test:db -- ensure_rounds`
 

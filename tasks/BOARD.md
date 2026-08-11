@@ -57,7 +57,7 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E03-01 `ensure_rounds()` | todo | E01-05, E02-03 | AC-3 |
+| E03-01 `ensure_rounds()` | wip | E01-05, E02-03 | AC-3 |
 | E03-02 `tick_rounds()` reveal and void | todo | E03-01 | AC-3, AC-4 |
 | E03-03 `tick_rounds()` score and nudge | todo | E03-02 | AC-3 |
 | E03-04 `card_order` shuffle | todo | E03-02 | AC-5 |
