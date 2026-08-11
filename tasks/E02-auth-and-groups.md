@@ -56,7 +56,7 @@ authenticating produced a 500 from `GET /auth/v1/user`.
 
 ### E02-02 — `/me`
 
-**Status:** todo · **Deps:** E02-01 · **Reads:** `docs/04` §2, `docs/14` §7
+**Status:** wip · **Deps:** E02-01 · **Reads:** `docs/04` §2, `docs/14` §7
 **Touches:** `functions/me/index.ts`
 **Verify:** `npm run test:functions -- me`
 

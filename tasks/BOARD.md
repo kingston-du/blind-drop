@@ -48,7 +48,7 @@ E04..E07 + E13  ─ E14 QA & release
 | Task | Status | Deps | Proves |
 |---|---|---|---|
 | E02-01 `_shared` http, auth, dto, db | done | E01-02 | AC-1 |
-| E02-02 `/me` | todo | E02-01 | — |
+| E02-02 `/me` | wip | E02-01 | — |
 | E02-03 `/groups` create, join, current, patch, leave | todo | E02-02 | AC-1 |
 | E02-04 Invite code generation | todo | E02-03 | — |
 | E02-05 Account deletion | todo | E02-03 | — |
