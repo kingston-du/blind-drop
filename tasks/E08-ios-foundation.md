@@ -66,7 +66,7 @@ Notes for the tasks that build on this:
 
 ### E08-02 — Palette and contrast test
 
-**Status:** todo · **Deps:** E08-01 · **Reads:** `docs/07` §2
+**Status:** wip · **Deps:** E08-01 · **Reads:** `docs/07` §2
 **Touches:** `DesignSystem/Palette.swift`, `BlindDropTests/Unit/PaletteContrastTests.swift`
 **Verify:** `xcodebuild test -only-testing:BlindDropTests/PaletteContrastTests`
 
