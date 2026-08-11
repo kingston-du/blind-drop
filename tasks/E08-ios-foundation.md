@@ -182,7 +182,7 @@ Notes:
 
 ### E08-06 — `ServerClock` and the `Date()` lint
 
-**Status:** todo · **Deps:** E08-05 · **Reads:** `docs/13` §5, `docs/15` AC-2
+**Status:** wip · **Deps:** E08-05 · **Reads:** `docs/13` §5, `docs/15` AC-2
 **Touches:** `Core/Time/ServerClock.swift`, `Core/Time/CountdownTimer.swift`, `ios/scripts/lint.sh`
 **Verify:** `xcodebuild test -only-testing:BlindDropTests/ServerClockTests`
 
