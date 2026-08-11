@@ -128,16 +128,19 @@ the seed exists only so tests are reproducible.
 
 ### E03-05 — `pg_cron` registration
 
-**Status:** todo · **Deps:** E03-03 · **Reads:** `docs/05` §1
-**Touches:** `migrations/0009_cron.sql`
+**Status:** done · **Deps:** E03-03 · **Reads:** `docs/05` §1
+**Touches:** `migrations/0016_cron.sql`, `tests/db/cron.sql`, `README.md`
 **Verify:** `npm run test:db -- cron` (asserts the jobs are registered)
 
-- [ ] `tick` job every minute calling `tick_rounds()`
-- [ ] `push` job every minute calling the `push-worker` function via `pg_net`
-- [ ] Function URL and service key from `current_setting`, set per environment — **not**
+> **Open question:** the planned `0009_cron.sql` slot predates already-applied migrations
+> through `0015`. The job registration therefore lands forward-only as `0016_cron.sql`.
+
+- [x] `tick` job every minute calling `tick_rounds()`
+- [x] `push` job every minute calling the `push-worker` function via `pg_net`
+- [x] Function URL and service key from `current_setting`, set per environment — **not**
       hardcoded in the migration
-- [ ] `ensure_rounds()` is called at the top of `tick_rounds()`, not as a third job
-- [ ] Documented in `README.md` how to set the two settings per environment
+- [x] `ensure_rounds()` is called at the top of `tick_rounds()`, not as a third job
+- [x] Documented in `README.md` how to set the two settings per environment
 
 ---
 

@@ -114,6 +114,29 @@ any other local Supabase project:
 | Studio | `http://127.0.0.1:54423` |
 | Mail (Mailpit) | `http://127.0.0.1:54424` |
 
+### Scheduler settings
+
+The `tick` and `push` cron jobs are installed by migration. The push job reads its function
+host and service credential from target-database settings so neither value is committed or
+stored in `cron.job`. Set them once in each environment, using the SQL editor or `psql`
+connected to that database:
+
+```sql
+alter database postgres set app.functions_url = 'https://<project-ref>.supabase.co/functions/v1';
+alter database postgres set app.service_key = '<that environment service-role key>';
+```
+
+For the local Docker stack, use `http://kong:8000/functions/v1` for `app.functions_url` and
+the `SERVICE_ROLE_KEY` reported by `supabase status -o env`. `kong` is the internal hostname
+reachable from the database container; `127.0.0.1:54421` is only the host-machine address.
+`ALTER DATABASE` applies to new sessions, including the next cron invocation. The local seed
+pauses both jobs so its dated fixture cannot advance under the real clock; after setting the
+values, opt into the live local scheduler explicitly:
+
+```sql
+select public.set_blind_drop_jobs_active(true);
+```
+
 ```bash
 npm run db:reset     # re-run all migrations + seed from scratch
 npm run db:stop      # stop the stack

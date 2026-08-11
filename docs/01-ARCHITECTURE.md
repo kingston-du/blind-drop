@@ -74,7 +74,7 @@ blind-drop/
 │       │   ├── 0006_notifications.sql     outbox + unique idempotency key
 │       │   ├── 0007_track_links.sql       ISRC ↔ apple ↔ spotify cache
 │       │   ├── 0008_delete_account.sql    anonymise, don't cascade
-│       │   ├── 0009_cron.sql              pg_cron job registration
+│       │   ├── 0016_cron.sql              pg_cron job registration
 │       │   ├── 0010_service_role_grants.sql  least-privilege grants for the API role
 │       │   ├── 0011_rate_limits.sql       sliding-window limiter (docs/04 §8)
 │       │   └── 0012_group_api.sql         timezone validation, atomic group creation

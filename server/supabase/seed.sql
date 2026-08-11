@@ -216,3 +216,8 @@ values
   ('isrc:USRC12204245','USRC12204245','1656689279','https://music.apple.com/us/song/1656689279','1Qrg8KqiBpW07V7PNxwwwL','https://open.spotify.com/track/1Qrg8KqiBpW07V7PNxwwwL','2026-08-08T15:31:00Z',1,false),
   ('isrc:USQX91901234','USQX91901234','1468055107','https://music.apple.com/us/song/1468055107','3AwF0Ea5jUqLDWWDaXocxT','https://open.spotify.com/track/3AwF0Ea5jUqLDWWDaXocxT','2026-08-08T15:31:00Z',1,false);
 
+-- `supabase db reset` loads this dated fixture after migrations have registered the live
+-- cron jobs. Pause them locally so the real wall clock cannot advance the fixture while a
+-- developer or pgTAP is inspecting it. Hosted deployments apply migrations without this
+-- seed and therefore leave both jobs active. README documents the explicit local opt-in.
+select public.set_blind_drop_jobs_active(false);
