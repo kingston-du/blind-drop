@@ -123,6 +123,13 @@ row of the `docs/07` §2 contrast table.
 **Touches:** `DesignSystem/Components/*`, `DesignSystem/Space.swift`, `DesignSystem/Haptics.swift`
 **Verify:** snapshot tests for each component at three type sizes
 
+> **Open question:** this task's **Verify** is snapshot tests, and the snapshot harness is
+> `E08-07`, which depends on `E08-04`. The two cannot both go first. The reading that lets
+> verification run is to build the harness as the first step of `E08-04` (it is `E08-07`'s
+> first checklist item and needs no component to exist), then the components against it, and
+> leave `E08-07` to add the matrix helper, the diff output, `RECORD_SNAPSHOTS=1`, and the
+> dark-mode-identity test. The owner may prefer to renumber instead.
+
 Ten components from `docs/07` §5. Build them with their accessibility from `docs/12` §2 —
 retrofitting VoiceOver later means rebuilding the view hierarchy.
 
