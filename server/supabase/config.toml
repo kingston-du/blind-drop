@@ -394,6 +394,12 @@ verify_jwt = false
 [functions.groups]
 verify_jwt = false
 
+[functions.rounds]
+verify_jwt = false
+
+[functions.tracks]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
@@ -405,8 +411,36 @@ inspector_port = 8183
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# ─── function secrets, local stack only ──────────────────────────────────────────────────
+# Deployed, every one of these comes from `supabase secrets set` and none of them is in the
+# repo (docs/01 §5, docs/06 §8). What is here is the *local* stack's set, and it exists so
+# that `npm run test:functions` is hermetic: no Apple developer account, no Spotify app, and
+# no outbound network call in the suite.
+#
+# `MUSIC_FIXTURES` is what makes that work. With it on, `_shared/music/upstream.ts` answers
+# from `_shared/music/fixtures.ts` instead of reaching the network — it substitutes the *hop*,
+# not the code, so token signing, DTO mapping, the URL allowlist and the timeout budget all
+# still run for real. It is opt-in and never set in a deployed environment; a missing Apple
+# key in production is a loud failure, not a silent fall back to fixture songs.
+#
+# The private key below is a throwaway P-256 key generated for this repo. It signs tokens that
+# only ever go to the in-process fixture upstream. It is not an Apple credential, it grants
+# nothing, and rotating it means running `openssl ecparam -genkey -name prime256v1 | openssl
+# pkcs8 -topk8 -nocrypt`.
+#
+# It is a TOML *literal* string (single quotes) so that `\n` survives as two characters. The
+# CLI hands these to the container through a docker env file, which cannot carry a real
+# newline and silently drops any value containing one — a basic "…" string here would unescape
+# to a multi-line PEM and then vanish. Two characters is also exactly how the deployed secret
+# is stored (`server/.env.example`), so `pemToPkcs8()` unescapes in both environments and
+# neither is a special case.
+[edge_runtime.secrets]
+MUSIC_FIXTURES = "on"
+APPLE_MUSIC_KEY_ID = "FIXTUREKEY"
+APPLE_MUSIC_TEAM_ID = "FIXTURETEAM"
+APPLE_MUSIC_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg+++sB8fDqPStKEYe\n+irO12iVTZL1ZfUO1Rix2vN/nTWhRANCAARtlFyvyNwGc+BTmoit5hxyjLrDMrNJ\n9DSpTPAag1J2STE165f2EBZGV/hrGwOr3wJBeVW0gp34EJ+PEkxfrqAc\n-----END PRIVATE KEY-----'
+SPOTIFY_CLIENT_ID = "fixture-client-id"
+SPOTIFY_CLIENT_SECRET = "fixture-client-secret"
 
 [analytics]
 # docs/01 §1 — no analytics in v1.

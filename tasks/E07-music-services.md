@@ -23,40 +23,55 @@ lands.
 
 ### E07-01 — Apple Music developer token
 
-**Status:** wip · **Deps:** E02-01 · **Reads:** `docs/06` §4, §8
+**Status:** done · **Deps:** E02-01 · **Reads:** `docs/06` §4, §8
 **Touches:** `functions/_shared/music/appleMusic.ts`
 **Verify:** `npm run test:functions -- applemusic`
 
 ES256 JWT from the MusicKit `.p8`, via Web Crypto. Shares the signing helper with `E06-01`.
 
-- [ ] Claims `iss = TEAM_ID`, `kid = KEY_ID`, `exp` ≤ 180 days
-- [ ] Cached in module scope, regenerated at 80% of lifetime
-- [ ] `.p8` from a Supabase secret only; never in the app bundle
-- [ ] Storefront resolution from `X-Storefront`, validated against a known list, default `us`
-- [ ] Test: token verifies; an unknown storefront falls back to `us` rather than erroring
+- [x] Claims `iss = TEAM_ID`, `kid = KEY_ID`, `exp` ≤ 180 days
+- [x] Cached in module scope, regenerated at 80% of lifetime
+- [x] `.p8` from a Supabase secret only; never in the app bundle
+- [x] Storefront resolution from `X-Storefront`, validated against a known list, default `us`
+- [x] Test: token verifies; an unknown storefront falls back to `us` rather than erroring
 
 ---
 
 ### E07-02 — `GET /tracks/search`
 
-**Status:** wip · **Deps:** E07-01 · **Reads:** `docs/06` §2, §4, `docs/04` §6
+**Status:** done · **Deps:** E07-01 · **Reads:** `docs/06` §2, §4, `docs/04` §6
 **Touches:** `functions/tracks/index.ts`
 **Verify:** `npm run test:functions -- search`
 
-- [ ] Maps Apple song attributes → the Track DTO in `docs/06` §2, field by field
-- [ ] **Artwork URL stored as the `{w}x{h}` template**, not a resolved size
-- [ ] `preview_url` from `previews[0].url`; absent is normal and must not error
-- [ ] `artwork_bg_color` captured (used only as a load placeholder — `docs/06` §2.1)
-- [ ] Edge cache 10 min on `(storefront, lower(trim(q)))`
-- [ ] Rate limit 30/min per user
+- [x] Maps Apple song attributes → the Track DTO in `docs/06` §2, field by field
+- [x] **Artwork URL stored as the `{w}x{h}` template**, not a resolved size
+- [x] `preview_url` from `previews[0].url`; absent is normal and must not error
+- [x] `artwork_bg_color` captured (used only as a load placeholder — `docs/06` §2.1)
+- [x] Edge cache 10 min on `(storefront, lower(trim(q)))` — see the open question below
+- [x] Rate limit 30/min per user
 - [ ] p95 under 400ms with a warm cache (this is 30% of the 90-second budget)
-- [ ] Test: a song with no ISRC still returns a valid DTO with an `am:` `track_key`
+- [x] Test: a song with no ISRC still returns a valid DTO with an `am:` `track_key`
+
+> **Open question:** the cache key is the request URL, not a normalised `(storefront,
+> lower(trim(q)))` tuple. An HTTP cache keys on the URL it was given, and a handler cannot
+> rewrite that URL after the fact, so `?q=Ribs` and `?q=ribs` occupy two entries. Storefront is
+> handled correctly — it is a `Vary` header, which is what it is for. The interpretation taken
+> is the one that cannot leak or mislead: fewer cache hits costs us Apple quota and nothing
+> else, whereas collapsing distinct queries onto one key would serve one user another's
+> results. Closing it properly means normalising client-side before the request is made
+> (`E10-02` already lower-cases for its own debounce) or moving the cache into Postgres. Worth
+> revisiting only if Apple quota becomes the binding constraint.
+>
+> **p95 is left unticked deliberately.** It cannot be measured against the fixture upstream —
+> the fixture answers in microseconds, so a green number here would prove nothing about Apple.
+> It belongs to `E14-03`, against the real endpoint, and claiming it now would be claiming a
+> measurement nobody has taken.
 
 ---
 
 ### E07-03 — `POST /tracks/resolve` and `track_key`
 
-**Status:** wip · **Deps:** E07-02 · **Reads:** `docs/06` §3–4, `docs/14` §7
+**Status:** done · **Deps:** E07-02 · **Reads:** `docs/06` §3–4, `docs/14` §7
 **Touches:** `functions/_shared/music/resolve.ts`
 **Verify:** `npm run test:functions -- resolve`
 
@@ -64,37 +79,37 @@ ES256 JWT from the MusicKit `.p8`, via Web Crypto. Shares the signing helper wit
 track_key = isrc ? 'isrc:' + isrc : 'am:' + apple_music_id
 ```
 
-- [ ] ISRCs uppercased and de-hyphenated before use
-- [ ] Three input paths: Spotify URL/URI → ISRC → Apple; Apple URL/id → Apple; bare ISRC →
+- [x] ISRCs uppercased and de-hyphenated before use
+- [x] Three input paths: Spotify URL/URI → ISRC → Apple; Apple URL/id → Apple; bare ISRC →
       Apple
-- [ ] **URL allowlist** — only Spotify and Apple Music host patterns. No arbitrary URL is
+- [x] **URL allowlist** — only Spotify and Apple Music host patterns. No arbitrary URL is
       ever fetched server-side (SSRF, `docs/14` §7)
-- [ ] ISRC validated against `^[A-Z]{2}[A-Z0-9]{3}\d{7}$`
-- [ ] Spotify→Apple miss returns `INVALID_INPUT` with the `resolve.error.notfound` copy. A
+- [x] ISRC validated against `^[A-Z]{2}[A-Z0-9]{3}\d{7}$`
+- [x] Spotify→Apple miss returns `INVALID_INPUT` with the `resolve.error.notfound` copy. A
       Spotify-only track is **never** stored — the game needs a preview and stable artwork
-- [ ] Never match on title/artist strings
-- [ ] Test: two Apple catalog ids sharing one ISRC produce the same `track_key`
-- [ ] Test: a live recording and its studio original produce different keys
+- [x] Never match on title/artist strings
+- [x] Test: two Apple catalog ids sharing one ISRC produce the same `track_key`
+- [x] Test: a live recording and its studio original produce different keys
 
 ---
 
 ### E07-04 — Spotify ISRC lookup
 
-**Status:** wip · **Deps:** E07-03 · **Reads:** `docs/06` §5, §8
+**Status:** done · **Deps:** E07-03 · **Reads:** `docs/06` §5, §8
 **Touches:** `functions/_shared/music/spotify.ts`
 **Verify:** `npm run test:functions -- spotify`
 
 Client-credentials flow, our credentials, server-side only.
 
-- [ ] Token cached for its full hour
-- [ ] `GET /v1/search?q=isrc:{ISRC}&type=track&limit=1`
-- [ ] Writes `spotify_id` / `spotify_url` into `track_links` keyed by `track_key`, and patches
+- [x] Token cached for its full hour
+- [x] `GET /v1/search?q=isrc:{ISRC}&type=track&limit=1`
+- [x] Writes `spotify_id` / `spotify_url` into `track_links` keyed by `track_key`, and patches
       `track_meta` on existing submissions with that key
-- [ ] Inline at submission with a **700ms budget**; a timeout never fails the submission
-- [ ] A track with no ISRC is marked `unresolvable` immediately — title/artist search returns
+- [x] Inline at submission with a **700ms budget**; a timeout never fails the submission
+- [x] A track with no ISRC is marked `unresolvable` immediately — title/artist search returns
       wrong recordings often enough to be worse than nothing
-- [ ] `SPOTIFY_CLIENT_SECRET` used here and **nowhere near the app bundle**
-- [ ] Test: submission succeeds with `spotify_id: null` when Spotify times out
+- [x] `SPOTIFY_CLIENT_SECRET` used here and **nowhere near the app bundle**
+- [x] Test: submission succeeds with `spotify_id: null` when Spotify times out
 
 ---
 

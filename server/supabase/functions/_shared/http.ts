@@ -73,9 +73,14 @@ function json(body: unknown, status: number, headers: HeadersInit = {}): Respons
   });
 }
 
-/** `{ server_now, data }` — docs/04 §1. */
-export function ok(data: unknown, status = 200): Response {
-  return json({ server_now: rfc3339(serverNow()), data }, status);
+/** `{ server_now, data }` — docs/04 §1.
+ *
+ *  `headers` exists for one caller: `GET /tracks/search` sets `Cache-Control` so the edge can
+ *  hold a catalog answer for ten minutes (docs/06 §4). It is deliberately not a general escape
+ *  hatch — a header that varies with group state is the same leak as a body field that does
+ *  (docs/14 §3), so anything added here belongs to the *catalog*, never to a round. */
+export function ok(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return json({ server_now: rfc3339(serverNow()), data }, status, headers);
 }
 
 /** `{ server_now, error: { code, message, … } }` — docs/04 §1.
