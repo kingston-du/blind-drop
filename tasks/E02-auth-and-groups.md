@@ -7,7 +7,7 @@ pipeline and the error envelope right once means the rest of the backend inherit
 
 ### E02-01 — `_shared`: http, auth, dto, db
 
-**Status:** todo · **Deps:** E01-02 · **Reads:** `docs/04` §1, `docs/14` §4, `docs/01` §2
+**Status:** wip · **Deps:** E01-02 · **Reads:** `docs/04` §1, `docs/14` §4, `docs/01` §2
 **Touches:** `functions/_shared/{http,auth,db,time,dto}.ts`
 **Verify:** `npm run test:functions -- shared`
 
