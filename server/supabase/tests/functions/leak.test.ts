@@ -445,6 +445,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // none is keyed by a group, round, member, or participation state, and no device token
     // can pass requireServiceRole to observe them.
     "push-worker POST /": null,
+    // 204, always, whether the token was new, moved between users, or unchanged. There is no
+    // read side and no body to shape, so a caller learns nothing from registering — including
+    // whether the row already existed (tasks/E06-03).
+    "devices POST /": null,
     "tracks GET /search": "tracks_search",
     "tracks POST /resolve": "tracks_resolve",
   };

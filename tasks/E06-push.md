@@ -52,15 +52,19 @@ Drains the outbox. Claim → send → mark, with `for update skip locked`.
 
 ### E06-03 — `POST /devices`
 
-**Status:** wip · **Deps:** E02-02 · **Reads:** `docs/04` §2, `docs/05` §4
-**Touches:** `functions/devices/index.ts`
+**Status:** done · **Deps:** E02-02 · **Reads:** `docs/04` §2, `docs/05` §4
+**Touches:** `functions/devices/index.ts`, `config.toml`, `tests/functions/{devices,leak}.test.ts`
 **Verify:** `npm run test:functions -- devices`
 
-- [ ] Upsert on `apns_token`; re-points to the current user, clears `disabled_at`, bumps
+- [x] Upsert on `apns_token`; re-points to the current user, clears `disabled_at`, bumps
       `last_seen_at`
-- [ ] Returns 204
-- [ ] Test: the same token registered by a second user moves ownership (a shared device)
-- [ ] **No notification-preference fields.** There are no settings (`docs/05` §4)
+- [x] Returns 204
+- [x] Test: the same token registered by a second user moves ownership (a shared device)
+- [x] **No notification-preference fields.** There are no settings (`docs/05` §4)
+- [x] Token stored lowercased — hex is case-insensitive, and two spellings of one token would
+      be two rows and two copies of every push to one phone
+- [x] `requireProfile`, not `requireUser`: `devices.user_id` references `profiles(id)`, so an
+      unnamed caller gets `NO_PROFILE` rather than a foreign-key violation as `INTERNAL`
 
 ---
 
