@@ -1,4 +1,5 @@
-// push.test.ts — APNs request shape, atomic claims, and send-before-mark. tasks/E06-02.
+// push.test.ts — APNs request shape, atomic claims, send-before-mark, and what happens when
+// a send does not work. tasks/E06-02, E06-04.
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import { serviceClient } from "../../functions/_shared/db.ts";
@@ -9,6 +10,7 @@ import {
   mapConcurrent,
   notificationExpiration,
   PUSH_CONCURRENCY,
+  PUSH_MAX_ATTEMPTS,
   type PushDevice,
 } from "../../functions/push-worker/worker.ts";
 import {
@@ -16,6 +18,7 @@ import {
   API_URL,
   call,
   newGroupOwner,
+  newMember,
   SERVICE_KEY,
   tickRoundsAt,
   zoneWhereLocalHourIs,
@@ -286,5 +289,321 @@ Deno.test("the push worker is closed to everybody but the scheduler", async () =
     body: {},
   });
   assertEquals(scheduler.status, 200);
-  assertEquals(Object.keys(scheduler.body.data).sort(), ["claimed", "devices", "failed", "sent"]);
+  assertEquals(
+    Object.keys(scheduler.body.data).sort(),
+    ["claimed", "devices", "disabled", "failed", "sent"],
+  );
+});
+
+// ─── E06-04 · what happens when a send does not work ─────────────────────────
+// docs/05 §6 gives three failures three different endings, and the difference between them is
+// the whole of this section: a dead token is switched off, a busy Apple is retried, and a row
+// that has failed five times stops rather than retrying until the heat death of the group.
+
+/** A device registered the way the app registers one — through the real endpoint. */
+async function registerDevice(token: string): Promise<string> {
+  const apnsToken = Array.from(
+    crypto.getRandomValues(new Uint8Array(32)),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+  const res = await call("devices", "/", {
+    method: "POST",
+    token,
+    body: { apns_token: apnsToken, environment: "sandbox" },
+  });
+  assertEquals(res.status, 204, "registering a test device");
+  return apnsToken;
+}
+
+/** The device token an APNs request is addressed to — the last path segment. */
+function addressedToken(request: Request): string {
+  return new URL(request.url).pathname.split("/").pop() as string;
+}
+
+/** An `ApnsFetch` that records every request and answers per token. */
+function stubApns(answer: (token: string) => { status: number; body?: string }) {
+  const tokens: string[] = [];
+  const fetchApns = async (request: Request) => {
+    const token = addressedToken(request);
+    tokens.push(token);
+    const { status, body } = answer(token);
+    return { ok: status >= 200 && status < 300, status, text: async () => body ?? "" };
+  };
+  return { tokens, fetchApns };
+}
+
+interface OutboxRow {
+  id: string;
+  attempts: number;
+  sent_at: string | null;
+  claim_id: string | null;
+  claimed_at: string | null;
+  last_error: string | null;
+}
+
+async function outboxRow(roundId: string, kind: string): Promise<OutboxRow> {
+  const columns = "id,attempts,sent_at,claim_id,claimed_at,last_error";
+  const rows = (await serviceRequest(
+    `notification_outbox?select=${columns}&round_id=eq.${roundId}&kind=eq.${kind}`,
+  )).body as OutboxRow[];
+  assertEquals(rows.length, 1, `expected exactly one ${kind} row for ${roundId}`);
+  return rows[0];
+}
+
+async function outboxKinds(roundId: string): Promise<string[]> {
+  const rows = (await serviceRequest(
+    `notification_outbox?select=kind&round_id=eq.${roundId}`,
+  )).body as { kind: string }[];
+  return rows.map((row) => row.kind).sort();
+}
+
+async function deviceDisabledAt(apnsToken: string): Promise<string | null> {
+  const rows = (await serviceRequest(
+    `devices?select=disabled_at&apns_token=eq.${apnsToken}`,
+  )).body as { disabled_at: string | null }[];
+  assertEquals(rows.length, 1, "expected exactly one device row");
+  return rows[0].disabled_at;
+}
+
+/** A group whose round is about to void, with the owner's device registered. */
+async function voidingRound(label: string): Promise<{ roundId: string; user_token: string }> {
+  const { user } = await newGroupOwner(label, {
+    name: `${label} ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zoneWhereLocalHourIs(12),
+    reveal_hour: 20,
+  });
+  const current = await call("rounds", "/current", { token: user.token });
+  return { roundId: current.body.data.round_id as string, user_token: user.token };
+}
+
+Deno.test("410 Unregistered switches the token off and does not fail the row", async () => {
+  await clearPending();
+  const { roundId, user_token } = await voidingRound("Push Gone");
+  const dead = await registerDevice(user_token);
+  const alive = await registerDevice(user_token);
+  await tickRoundsAt(9);
+  const queued = await outboxRow(roundId, "void");
+  await clearPending(queued.id);
+
+  const { tokens, fetchApns } = stubApns((token) =>
+    token === dead ? { status: 410, body: '{"reason":"Unregistered"}' } : { status: 200 }
+  );
+  const drained = await drainPushOutbox(serviceClient(), fetchApns);
+
+  assertEquals(drained.devices, 2, "both of the user's devices were addressed");
+  assertEquals(drained.disabled, 1);
+  assertEquals(drained.failed, 0, "a dead token is not a failed notification");
+  assertEquals(drained.sent, drained.claimed);
+
+  assert(await deviceDisabledAt(dead) !== null, "a 410 disables the token");
+  assertEquals(await deviceDisabledAt(alive), null, "the other device is untouched");
+
+  const after = await outboxRow(roundId, "void");
+  assert(after.sent_at !== null, "the row is done — retrying it would collect the same 410");
+  assertEquals(after.last_error, null);
+
+  // Never retried: the next pass has nothing to claim, and the dead token is not addressed
+  // again even when it is.
+  const second = await drainPushOutbox(serviceClient(), fetchApns);
+  assertEquals(second.claimed, 0);
+  assertEquals(tokens.filter((token) => token === dead).length, 1);
+
+  // And a re-registration is how a device comes back (E06-03): `disabled_at` is cleared, not
+  // permanent, because the app presenting the token again is evidence the 410 no longer holds.
+  const res = await call("devices", "/", {
+    method: "POST",
+    token: user_token,
+    body: { apns_token: dead, environment: "sandbox" },
+  });
+  assertEquals(res.status, 204);
+  assertEquals(await deviceDisabledAt(dead), null);
+});
+
+Deno.test("429 and 5xx leave the row for the next minute, then stop at five attempts", async () => {
+  await clearPending();
+  const { roundId, user_token } = await voidingRound("Push Busy");
+  await registerDevice(user_token);
+  await tickRoundsAt(9);
+  const queued = await outboxRow(roundId, "void");
+
+  // Apple is busy, then broken, then busy again. Nothing here is permanent, so nothing here
+  // may consume the row — until the ceiling does.
+  const statuses = [429, 503, 500, 429, 503];
+  for (const [index, status] of statuses.entries()) {
+    await clearPending(queued.id);
+    const { fetchApns } = stubApns(() => ({ status, body: '{"reason":"TooManyRequests"}' }));
+    const drained = await drainPushOutbox(serviceClient(), fetchApns);
+    assert(drained.claimed >= 1, `pass ${index + 1} claimed the row`);
+    assertEquals(drained.failed, drained.claimed);
+    assertEquals(drained.sent, 0);
+
+    const row = await outboxRow(roundId, "void");
+    assertEquals(row.attempts, index + 1, "each pass is exactly one attempt");
+    assertEquals(row.sent_at, null, "a failed send never marks the row sent");
+    assertEquals(row.claim_id, null, "the lease is released so the next minute can retry");
+    assertEquals(row.claimed_at, null);
+    assert(row.last_error?.startsWith(String(status)), `last_error records ${status}`);
+  }
+
+  // Five attempts and it stops. The row is not claimable, so no worker will try a sixth time,
+  // and the reason it stopped is still on the row for whoever comes looking.
+  await clearPending(queued.id);
+  const nothingLeft = await drainPushOutbox(serviceClient(), stubApns(() => ({ status: 200 })).fetchApns);
+  assertEquals(nothingLeft.claimed, 0, "a row at the attempt ceiling is never claimed again");
+
+  const abandoned = await outboxRow(roundId, "void");
+  assertEquals(abandoned.attempts, PUSH_MAX_ATTEMPTS);
+  assertEquals(abandoned.sent_at, null);
+  assert(abandoned.last_error?.startsWith("503"), "the last failure survives on the row");
+});
+
+Deno.test("the nudge audience is frozen at enqueue — docs/05 §3", async () => {
+  await clearPending();
+  // 17:00 local with a reveal at 20:00, so a tick an hour and a half on lands inside the
+  // two-hour nudge window without changing the group's local date.
+  const { user: ana, group } = await newGroupOwner("Ana", {
+    name: `Push Nudge ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 20,
+  });
+  const ben = await newMember(group.invite_code as string, "Ben");
+  const cal = await newMember(group.invite_code as string, "Cal");
+  const roundId =
+    (await call("rounds", "/current", { token: ana.token })).body.data.round_id as string;
+
+  const tokens = {
+    ana: await registerDevice(ana.token),
+    ben: await registerDevice(ben.token),
+    cal: await registerDevice(cal.token),
+  };
+
+  // Ana seals before the nudge is enqueued. Ben and Cal have not.
+  assertEquals(
+    (await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: ana.token,
+      body: { apple_music_id: "1440818664" },
+    })).status,
+    200,
+  );
+
+  await tickRoundsAt(1.5);
+  const enqueued = (await serviceRequest(
+    `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.nudge`,
+  )).body as { id: string; audience: string[] }[];
+  assertEquals(enqueued.length, 1, "one nudge, at reveals_at − 2h");
+  assertEquals(
+    [...enqueued[0].audience].sort(),
+    [ben.id, cal.id].sort(),
+    "the nudge goes to non-submitters and to nobody else",
+  );
+
+  // Cal seals at −1h55m, and a second tick runs before the worker does. The audience is not
+  // revised: re-resolving at send time would mean the worker reads submission state.
+  assertEquals(
+    (await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: cal.token,
+      body: { apple_music_id: "1440765580" },
+    })).status,
+    200,
+  );
+  await tickRoundsAt(1.6);
+  const afterCalSealed = (await serviceRequest(
+    `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.nudge`,
+  )).body as { id: string; audience: string[] }[];
+  assertEquals(afterCalSealed.length, 1, "a second tick does not enqueue a second nudge");
+  assertEquals(
+    [...afterCalSealed[0].audience].sort(),
+    [ben.id, cal.id].sort(),
+    "someone who seals after the freeze still receives the nudge",
+  );
+
+  await clearPending(enqueued[0].id);
+  const stub = stubApns(() => ({ status: 200 }));
+  await drainPushOutbox(serviceClient(), stub.fetchApns);
+  assertEquals(stub.tokens.sort(), [tokens.ben, tokens.cal].sort());
+  assertEquals(
+    stub.tokens.includes(tokens.ana),
+    false,
+    "an early submitter is never nudged, and hears nothing about anyone else",
+  );
+});
+
+Deno.test("reveal and void are mutually exclusive for a round", async () => {
+  const zone = zoneWhereLocalHourIs(17);
+  const { user: owner, group } = await newGroupOwner("Ana", {
+    name: `Push Reveal ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zone,
+    reveal_hour: 18,
+  });
+  const sealers = [
+    owner,
+    await newMember(group.invite_code as string, "Ben"),
+    await newMember(group.invite_code as string, "Cal"),
+  ];
+  const revealing =
+    (await call("rounds", "/current", { token: owner.token })).body.data.round_id as string;
+  for (const [index, member] of sealers.entries()) {
+    const res = await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: member.token,
+      body: { apple_music_id: ["1440818664", "1440765580", "1452874255"][index] },
+    });
+    assertEquals(res.status, 200, `sealer ${index}`);
+  }
+
+  // A second group in the same hour with one submitter, which is two short of a round.
+  const { user: lonely } = await newGroupOwner("Ivy", {
+    name: `Push Void ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zone,
+    reveal_hour: 18,
+  });
+  const voiding =
+    (await call("rounds", "/current", { token: lonely.token })).body.data.round_id as string;
+  assertEquals(
+    (await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: lonely.token,
+      body: { apple_music_id: "1440830827" },
+    })).status,
+    200,
+  );
+
+  // Reveal, then score, in two ticks — the pair a real evening produces.
+  await tickRoundsAt(1.5);
+  await tickRoundsAt(3.5);
+
+  assertEquals(await outboxKinds(revealing), ["results", "reveal"]);
+  assertEquals(await outboxKinds(voiding), ["void"]);
+  for (const roundId of [revealing, voiding]) {
+    const exclusive = (await serviceRequest(
+      `notification_outbox?select=kind&round_id=eq.${roundId}&kind=in.(reveal,void)`,
+    )).body as { kind: string }[];
+    assertEquals(exclusive.length, 1, `${roundId} announced its outcome exactly once`);
+  }
+});
+
+Deno.test("a delivered row is one push per device and is never delivered twice", async () => {
+  // The season budget — no more than three notifications to anyone in any 24 hours — is
+  // proven at the enqueue layer over fourteen simulated days by
+  // `tests/db/notification_budget.sql`. This is the other half: what the outbox holds is what
+  // the phone gets, exactly once per registered device, so the enqueue budget *is* the
+  // delivery budget.
+  await clearPending();
+  const { roundId, user_token } = await voidingRound("Push Once");
+  const first = await registerDevice(user_token);
+  const second = await registerDevice(user_token);
+  await tickRoundsAt(9);
+  const queued = await outboxRow(roundId, "void");
+  await clearPending(queued.id);
+
+  const stub = stubApns(() => ({ status: 200 }));
+  const drained = await drainPushOutbox(serviceClient(), stub.fetchApns);
+  assertEquals(drained.claimed, 1);
+  assertEquals(stub.tokens.sort(), [first, second].sort(), "one push per device, and no more");
+
+  const again = await drainPushOutbox(serviceClient(), stub.fetchApns);
+  assertEquals(again.claimed, 0, "a sent row is not claimed a second time");
+  assertEquals(stub.tokens.length, 2);
 });

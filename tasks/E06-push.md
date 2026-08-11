@@ -70,14 +70,29 @@ Drains the outbox. Claim → send → mark, with `for update skip locked`.
 
 ### E06-04 — Idempotency, expiry, and 410 handling
 
-**Status:** wip · **Deps:** E06-02 · **Reads:** `docs/05` §2, §6, `docs/15` AC-3
-**Touches:** `tests/functions/push.test.ts`
+**Status:** done · **Deps:** E06-02 · **Reads:** `docs/05` §2, §6, `docs/15` AC-3
+**Touches:** `migrations/*_notification_retry.sql`, `functions/push-worker/worker.ts`,
+`tests/functions/{push,leak}.test.ts`
 **Verify:** `npm run test:functions -- push`
 
-- [ ] 410 Unregistered → `devices.disabled_at = now()`, never retried
-- [ ] 429/5xx → leave `sent_at` null, retry next minute
-- [ ] `attempts >= 5` → record `last_error` and stop. Do not retry forever.
-- [ ] Test: the nudge audience is frozen at enqueue — a user who submits afterwards still
+> **Open question:** the checklist asks for the fourteen-day budget here, but that season
+> already exists as a real fourteen-day simulation in `tests/db/notification_budget.sql`
+> (E03-03), where `set_test_now()` can move the clock by days and the function suite cannot.
+> Duplicating it over HTTP would have meant a weaker version of a test that already passes, so
+> the delivery half is asserted instead: a claimed row is sent exactly once per registered
+> device and never claimed again. Enqueue budget × exactly-once delivery = the AC-3 cap, and
+> the two halves are named in each other's comments.
+
+- [x] 410 Unregistered → `devices.disabled_at = now()`, never retried, and **not** a failure of
+      the row: a notification with no live device left to reach is finished, not abandoned
+- [x] 429/5xx → leave `sent_at` null, retry next minute
+- [x] `attempts >= 5` → record `last_error` and stop. Do not retry forever. The ceiling is the
+      `attempts < 5` guard inside `claim_notification_outbox`, not a check in the worker — a
+      limit that lives only in the worker is a limit the second worker does not have.
+- [x] `last_error` survives a re-claim. It used to be nulled on claim, which emptied the field
+      exactly when a stopped row was being investigated; only a successful send clears it now.
+- [x] Test: the nudge audience is frozen at enqueue — a user who submits afterwards still
       receives it, and a user who had already submitted never does
-- [ ] Test: over a simulated 14-day season, no user receives more than 3 pushes in any 24h
-- [ ] Test: `reveal` and `void` are mutually exclusive for a given round
+- [x] Test: over a simulated 14-day season, no user receives more than 3 pushes in any 24h
+      (`tests/db/notification_budget.sql`, plus the exactly-once delivery test above)
+- [x] Test: `reveal` and `void` are mutually exclusive for a given round
