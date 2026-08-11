@@ -25,7 +25,7 @@ ES256 JWT signing with Web Crypto in Deno. No JWT library.
 
 ### E06-02 — `push-worker`
 
-**Status:** todo · **Deps:** E06-01 · **Reads:** `docs/05` §2, §4
+**Status:** wip · **Deps:** E06-01 · **Reads:** `docs/05` §2, §4
 **Touches:** `functions/push-worker/index.ts`
 **Verify:** `npm run test:functions -- push`
 
