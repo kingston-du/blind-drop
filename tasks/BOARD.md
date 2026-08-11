@@ -102,7 +102,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E07-03 `POST /tracks/resolve` and `track_key` | done | E07-02 | AC-7 |
 | E07-04 Spotify client-credentials ISRC lookup | done | E07-03 | — |
 | E07-05 `track_links` backfill in the tick | done | E07-04, E03-05 | — |
-| E07-06 Record and export endpoints | todo | E07-04, E05-03 | — |
+| E07-06 Record and export endpoints | wip | E07-04, E05-03 | — |
 
 ## E08 — iOS foundation · [file](E08-ios-foundation.md)
 

@@ -129,7 +129,7 @@ Client-credentials flow, our credentials, server-side only.
 
 ### E07-06 — Record and export endpoints
 
-**Status:** todo · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
+**Status:** wip · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
 **Touches:** `functions/groups/index.ts`
 **Verify:** `npm run test:functions -- record`
 
