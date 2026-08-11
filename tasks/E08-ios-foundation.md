@@ -66,19 +66,19 @@ Notes for the tasks that build on this:
 
 ### E08-02 — Palette and contrast test
 
-**Status:** wip · **Deps:** E08-01 · **Reads:** `docs/07` §2
+**Status:** done · **Deps:** E08-01 · **Reads:** `docs/07` §2
 **Touches:** `DesignSystem/Palette.swift`, `BlindDropTests/Unit/PaletteContrastTests.swift`
 **Verify:** `xcodebuild test -only-testing:BlindDropTests/PaletteContrastTests`
 
 Transcribe the tokens exactly. Write the WCAG relative-luminance function and assert every
 row of the `docs/07` §2 contrast table.
 
-- [ ] All tokens present with the exact hex values
-- [ ] Contrast test covers all ten rows and fails loudly if a hex changes
-- [ ] Doc comments record the three amber tiers and their jobs: `amber` fills, `amberDeep`
+- [x] All tokens present with the exact hex values
+- [x] Contrast test covers all ten rows and fails loudly if a hex changes
+- [x] Doc comments record the three amber tiers and their jobs: `amber` fills, `amberDeep`
       draws, `amberText` writes
-- [ ] Doc comment on `alert`: errors only, never a game state
-- [ ] No `Color(light:dark:)` anywhere
+- [x] Doc comment on `alert`: errors only, never a game state
+- [x] No `Color(light:dark:)` anywhere
 
 ---
 
