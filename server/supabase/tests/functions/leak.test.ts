@@ -21,6 +21,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   call,
   keysOf,
+  mintToken,
   newGroupOwner,
   newMember,
   newUser,
@@ -258,6 +259,29 @@ Deno.test("golden: GET /rounds/current, revealed", async () => {
   );
 });
 
+Deno.test("golden: GET /rounds/{id}/results", async () => {
+  // Captured against the seed's §4.4 round rather than a freshly built one, because a golden
+  // wants a payload with every optional branch populated at once: a caller with both rates, a
+  // guessed card and an unguessed one, and a `people` array that is not a single row. Round
+  // 2026-08-08 is `scored`, and `scored` is terminal, so the capture is stable.
+  //
+  // This is the widest payload in the API and the only one that names who dropped what. That
+  // is not a leak here — the blind window closed hours ago and docs/02 §2 says the answers are
+  // the point of the phase — but it is precisely why the shape gets a checked-in file: the
+  // difference between this payload and `round_open` is the entire product, and it must never
+  // be one careless edit away from being reachable an hour earlier.
+  const ana = await mintToken("a0000000-0000-4000-8000-000000000001");
+  const res = await call("rounds", "/c0000000-0000-4000-8000-000000000001/results", { token: ana });
+  assertEquals(res.status, 200);
+  await assertGolden(
+    "round_results",
+    res.body,
+    "GET /rounds/{round_id}/results for a `scored` round. Owners, per-card correct counts and " +
+      "everyone's rates — all of it allowed only because the round is over (docs/04 §4). " +
+      "`my_guess` is the caller's own; there is still no route to anyone else's sheet.",
+  );
+});
+
 // ─── the errors ──────────────────────────────────────────────────────────────
 
 Deno.test("a WRONG_PHASE body contains the state and nothing else", async () => {
@@ -349,6 +373,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // is over — but it is captured all the same, because "this route cannot be called during
     // `open`" is a claim that needs a golden file behind it as much as any other.
     "rounds PUT /current/guesses": "guess_sheet",
+    // Refuses anything but `scored` (`requirePhase`), so it is not reachable during `open` at
+    // all — and captured anyway, on the same principle as the guess sheet above: "this cannot
+    // be called during `open`" is a claim that needs a golden file behind it.
+    "rounds GET /:round_id/results": "round_results",
     "tracks GET /search": "tracks_search",
     "tracks POST /resolve": "tracks_resolve",
   };

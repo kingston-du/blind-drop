@@ -1,8 +1,10 @@
 // rounds/index.ts — the blind window. docs/04 §4, docs/02 §2–3, docs/14 §3.
-// tasks/E04-01, E04-02.
+// tasks/E04-01, E04-02, E05-01, E05-02, E05-04.
 //
-//   GET /current             today's round, shaped by phase
-//   PUT /current/submission  drop or replace a song
+//   GET /current                today's round, shaped by phase
+//   PUT /current/submission     drop or replace a song
+//   PUT /current/guesses        the guess sheet, whole-sheet upsert
+//   GET /{round_id}/results     the answers, for any scored round
 //
 // **Read the whole header before editing anything below it.**
 //
@@ -55,8 +57,15 @@ import {
   guessSheetDTO,
   type MemberDTO,
   memberDTO,
+  type MyGuessDTO,
+  personalScoreDTO,
+  personScoreDTO,
+  type ResultCardDTO,
+  resultCardDTO,
+  resultsDTO,
   revealedRoundDTO,
   roundDTO,
+  type RoundScoreRow,
   submissionDTO,
   type SubmissionDTO,
 } from "../_shared/dto.ts";
@@ -248,23 +257,32 @@ async function cardsInOrder(ctx: MemberCtx, round: RoundRow): Promise<{ cards: C
 }
 
 /**
- * The name pool: exactly this round's submitters, the caller included (docs/02 §3).
+ * Display names for a set of user ids, in name order.
  *
- * Display names come from `profiles` rather than from the roster, so someone who has since
- * left the group still appears under the name they had — the round happened, and a hole in the
- * pool would make it unsolvable for everyone else (docs/02 §3, "historical rounds keep their
- * attribution").
+ * Names come from `profiles` rather than from the roster, so someone who has since left the
+ * group still appears under the name they had — the round happened, and a hole in it would
+ * make the game unsolvable for everyone else (docs/02 §3, "historical rounds keep their
+ * attribution"). A deleted account is anonymised to `Former member` in place (docs/03 §6), so
+ * the row is always there to find.
+ *
+ * The `Map` preserves insertion order, which is the sort order, so callers that want a list
+ * get one already sorted and callers that want a lookup do not pay for a second query.
  */
-async function namePool(ctx: MemberCtx, submitterIds: string[]): Promise<MemberDTO[]> {
-  if (submitterIds.length === 0) return [];
+async function profilesByIds(ctx: MemberCtx, ids: string[]): Promise<Map<string, MemberDTO>> {
+  if (ids.length === 0) return new Map();
   const { data, error } = await ctx.db
     .from("profiles")
     .select("id, display_name")
-    .in("id", submitterIds)
+    .in("id", ids)
     .order("display_name", { ascending: true })
     .order("id", { ascending: true });
-  if (error) throw dbFailure("rounds.namePool", error);
-  return data.map((p) => memberDTO({ user_id: p.id, display_name: p.display_name }));
+  if (error) throw dbFailure("rounds.profiles", error);
+  return new Map(data.map((p) => [p.id as string, memberDTO({ user_id: p.id, display_name: p.display_name })]));
+}
+
+/** The name pool: exactly this round's submitters, the caller included (docs/02 §3). */
+async function namePool(ctx: MemberCtx, submitterIds: string[]): Promise<MemberDTO[]> {
+  return [...(await profilesByIds(ctx, submitterIds)).values()];
 }
 
 /** The caller's own saved sheet, translated from submission ids to card numbers. Keyed by
@@ -281,6 +299,76 @@ async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Prom
     .map((g) => ({ card_no: order.indexOf(g.submission_id) + 1, guessed_user_id: g.guessed_user_id }))
     .filter((g) => g.card_no > 0)
     .sort((a, b) => a.card_no - b.card_no);
+}
+
+// ─── the answers ─────────────────────────────────────────────────────────────
+// `GET /{round_id}/results` is the only route in this file that takes an id from the caller,
+// and the only one that reads the scoring views. Both facts get their own guard below.
+
+/**
+ * A round of the caller's own group, by id, or `NOT_FOUND`.
+ *
+ * **The group id is part of the key, not a check performed afterwards.** A round belonging to
+ * somebody else's group and a round that does not exist produce the same query, the same miss
+ * and the same answer, so there is no id to probe: the response cannot be used to learn that a
+ * group exists, when it played, or how many rounds it has (docs/14 §4, ADR-005).
+ *
+ * A malformed id gets the same `NOT_FOUND` rather than `INVALID_INPUT`, which is why the shape
+ * is checked here instead of being left to Postgres — an unparseable uuid reaching the database
+ * is a `22P02` and therefore a 500, and a route that answers 500 for garbage and 404 for a real
+ * id somewhere else has just told the caller which is which.
+ */
+async function roundInMyGroup(ctx: MemberCtx, roundId: string): Promise<RoundRow> {
+  if (!UUID.test(roundId)) throw new ApiError("NOT_FOUND");
+  const { data, error } = await ctx.db
+    .from("rounds")
+    .select(ROUND_COLUMNS)
+    .eq("id", roundId)
+    .eq("group_id", ctx.groupId)
+    .maybeSingle();
+  if (error) throw dbFailure("rounds.byId", error);
+  if (!data) throw new ApiError("NOT_FOUND");
+  return data;
+}
+
+interface GuessResultRow {
+  submission_id: string;
+  guesser_id: string;
+  guessed_user_id: string;
+  is_correct: boolean;
+}
+
+/**
+ * Every guess in the round, with `docs/02 §4.3` already applied by `guess_results` (0005).
+ *
+ * Reading the whole round's guesses is fine *here* and would be a serious leak two hours
+ * earlier, which is the difference `requirePhase(round, ["scored"])` above the call site makes.
+ * Correctness in particular is not recomputed in TypeScript: the duplicate rule — a guess is
+ * correct iff the named person submitted *that track*, not iff they own the card — lives in the
+ * view, so the number on the results screen and the number in the standings cannot disagree.
+ */
+async function guessResults(ctx: MemberCtx, roundId: string): Promise<GuessResultRow[]> {
+  const { data, error } = await ctx.db
+    .from("guess_results")
+    .select("submission_id, guesser_id, guessed_user_id, is_correct")
+    .eq("round_id", roundId);
+  if (error) throw dbFailure("rounds.guessResults", error);
+  return data as GuessResultRow[];
+}
+
+interface ScoreRow extends RoundScoreRow {
+  user_id: string;
+}
+
+/** One row per submitter, from `round_scores` (0005). Non-submitters are absent by
+ *  construction — they have no card and could not guess, so they have neither number. */
+async function roundScores(ctx: MemberCtx, roundId: string): Promise<Map<string, ScoreRow>> {
+  const { data, error } = await ctx.db
+    .from("round_scores")
+    .select("user_id, readability, readability_correct, ear, ear_correct, possible")
+    .eq("round_id", roundId);
+  if (error) throw dbFailure("rounds.roundScores", error);
+  return new Map((data as ScoreRow[]).map((row) => [row.user_id, row]));
 }
 
 /**
@@ -342,6 +430,88 @@ serveFunction("rounds", {
         cards,
         namePool: await namePool(ctx, order.map((id) => rows.get(id)?.user_id).filter((id): id is string => !!id)),
         myGuesses: await myGuesses(ctx, round, order),
+      }),
+    );
+  },
+
+  // ─── the answers ───────────────────────────────────────────────────────────
+  // `GET /{round_id}/results` — docs/04 §4. The only route here that takes an id, and the only
+  // one that serves a round other than today's: The Record links back into a night from three
+  // weeks ago and gets the same payload it got that evening.
+  //
+  // `scored` and nothing else. A `revealed` round is refused even though its cards are already
+  // public, because its guess sheets are still being edited — the answers do not exist yet, and
+  // half-scored numbers shown once cannot be un-shown. The refusal carries the round's state
+  // and, by construction in `fail()`, nothing else: no cards, no counts, no names.
+  "GET /:round_id/results": async (req, route, params) => {
+    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
+    const round = await roundInMyGroup(ctx, params.round_id);
+    requirePhase(round, ["scored"]);
+
+    const { rows, order } = await cardsInOrder(ctx, round);
+    const submitterIds = order
+      .map((id) => rows.get(id)?.user_id)
+      .filter((id): id is string => id !== undefined);
+
+    const [results, scores, profiles] = await Promise.all([
+      guessResults(ctx, round.id),
+      roundScores(ctx, round.id),
+      profilesByIds(ctx, submitterIds),
+    ]);
+
+    // Every card carries the same denominator: S − 1, every *other* submitter, whether or not
+    // they opened the sheet (docs/02 §4.1).
+    const eligibleGuesserCount = Math.max(order.length - 1, 0);
+
+    const correctBySubmission = new Map<string, number>();
+    const mineBySubmission = new Map<string, GuessResultRow>();
+    for (const result of results) {
+      if (result.is_correct) {
+        correctBySubmission.set(result.submission_id, (correctBySubmission.get(result.submission_id) ?? 0) + 1);
+      }
+      if (result.guesser_id === ctx.userId) mineBySubmission.set(result.submission_id, result);
+    }
+
+    const unknown = (userId: string): MemberDTO =>
+      profiles.get(userId) ?? memberDTO({ user_id: userId, display_name: "" });
+
+    const cards: ResultCardDTO[] = order.map((submissionId, index) => {
+      const row = rows.get(submissionId);
+      const mine = mineBySubmission.get(submissionId);
+      const myGuess: MyGuessDTO | null = mine
+        ? {
+          guessed_user_id: mine.guessed_user_id,
+          display_name: unknown(mine.guessed_user_id).display_name,
+          is_correct: mine.is_correct,
+        }
+        : null;
+      return resultCardDTO({
+        cardNo: index + 1,
+        meta: row?.track_meta,
+        owner: unknown(row?.user_id ?? ""),
+        correctGuessCount: correctBySubmission.get(submissionId) ?? 0,
+        eligibleGuesserCount,
+        myGuess,
+      });
+    });
+
+    // `people` is every submitter, in name order, so the screen can show the room at a glance.
+    // It is driven by the profile list rather than by the score map so that the ordering is the
+    // one the rest of the API uses, and so a submitter whose row the view somehow lacked would
+    // be visibly absent rather than silently dropped from the middle of an ordered list.
+    const people = [...profiles.values()]
+      .map((member) => {
+        const score = scores.get(member.user_id);
+        return score === undefined ? null : personScoreDTO(member, score);
+      })
+      .filter((person) => person !== null);
+
+    return ok(
+      resultsDTO(round, {
+        submitterCount: order.length,
+        cards,
+        me: personalScoreDTO(scores.get(ctx.userId) ?? null),
+        people,
       }),
     );
   },

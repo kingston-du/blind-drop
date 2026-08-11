@@ -100,17 +100,34 @@ never stored (ADR-004).
 
 ### E05-04 — `GET /rounds/{id}/results`
 
-**Status:** wip · **Deps:** E05-03 · **Reads:** `docs/04` §4
-**Touches:** `functions/rounds/index.ts`
+**Status:** done · **Deps:** E05-03 · **Reads:** `docs/04` §4
+**Touches:** `functions/rounds/index.ts`, `functions/_shared/dto.ts`, `functions/_shared/http.ts`
 **Verify:** `npm run test:functions -- results`
 
-- [ ] Requires `scored`, requires membership, `round_id` validated against the caller's group
-- [ ] Works for any past round (The Record links into it)
-- [ ] Rates are decimals `0..1`; the client formats
-- [ ] `null` means *not applicable*, never *zero* — for `ear` (no guesses) and `readability`
+- [x] Requires `scored`, requires membership, `round_id` validated against the caller's group
+- [x] Works for any past round (The Record links into it)
+- [x] Rates are decimals `0..1`; the client formats
+- [x] `null` means *not applicable*, never *zero* — for `ear` (no guesses) and `readability`
       (no submission)
-- [ ] `people` includes every submitter
-- [ ] Test: a `revealed` round returns `WRONG_PHASE`, and the error body carries no card data
+- [x] `people` includes every submitter
+- [x] Test: a `revealed` round returns `WRONG_PHASE`, and the error body carries no card data
+
+The route is asserted against the `docs/02` §4.4 matrix in `seed.sql` rather than against a
+round the test built for itself — the numbers a human checked by hand are the ones worth
+putting on the wire, and a test that recomputed the arithmetic would agree with a handler that
+had the same bug. That round is dated three days before the fixture's "today", so
+*works for any past round* comes for free rather than needing a contrived second round.
+
+> **Note, on the first path parameter in the API.** `serveFunction` grew `:param` segments for
+> this route. Two decisions inside it are load-bearing. Literal routes are matched first and by
+> object lookup, so declaration order cannot change which handler answers `GET /current`. And
+> the rate-limit bucket is keyed on the *pattern*, not the concrete path — a bucket keyed on the
+> latter would hand every round id its own 120/min allowance, which is to say no limit at all
+> (`docs/04` §8).
+>
+> A malformed uuid answers `NOT_FOUND` rather than `INVALID_INPUT`. An unparseable uuid reaching
+> Postgres is a `22P02` and therefore a 500, and a route that answers 500 for garbage and 404
+> for a real id belonging to another group has just told the caller which is which.
 
 ---
 

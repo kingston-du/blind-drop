@@ -115,9 +115,20 @@ export function errorSpec(code: ErrorCode): { status: number; message: string; c
 
 // ─── routing ─────────────────────────────────────────────────────────────────
 
-/** A handler receives the request and the route key it matched (used as the rate-limit
- *  bucket label, so limits are per user *per route*, never per group — docs/04 §8). */
-export type Handler = (req: Request, route: string) => Promise<Response>;
+/**
+ * A handler receives the request, the route key it matched, and any path parameters.
+ *
+ * `route` is the *pattern* — `"GET /:round_id/results"`, never the concrete path — and it is
+ * what the rate-limit bucket is keyed on (docs/04 §8). That distinction is the whole reason
+ * this parameter exists as a string rather than being derived from `req.url`: a bucket keyed on
+ * the concrete path would give every round id its own 120/min allowance, so a caller could have
+ * as many allowances as they could name ids. Limits are per user per *route*.
+ */
+export type Handler = (
+  req: Request,
+  route: string,
+  params: Record<string, string>,
+) => Promise<Response>;
 
 /**
  * The path *within* a function: Supabase serves `/functions/v1/<name>/<rest>`, and only
@@ -133,18 +144,74 @@ export function routePath(url: string, functionName: string): string {
 }
 
 /**
- * One `Deno.serve` per function group, with the routes named as `"<METHOD> <path>"`.
+ * Matches a concrete request against one route key, returning its path parameters or `null`.
+ *
+ * A segment written `:name` in the key matches exactly one non-empty segment and binds it. The
+ * matching is segment-by-segment rather than by regular expression on purpose: a `.*` in a
+ * hand-rolled route pattern is how `/current/submission` ends up being served by the handler
+ * for `/{round_id}/results`, and the arity check below makes that class of mistake unwriteable.
+ *
+ * **A parameter is a string that came from the caller and is worth exactly that much.** Nothing
+ * here validates one — the handler does, against the caller's own membership, which is the only
+ * check that means anything (docs/14 §4).
+ */
+function matchRoute(key: string, method: string, path: string): Record<string, string> | null {
+  const [keyMethod, keyPath] = key.split(" ", 2);
+  if (keyMethod !== method) return null;
+
+  const keySegments = keyPath.split("/");
+  const pathSegments = path.split("/");
+  if (keySegments.length !== pathSegments.length) return null;
+
+  const params: Record<string, string> = {};
+  for (let i = 0; i < keySegments.length; i += 1) {
+    const expected = keySegments[i];
+    const actual = pathSegments[i];
+    if (expected.startsWith(":")) {
+      if (actual === "") return null;
+      params[expected.slice(1)] = decodeURIComponent(actual);
+      continue;
+    }
+    if (expected !== actual) return null;
+  }
+  return params;
+}
+
+/**
+ * One `Deno.serve` per function group, with the routes named as `"<METHOD> <path>"`, where a
+ * path segment may be `:a_parameter`.
+ *
+ * Literal routes are tried first and as a plain object lookup, so `GET /current` cannot be
+ * captured by a `GET /:round_id` declared above it — the order routes happen to be written in
+ * is not allowed to change which one answers. Only when no literal matches does the parameter
+ * matching run.
  *
  * Everything a handler throws lands here: an `ApiError` becomes its envelope, anything else
  * becomes `INTERNAL` with the detail written to the server log and never to the client.
  */
 export function serveFunction(functionName: string, routes: Record<string, Handler>): void {
+  const patterns = Object.keys(routes).filter((key) => key.includes("/:"));
+
   Deno.serve(async (req: Request) => {
-    const route = `${req.method} ${routePath(req.url, functionName)}`;
+    const path = routePath(req.url, functionName);
+    let route = `${req.method} ${path}`;
+    let params: Record<string, string> = {};
+
     try {
-      const handler = routes[route];
+      let handler = routes[route];
+      if (!handler) {
+        for (const key of patterns) {
+          const matched = matchRoute(key, req.method, path);
+          if (matched) {
+            handler = routes[key];
+            route = key;
+            params = matched;
+            break;
+          }
+        }
+      }
       if (!handler) return fail("NOT_FOUND");
-      return await handler(req, route);
+      return await handler(req, route, params);
     } catch (err) {
       if (err instanceof ApiError) return fail(err.code, err.detail);
       // Server-side only. Message, not payload: a thrown database error can quote the row

@@ -365,6 +365,250 @@ export function guessSheetDTO(assignments: GuessDTO[], assignableCount: number):
   };
 }
 
+// ─── results — docs/04 §4, docs/02 §4 ────────────────────────────────────────
+// Everything below here is `scored`-phase only, so the blind-window rules that shape the DTOs
+// above have stopped applying: who submitted, who guessed what, and how well everybody read
+// the room are all on the table at once, which is the entire point of the phase.
+//
+// **The rule that replaces them is `null` means *not applicable*, never *zero*.** docs/04 §4 is
+// unusually blunt about it, and so is docs/08 §7.2: an ear of `null` renders as "—" above "You
+// sat this one out", where `0` would render as "0%" above "0 of 7 correct". One of those is a
+// statement about a night somebody spent elsewhere and the other is a judgement the product
+// refuses to make. Every nullable field down here is that distinction, and the counts beside a
+// rate go null with it — "0 of 7 read you" is exactly as wrong as "0%".
+
+/** The caller's own guess on one card, and whether it landed. Absent — `null` — when they did
+ *  not guess that card, or could not guess at all. */
+export interface MyGuessDTO {
+  guessed_user_id: string;
+  display_name: string;
+  is_correct: boolean;
+}
+
+/**
+ * One card, resolved: the song, whose it was, and how the room did on it.
+ *
+ * `eligible_guesser_count` is `S − 1` on every card in the round, not the number of people who
+ * actually guessed this one. docs/02 §4.1: the denominator is every *other* submitter whether
+ * or not they opened the sheet, "because a room that didn't look is a room that didn't read
+ * you". A denominator that shrank to the people who tried would quietly make readability
+ * measure enthusiasm instead.
+ */
+export interface ResultCardDTO {
+  card_no: number;
+  track: TrackDTO;
+  owner: MemberDTO;
+  correct_guess_count: number;
+  eligible_guesser_count: number;
+  my_guess: MyGuessDTO | null;
+}
+
+export function resultCardDTO(parts: {
+  cardNo: number;
+  meta: unknown;
+  owner: MemberDTO;
+  correctGuessCount: number;
+  eligibleGuesserCount: number;
+  myGuess: MyGuessDTO | null;
+}): ResultCardDTO {
+  return {
+    card_no: parts.cardNo,
+    track: trackDTO(parts.meta),
+    owner: parts.owner,
+    correct_guess_count: parts.correctGuessCount,
+    eligible_guesser_count: parts.eligibleGuesserCount,
+    my_guess: parts.myGuess,
+  };
+}
+
+/**
+ * The caller's own two numbers for the round, each with the fraction behind it.
+ *
+ * Both rates are decimals in `0..1` and the client formats them (docs/04 §4) — no percentage,
+ * no rounding, no pre-formatted string. Two independent reasons a field here is `null`:
+ *
+ *   · `readability*` — the caller did not submit, so no card of theirs was in the room.
+ *   · `ear*` — the caller submitted but assigned nothing, so `0/0`. docs/02 §4.1 drops that
+ *     round from their average rather than scoring it zero.
+ *
+ * The counts are `null` alongside their rate rather than `0`, because the copy that consumes
+ * them is `"%lld of %lld read you"` (docs/11) and there is no honest pair of numbers to put in
+ * it. The client renders `results.readability.none` / `results.ear.none` instead.
+ */
+export interface PersonalScoreDTO {
+  readability: number | null;
+  readability_correct: number | null;
+  readability_possible: number | null;
+  ear: number | null;
+  ear_correct: number | null;
+  ear_possible: number | null;
+}
+
+/** A row in `round_scores`, or `null` when the caller has none — which is exactly the case of
+ *  a member who did not submit. */
+export interface RoundScoreRow {
+  readability: number | null;
+  readability_correct: number | null;
+  ear: number | null;
+  ear_correct: number | null;
+  possible: number | null;
+}
+
+export function personalScoreDTO(row: RoundScoreRow | null): PersonalScoreDTO {
+  // No row at all: not a submitter. Not a zero anywhere.
+  if (!row) {
+    return {
+      readability: null,
+      readability_correct: null,
+      readability_possible: null,
+      ear: null,
+      ear_correct: null,
+      ear_possible: null,
+    };
+  }
+  const readable = row.readability !== null;
+  const heard = row.ear !== null;
+  return {
+    readability: row.readability,
+    readability_correct: readable ? row.readability_correct : null,
+    readability_possible: readable ? row.possible : null,
+    ear: row.ear,
+    ear_correct: heard ? row.ear_correct : null,
+    ear_possible: heard ? row.possible : null,
+  };
+}
+
+/**
+ * One submitter as the room sees them, so the results screen can show everybody at a glance
+ * (docs/04 §4, "`people` is every submitter").
+ *
+ * Only submitters appear. Somebody who sat the round out has no card and could not guess, so
+ * they have neither number — and a row of two dashes next to their name would read as a
+ * scoreline rather than an absence.
+ */
+export interface PersonScoreDTO {
+  user_id: string;
+  display_name: string;
+  readability: number | null;
+  ear: number | null;
+}
+
+export function personScoreDTO(
+  member: MemberDTO,
+  row: { readability: number | null; ear: number | null },
+): PersonScoreDTO {
+  return {
+    user_id: member.user_id,
+    display_name: member.display_name,
+    readability: row.readability,
+    ear: row.ear,
+  };
+}
+
+/** `GET /rounds/{round_id}/results` — docs/04 §4. */
+export interface ResultsDTO {
+  round_id: string;
+  local_date: string;
+  submitter_count: number;
+  cards: ResultCardDTO[];
+  me: PersonalScoreDTO;
+  people: PersonScoreDTO[];
+}
+
+export function resultsDTO(
+  round: { id: string; local_date: string },
+  parts: { submitterCount: number; cards: ResultCardDTO[]; me: PersonalScoreDTO; people: PersonScoreDTO[] },
+): ResultsDTO {
+  return {
+    round_id: round.id,
+    local_date: round.local_date,
+    submitter_count: parts.submitterCount,
+    cards: parts.cards,
+    me: parts.me,
+    people: parts.people,
+  };
+}
+
+// ─── standings — docs/04 §4, docs/02 §4.5 ────────────────────────────────────
+
+export type ReadabilityBand =
+  | "open_book"
+  | "legible"
+  | "mixed_signals"
+  | "hard_to_place"
+  | "unreadable";
+
+/**
+ * A row in the Best Ear leaderboard. **Ranked**, ties sharing a rank and the next rank
+ * skipping — 1, 2, 2, 4 (docs/04 §4).
+ */
+export interface EarStandingDTO {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  ear_all_time: number;
+  ear_correct_total: number;
+}
+
+export function earStandingDTO(
+  rank: number,
+  member: MemberDTO,
+  row: { ear_all_time: number; ear_correct_total: number },
+): EarStandingDTO {
+  return {
+    rank,
+    user_id: member.user_id,
+    display_name: member.display_name,
+    ear_all_time: row.ear_all_time,
+    ear_correct_total: row.ear_correct_total,
+  };
+}
+
+/**
+ * A row in the readability list, which **has no `rank` field and must never gain one.**
+ *
+ * docs/02 §4.5 makes this a product rule rather than a presentation preference: readability is
+ * a spectrum, not a leaderboard, and low readability is its own kind of win. The array is
+ * sorted descending purely so the list is stable between refreshes.
+ *
+ * The reason it is enforced here and asserted by test rather than left to the client is that a
+ * client which *receives* a rank will render it — someone will reasonably assume a field that
+ * exists is meant to be shown. The only durable way to not show a rank is to not send one.
+ */
+export interface ReadabilityStandingDTO {
+  user_id: string;
+  display_name: string;
+  readability_all_time: number;
+  band: ReadabilityBand;
+}
+
+export function readabilityStandingDTO(
+  member: MemberDTO,
+  row: { readability_all_time: number; band: ReadabilityBand },
+): ReadabilityStandingDTO {
+  return {
+    user_id: member.user_id,
+    display_name: member.display_name,
+    readability_all_time: row.readability_all_time,
+    band: row.band,
+  };
+}
+
+/** `GET /groups/current/standings` — docs/04 §4. */
+export interface StandingsDTO {
+  rounds_played: number;
+  best_ear: EarStandingDTO[];
+  readability: ReadabilityStandingDTO[];
+}
+
+export function standingsDTO(
+  roundsPlayed: number,
+  bestEar: EarStandingDTO[],
+  readability: ReadabilityStandingDTO[],
+): StandingsDTO {
+  return { rounds_played: roundsPlayed, best_ear: bestEar, readability };
+}
+
 // ─── shared field helpers ────────────────────────────────────────────────────
 
 /** Every timestamp that reaches a client goes through here, so the wire format is one format

@@ -1,0 +1,63 @@
+{
+  "about": "GET /rounds/{round_id}/results for a `scored` round. Owners, per-card correct counts and everyone's rates — all of it allowed only because the round is over (docs/04 §4). `my_guess` is the caller's own; there is still no route to anyone else's sheet.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "cards",
+    "local_date",
+    "me",
+    "people",
+    "round_id",
+    "submitter_count"
+  ],
+  "nested": {
+    "cards[]": [
+      "card_no",
+      "correct_guess_count",
+      "eligible_guesser_count",
+      "my_guess",
+      "owner",
+      "track"
+    ],
+    "cards[].track": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ],
+    "cards[].owner": [
+      "display_name",
+      "user_id"
+    ],
+    "cards[].my_guess": [
+      "display_name",
+      "guessed_user_id",
+      "is_correct"
+    ],
+    "me": [
+      "ear",
+      "ear_correct",
+      "ear_possible",
+      "readability",
+      "readability_correct",
+      "readability_possible"
+    ],
+    "people[]": [
+      "display_name",
+      "ear",
+      "readability",
+      "user_id"
+    ]
+  }
+}
