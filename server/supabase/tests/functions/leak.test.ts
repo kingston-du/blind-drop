@@ -259,6 +259,56 @@ Deno.test("golden: GET /rounds/current, revealed", async () => {
   );
 });
 
+Deno.test("golden: GET /groups/current/standings", async () => {
+  // Reachable in every phase, including `open`, which is why it gets a golden rather than an
+  // exemption. It is safe there for a reason worth writing down: every number on it comes from
+  // `scored` rounds only, so nothing on this payload moves while tonight's round is in flight.
+  // A member refreshing it all evening watching for a change learns nothing (docs/14 §3).
+  //
+  // Captured from a group that has actually played, not from a fresh one. A golden of two
+  // empty arrays would pin nothing at all, and the row shapes are the entire point here: the
+  // key that must never appear on this payload lives *inside* `readability[]`, so a capture
+  // that never produced a readability row could not notice it arriving.
+  const { user, group } = await newGroupOwner("Ana", {
+    name: "Golden Standings",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+  });
+  const others: TestUser[] = [];
+  for (const name of ["Ben", "Cal"]) others.push(await newMember(group.invite_code as string, name));
+  for (const [i, member] of [user, ...others].entries()) {
+    await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: member.token,
+      body: { apple_music_id: ["1440818664", "1440765580", "1452874255"][i] },
+    });
+  }
+  await tickRoundsAt(2);
+
+  // One guess, so somebody has an ear and Best Ear is not empty either.
+  const revealed = await call("rounds", "/current", { token: user.token });
+  const mine = (revealed.body.data as Record<string, unknown>).my_card_no as number;
+  const other = ((revealed.body.data as Record<string, unknown>).cards as { card_no: number }[])
+    .find((c) => c.card_no !== mine)!;
+  await call("rounds", "/current/guesses", {
+    method: "PUT",
+    token: user.token,
+    body: { assignments: [{ card_no: other.card_no, guessed_user_id: others[0].id }] },
+  });
+  await tickRoundsAt(4);
+
+  const res = await call("groups", "/current/standings", { token: user.token });
+  assertEquals(res.status, 200);
+  assert((res.body.data.readability as unknown[]).length > 0, "the capture needs a populated list");
+  await assertGolden(
+    "groups_standings",
+    res.body,
+    "GET /groups/current/standings. Best Ear is ranked; readability is not and carries no " +
+      "`rank` field — docs/02 §4.5 makes that a product rule, and a client that receives a " +
+      "rank will render it.",
+  );
+});
+
 Deno.test("golden: GET /rounds/{id}/results", async () => {
   // Captured against the seed's §4.4 round rather than a freshly built one, because a golden
   // wants a payload with every optional branch populated at once: a caller with both rates, a
@@ -366,6 +416,7 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups POST /join": "groups_current",
     "groups GET /current": "groups_current",
     "groups PATCH /current": "groups_current",
+    "groups GET /current/standings": "groups_standings",
     "groups POST /current/leave": null, // 204
     "rounds GET /current": "round_open",
     "rounds PUT /current/submission": "submission",

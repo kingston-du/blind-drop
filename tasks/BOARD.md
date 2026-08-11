@@ -81,7 +81,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E05-02 `PUT /rounds/current/guesses` | done | E05-01 | AC-6 |
 | E05-03 Scoring views | done | E01-04 | AC-7, AC-8 |
 | E05-04 `GET /rounds/{id}/results` | done | E05-03 | AC-8 |
-| E05-05 `GET /groups/current/standings` | wip | E05-03 | AC-8 |
+| E05-05 `GET /groups/current/standings` | done | E05-03 | AC-8 |
 | E05-06 §4.4 hand-checked scoring test | done | E05-03 | AC-7, AC-8 |
 
 ## E06 — Push notifications · [file](E06-push.md)
@@ -189,7 +189,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E02 | 5 / 5 |
 | E03 | 6 / 6 |
 | E04 | 4 / 4 |
-| E05 | 4 / 6 |
+| E05 | 6 / 6 |
 | E06 | 0 / 4 |
 | E07 | 4 / 6 |
 | E08 | 2 / 7 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **35 / 80** |
+| **Total** | **37 / 80** |

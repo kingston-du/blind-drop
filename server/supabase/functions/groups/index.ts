@@ -1,10 +1,11 @@
 // groups/index.ts — the group and its roster. docs/04 §3, docs/02 §1, docs/14 §4.
 //
-//   POST /groups                create a group, become its admin
-//   POST /groups/join           join by invite code
-//   GET  /groups/current        the group and its roster
-//   PATCH /groups/current       admin only; name and reveal_hour
-//   POST /groups/current/leave  set left_at
+//   POST  /groups                    create a group, become its admin
+//   POST  /groups/join               join by invite code
+//   GET   /groups/current            the group and its roster
+//   PATCH /groups/current            admin only; name and reveal_hour
+//   GET   /groups/current/standings  all-time, ranked one way and not the other
+//   POST  /groups/current/leave      set left_at
 //
 // **There is no route here that takes a group id.** Every one of them resolves the group from
 // the caller's active membership (ADR-005, docs/14 §4), which is what leaves group data with
@@ -31,7 +32,17 @@ import {
   requireUser,
 } from "../_shared/auth.ts";
 import { ALREADY_IN_GROUP, type Db, dbFailure, isUniqueViolation } from "../_shared/db.ts";
-import { type GroupDTO, groupDTO, groupPatchDTO, type MemberDTO, memberDTO } from "../_shared/dto.ts";
+import {
+  earStandingDTO,
+  type GroupDTO,
+  groupDTO,
+  groupPatchDTO,
+  type MemberDTO,
+  memberDTO,
+  type ReadabilityBand,
+  readabilityStandingDTO,
+  standingsDTO,
+} from "../_shared/dto.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
 import { localDate, nextDate, serverNow } from "../_shared/time.ts";
 
@@ -105,6 +116,64 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
   const today = localDate(group.timezone, serverNow());
   if (!data) return today;
   return data.local_date >= today ? nextDate(data.local_date) : today;
+}
+
+// ─── standings — docs/04 §4, docs/02 §4.2, §4.5 ──────────────────────────────
+
+interface StandingRow {
+  user_id: string;
+  ear_all_time: number | null;
+  ear_correct_total: number | null;
+  readability_all_time: number | null;
+  band: ReadabilityBand;
+}
+
+/**
+ * The group's all-time table, straight out of the `standings` view (0005).
+ *
+ * **Nothing here recomputes an average.** The pooled-ear / mean-readability asymmetry in
+ * docs/02 §4.2 lives in SQL, and it is the kind of rule that a second implementation gets
+ * subtly wrong — one `reduce` in the wrong place turns a mean of rates into a pooled ratio and
+ * produces a number that is plausible, stable, and not the one the game is scored on. This
+ * function sorts and ranks. It does not do arithmetic.
+ */
+async function standingRows(db: Db, groupId: string): Promise<StandingRow[]> {
+  const { data, error } = await db
+    .from("standings")
+    .select("user_id, ear_all_time, ear_correct_total, readability_all_time, band")
+    .eq("group_id", groupId);
+  if (error) throw dbFailure("groups.standings", error);
+  return data as StandingRow[];
+}
+
+/** How many nights this group has actually played. Scored rounds only — `round_submitter_counts`
+ *  holds exactly one row per scored round and excludes voided ones by construction, which is
+ *  the same universe every rate on the page is computed over (docs/02 §4.2). */
+async function roundsPlayed(db: Db, groupId: string): Promise<number> {
+  const { count, error } = await db
+    .from("round_submitter_counts")
+    .select("round_id", { count: "exact", head: true })
+    .eq("group_id", groupId);
+  if (error) throw dbFailure("groups.roundsPlayed", error);
+  return count ?? 0;
+}
+
+/**
+ * Competition ranking: ties share a rank and the next rank skips it — 1, 2, 2, 4 (docs/04 §4).
+ *
+ * The comparison is exact equality on the rate rather than a tolerance. Both numbers came out
+ * of the same `numeric` division at the same scale, so two people who genuinely tie produce the
+ * same value and two people who do not differ by far more than a rounding error. A tolerance
+ * here would invent ties that the arithmetic does not have.
+ */
+function ranked<T extends { ear_all_time: number }>(rows: T[]): { rank: number; row: T }[] {
+  let rank = 0;
+  let previous: number | null = null;
+  return rows.map((row, index) => {
+    if (previous === null || row.ear_all_time !== previous) rank = index + 1;
+    previous = row.ear_all_time;
+    return { rank, row };
+  });
 }
 
 const MAX_INVITE_ATTEMPTS = 5;
@@ -246,6 +315,76 @@ serveFunction("groups", {
         body.reveal_hour === undefined ? null : await effectiveFrom(ctx.db, group),
       ),
     );
+  },
+
+  // ─── standings ─────────────────────────────────────────────────────────────
+  // docs/04 §4. Two lists that deliberately do not have the same shape.
+  //
+  // **Best Ear is ranked. Readability is not, and carries no `rank` field.** docs/02 §4.5 makes
+  // that a product rule rather than a presentation preference: guessing well is a scoreboard,
+  // being hard to read is a trait, and low readability is its own kind of win. The reason the
+  // rule is enforced *here*, by not sending the field, is that a client which receives a rank
+  // will render it — someone will reasonably assume a field that exists is meant to be shown.
+  // The readability array is sorted descending purely so the list is stable between refreshes.
+  //
+  // Safe in every phase. Every number on it comes from `scored` rounds only, so nothing here
+  // moves while tonight's round is open — the standings a member reads at 19:00 are the same
+  // ones they read at 09:00, and a member watching them for a change learns nothing (docs/14
+  // §3).
+  "GET /current/standings": async (req, route) => {
+    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
+
+    const [rows, played, members] = await Promise.all([
+      standingRows(ctx.db, ctx.groupId),
+      roundsPlayed(ctx.db, ctx.groupId),
+      roster(ctx.db, ctx.groupId),
+    ]);
+
+    // Scoped to the active roster. Someone who left keeps their attribution in The Record and
+    // in every past round's results — the rounds happened, and their guesses still count toward
+    // everyone else's readability — but a leaderboard is about the room as it is now, and a
+    // departed member sitting at rank 2 forever is a scoreline nobody can respond to. See the
+    // open question in tasks/E05.
+    const byId = new Map(rows.map((row) => [row.user_id, row]));
+    const present = members
+      .map((member) => ({ member, row: byId.get(member.user_id) }))
+      .filter((entry): entry is { member: MemberDTO; row: StandingRow } => entry.row !== undefined);
+
+    // A member with no ear at all — every round they played, they assigned nothing — is absent
+    // from Best Ear rather than ranked last with a dash. docs/02 §4.1 draws that line for a
+    // single round and it holds all the way up: never guessing is not the same as guessing
+    // badly, and the leaderboard is the one surface where the difference would read as a score.
+    const earRows = present
+      .filter((entry) => entry.row.ear_all_time !== null)
+      .sort((a, b) =>
+        b.row.ear_all_time! - a.row.ear_all_time! ||
+        a.member.display_name.localeCompare(b.member.display_name) ||
+        a.member.user_id.localeCompare(b.member.user_id)
+      );
+
+    const bestEar = ranked(earRows.map((entry) => ({ ...entry, ear_all_time: entry.row.ear_all_time! })))
+      .map(({ rank, row }) =>
+        earStandingDTO(rank, row.member, {
+          ear_all_time: row.ear_all_time,
+          ear_correct_total: row.row.ear_correct_total ?? 0,
+        })
+      );
+
+    const readability = present
+      .filter((entry) => entry.row.readability_all_time !== null)
+      .sort((a, b) =>
+        b.row.readability_all_time! - a.row.readability_all_time! ||
+        a.member.display_name.localeCompare(b.member.display_name) ||
+        a.member.user_id.localeCompare(b.member.user_id)
+      )
+      .map((entry) =>
+        readabilityStandingDTO(entry.member, {
+          readability_all_time: entry.row.readability_all_time!,
+          band: entry.row.band,
+        })
+      );
+
+    return ok(standingsDTO(played, bestEar, readability));
   },
 
   // ─── leave ─────────────────────────────────────────────────────────────────

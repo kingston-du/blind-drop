@@ -1,0 +1,27 @@
+{
+  "about": "GET /groups/current/standings. Best Ear is ranked; readability is not and carries no `rank` field — docs/02 §4.5 makes that a product rule, and a client that receives a rank will render it.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "best_ear",
+    "readability",
+    "rounds_played"
+  ],
+  "nested": {
+    "best_ear[]": [
+      "display_name",
+      "ear_all_time",
+      "ear_correct_total",
+      "rank",
+      "user_id"
+    ],
+    "readability[]": [
+      "band",
+      "display_name",
+      "readability_all_time",
+      "user_id"
+    ]
+  }
+}

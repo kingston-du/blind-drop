@@ -82,19 +82,21 @@ never stored (ADR-004).
 - [x] `standings.readability_all_time` is a **mean of per-round rates**, not a pooled ratio —
       the asymmetry is deliberate (`docs/02` §4.2)
 - [x] Voided rounds contribute to nothing
-- [ ] Test: `explain` shows the duplicate join uses `submissions_round_trackkey`
+- [x] Test: `explain` shows the duplicate join uses `submissions_round_trackkey`
+      — **discharged in `E05-05`, and in an amended form. Read the open question there.**
 
-> **Not ticked, deliberately.** `tests/db/scoring.sql` asserts that
+> **Deferred, as written, and then found to be wrong.** `tests/db/scoring.sql` asserts that
 > `submissions_round_trackkey` exists and is on `(round_id, track_key)` — the join predicate —
 > but not that a plan uses it. On the nine-row §4.4 fixture the planner will correctly choose a
 > sequential scan, so an `explain` assertion there would be asserting the fixture's size and
 > would have to be defeated with `enable_seqscan = off`, at which point it proves only that the
 > index *can* be used, which `has_index` already told us.
 >
-> The assertion is worth making against data that can justify a plan. `E05-05` already
-> requires a 12 members × 200 rounds performance fixture; the `explain` check belongs there,
-> alongside the 150ms budget, where a seq scan would be a real regression rather than the right
-> answer.
+> The assertion is worth making against data that can justify a plan, so it moved to `E05-05`'s
+> performance fixture. What it found there is that the premise of this checklist item does not
+> hold: at a realistic table size the planner prefers `submissions_one_per_user_per_round`, and
+> it is right to. `tests/db/standings_perf.sql` asserts the property that is actually true and
+> actually stable instead.
 
 ---
 
@@ -133,18 +135,61 @@ had the same bug. That round is dated three days before the fixture's "today", s
 
 ### E05-05 — `GET /groups/current/standings`
 
-**Status:** wip · **Deps:** E05-03 · **Reads:** `docs/04` §4, `docs/02` §4.5
-**Touches:** `functions/groups/index.ts`
-**Verify:** `npm run test:functions -- standings`
+**Status:** done · **Deps:** E05-03 · **Reads:** `docs/04` §4, `docs/02` §4.5
+**Touches:** `functions/groups/index.ts`, `functions/_shared/dto.ts`, `tests/db/standings_perf.sql`
+**Verify:** `npm run test:functions -- standings` · `npm run test:db -- standings_perf`
 
-- [ ] `best_ear` **is** ranked; ties share a rank and the next rank skips
-- [ ] `readability` has **no `rank` field**, sorted descending only for stability
-- [ ] `band` computed from the `docs/02` §4.5 table
-- [ ] Test: the `readability` array contains no key named `rank` — a client that receives one
+- [x] `best_ear` **is** ranked; ties share a rank and the next rank skips
+- [x] `readability` has **no `rank` field**, sorted descending only for stability
+- [x] `band` computed from the `docs/02` §4.5 table
+- [x] Test: the `readability` array contains no key named `rank` — a client that receives one
       will render it
-- [ ] Perf: under 150ms with 12 members × 200 rounds of seeded data. Above that, follow the
+- [x] Perf: under 150ms with 12 members × 200 rounds of seeded data. Above that, follow the
       ADR-004 escape hatch (a materialised view refreshed at score time) — **do not**
       denormalise into `submissions`
+
+Measured at **35–41ms**, best of three, against a `submissions` table carrying fifteen other
+groups' history as well. Comfortably inside the budget, so ADR-004 stands as written and no
+materialised view is needed.
+
+The handler sorts and ranks and does no arithmetic: the pooled-ear / mean-readability asymmetry
+stays in SQL, because a second implementation of it in TypeScript is the kind of thing that goes
+subtly wrong and produces a number that is plausible, stable, and not the one the game is
+scored on.
+
+> **Open question:** `docs/04` §4 does not say whether standings cover the *active roster* or
+> everyone who ever played in the group. Both readings are defensible and neither touches the
+> blind window — a departed member's name is already in The Record and in every past round's
+> results, so nothing is disclosed either way.
+>
+> **Interpretation taken:** the active roster. A leaderboard is about the room as it is, and
+> someone who left sitting at rank 2 in perpetuity is a scoreline nobody can respond to. Their
+> rounds still happened and still count toward everyone else's readability — only their own row
+> goes. Owner's call to confirm.
+>
+> A member with no all-time ear at all — every round they played, they assigned nothing — is
+> absent from `best_ear` rather than ranked last. `docs/02` §4.1 draws that line for a single
+> round and it seems to hold all the way up: never guessing is not guessing badly, and the
+> leaderboard is the one surface where a dash in last place reads as a score. They still appear
+> in `readability`, which does not depend on whether they looked.
+
+> **Open question, and this one contradicts a comment in `0005`.** The `explain` assertion
+> `E05-03` deferred to here does not hold as it was written. `0005`'s comment and `E05-03`'s
+> checklist both name `submissions_round_trackkey` as "exactly this join" for the duplicate-track
+> existence test in `guess_results`. Against the 12 × 200 fixture plus fifteen neighbouring
+> groups, the planner prefers `submissions_one_per_user_per_round` — and that is the better plan.
+> The predicate is three equalities (`round_id`, `user_id`, `track_key`); the *unique* index on
+> `(round_id, user_id)` finds at most one row and then checks the track, where `(round_id,
+> track_key)` may match several and then filters by user. Which one wins moves with the
+> statistics, and both are correct.
+>
+> **Interpretation taken:** `tests/db/standings_perf.sql` asserts the invariant that is stable
+> and that a regression would actually break — the check is a keyed lookup inside one round
+> through a `round_id`-leading index, never a scan — rather than naming a plan the planner is
+> entitled to improve on. `submissions_round_trackkey` is not redundant: it is the right index
+> for asking "who else dropped this track", which is the direction the duplicate rule reads in.
+> `0005` is a merged migration and its comment was left alone; it is the comment that is
+> imprecise, not the index. Owner's call whether to correct it in a later migration's note.
 
 ---
 
