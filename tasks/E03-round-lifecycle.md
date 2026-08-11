@@ -146,18 +146,18 @@ the seed exists only so tests are reproducible.
 
 ### E03-06 — Outage and idempotency tests
 
-**Status:** todo · **Deps:** E03-05 · **Reads:** `docs/05` §2, §6, `docs/15` AC-3, AC-4
+**Status:** done · **Deps:** E03-05 · **Reads:** `docs/05` §2, §6, `docs/15` AC-3, AC-4
 **Touches:** `tests/db/lifecycle.sql`, `tests/db/idempotency.sql`
 **Verify:** `npm run test:db`
 
 The row of `docs/05` §6 that actually happens: cron down for three hours.
 
-- [ ] Test: no tick from 19:00 to 23:00, then one tick → `open → revealed → scored`, with
+- [x] Test: no tick from 19:00 to 23:00, then one tick → `open → revealed → scored`, with
       **both** outbox rows present exactly once and no state skipped
-- [ ] Test: a round with 2 submitters after the same outage voids and produces only a `void`
+- [x] Test: a round with 2 submitters after the same outage voids and produces only a `void`
       row
-- [ ] Test: two concurrent `tick_rounds()` calls (simulated via two sessions) do not
+- [x] Test: two concurrent `tick_rounds()` calls (simulated via two sessions) do not
       double-transition — `for update skip locked` holds
-- [ ] Test: a transaction that fails after the state update rolls back the outbox row too
-- [ ] Test: the tick is a single index scan on `rounds_pending_tick` (assert via `explain`
+- [x] Test: a transaction that fails after the state update rolls back the outbox row too
+- [x] Test: the tick is a single index scan on `rounds_pending_tick` (assert via `explain`
       that no sequential scan on `rounds` occurs)
