@@ -141,21 +141,42 @@ retrofitting VoiceOver later means rebuilding the view hierarchy.
 
 ### E08-05 — `APIClient` and DTOs
 
-**Status:** wip · **Deps:** E08-01 · **Reads:** `docs/13` §3, §6, `docs/04` §1–6
-**Touches:** `Core/Networking/*`
-**Verify:** `xcodebuild test -only-testing:BlindDropTests/NetworkingTests`
+**Status:** done · **Deps:** E08-01 · **Reads:** `docs/13` §3, §6, `docs/04` §1–6
+**Touches:** `Core/Networking/*`, `Core/Auth/SessionStore.swift` (token, refresh, sign-out —
+the three things `APIClient` calls on a 401), `Core/Time/ServerClock.swift` (the anchor, so
+`Envelope`'s `server_now` has somewhere to land — the rest of `docs/13` §5 is E08-06),
+`BlindDropTests/Unit/NetworkingTests.swift`
+**Verify:** `xcodebuild test -only-testing:BlindDropUnitTests/NetworkingTests`
 
-- [ ] `APIClient` is an `actor`; DTOs are `Sendable` value types
-- [ ] Every response passes through `Envelope<T>`, which feeds `server_now` to `ServerClock`
-      **before** returning the payload
-- [ ] `RoundDTO.Phase` is an enum with associated values, decoding **only** that phase's keys
+- [x] `APIClient` is an `actor`; DTOs are `Sendable` value types
+- [x] Every response passes through `Envelope<T>`, which feeds `server_now` to `ServerClock`
+      **before** returning the payload — including failure envelopes, which carry it too
+- [x] `RoundDTO.Phase` is an enum with associated values, decoding **only** that phase's keys
       — a view holding an `open` round must be unable to reach `cards` (`docs/13` §3)
-- [ ] Every error code from `docs/04` §1 mapped to `APIError` with its copy-deck string
-- [ ] `waitsForConnectivity = false` — fast honest failures
-- [ ] Retry: idempotent GETs twice (200/600ms); the two idempotent PUTs once; nothing else
-- [ ] `X-Storefront` on every request
-- [ ] `LoadState` includes a `.stale(T, APIError)` case so no screen can forget the
-      cached-data path
+- [x] Every error code from `docs/04` §1 mapped to `APIError`, with the **copy-deck key** it
+      renders through — see the note below
+- [x] `waitsForConnectivity = false` — fast honest failures
+- [x] Retry: idempotent GETs twice (200/600ms); the two idempotent PUTs once; nothing else,
+      and only for transport failures and 5xx — a 409 is not a flake
+- [x] `X-Storefront` on every request
+- [x] `LoadState` includes a `.stale(T, APIError)` case so no screen can forget the
+      cached-data path, with the transition written once on `LoadState.apply(_:)`
+- [x] Every endpoint in `docs/04` §2–§6 is a `static` on `Endpoint`, so no screen builds a URL
+
+Notes:
+
+- **`APIError` carries the copy *key*, not the string.** The checklist says "with its
+  copy-deck string"; the strings live in `Localizable.strings` (E09-01) and putting them here
+  too would make this file a second, untranslated copy of `docs/11` — the exact drift the copy
+  deck exists to prevent. `APIError.copyKey` is asserted against `docs/11` in
+  `NetworkingTests`, so the mapping is still pinned by test.
+- Two client-side cases sit beside the fourteen server ones: `.offline` (the request never
+  left the phone — `docs/11` `error.offline`) and `.unreadable` (a body that is not our
+  envelope). A raw `URLError` or `DecodingError` never reaches a view.
+- `SessionStore.refreshCredentials()` returns `false` until E09-01 attaches Sign in with
+  Apple. That is not a stub standing in for success: with no refresh token to spend it is the
+  correct answer, and it makes `APIClient`'s "refresh once, then sign out" path reachable and
+  tested today.
 
 ---
 

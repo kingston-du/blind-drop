@@ -34,5 +34,26 @@ enum SessionState: Equatable, Sendable {
 final class SessionStore {
     private(set) var state: SessionState = .unknown
 
+    /// The bearer token on every request, or `nil` when there is no session. E09-01 fills it
+    /// from Sign in with Apple and the Keychain; until then every call goes out unauthenticated
+    /// and the server answers `UNAUTHENTICATED`, which is the honest state of an app that has
+    /// not signed anybody in yet.
+    private(set) var accessToken: String?
+
     func load() async {}
+
+    /// One refresh, on one 401 (`docs/13` §3). Returns whether a *new* token is now in place;
+    /// `false` ends the session rather than retrying against a token the server has rejected.
+    ///
+    /// E09-01 implements the refresh. Returning `false` here is not a stub standing in for
+    /// success — it is the correct answer while there is no refresh token to spend, and it is
+    /// what makes `APIClient`'s "refresh once, then sign out" path reachable and tested today.
+    func refreshCredentials() async -> Bool { false }
+
+    /// The end of a session, declared by the server. Called by `APIClient` when a 401 survives
+    /// its one refresh; `RootView` routes on the state change.
+    func signOut() {
+        accessToken = nil
+        state = .signedOut
+    }
 }

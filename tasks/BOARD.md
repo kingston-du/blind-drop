@@ -112,7 +112,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E08-02 Palette and contrast test | done | E08-01 | AC-2 gates |
 | E08-03 Typography and font bundling | done | E08-01 | — |
 | E08-04 Component library | todo | E08-02, E08-03 | — |
-| E08-05 `APIClient` and DTOs | wip | E08-01 | AC-1 |
+| E08-05 `APIClient` and DTOs | done | E08-01 | AC-1 |
 | E08-06 `ServerClock` and the `Date()` lint | todo | E08-05 | AC-2 |
 | E08-07 Snapshot test harness | todo | E08-04 | AC-9 |
 
@@ -192,11 +192,11 @@ E04..E07 + E13  ─ E14 QA & release
 | E05 | 6 / 6 |
 | E06 | 4 / 4 |
 | E07 | 6 / 6 |
-| E08 | 3 / 7 |
+| E08 | 4 / 7 |
 | E09 | 0 / 4 |
 | E10 | 0 / 7 |
 | E11 | 0 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **44 / 80** |
+| **Total** | **45 / 80** |
