@@ -56,16 +56,26 @@ authenticating produced a 500 from `GET /auth/v1/user`.
 
 ### E02-02 — `/me`
 
-**Status:** wip · **Deps:** E02-01 · **Reads:** `docs/04` §2, `docs/14` §7
-**Touches:** `functions/me/index.ts`
+**Status:** done · **Deps:** E02-01 · **Reads:** `docs/04` §2, `docs/14` §7
+**Touches:** `functions/me/index.ts`, `functions/_shared/text.ts`, `config.toml`
 **Verify:** `npm run test:functions -- me`
 
-- [ ] `GET /me` returns `{user_id, display_name, has_group}`
-- [ ] Returns `NO_PROFILE` when the display name has never been set
-- [ ] `PUT /me` trims, validates 1–24 chars, strips control/zero-width/RTL-override
+- [x] `GET /me` returns `{user_id, display_name, has_group}`
+- [x] Returns `NO_PROFILE` when the display name has never been set
+- [x] `PUT /me` trims, validates 1–24 chars, strips control/zero-width/RTL-override
       characters (`docs/14` §7)
-- [ ] Duplicate display names across a group are accepted
-- [ ] Tests including the RTL-override strip
+- [x] Duplicate display names across a group are accepted
+- [x] Tests including the RTL-override strip
+
+> **Open question:** `docs/14` §7 says newlines are *stripped*, so `"Ana\nBen"` is stored as
+> `"AnaBen"` rather than `"Ana Ben"`. Taken literally, which is what the tests assert. Runs of
+> real whitespace still collapse to one space, so `"  Ana   Lucia "` is `"Ana Lucia"`.
+
+> **Open question:** `verify_jwt = false` is set for each function in `config.toml`. With the
+> platform gate on, an anonymous request is refused *before* the handler runs, with a body
+> that is not the `docs/04` §1 envelope — so a client switching on `error.code` gets nothing
+> to switch on. Every handler's first act is `requireUser()`, which returns
+> `401 UNAUTHENTICATED` in the documented shape. The gate moves; it does not open.
 
 ---
 

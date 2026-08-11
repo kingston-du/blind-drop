@@ -78,6 +78,34 @@ if (needed.some((k) => !process.env[k])) {
   process.env.SUPABASE_JWT_SECRET ??= s.JWT_SECRET;
 }
 
+// ─── is the stack serving the functions this checkout has? ───────────────────
+// The edge runtime is handed its function list when its container is created, so a function
+// added since `supabase start` answers "Function not found" no matter how many times you
+// reload. In CI the stack starts after checkout and this never fires; locally it is the
+// difference between a confusing 404 and a suite that just works.
+const served = await Promise.all(
+  readdirSync(functionsDir)
+    .filter((d) => !d.startsWith("_") && existsSync(join(functionsDir, d, "index.ts")))
+    .map(async (name) => {
+      const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/${name}`, {
+        headers: { apikey: process.env.SUPABASE_ANON_KEY },
+      }).catch(() => null);
+      const stale = res?.status === 404 && (await res.text()).trim() === "Function not found";
+      return { name, stale };
+    }),
+);
+const missing = served.filter((f) => f.stale).map((f) => f.name);
+if (missing.length) {
+  console.log(dim(`Stack is serving a stale function list (missing: ${missing.join(", ")}). Restarting it…`));
+  for (const args of [["stop"], ["start"]]) {
+    const r = spawnSync(bin("supabase"), args, { cwd: root, stdio: "ignore" });
+    if (r.status !== 0) {
+      console.error(red(`\`supabase ${args[0]}\` failed. Restart the stack and try again.`));
+      process.exit(1);
+    }
+  }
+}
+
 // ─── type-check the functions themselves ─────────────────────────────────────
 // A handler that does not compile is a failing test, and `deno test` would never load it.
 const entrypoints = readdirSync(functionsDir)
