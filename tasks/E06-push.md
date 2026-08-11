@@ -7,7 +7,7 @@ handler — that is what makes notification abuse structurally impossible.
 
 ### E06-01 — Outbox and the APNs JWT
 
-**Status:** todo · **Deps:** E03-03 · **Reads:** `docs/05` §2, §4, `docs/06` §8
+**Status:** wip · **Deps:** E03-03 · **Reads:** `docs/05` §2, §4, `docs/06` §8
 **Touches:** `functions/_shared/apns.ts`, `migrations/0006_notifications.sql`
 **Verify:** `npm run test:functions -- apns`
 

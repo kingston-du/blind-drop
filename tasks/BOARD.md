@@ -88,7 +88,7 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E06-01 Outbox and APNs JWT | todo | E03-03 | AC-3 |
+| E06-01 Outbox and APNs JWT | wip | E03-03 | AC-3 |
 | E06-02 `push-worker` | todo | E06-01 | AC-3, AC-4 |
 | E06-03 `POST /devices` | todo | E02-02 | — |
 | E06-04 Idempotency, expiry, 410 handling | todo | E06-02 | AC-3 |
