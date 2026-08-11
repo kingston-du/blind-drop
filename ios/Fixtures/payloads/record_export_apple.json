@@ -1,0 +1,62 @@
+{
+  "playlist_name": "The Cove — Blind Drop",
+  "tracks": [
+    {
+      "spotify_uri": "spotify:track:0wXuerDYiBnERgIpbb3JBR",
+      "apple_music_id": "1452874255",
+      "isrc": "USQX91601480",
+      "title": "Redbone",
+      "artist": "Childish Gambino"
+    },
+    {
+      "spotify_uri": "spotify:track:2QjOHCTQ1JF3zJyfWY7EMU",
+      "apple_music_id": "1440818664",
+      "isrc": "USUM71311296",
+      "title": "Ribs",
+      "artist": "Lorde"
+    },
+    {
+      "spotify_uri": "spotify:track:3AwF0Ea5jUqLDWWDaXocxT",
+      "apple_music_id": "1468055107",
+      "isrc": "USQX91901234",
+      "title": "Bags",
+      "artist": "Clairo"
+    },
+    {
+      "spotify_uri": "spotify:track:2QjOHCTQ1JF3zJyfWY7EMU",
+      "apple_music_id": "1440818664",
+      "isrc": "USUM71311296",
+      "title": "Ribs",
+      "artist": "Lorde"
+    },
+    {
+      "spotify_uri": "spotify:track:1Qrg8KqiBpW07V7PNxwwwL",
+      "apple_music_id": "1656689279",
+      "isrc": "USRC12204245",
+      "title": "Kill Bill",
+      "artist": "SZA"
+    },
+    {
+      "spotify_uri": "spotify:track:7eqoqGkKwgOaWNNHx90uEZ",
+      "apple_music_id": "1440765580",
+      "isrc": "USQX91600321",
+      "title": "Nights",
+      "artist": "Frank Ocean"
+    },
+    {
+      "spotify_uri": "spotify:track:0YSjKUbxJYuJ4Zk9CWjWLu",
+      "apple_music_id": "1440830827",
+      "isrc": "USDW11700831",
+      "title": "Motion Sickness",
+      "artist": "Phoebe Bridgers"
+    },
+    {
+      "spotify_uri": "spotify:track:3KkXRkHbMCARz0aVfEt68P",
+      "apple_music_id": "1442571948",
+      "isrc": "USUM71812409",
+      "title": "Sunflower",
+      "artist": "Post Malone & Swae Lee"
+    }
+  ],
+  "unresolved_count": 0
+}

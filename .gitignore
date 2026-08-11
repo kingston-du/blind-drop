@@ -20,13 +20,15 @@ server/.supabase/
 # ── Xcode ────────────────────────────────────────────────────────────────────
 build/
 DerivedData/
+ios/.build/
 *.xcuserstate
 xcuserdata/
 *.xcscmblueprint
 *.xccheckout
 .swiftpm/
-# Zero package dependencies (docs/01 §1) — Package.resolved must never appear.
-Package.resolved
+# Package.resolved is deliberately NOT ignored. docs/01 §1: zero third-party dependencies.
+# If it is ignored, adding a package becomes invisible in review; tracked, it shows up in the
+# diff and fails the "Assert zero package dependencies" step in CI.
 
 # ── Test output ──────────────────────────────────────────────────────────────
 server/supabase/tests/.out/

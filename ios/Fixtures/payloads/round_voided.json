@@ -1,0 +1,26 @@
+{
+  "round_id": "c0000000-0000-4000-8000-000000000003",
+  "local_date": "2026-08-10",
+  "state": "voided",
+  "opens_at": "2026-08-10T14:00:00Z",
+  "reveals_at": "2026-08-11T00:00:00Z",
+  "scores_at": "2026-08-11T02:00:00Z",
+  "my_submission": {
+    "track": {
+      "track_key": "isrc:USRC12204245",
+      "isrc": "USRC12204245",
+      "title": "Kill Bill",
+      "artist": "SZA",
+      "album": "SOS",
+      "artwork_url": "https://is1-ssl.mzstatic.com/image/thumb/fixture/1656689279/{w}x{h}bb.jpg",
+      "artwork_bg_color": "1a1a2e",
+      "duration_ms": 153000,
+      "preview_url": "https://audio-ssl.itunes.apple.com/fixture/1656689279.m4a",
+      "apple_music_id": "1656689279",
+      "apple_music_url": "https://music.apple.com/us/song/1656689279",
+      "spotify_id": "1Qrg8KqiBpW07V7PNxwwwL",
+      "spotify_url": "https://open.spotify.com/track/1Qrg8KqiBpW07V7PNxwwwL"
+    },
+    "sealed_at": "2026-08-10T16:11:02Z"
+  }
+}

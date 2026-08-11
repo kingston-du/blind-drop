@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- docs/13 §8. Keys that have an INFOPLIST_KEY_ build setting live in the target's
+	     build configuration instead; only what cannot be expressed there is here. -->
+
+	<!-- blinddrop:// — invite deep links, and the Spotify PKCE redirect (docs/06 §6). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>blinddrop</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Only used to check whether the Spotify app is installed before falling back to the
+	     web player (docs/06 §5). -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+	</array>
+
+	<!-- Public by design — PKCE exists so the client secret never has to ship (docs/06 §8).
+	     Injected at build time; never a literal in this file. -->
+	<key>SPOTIFY_CLIENT_ID</key>
+	<string>$(SPOTIFY_CLIENT_ID)</string>
+
+	<!-- There is deliberately no UIBackgroundModes key. docs/13 §8: the app has nothing to do
+	     while backgrounded, notifications are alert-only, and adding a background mode is how
+	     an app starts feeling like it's watching you. -->
+</dict>
+</plist>

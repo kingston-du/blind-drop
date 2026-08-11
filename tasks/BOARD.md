@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E00-01`.
+**Start here:** `E02-01`. `E00` and `E01` are done.
 
 ---
 
@@ -27,21 +27,21 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E00-01 Repo skeleton and npm scripts | wip | — | — |
-| E00-02 Supabase local project | wip | E00-01 | — |
-| E00-03 Xcode project skeleton | wip | E00-01 | — |
-| E00-04 CI pipeline and lint rules | wip | E00-02, E00-03 | AC-2 |
-| E00-05 Fixture server for iOS tests | wip | E00-01 | AC-10 |
+| E00-01 Repo skeleton and npm scripts | done | — | — |
+| E00-02 Supabase local project | done | E00-01 | — |
+| E00-03 Xcode project skeleton | done | E00-01 | — |
+| E00-04 CI pipeline and lint rules | done | E00-02, E00-03 | AC-2 |
+| E00-05 Fixture server for iOS tests | done | E00-01 | AC-10 |
 
 ## E01 — Database foundation · [file](E01-database.md)
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E01-01 Extensions and core tables | wip | E00-02 | — |
-| E01-02 RLS lockdown | wip | E01-01 | AC-1 |
-| E01-03 Constraints and triggers | wip | E01-01 | AC-5, AC-6 |
-| E01-04 Seed data (§4.4 fixture) | wip | E01-03 | AC-8 |
-| E01-05 pgTAP harness and `now_()` | wip | E01-01 | AC-3 |
+| E01-01 Extensions and core tables | done | E00-02 | — |
+| E01-02 RLS lockdown | done | E01-01 | AC-1 |
+| E01-03 Constraints and triggers | done | E01-01 | AC-5, AC-6 |
+| E01-04 Seed data (§4.4 fixture) | done | E01-03 | AC-8 |
+| E01-05 pgTAP harness and `now_()` | done | E01-01 | AC-3 |
 
 ## E02 — Auth, profiles, groups · [file](E02-auth-and-groups.md)
 
@@ -184,8 +184,8 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Epic | Done / Total |
 |---|---|
-| E00 | 0 / 5 |
-| E01 | 0 / 5 |
+| E00 | 5 / 5 |
+| E01 | 5 / 5 |
 | E02 | 0 / 5 |
 | E03 | 0 / 6 |
 | E04 | 0 / 4 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **0 / 80** |
+| **Total** | **10 / 80** |

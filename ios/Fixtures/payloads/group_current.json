@@ -1,0 +1,46 @@
+{
+  "id": "b0000000-0000-4000-8000-000000000001",
+  "name": "The Cove",
+  "timezone": "America/New_York",
+  "reveal_hour": 20,
+  "invite_code": "K7MQ2X",
+  "is_admin": true,
+  "members": [
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000001",
+      "display_name": "Ana"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000002",
+      "display_name": "Ben"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000003",
+      "display_name": "Cal"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000004",
+      "display_name": "Dee"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000005",
+      "display_name": "Eli"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000006",
+      "display_name": "Fay"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000007",
+      "display_name": "Gus"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000008",
+      "display_name": "Hal"
+    },
+    {
+      "user_id": "a0000000-0000-4000-8000-000000000009",
+      "display_name": "Ivy"
+    }
+  ]
+}

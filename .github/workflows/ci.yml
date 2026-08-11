@@ -1,0 +1,132 @@
+name: CI
+
+# docs/15 §3:
+#   on every push  — lints, `npm run test`, iOS unit + snapshot
+#   on PR to main  — the above plus UI tests
+# `audit:leak` runs in both, because AC-1 is the one that must never regress quietly.
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # docs/13 §8 targets iOS 17.0; CI builds against whatever simulator the runner image has.
+  # Named devices drift with every Xcode release, so the destination is resolved rather than
+  # hardcoded — see tasks/E00, "Open question: iPhone 15 is not an available simulator".
+  DESTINATION: "platform=iOS Simulator,OS=latest,name=iPhone 17"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove the lint rules still fire
+        run: ./ios/scripts/lint.sh --self-test
+      - name: Lint
+        run: ./ios/scripts/lint.sh
+
+  server:
+    name: Server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install
+        working-directory: server
+        run: npm ci
+      - name: Start Supabase
+        working-directory: server
+        run: npm run db:start
+      - name: Test
+        working-directory: server
+        run: npm test
+      - name: Leak audit
+        working-directory: server
+        run: npm run audit:leak
+
+  ios:
+    name: iOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_26.app
+      - name: Assert zero package dependencies
+        # docs/01 §1, docs/13 §1. Two tells: a resolved-package file, or a package reference
+        # in the project. Package.resolved is intentionally not gitignored so this can see it.
+        run: |
+          if find ios -name Package.resolved | grep -q .; then
+            echo "::error::A Swift package has been added. docs/13 §1: zero third-party dependencies."
+            exit 1
+          fi
+          if grep -q 'XCRemoteSwiftPackageReference\|packageReferences = (\s*[A-Z0-9]' \
+               ios/BlindDrop.xcodeproj/project.pbxproj; then
+            echo "::error::project.pbxproj references a Swift package. docs/13 §1."
+            exit 1
+          fi
+      - name: Build
+        working-directory: ios
+        run: |
+          xcodebuild build \
+            -scheme BlindDrop \
+            -destination "$DESTINATION" \
+            -derivedDataPath .build \
+            | xcbeautify --renderer github-actions
+      - name: Unit and snapshot tests
+        working-directory: ios
+        run: |
+          xcodebuild test \
+            -scheme BlindDrop \
+            -destination "$DESTINATION" \
+            -derivedDataPath .build \
+            -only-testing:BlindDropUnitTests \
+            -only-testing:BlindDropSnapshotTests \
+            | xcbeautify --renderer github-actions
+
+  ios-ui:
+    name: iOS UI tests
+    # AC-10's loop runs against the fixture server, not the backend, so it is fast and
+    # deterministic — but it is still the slowest job, so it is gated to PRs into main.
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_26.app
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install (for Deno)
+        working-directory: server
+        run: npm ci
+      - name: Start the fixture server
+        working-directory: ios/Fixtures
+        run: |
+          PHASE=open ../../server/node_modules/.bin/deno run \
+            --allow-net --allow-read --allow-env server.ts &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8787/__fixture >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8787/__fixture
+      - name: UI tests
+        working-directory: ios
+        run: |
+          xcodebuild test \
+            -scheme BlindDrop \
+            -destination "$DESTINATION" \
+            -derivedDataPath .build \
+            -only-testing:BlindDropUITests \
+            | xcbeautify --renderer github-actions
