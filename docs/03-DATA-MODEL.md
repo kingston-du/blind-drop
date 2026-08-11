@@ -342,7 +342,8 @@ for r in (select * from rounds
 -- 2-hours-before nudge  (reveals_at - 2h .. reveals_at)
 for r in (select * from rounds
           where state='open'
-            and now() >= reveals_at - interval '2 hours'):
+            and now() >= reveals_at - interval '2 hours'
+            and now() < reveals_at):
     insert into notification_outbox (round_id,'nudge',
         <active members with NO submission in r>)
     on conflict do nothing;                          -- fires exactly once per round

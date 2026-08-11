@@ -103,7 +103,8 @@ select lives_ok(
   'running the same tick ten more times is harmless');
 select is((select count(*)::int from public.notification_outbox
             where round_id in ('e3020000-0000-4000-8000-000000000002',
-                               'e3020000-0000-4000-8000-000000000003')),
+                               'e3020000-0000-4000-8000-000000000003')
+              and kind in ('reveal', 'void')),
           2, 'ten repeated ticks still leave one transition outbox row per round');
 select is((select count(*)::int from public.rounds
             where id in ('e3020000-0000-4000-8000-000000000002',

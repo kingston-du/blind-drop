@@ -83,19 +83,24 @@ guarded update, outbox insert in the same transaction.
 
 ### E03-03 — `tick_rounds()`: score and nudge
 
-**Status:** todo · **Deps:** E03-02 · **Reads:** `docs/02` §2, `docs/05` §3
-**Touches:** `migrations/0004_round_lifecycle.sql`
+**Status:** done · **Deps:** E03-02 · **Reads:** `docs/02` §2, `docs/05` §3
+**Touches:** `migrations/0015_tick_rounds_score_nudge.sql`,
+`tests/db/lifecycle_score_nudge.sql`, `tests/db/notification_budget.sql`
 **Verify:** `npm run test:db -- lifecycle`
 
-- [ ] `revealed → scored` at `scores_at`, guarded, one `results` outbox row
-- [ ] `results` audience is members who **submitted or guessed**
-- [ ] Nudge enqueued once when `now_() >= reveals_at - 2h` and state is still `open`
-- [ ] Nudge audience is active members with **no submission**, frozen at enqueue time
+> **Open question:** the task originally named `0004_round_lifecycle.sql`, but that migration
+> is already applied. The forward-only implementation replaces `tick_rounds()` in `0015`;
+> the preceding `0013` remains an accurate record of the reveal/void slice it introduced.
+
+- [x] `revealed → scored` at `scores_at`, guarded, one `results` outbox row
+- [x] `results` audience is members who **submitted or guessed**
+- [x] Nudge enqueued once when `now_() >= reveals_at - 2h` and state is still `open`
+- [x] Nudge audience is active members with **no submission**, frozen at enqueue time
       (`docs/05` §3)
-- [ ] Test: a user who submits after the nudge is enqueued still receives it, and no second
+- [x] Test: a user who submits after the nudge is enqueued still receives it, and no second
       nudge is created
-- [ ] Test: a user who submitted before the nudge is **not** in the audience
-- [ ] Test: no user receives more than 3 notifications in any 24h over a simulated 14-day
+- [x] Test: a user who submitted before the nudge is **not** in the audience
+- [x] Test: no user receives more than 3 notifications in any 24h over a simulated 14-day
       season (`docs/15` §2)
 
 ---
