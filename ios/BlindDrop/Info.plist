@@ -20,6 +20,14 @@
 		</dict>
 	</array>
 
+	<!-- The one bundled font (docs/07 §3). Bricolage Grotesque is SIL OFL; the licence ships
+	     beside it in Resources/Fonts/OFL.txt. It is a variable font and the app sets its
+	     wght/wdth/opsz axes at runtime — see DesignSystem/Typography.swift. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>BricolageGrotesque.ttf</string>
+	</array>
+
 	<!-- Only used to check whether the Spotify app is installed before falling back to the
 	     web player (docs/06 §5). -->
 	<key>LSApplicationQueriesSchemes</key>

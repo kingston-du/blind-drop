@@ -84,17 +84,36 @@ row of the `docs/07` §2 contrast table.
 
 ### E08-03 — Typography and font bundling
 
-**Status:** wip · **Deps:** E08-01 · **Reads:** `docs/07` §3, `docs/12` §1
-**Touches:** `DesignSystem/Typography.swift`, `Resources/Fonts/BricolageGrotesque.ttf`, `Info.plist`
-**Verify:** `xcodebuild test -only-testing:BlindDropTests/TypographyTests`
+**Status:** done · **Deps:** E08-01 · **Reads:** `docs/07` §3, `docs/12` §1
+**Touches:** `DesignSystem/Typography.swift`, `Resources/Fonts/BricolageGrotesque.ttf`,
+`Resources/Fonts/OFL.txt`, `Info.plist`, `BlindDropTests/Unit/TypographyTests.swift`
+**Verify:** `xcodebuild test -only-testing:BlindDropUnitTests/TypographyTests`
 
-- [ ] Bricolage Grotesque variable font bundled and registered; `wdth` axis set to 110
-- [ ] The eleven `TypeStyle` cases from `docs/07` §3
-- [ ] Every style scales with Dynamic Type via `UIFontMetrics` / `ScaledMetric`
-- [ ] **Tabular figures on every mono style and every display numeral**
-- [ ] Display face capped at 1.6× scale (`docs/12` §1) — the one allowed scaling limit
-- [ ] Countdown switches to the coarse form above `.accessibility2` (`docs/12` §1)
-- [ ] Test: the display face actually loaded — assert the resolved font name is not SF Pro
+- [x] Bricolage Grotesque variable font bundled and registered; `wdth` axis set as high as the
+      face goes — see the open question below
+- [x] The eleven `TypeStyle` cases from `docs/07` §3
+- [x] Every style scales with Dynamic Type via `UIFontMetrics` / `ScaledMetric`
+- [x] **Tabular figures on every mono style and every display numeral**
+- [x] Display face capped at 1.6× scale (`docs/12` §1) — the one allowed scaling limit
+- [x] Countdown switches to the coarse form above `.accessibility2` (`docs/12` §1)
+- [x] Test: the display face actually loaded — assert the resolved font name is not SF Pro
+
+> **Open question:** `docs/07` §3 says *"Set the `wdth` axis to 110"*. Bricolage Grotesque's
+> width axis runs **75…100** — the shipped variable font (Google Fonts / ateliertriay, the same
+> 408KB file in both) has no 110, so no build of this app can honour the number as written. The
+> request is therefore **clamped to the axis maximum**: the numerals are set in the widest cut
+> the typeface has, which is what "the expanded cut" means for this family, and
+> `TypographyTests.theDisplayFaceIsSetOnItsAxes` asserts the clamp rather than the literal 110
+> so that a silently-ignored variation cannot pass. The owner needs to decide whether `docs/07`
+> §3 should say 100, or whether the design intends a different face. Clamping applies to every
+> axis, so if a future release widens the axis the app picks it up with no code change.
+>
+> Two smaller calls made here, both noted for review: the `opsz` axis (which `docs/07` §3 does
+> not mention) is set to the size the glyphs are actually drawn at, because leaving it at the
+> file's 96pt default sets a 28pt screen title in spacing designed for a poster; and each style
+> scales along a named Dynamic Type ramp (`largeTitle` for the display face, `body` for body
+> text) rather than all of them riding `.body`, which is what keeps the 1.6× ceiling from being
+> the only thing holding the display face down.
 
 ---
 
