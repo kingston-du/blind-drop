@@ -81,7 +81,7 @@ authenticating produced a 500 from `GET /auth/v1/user`.
 
 ### E02-03 — `/groups`
 
-**Status:** todo · **Deps:** E02-02 · **Reads:** `docs/04` §3, `docs/02` §1, `docs/14` §4
+**Status:** wip · **Deps:** E02-02 · **Reads:** `docs/04` §3, `docs/02` §1, `docs/14` §4
 **Touches:** `functions/groups/index.ts`
 **Verify:** `npm run test:functions -- groups`
 
