@@ -57,7 +57,7 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E03-01 `ensure_rounds()` | wip | E01-05, E02-03 | AC-3 |
+| E03-01 `ensure_rounds()` | done | E01-05, E02-03 | AC-3 |
 | E03-02 `tick_rounds()` reveal and void | todo | E03-01 | AC-3, AC-4 |
 | E03-03 `tick_rounds()` score and nudge | todo | E03-02 | AC-3 |
 | E03-04 `card_order` shuffle | todo | E03-02 | AC-5 |
@@ -187,7 +187,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E00 | 5 / 5 |
 | E01 | 5 / 5 |
 | E02 | 4 / 5 |
-| E03 | 0 / 6 |
+| E03 | 1 / 6 |
 | E04 | 0 / 4 |
 | E05 | 0 / 6 |
 | E06 | 0 / 4 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **15 / 80** |
+| **Total** | **16 / 80** |

@@ -9,21 +9,47 @@ Everything here calls `public.now_()`, never `now()` — that is what makes the 
 
 ### E03-01 — `ensure_rounds()`
 
-**Status:** wip · **Deps:** E01-05, E02-03 · **Reads:** `docs/02` §1, `docs/03` §4
+**Status:** done · **Deps:** E01-05, E02-03 · **Reads:** `docs/02` §1, `docs/03` §4
 **Touches:** `migrations/0004_round_lifecycle.sql`
 **Verify:** `npm run test:db -- ensure_rounds`
 
 Materialise today's and tomorrow's round for every group, idempotently. Two days ahead only,
 so the timezone offset used is never stale across a DST boundary.
 
-- [ ] Local date computed with `timezone(g.timezone, ...)`, never a fixed offset
-- [ ] `reveals_at` is the UTC instant of `reveal_hour:00` group-local **on that local date**
-- [ ] `opens_at = reveals_at - 10h`, `scores_at = reveals_at + 2h`
-- [ ] `on conflict (group_id, local_date) do nothing` — an existing round is never re-timed
-- [ ] A `reveal_hour` change therefore lands on the first uncreated round; test this
-- [ ] Test: `America/New_York` spring-forward and fall-back dates both produce 20:00 local
-- [ ] Test: `Australia/Lord_Howe` (30-minute offset) works
-- [ ] Test: an invalid timezone raises for that group only and the loop continues
+- [x] Local date computed with `timezone(g.timezone, ...)`, never a fixed offset
+- [x] `reveals_at` is the UTC instant of `reveal_hour:00` group-local **on that local date**
+- [x] `opens_at = reveals_at - 10h`, `scores_at = reveals_at + 2h`
+- [x] `on conflict (group_id, local_date) do nothing` — an existing round is never re-timed
+- [x] A `reveal_hour` change therefore lands on the first uncreated round; test this
+- [x] Test: `America/New_York` spring-forward and fall-back dates both produce 20:00 local
+- [x] Test: `Australia/Lord_Howe` (30-minute offset) works
+- [x] Test: an invalid timezone raises for that group only and the loop continues
+
+> **Open question:** should `ensure_rounds()` create today's round when `reveals_at` has
+> already passed? `docs/03` §4 says "today and today+1" with no condition. A group created at
+> 21:00 local would then be handed a round that reveals in the past, which the very next tick
+> voids — a `void` push to people who never had a chance to drop, against the three-a-day
+> budget (`CLAUDE.md` §2.6), and an `open` round that any read endpoint would render with a
+> countdown that has already expired.
+> **Reading taken (most protective):** the insert carries `where reveals_at > public.now_()`.
+> It suppresses *creation* only; it can neither re-time nor remove a round that already
+> exists, so the cron-outage path in `docs/05` §6 is untouched, and it matches the copy deck's
+> `reveal.blocked.joinedlate` — "You're in from tomorrow." Pinned by an assertion in
+> `tests/db/ensure_rounds_timezones.sql`. Owner's call to confirm.
+
+> **Open question:** `docs/15` §? names the DST test `tests/db/timezones.sql`, but this task's
+> **Verify** command filters test filenames on the substring `ensure_rounds`, so a file called
+> `timezones.sql` would never run under the command that is supposed to prove this task.
+> **Reading taken:** one file named `tests/db/ensure_rounds_timezones.sql`, which matches both.
+
+> **Open question:** `docs/03` §4 says both lifecycle functions are `security definer` owned by
+> `postgres`, while `0003_rls.sql` turns on `force row level security` with zero policies
+> explicitly so "a future `security definer` function owned by postgres cannot become an
+> accidental bypass". The two only coexist because `postgres` carries `BYPASSRLS`; without it
+> `ensure_rounds()` would see zero groups and create nothing — a silent no-op rather than an
+> error, which is the worst possible failure mode for a scheduler.
+> **Reading taken:** keep `security definer` per `docs/03` §4, and assert the owner's
+> `BYPASSRLS` bit in the test so the assumption is checked rather than believed.
 
 ---
 
