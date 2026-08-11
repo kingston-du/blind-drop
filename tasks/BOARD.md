@@ -68,10 +68,10 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E04-01 `PUT /rounds/current/submission` | wip | E03-01, E07-03 | AC-7 |
-| E04-02 `GET /rounds/current` — open and voided | wip | E04-01 | AC-1, AC-4 |
-| E04-03 Golden leak fixtures | wip | E04-02 | AC-1 |
-| E04-04 `audit:leak` script | wip | E04-03 | AC-1 |
+| E04-01 `PUT /rounds/current/submission` | done | E03-01, E07-03 | AC-7 |
+| E04-02 `GET /rounds/current` — open and voided | done | E04-01 | AC-1, AC-4 |
+| E04-03 Golden leak fixtures | done | E04-02 | AC-1 |
+| E04-04 `audit:leak` script | done | E04-03 | AC-1 |
 
 ## E05 — Reveal, guesses, scoring · [file](E05-reveal-and-scoring.md)
 
@@ -97,10 +97,10 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E07-01 Apple Music developer token | wip | E02-01 | — |
-| E07-02 `GET /tracks/search` and cache | wip | E07-01 | AC-10 |
-| E07-03 `POST /tracks/resolve` and `track_key` | wip | E07-02 | AC-7 |
-| E07-04 Spotify client-credentials ISRC lookup | wip | E07-03 | — |
+| E07-01 Apple Music developer token | done | E02-01 | — |
+| E07-02 `GET /tracks/search` and cache | done | E07-01 | AC-10 |
+| E07-03 `POST /tracks/resolve` and `track_key` | done | E07-02 | AC-7 |
+| E07-04 Spotify client-credentials ISRC lookup | done | E07-03 | — |
 | E07-05 `track_links` backfill in the tick | todo | E07-04, E03-05 | — |
 | E07-06 Record and export endpoints | todo | E07-04, E05-03 | — |
 
@@ -188,10 +188,10 @@ E04..E07 + E13  ─ E14 QA & release
 | E01 | 5 / 5 |
 | E02 | 5 / 5 |
 | E03 | 6 / 6 |
-| E04 | 0 / 4 |
+| E04 | 4 / 4 |
 | E05 | 0 / 6 |
 | E06 | 0 / 4 |
-| E07 | 0 / 6 |
+| E07 | 4 / 6 |
 | E08 | 2 / 7 |
 | E09 | 0 / 4 |
 | E10 | 0 / 7 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **23 / 80** |
+| **Total** | **31 / 80** |

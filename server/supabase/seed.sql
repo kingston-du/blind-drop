@@ -221,3 +221,36 @@ values
 -- developer or pgTAP is inspecting it. Hosted deployments apply migrations without this
 -- seed and therefore leave both jobs active. README documents the explicit local opt-in.
 select public.set_blind_drop_jobs_active(false);
+
+-- ─── local-only: running the scheduler at a chosen instant ───────────────────
+--
+-- Phase transitions belong to the tick job and to nothing else (docs/02 §2), so an Edge
+-- Function test cannot arrange a `revealed` or `voided` round through the API — there is
+-- deliberately no route that moves a round, and `ensure_rounds()` will not even create one
+-- whose reveal is already behind us. The pgTAP suite reaches the same problem and solves it
+-- with `public.now_()` + `set_test_now()`, in its own session.
+--
+-- A function test cannot do that: it speaks HTTP, and PostgREST gives every request a fresh
+-- session, so a clock set in one call is gone by the next. This wraps both halves into a
+-- single transaction, which is the unit PostgREST does preserve.
+--
+-- **It lives in the seed, not in a migration, and that is the whole point.** `supabase db
+-- reset` runs this file; a hosted deployment applies migrations without it. So a production
+-- database has no function that can move the clock, and there is no grant to review, because
+-- there is nothing to grant. If this ever needs to become a migration, it should not.
+create or replace function public.tick_rounds_at(p_at timestamptz)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  -- `is_local => true` scopes the override to this transaction. Nothing leaks into the next
+  -- request that happens to reuse the connection.
+  perform pg_catalog.set_config('app.test_now', p_at::text, true);
+  perform public.tick_rounds();
+end $$;
+
+alter function public.tick_rounds_at(timestamptz) owner to postgres;
+revoke all on function public.tick_rounds_at(timestamptz) from public, anon, authenticated;
+grant execute on function public.tick_rounds_at(timestamptz) to service_role;

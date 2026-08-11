@@ -1,0 +1,37 @@
+{
+  "about": "GET /rounds/current for a `voided` round. Identical key set to `open`: the caller's own song comes back and there is no count of how many did submit (docs/08 §5).",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "local_date",
+    "my_submission",
+    "opens_at",
+    "reveals_at",
+    "round_id",
+    "scores_at",
+    "state"
+  ],
+  "nested": {
+    "my_submission": [
+      "sealed_at",
+      "track"
+    ],
+    "my_submission.track": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "about": "GET /groups/current. The roster is who is in the group, not who has done anything — and `joined_at` must never appear on a member (docs/04 §3, docs/14 §3).",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "id",
+    "invite_code",
+    "is_admin",
+    "members",
+    "name",
+    "reveal_hour",
+    "timezone"
+  ],
+  "nested": {
+    "members[]": [
+      "display_name",
+      "user_id"
+    ]
+  }
+}

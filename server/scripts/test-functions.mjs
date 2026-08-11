@@ -16,6 +16,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureFreshEdgeRuntime, waitForEdgeRuntime } from "./edge-runtime.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const testDir = join(root, "supabase", "tests", "functions");
@@ -104,6 +105,11 @@ if (missing.length) {
       process.exit(1);
     }
   }
+} else if (ensureFreshEdgeRuntime(root)) {
+  // Changing a file under `_shared/` does not reliably invalidate the runtime's module cache,
+  // so a suite can otherwise pass against code that is no longer on disk. See the header of
+  // `edge-runtime.mjs` — this was found the interesting way.
+  await waitForEdgeRuntime(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 }
 
 // ─── type-check the functions themselves ─────────────────────────────────────
@@ -126,9 +132,15 @@ if (entrypoints.length) {
 }
 
 // ─── run ─────────────────────────────────────────────────────────────────────
+// Write is scoped to the golden directory and nowhere else. `leak.test.ts` regenerates those
+// files under `GOLDEN=update` (tasks/E04-03), and a golden file that a test could rewrite
+// anywhere would be no kind of control at all.
+const goldenDir = join(root, "supabase", "tests", "golden");
+
 const run = spawnSync(
   deno,
   ["test", "--config", denoConfig, "--allow-net", "--allow-env", "--allow-read",
+   `--allow-write=${goldenDir}`,
    ...files.map((f) => join(testDir, f))],
   { stdio: "inherit", cwd: root },
 );

@@ -117,6 +117,84 @@ export async function newGroupOwner(
   return { user, group: created.body.data as Record<string, unknown> };
 }
 
+/** Somebody else in an existing group, by invite code. */
+export async function newMember(inviteCode: string, displayName: string): Promise<TestUser> {
+  const user = await newNamedUser(displayName);
+  const joined = await call("groups", "/join", {
+    method: "POST",
+    token: user.token,
+    body: { invite_code: inviteCode },
+  });
+  if (joined.status !== 200) {
+    throw new Error(`could not join a test user: ${joined.status} ${JSON.stringify(joined.body)}`);
+  }
+  return user;
+}
+
+// ─── the scheduler, and the clock it runs against ────────────────────────────
+// Phase transitions are the tick job's and nothing else's (docs/02 §2), so a test that needs a
+// `voided` round cannot arrange one through the API — there is deliberately no route that
+// moves a round. These two helpers are the exception to "arrange state through the API": one
+// runs the real `tick_rounds()`, and the other picks a timezone that puts a group's reveal
+// where the test needs it.
+//
+// Nothing here fakes a clock. `now_()` reads a session setting and PostgREST gives every
+// request its own session, so there is no way to move the server's time from out here — and
+// that is fine, because moving the *group* is equivalent and uses only real time. A group in
+// `Etc/GMT-9` whose reveal hour has passed there is a genuinely late round, not a simulated
+// one, and `tick_rounds()` treats it exactly as it treats a real one at 8pm in Brooklyn.
+
+/** Calls a Postgres function as `service_role`, the way the Edge Functions do. */
+export async function serviceRpc(name: string, args: Record<string, unknown> = {}): Promise<void> {
+  const res = await fetch(`${API_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SERVICE_KEY,
+      authorization: `Bearer ${SERVICE_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error(`rpc ${name} failed: ${res.status} ${await res.text()}`);
+  await res.body?.cancel();
+}
+
+/** One run of the scheduler, right now, against real time. */
+export async function tickRounds(): Promise<void> {
+  await serviceRpc("tick_rounds");
+}
+
+/**
+ * One run of the scheduler as if it were `hoursFromNow` hours later.
+ *
+ * `tick_rounds_at` is installed by `seed.sql` and exists in no deployed database — the note
+ * there explains why it must stay out of the migrations. It is the function-test equivalent of
+ * the pgTAP suite's `set_test_now()`: the transition it produces is the real one, computed by
+ * the real `tick_rounds()`, and only the instant it is evaluated against is chosen.
+ *
+ * Keep the offset small enough that the group's *local date* does not change, because the
+ * handlers still read the real clock and will go looking for today's round.
+ */
+export async function tickRoundsAt(hoursFromNow: number): Promise<void> {
+  const at = new Date(Date.now() + hoursFromNow * 3_600_000).toISOString();
+  await serviceRpc("tick_rounds_at", { p_at: at });
+}
+
+/**
+ * A fixed-offset IANA zone in which the local wall clock currently reads `hour`.
+ *
+ * `Etc/GMT±N` has no DST, so the offset is exact and the same all year — which is what makes a
+ * test built on it deterministic rather than green until October. Note the inverted sign:
+ * `Etc/GMT-9` is UTC+9, a POSIX convention old enough to vote.
+ */
+export function zoneWhereLocalHourIs(hour: number): string {
+  const utcHour = new Date().getUTCHours();
+  let offset = (hour - utcHour + 24) % 24;
+  if (offset > 14) offset -= 24; // Etc/GMT spans UTC-12 … UTC+14
+  if (offset === 0) return "UTC";
+  return offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`;
+}
+
 // ─── the call ────────────────────────────────────────────────────────────────
 
 /** An address from 198.18.0.0/15, reserved for benchmarking by RFC 2544 and never a real

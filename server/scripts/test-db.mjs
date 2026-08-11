@@ -70,6 +70,35 @@ if (ext.status !== 0) {
   process.exit(1);
 }
 
+// ── is the fixture still the fixture? ────────────────────────────────────────
+// Half this suite asserts against `seed.sql` by absolute value: "three rounds", "one fixture
+// group", "one scored round, one revealed, one open". Those assertions are only meaningful
+// against the seeded database, and `npm run test:functions` legitimately changes it — every
+// group it creates is real, and `ensure_rounds()` is global by design (docs/03 §4), so a
+// single API call materialises today's and tomorrow's rounds for the fixture group too.
+//
+// So a `test:db` run after a `test:functions` run reports seven failures that are all drift
+// and no defect. `npm test` orders them db-first and never sees it; a developer re-running one
+// suite does, and the failure text ("have: 5, want: 3") explains nothing. Say it plainly
+// instead, and do not reset the database on their behalf — that is their call, not this
+// script's.
+const drift = psql(
+  "select (select count(*) from public.groups)::text || ' ' || (select count(*) from public.rounds)::text;",
+);
+const [groupCount, roundCount] = String(drift.stdout).trim().split(/\s+/).map(Number);
+if (Number.isFinite(groupCount) && (groupCount > 1 || roundCount > 3)) {
+  console.error(red("The seeded fixture has drifted — these tests would fail for the wrong reason."));
+  console.error(
+    dim(
+      `  seed.sql defines 1 group and 3 rounds; the database currently holds ${groupCount} and ${roundCount}.\n` +
+        "  `npm run test:functions` creates real groups, and any API call runs ensure_rounds()\n" +
+        "  for every group — including the fixture's (docs/03 §4). Nothing is broken.\n",
+    ),
+  );
+  console.error("  Reseed and try again:  npm run db:reset\n");
+  process.exit(1);
+}
+
 if (!existsSync(testDir)) {
   console.log("No tests/db directory yet — nothing to run.");
   process.exit(0);

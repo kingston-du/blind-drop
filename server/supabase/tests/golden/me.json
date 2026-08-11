@@ -1,0 +1,12 @@
+{
+  "about": "GET /me.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "display_name",
+    "has_group",
+    "user_id"
+  ]
+}

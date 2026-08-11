@@ -1,0 +1,16 @@
+{
+  "about": "GET /rounds/current during `open`, for a member who has not submitted — while another member has. `my_submission` is null and no nested track shape appears at all.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "local_date",
+    "my_submission",
+    "opens_at",
+    "reveals_at",
+    "round_id",
+    "scores_at",
+    "state"
+  ]
+}

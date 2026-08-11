@@ -1,0 +1,317 @@
+// leak.test.ts — the golden files. tasks/E04-03, docs/15 AC-1, docs/14 §3.
+//
+// Every response reachable during a round's `open` phase is captured as a golden file of its
+// **key set**, and diffed on every run. Values are not asserted: fixture churn would make this
+// noisy and nobody would trust it. Keys are the whole point — a leak is a key that should not
+// be there.
+//
+// **The friction is the control.** Adding a field to an `open`-phase response means editing
+// `dto.ts`, editing the handler, and then coming here and updating a checked-in file with a
+// commit message explaining why. Three deliberate acts. That is a very different thing from a
+// `select *` picking up a new column, which is how this class of bug actually ships.
+//
+// The last test in this file is the one that keeps the set honest: it enumerates every route
+// in `functions/` and fails when one has no golden entry. A new endpoint cannot be added
+// without a human deciding what it is allowed to return.
+//
+//   Regenerate deliberately, never reflexively:
+//     GOLDEN=update npm run test:functions -- leak
+
+import { assert, assertEquals } from "jsr:@std/assert@1";
+import {
+  call,
+  keysOf,
+  newGroupOwner,
+  newMember,
+  newUser,
+  tickRoundsAt,
+  type TestUser,
+  zoneWhereLocalHourIs,
+} from "./_harness.ts";
+
+const GOLDEN_DIR = new URL("../golden/", import.meta.url);
+const UPDATING = Deno.env.get("GOLDEN") === "update";
+
+interface Golden {
+  /** What this capture is, in one line, for whoever reads the diff. */
+  about: string;
+  /** The envelope's own keys — `["data", "server_now"]` for every success. */
+  envelope: string[];
+  /** `data`'s key set, sorted. The assertion that matters. */
+  data: string[];
+  /** Key sets of nested objects, by dotted path. Absent when the field is null. */
+  nested?: Record<string, string[]>;
+}
+
+function shapeOf(body: Record<string, unknown>, about: string): Golden {
+  const data = body.data as Record<string, unknown>;
+  const nested: Record<string, string[]> = {};
+
+  const walk = (value: unknown, path: string) => {
+    if (value === null || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      // One entry stands for the array: every element of a list must have one shape, and
+      // recording per-index key sets would make the golden vary with the fixture's length.
+      if (value.length > 0) walk(value[0], `${path}[]`);
+      return;
+    }
+    nested[path] = keysOf(value);
+    for (const [key, child] of Object.entries(value)) walk(child, `${path}.${key}`);
+  };
+  for (const [key, child] of Object.entries(data)) walk(child, key);
+
+  return {
+    about,
+    envelope: keysOf(body),
+    data: keysOf(data),
+    ...(Object.keys(nested).length ? { nested } : {}),
+  };
+}
+
+async function assertGolden(name: string, body: Record<string, unknown>, about: string) {
+  const actual = shapeOf(body, about);
+  const path = new URL(`${name}.json`, GOLDEN_DIR);
+  const serialised = `${JSON.stringify(actual, null, 2)}\n`;
+
+  if (UPDATING) {
+    await Deno.writeTextFile(path, serialised);
+    return;
+  }
+
+  let expected: Golden;
+  try {
+    expected = JSON.parse(await Deno.readTextFile(path));
+  } catch {
+    throw new Error(
+      `No golden file for "${name}". A response with no golden file is a response nobody has ` +
+        `reviewed (docs/14 §3). Capture it with:\n\n    GOLDEN=update npm run test:functions -- leak\n\n` +
+        `and read the diff before committing it. What it would have been:\n${serialised}`,
+    );
+  }
+
+  assertEquals(
+    actual,
+    expected,
+    `The shape of "${name}" changed. If that is intended, say why in the commit message and ` +
+      `regenerate with GOLDEN=update. If it is not, you have just widened an open-phase payload.`,
+  );
+}
+
+// ─── the captures ────────────────────────────────────────────────────────────
+
+function openGroup(name: string) {
+  return newGroupOwner("Ana", { name, timezone: zoneWhereLocalHourIs(12), reveal_hour: 20 });
+}
+
+Deno.test("golden: GET /rounds/current, open, caller has sealed a song", async () => {
+  const { user } = await openGroup("Golden Open");
+  await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: user.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  const res = await call("rounds", "/current", { token: user.token });
+  assertEquals(res.status, 200);
+  await assertGolden(
+    "round_open",
+    res.body,
+    "GET /rounds/current during `open`, for a member who has submitted. docs/04 §4: the key " +
+      "set is exactly {round_id, local_date, state, opens_at, reveals_at, scores_at, " +
+      "my_submission} and there is no other key.",
+  );
+});
+
+Deno.test("golden: GET /rounds/current, open, caller has not submitted", async () => {
+  const { user, group } = await openGroup("Golden Open Nosub");
+  const ben = await newMember(group.invite_code as string, "Ben");
+  // Ana submits; Ben must still see a payload with nothing of hers in it.
+  await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: user.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  const res = await call("rounds", "/current", { token: ben.token });
+  await assertGolden(
+    "round_open_nosub",
+    res.body,
+    "GET /rounds/current during `open`, for a member who has not submitted — while another " +
+      "member has. `my_submission` is null and no nested track shape appears at all.",
+  );
+});
+
+Deno.test("golden: GET /rounds/current, voided", async () => {
+  const { user } = await newGroupOwner("Ana", {
+    name: "Golden Voided",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+  });
+  await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: user.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  await tickRoundsAt(2);
+  const res = await call("rounds", "/current", { token: user.token });
+  assertEquals((res.body.data as Record<string, unknown>).state, "voided");
+  await assertGolden(
+    "round_voided",
+    res.body,
+    "GET /rounds/current for a `voided` round. Identical key set to `open`: the caller's own " +
+      "song comes back and there is no count of how many did submit (docs/08 §5).",
+  );
+});
+
+Deno.test("golden: PUT /rounds/current/submission", async () => {
+  const { user } = await openGroup("Golden Submit");
+  const res = await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: user.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  await assertGolden("submission", res.body, "PUT /rounds/current/submission — the caller's own sealed track.");
+});
+
+Deno.test("golden: GET /groups/current", async () => {
+  const { user, group } = await openGroup("Golden Group");
+  await newMember(group.invite_code as string, "Ben");
+  const res = await call("groups", "/current", { token: user.token });
+  await assertGolden(
+    "groups_current",
+    res.body,
+    "GET /groups/current. The roster is who is in the group, not who has done anything — and " +
+      "`joined_at` must never appear on a member (docs/04 §3, docs/14 §3).",
+  );
+});
+
+Deno.test("golden: GET /me", async () => {
+  const { user } = await openGroup("Golden Me");
+  const res = await call("me", "/", { token: user.token });
+  await assertGolden("me", res.body, "GET /me.");
+});
+
+Deno.test("golden: GET /tracks/search", async () => {
+  const { user } = await openGroup("Golden Search");
+  const res = await call("tracks", "/search?q=Lorde", { token: user.token });
+  await assertGolden(
+    "tracks_search",
+    res.body,
+    "GET /tracks/search. A catalog proxy: reachable in every phase and carrying nothing about " +
+      "any group (docs/04 §6).",
+  );
+});
+
+Deno.test("golden: POST /tracks/resolve", async () => {
+  const { user } = await openGroup("Golden Resolve");
+  const res = await call("tracks", "/resolve", {
+    method: "POST",
+    token: user.token,
+    body: { isrc: "USUM71311296" },
+  });
+  await assertGolden("tracks_resolve", res.body, "POST /tracks/resolve.");
+});
+
+// ─── the errors ──────────────────────────────────────────────────────────────
+
+Deno.test("a WRONG_PHASE body contains the state and nothing else", async () => {
+  const { user, group } = await newGroupOwner("Ana", {
+    name: "Golden Wrong Phase",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+  });
+  const others: TestUser[] = [];
+  for (const name of ["Ben", "Cal"]) others.push(await newMember(group.invite_code as string, name));
+  for (const [i, member] of [user, ...others].entries()) {
+    await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: member.token,
+      body: { apple_music_id: ["1440818664", "1440765580", "1452874255"][i] },
+    });
+  }
+  await tickRoundsAt(2);
+
+  const res = await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: user.token,
+    body: { apple_music_id: "1440765580" },
+  });
+  assertEquals(res.status, 409);
+  // docs/14 §3 closes this channel by construction — `fail()` assembles the body field by
+  // field per code, so there is no path by which a count could be attached. This asserts the
+  // outcome anyway, because the channel is the one this whole product is about.
+  assertEquals(keysOf(res.body.error), ["code", "message", "state"]);
+  assertEquals(res.body.error.state, "revealed");
+  assertEquals(keysOf(res.body), ["error", "server_now"]);
+});
+
+Deno.test("every error envelope is code, message, and at most state", async () => {
+  const stranger = await newUser();
+  for (
+    const [label, res] of [
+      ["anonymous", await call("rounds", "/current")],
+      ["no profile", await call("rounds", "/current", { token: stranger.token })],
+      ["unknown route", await call("rounds", "/nope", { token: stranger.token })],
+    ] as const
+  ) {
+    assertEquals(keysOf(res.body), ["error", "server_now"], label);
+    const keys = keysOf(res.body.error);
+    assert(
+      keys.every((k) => ["code", "message", "state", "details"].includes(k)),
+      `${label}: error carried ${keys.join(", ")}`,
+    );
+  }
+});
+
+// ─── the backstop ────────────────────────────────────────────────────────────
+
+Deno.test("every route reachable during `open` has a golden file", async () => {
+  // Parsed out of the handlers themselves rather than listed here, so the check cannot go
+  // stale: a route added to `serveFunction` with no golden entry fails this test on the next
+  // run, before anyone has to remember.
+  const functionsDir = new URL("../../functions/", import.meta.url);
+  const routes: string[] = [];
+  for await (const entry of Deno.readDir(functionsDir)) {
+    if (!entry.isDirectory || entry.name.startsWith("_")) continue;
+    let source: string;
+    try {
+      source = await Deno.readTextFile(new URL(`${entry.name}/index.ts`, functionsDir));
+    } catch {
+      continue; // a group with no handler yet
+    }
+    for (const match of source.matchAll(/^\s*"((?:GET|PUT|POST|PATCH|DELETE) [^"]*)":/gm)) {
+      routes.push(`${entry.name} ${match[1]}`);
+    }
+  }
+  assert(routes.length > 0, "no routes found — the parser has drifted from the handlers");
+
+  // Every route that answers with a body during `open`, and the golden that covers it. A
+  // route is listed as `null` only when it has no body to leak: a 204, or a route no client
+  // can reach while a round is open.
+  const COVERED: Record<string, string | null> = {
+    "me GET /": "me",
+    "me PUT /": "me",
+    "me DELETE /": null, // 204
+    "groups POST /": "groups_current",
+    "groups POST /join": "groups_current",
+    "groups GET /current": "groups_current",
+    "groups PATCH /current": "groups_current",
+    "groups POST /current/leave": null, // 204
+    "rounds GET /current": "round_open",
+    "rounds PUT /current/submission": "submission",
+    "tracks GET /search": "tracks_search",
+    "tracks POST /resolve": "tracks_resolve",
+  };
+
+  const uncovered = routes.filter((r) => !(r in COVERED));
+  assertEquals(
+    uncovered,
+    [],
+    `These routes have no golden file. A response nobody has reviewed is how a leak ships ` +
+      `(docs/14 §3). Add a capture in this file and an entry to COVERED.`,
+  );
+
+  // And the reverse: a golden named here must exist on disk.
+  for (const golden of new Set(Object.values(COVERED))) {
+    if (golden === null) continue;
+    await Deno.stat(new URL(`${golden}.json`, GOLDEN_DIR));
+  }
+});

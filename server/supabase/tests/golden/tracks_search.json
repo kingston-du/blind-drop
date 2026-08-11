@@ -1,0 +1,27 @@
+{
+  "about": "GET /tracks/search. A catalog proxy: reachable in every phase and carrying nothing about any group (docs/04 §6).",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "results"
+  ],
+  "nested": {
+    "results[]": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ]
+  }
+}
