@@ -157,7 +157,7 @@ code gets read aloud and typed by teenagers.
 
 ### E02-05 — Account deletion
 
-**Status:** todo · **Deps:** E02-03 · **Reads:** `docs/03` §6, `docs/14` §9
+**Status:** wip · **Deps:** E02-03 · **Reads:** `docs/03` §6, `docs/14` §9
 **Touches:** `migrations/0008_delete_account.sql`, `functions/me/index.ts`
 **Verify:** `npm run test:db -- deletion`
 

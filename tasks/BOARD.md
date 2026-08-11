@@ -51,7 +51,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E02-02 `/me` | done | E02-01 | — |
 | E02-03 `/groups` create, join, current, patch, leave | done | E02-02 | AC-1 |
 | E02-04 Invite code generation | done | E02-03 | — |
-| E02-05 Account deletion | todo | E02-03 | — |
+| E02-05 Account deletion | wip | E02-03 | — |
 
 ## E03 — Round lifecycle and scheduler · [file](E03-round-lifecycle.md)
 
