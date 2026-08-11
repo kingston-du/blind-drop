@@ -362,8 +362,8 @@ saying so) · reveal hour (admin only, with the `effective_from` date stated pre
 invite code with **Share invite** · member list · **Leave group** in `alert`, behind a
 confirmation.
 
-No notification settings. No theme setting. No account settings beyond display name and sign
-out.
+No notification settings. No theme setting. Account settings are limited to display name,
+sign out, and **Delete account** behind the confirmation copy in `11-COPY-DECK.md`.
 
 ---
 

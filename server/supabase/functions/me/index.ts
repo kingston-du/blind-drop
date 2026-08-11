@@ -1,13 +1,12 @@
 // me/index.ts — identity. docs/04 §2, docs/14 §7, §9.
 //
-// Two routes, and the whole of what the app knows about a person:
+// Three routes, and the whole of what the app knows about a person:
 //
 //   GET /me   who am I, and am I in a group yet
 //   PUT /me   set or change my display name
-//
-// `DELETE /me` arrives with E02-05, together with the `delete_account()` function it needs.
+//   DELETE /me anonymise game history and delete authentication
 
-import { ApiError, ok, parseBody, serveFunction, str } from "../_shared/http.ts";
+import { ApiError, noContent, ok, parseBody, serveFunction, str } from "../_shared/http.ts";
 import { requireProfile, requireUser, type UserCtx } from "../_shared/auth.ts";
 import { dbFailure } from "../_shared/db.ts";
 import { meDTO } from "../_shared/dto.ts";
@@ -58,5 +57,16 @@ serveFunction("me", {
     if (error) throw dbFailure("me.put", error);
 
     return ok(meDTO(data, await hasGroup(ctx)));
+  },
+
+  "DELETE /": async (req, route) => {
+    const ctx = await requireUser(req, route);
+    // There are no deletion options. Rejecting keys keeps this route from acquiring a
+    // half-supported mode through a client typo or a future refactor.
+    await parseBody(req, {});
+
+    const { error } = await ctx.db.rpc("delete_account", { p_user: ctx.userId });
+    if (error) throw dbFailure("me.delete", error);
+    return noContent();
   },
 });

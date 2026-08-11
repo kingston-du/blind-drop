@@ -27,7 +27,11 @@ from unnest(array['id','display_name','created_at','updated_at']) as c;
 select col_type_is('public','profiles','id','uuid', 'profiles id uuid');
 select col_type_is('public','profiles','display_name','text', 'profiles display_name text');
 select col_is_pk('public','profiles','id','profiles.id is the pk');
-select fk_ok('public','profiles','id','auth','users','id');
+select is_empty($$
+  select 1 from pg_constraint
+   where conrelid = 'public.profiles'::regclass
+     and confrelid = 'auth.users'::regclass
+$$, 'profile tombstones survive auth.users deletion (E02-05)');
 
 -- ─── groups ──────────────────────────────────────────────────────────────────
 select has_column('public','groups', c, format('groups.%I', c))

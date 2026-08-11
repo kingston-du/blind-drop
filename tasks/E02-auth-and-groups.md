@@ -157,16 +157,29 @@ code gets read aloud and typed by teenagers.
 
 ### E02-05 — Account deletion
 
-**Status:** wip · **Deps:** E02-03 · **Reads:** `docs/03` §6, `docs/14` §9
-**Touches:** `migrations/0008_delete_account.sql`, `functions/me/index.ts`
+**Status:** done · **Deps:** E02-03 · **Reads:** `docs/03` §6, `docs/14` §9
+**Touches:** `migrations/0014_delete_account.sql`, `functions/me/index.ts`,
+`tests/db/deletion.sql`, `tests/functions/me.test.ts`
 **Verify:** `npm run test:db -- deletion`
 
 Deletion must not cascade away submissions and guesses — other members' scores depend on
 them.
 
-- [ ] `delete_account(user_id)` anonymises `display_name` to "Former member", unlinks auth,
+> **Open question:** the planned filename was `0008_delete_account.sql`, but migrations
+> through `0013` have already been applied by the parallel lifecycle lane. Adding `0008` now
+> would be an out-of-order rewrite on existing databases, so the forward-only implementation
+> is `0014_delete_account.sql`.
+
+> **Open question:** `profiles.id` was defined as `references auth.users(id) on delete
+> cascade`, while this task requires the profile to survive as the `Former member` principal.
+> A primary key cannot also be a nullable auth link. The migration drops that foreign key;
+> live profiles still use the auth UUID, and deleting the matching `auth.users` row is the
+> unlink. This preserves every historical foreign key without adding a second identity that
+> could drift.
+
+- [x] `delete_account(user_id)` anonymises `display_name` to "Former member", unlinks auth,
       sets `left_at`
-- [ ] Submissions and guesses survive; The Record keeps attribution to "Former member"
-- [ ] Test: after deletion, every other member's standings are unchanged
-- [ ] Test: the deleted user cannot authenticate
-- [ ] Settings copy states this before confirming (coordinate with `docs/11`)
+- [x] Submissions and guesses survive; The Record keeps attribution to "Former member"
+- [x] Test: after deletion, every other member's standings are unchanged
+- [x] Test: the deleted user cannot authenticate
+- [x] Settings copy states this before confirming (coordinate with `docs/11`)

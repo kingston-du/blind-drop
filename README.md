@@ -13,15 +13,15 @@ game with a music substrate. Check every implementation decision against that se
 
 ## Status
 
-Foundations in. `E00` (repo, tooling, CI, fixture server) and `E01` (database) are done;
-feature work starts at `E02`.
+Foundations and identity are in. `E00` (repo/tooling), `E01` (database), and `E02`
+(profiles/groups/account lifecycle) are done; round lifecycle work is underway in `E03`.
 
 | Area | State |
 |---|---|
 | Spec | Complete — `docs/` |
 | Task board | `tasks/BOARD.md` |
-| Backend | Schema, RLS, seed, and the pgTAP harness are in. No endpoints yet — `E02`. |
-| iOS client | Project skeleton and lint gates only — `E08` builds the app. |
+| Backend | Authenticated profile/group endpoints and reveal/void scheduling are covered by pgTAP and function tests. |
+| iOS client | Project foundation is underway in `E08`; palette tokens and contrast tests are in. |
 
 ---
 

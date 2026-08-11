@@ -88,6 +88,13 @@ Trimmed, 1–24 chars, no leading/trailing whitespace, no newlines. Duplicate di
 within a group are **allowed** (two Sams is a real situation) — the guess sheet disambiguates
 by showing an initial suffix, see `08-SCREEN-SPECS.md` §4.
 
+### `DELETE /me`
+
+No request body. Returns `204`. Deletes the authentication principal and device tokens,
+ends the active membership, and anonymises the stable historical profile to `Former member`.
+Submissions and guesses remain because other members' scores and The Record depend on them.
+The caller's current token is rejected on its next request.
+
 ### `POST /devices`
 
 ```jsonc

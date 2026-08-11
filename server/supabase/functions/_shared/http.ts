@@ -95,9 +95,9 @@ export function fail(code: ErrorCode, detail: ErrorDetail = {}): Response {
   return json({ server_now: rfc3339(serverNow()), error }, spec.status, headers);
 }
 
-/** 204, for the two routes docs/04 defines as bodiless: `POST /groups/current/leave` and
- *  `POST /devices`. They are the only responses in the app without a `server_now`, because a
- *  204 by definition has no body to put one in. */
+/** 204, for the bodiless routes: leaving a group, registering a device, and deleting an
+ *  account. They are the only responses without `server_now`, because a 204 by definition
+ *  has no body to put one in. */
 export function noContent(): Response {
   return new Response(null, { status: 204 });
 }

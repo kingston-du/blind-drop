@@ -3,7 +3,7 @@
 // Black box: every assertion here is made against the bytes a device would receive.
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { call, isRfc3339Z, keysOf, newUser, newNamedUser } from "./_harness.ts";
+import { call, isRfc3339Z, keysOf, newGroupOwner, newUser, newNamedUser } from "./_harness.ts";
 
 const me = (path: string, opts: Parameters<typeof call>[2] = {}) => call("me", path, opts);
 
@@ -117,6 +117,35 @@ Deno.test("two people in one group may share a display name", async () => {
   assertEquals((await me("/", { token: first.token })).body.data.display_name, "Sam");
   assertEquals((await me("/", { token: second.token })).body.data.display_name, "Sam");
   assert(first.id !== second.id);
+});
+
+Deno.test("DELETE /me removes authentication and invalidates a live token", async () => {
+  const { user } = await newGroupOwner("Delete Me");
+
+  const deleted = await me("/", { method: "DELETE", token: user.token });
+  assertEquals(deleted.status, 204);
+  assertEquals(deleted.body, null);
+
+  // requireUser verifies through GoTrue on every request. The same signed, unexpired token
+  // is now useless because its auth.users principal no longer exists.
+  const after = await me("/", { token: user.token });
+  assertEquals(after.status, 401);
+  assertEquals(after.body.error.code, "UNAUTHENTICATED");
+});
+
+Deno.test("DELETE /me is available before a profile exists and rejects options", async () => {
+  const withProfile = await newNamedUser("Delete Strictly");
+  const unknown = await me("/", {
+    method: "DELETE",
+    token: withProfile.token,
+    body: { keep_history: false },
+  });
+  assertEquals(unknown.status, 400);
+  assertEquals(unknown.body.error.details, { field: "keep_history" });
+
+  const beforeProfile = await newUser();
+  assertEquals((await me("/", { method: "DELETE", token: beforeProfile.token })).status, 204);
+  assertEquals((await me("/", { token: beforeProfile.token })).status, 401);
 });
 
 Deno.test("an unrouted path or method on /me is a plain 404", async () => {

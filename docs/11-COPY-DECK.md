@@ -233,6 +233,10 @@ readability or commiserates a low one.
 | `settings.leave.confirm.body` | Your songs stay in the record. You won't be in tomorrow's round. |
 | `settings.leave.confirm.action` | Leave |
 | `settings.signout` | Sign out |
+| `settings.delete` | Delete account |
+| `settings.delete.confirm.title` | Delete your account? |
+| `settings.delete.confirm.body` | Your sign-in will be deleted. Your songs and guesses stay in the record as Former member. |
+| `settings.delete.confirm.action` | Delete account |
 
 `settings.hour.effective` takes a formatted date, e.g. "Takes effect 12 August."
 

@@ -118,6 +118,7 @@ async function route(req: Request, url: URL): Promise<Response> {
     if (name.length > 24) return fail(400, "INVALID_INPUT", "Keep it to 24 characters.", { field: "display_name" });
     return ok({ ...(await payload("me") as object), display_name: name });
   }
+  if (m === "DELETE" && p === "/me") return noContent();
   if (m === "POST" && p === "/devices") return noContent();
 
   if (m === "GET" && p === "/groups/current") return ok(await payload("group_current"));

@@ -451,6 +451,14 @@ group by group_id, user_id;
 | User deletes account | `auth.users` row deleted → `profiles` cascade. Submissions/guesses reference `profiles(id)` **without** cascade, so the delete fails. Handle explicitly: replace `display_name` with `'Former member'`, null the auth link, keep the rows. Write this as a `delete_account()` function; do not rely on cascade. |
 | Group deleted | Cascades everything. Only reachable by direct DB access in v1 — no endpoint. |
 
+`0014_delete_account.sql` resolves the apparent contradiction in the user-deletion row. A
+live profile starts with `profiles.id = auth.users.id`, but the original cascading foreign
+key is dropped before deletion support ships. The profile UUID then remains as a stable,
+anonymised game principal while the matching `auth.users` row is deleted. The absence of that
+auth row is the null auth link; there is no nullable second identifier to drift. Device tokens
+and rate-limit rows are deleted, and the UUID is removed from notification audiences because
+none of those are score history.
+
 ---
 
 ## 7. Seed data for local dev
