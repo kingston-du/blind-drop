@@ -4,7 +4,7 @@
 
 ### E05-01 — `GET /rounds/current`: revealed
 
-**Status:** todo · **Deps:** E03-04, E04-02 · **Reads:** `docs/04` §4, `docs/02` §3, `docs/01` ADR-003
+**Status:** wip · **Deps:** E03-04, E04-02 · **Reads:** `docs/04` §4, `docs/02` §3, `docs/01` ADR-003
 **Touches:** `functions/rounds/index.ts`, `functions/_shared/dto.ts`
 **Verify:** `npm run test:functions -- reveal`
 
@@ -26,7 +26,7 @@ Cards addressed by `card_no` only. `submission_id` never crosses the wire before
 
 ### E05-02 — `PUT /rounds/current/guesses`
 
-**Status:** todo · **Deps:** E05-01 · **Reads:** `docs/04` §4, `docs/02` §3
+**Status:** wip · **Deps:** E05-01 · **Reads:** `docs/04` §4, `docs/02` §3
 **Touches:** `functions/rounds/index.ts`
 **Verify:** `npm run test:functions -- guess`
 
@@ -49,7 +49,7 @@ spec; implement them in that order so the error codes are predictable.
 
 ### E05-03 — Scoring views
 
-**Status:** todo · **Deps:** E01-04 · **Reads:** `docs/02` §4, `docs/03` §5
+**Status:** wip · **Deps:** E01-04 · **Reads:** `docs/02` §4, `docs/03` §5
 **Touches:** `migrations/0005_scoring.sql`
 **Verify:** `npm run test:db -- scoring`
 
@@ -104,7 +104,7 @@ never stored (ADR-004).
 
 ### E05-06 — Hand-checked scoring test
 
-**Status:** todo · **Deps:** E05-03 · **Reads:** `docs/02` §4.4, `docs/15` AC-8
+**Status:** wip · **Deps:** E05-03 · **Reads:** `docs/02` §4.4, `docs/15` AC-8
 **Touches:** `tests/db/scoring.sql`, `tests/db/standings.sql`
 **Verify:** `npm run test:db -- scoring standings`
 

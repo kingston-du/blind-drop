@@ -77,12 +77,12 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E05-01 `GET /rounds/current` — revealed | todo | E03-04, E04-02 | AC-1, AC-5, AC-6 |
-| E05-02 `PUT /rounds/current/guesses` | todo | E05-01 | AC-6 |
-| E05-03 Scoring views | todo | E01-04 | AC-7, AC-8 |
+| E05-01 `GET /rounds/current` — revealed | wip | E03-04, E04-02 | AC-1, AC-5, AC-6 |
+| E05-02 `PUT /rounds/current/guesses` | wip | E05-01 | AC-6 |
+| E05-03 Scoring views | wip | E01-04 | AC-7, AC-8 |
 | E05-04 `GET /rounds/{id}/results` | todo | E05-03 | AC-8 |
 | E05-05 `GET /groups/current/standings` | todo | E05-03 | AC-8 |
-| E05-06 §4.4 hand-checked scoring test | todo | E05-03 | AC-7, AC-8 |
+| E05-06 §4.4 hand-checked scoring test | wip | E05-03 | AC-7, AC-8 |
 
 ## E06 — Push notifications · [file](E06-push.md)
 
