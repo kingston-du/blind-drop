@@ -1,0 +1,21 @@
+{
+  "about": "GET /groups/current/record/export?service=spotify. Identifiers and a count, and no credential in either direction: the server never creates the playlist.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "playlist_name",
+    "tracks",
+    "unresolved_count"
+  ],
+  "nested": {
+    "tracks[]": [
+      "apple_music_id",
+      "artist",
+      "isrc",
+      "spotify_uri",
+      "title"
+    ]
+  }
+}

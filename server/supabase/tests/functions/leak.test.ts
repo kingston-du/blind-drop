@@ -26,6 +26,7 @@ import {
   newMember,
   newUser,
   type TestUser,
+  tickRounds,
   tickRoundsAt,
   zoneWhereLocalHourIs,
 } from "./_harness.ts";
@@ -338,6 +339,52 @@ Deno.test("golden: GET /rounds/{id}/results", async () => {
   );
 });
 
+Deno.test("golden: GET /groups/current/record", async () => {
+  // Reachable during `open`, and safe there for the same reason the standings are: it is a
+  // function of `scored` rounds only. Tonight's sealed songs are not in it, and neither is a
+  // `voided` night — ever (docs/04 §5). The golden is what makes that a shape somebody has
+  // reviewed rather than a sentence in a handler comment: the day this payload grows a
+  // `submission_count`, a `submitted` flag, or an entry for a round that has not scored, this
+  // file fails before it ships.
+  //
+  // Captured against the seed group, which is the only fixture with more than one night in it.
+  // Its two unfinished rounds are moved on by the scheduler first, so the capture holds a
+  // populated `entries[]` with a whole Track in it — a golden of an empty array pins nothing.
+  await tickRounds();
+  await tickRounds();
+  const ana = await mintToken("a0000000-0000-4000-8000-000000000001");
+  const res = await call("groups", "/current/record", { token: ana });
+  assertEquals(res.status, 200);
+  assert(
+    (res.body.data.days as { entries: unknown[] }[]).some((day) => day.entries.length > 0),
+    "the capture needs a night with songs in it",
+  );
+  await assertGolden(
+    "groups_record",
+    res.body,
+    "GET /groups/current/record. The archive: `scored` nights only, newest first, each entry " +
+      "naming who dropped what. Nothing about tonight is in it, in any phase — an `open` " +
+      "round has no row here and a `voided` one never gets one.",
+  );
+});
+
+Deno.test("golden: GET /groups/current/record/export", async () => {
+  // The list the client turns into a playlist with its own credentials (docs/06 §6). Its shape
+  // is deliberately not a Track: five fields, all of them identifiers or the words to show
+  // beside a failed add. The golden is here to keep it that way — an export payload that grew
+  // artwork and preview URLs would be The Record's payload wearing a different name.
+  const ana = await mintToken("a0000000-0000-4000-8000-000000000001");
+  const res = await call("groups", "/current/record/export?service=spotify", { token: ana });
+  assertEquals(res.status, 200);
+  assert((res.body.data.tracks as unknown[]).length > 0, "the capture needs a track in it");
+  await assertGolden(
+    "groups_record_export",
+    res.body,
+    "GET /groups/current/record/export?service=spotify. Identifiers and a count, and no " +
+      "credential in either direction: the server never creates the playlist.",
+  );
+});
+
 // ─── the errors ──────────────────────────────────────────────────────────────
 
 Deno.test("a WRONG_PHASE body contains the state and nothing else", async () => {
@@ -425,6 +472,12 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups GET /current": "groups_current",
     "groups PATCH /current": "groups_current",
     "groups GET /current/standings": "groups_standings",
+    // The archive and its export. Both are reachable during `open` and both are a function of
+    // `scored` rounds alone, which is the whole reason they are safe there — and the reason
+    // their shapes are checked in: an archive that could see one phase earlier than it does
+    // would publish tonight's songs (docs/04 §5, CLAUDE.md §2.1).
+    "groups GET /current/record": "groups_record",
+    "groups GET /current/record/export": "groups_record_export",
     "groups POST /current/leave": null, // 204
     "rounds GET /current": "round_open",
     "rounds PUT /current/submission": "submission",

@@ -5,6 +5,9 @@
 //   GET   /groups/current            the group and its roster
 //   PATCH /groups/current            admin only; name and reveal_hour
 //   GET   /groups/current/standings  all-time, ranked one way and not the other
+//   GET   /groups/current/record     the archive, newest night first, cursor-paginated
+//   GET   /groups/current/record/export?service=  the ordered track list, for the client to
+//                                    turn into a playlist with the user's own credentials
 //   POST  /groups/current/leave      set left_at
 //
 // **There is no route here that takes a group id.** Every one of them resolves the group from
@@ -34,6 +37,9 @@ import {
 import { ALREADY_IN_GROUP, type Db, dbFailure, isUniqueViolation } from "../_shared/db.ts";
 import {
   earStandingDTO,
+  type ExportTrackDTO,
+  exportDTO,
+  exportTrackDTO,
   type GroupDTO,
   groupDTO,
   groupPatchDTO,
@@ -41,6 +47,11 @@ import {
   memberDTO,
   type ReadabilityBand,
   readabilityStandingDTO,
+  type RecordDayDTO,
+  recordDayDTO,
+  recordDTO,
+  type RecordEntryDTO,
+  recordEntryDTO,
   standingsDTO,
 } from "../_shared/dto.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
@@ -174,6 +185,205 @@ function ranked<T extends { ear_all_time: number }>(rows: T[]): { rank: number; 
     previous = row.ear_all_time;
     return { rank, row };
   });
+}
+
+// ─── The Record — docs/04 §5, docs/06 §6 ─────────────────────────────────────
+//
+// The archive, and the export built from it. Both read the same two things — `scored` rounds
+// and their submissions — and the reason that is one sentence rather than a filter is
+// `round_submitter_counts` (0005), a view over `state = 'scored'` alone. Neither an `open`
+// round nor a `voided` one is visible from here at all: there is no `state` column in either
+// query below to get wrong, and a `voided` round in particular must never surface, because its
+// songs were returned to their owners unseen and publishing them a day later would retroactively
+// break the window they were sealed inside (CLAUDE.md §2.1, docs/04 §5).
+
+const DEFAULT_RECORD_LIMIT = 50;
+const MAX_RECORD_LIMIT = 100;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** How many round ids go into one `in (…)` — a bound on the query string, not on the answer.
+ *  The export walks the whole archive, and a group that has played for a year would otherwise
+ *  put thirteen kilobytes of uuids in a URL. Every chunk is fetched; nothing is dropped. */
+const ID_CHUNK = 60;
+
+/**
+ * The page cursor: base64url of `{"d":"<local_date>"}`, meaning *strictly older than this day*.
+ *
+ * A day, not a row offset, because the page boundary has to be a boundary the archive itself
+ * has. An offset would shift under the caller the moment tonight's round scores, and the
+ * second page would repeat or skip a night; a date names a place in the archive that a new
+ * round at the top cannot move. It is opaque on the wire so that it stays a cursor rather than
+ * becoming a date filter the client hand-writes — this is the only parameter that can select
+ * *which* days come back, and it must not grow a second meaning.
+ */
+function encodeCursor(localDate: string): string {
+  return btoa(JSON.stringify({ d: localDate }))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function decodeCursor(raw: string): string {
+  try {
+    const base64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const parsed = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    const day = (parsed as { d?: unknown }).d;
+    if (typeof day === "string" && LOCAL_DATE.test(day)) return day;
+  } catch {
+    // A cursor we did not mint is indistinguishable from one we did but mangled, and both are
+    // INVALID_INPUT. Falls through.
+  }
+  throw new ApiError("INVALID_INPUT", { field: "cursor" });
+}
+
+/** `?limit=`, defaulting to 50 and capped at 100 (docs/04 §5). An out-of-range value is
+ *  refused rather than clamped: a client asking for 500 has a bug, and quietly serving 100
+ *  makes it look like the archive ended. */
+function recordLimit(raw: string | null): number {
+  if (raw === null || raw === "") return DEFAULT_RECORD_LIMIT;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1 || value > MAX_RECORD_LIMIT) {
+    throw new ApiError("INVALID_INPUT", { field: "limit" });
+  }
+  return value;
+}
+
+/**
+ * `?member=`, the filter behind `record.filter.member` (docs/11).
+ *
+ * A user id from the caller is not a way into anyone's data here: it narrows a query that is
+ * already keyed on the caller's own group and on `scored` rounds, so an id belonging to a
+ * stranger selects nothing and an id belonging to an ex-member selects exactly the songs the
+ * archive already shows everyone. It is checked for shape only, and an unknown id returns an
+ * empty archive rather than `NOT_FOUND` — "that person is not in this group" is not an answer
+ * this endpoint should be able to give (docs/14 §4).
+ */
+function memberFilter(raw: string | null): string | null {
+  if (raw === null || raw === "") return null;
+  if (!UUID.test(raw)) throw new ApiError("INVALID_INPUT", { field: "member" });
+  return raw;
+}
+
+interface ArchiveRound {
+  round_id: string;
+  local_date: string;
+  submitter_count: number;
+}
+
+/** Scored rounds of this group, newest first, optionally older than a cursor's day. `limit`
+ *  is left off for the export, which is the whole archive by definition. */
+async function archiveRounds(
+  db: Db,
+  groupId: string,
+  before: string | null,
+  limit?: number,
+): Promise<ArchiveRound[]> {
+  let query = db
+    .from("round_submitter_counts")
+    .select("round_id, local_date, submitter_count")
+    .eq("group_id", groupId)
+    .order("local_date", { ascending: false });
+  if (before !== null) query = query.lt("local_date", before);
+  if (limit !== undefined) query = query.limit(limit);
+
+  const { data, error } = await query;
+  if (error) throw dbFailure("groups.record.rounds", error);
+  return data as ArchiveRound[];
+}
+
+/** Display names for a set of ids, including people who have left. The Record keeps its
+ *  attribution (docs/02 §3) — the night happened — so this reads `profiles` rather than the
+ *  roster, and a deleted account arrives already anonymised in place (docs/03 §6). */
+async function namesByIds(db: Db, ids: string[]): Promise<Map<string, MemberDTO>> {
+  if (ids.length === 0) return new Map();
+  const { data, error } = await db
+    .from("profiles")
+    .select("id, display_name")
+    .in("id", ids);
+  if (error) throw dbFailure("groups.record.profiles", error);
+  return new Map(
+    data.map((p) => [p.id as string, memberDTO({ user_id: p.id, display_name: p.display_name })]),
+  );
+}
+
+/**
+ * The songs of a set of rounds, grouped by round and sorted within a night by name.
+ *
+ * Name order, not submission order: `created_at` on a submission is when somebody sealed, and
+ * an archive page that ordered by it would publish the one thing every `open`-phase payload in
+ * this codebase refuses to — who was early and who was late (docs/14 §3). The night is over,
+ * but the habit is the point: nothing outside a round's own results screen orders people by
+ * what they did.
+ */
+async function archiveEntries(
+  db: Db,
+  roundIds: string[],
+  member: string | null,
+): Promise<Map<string, RecordEntryDTO[]>> {
+  const rows: { round_id: string; user_id: string; track_meta: unknown }[] = [];
+  for (let i = 0; i < roundIds.length; i += ID_CHUNK) {
+    let query = db
+      .from("submissions")
+      .select("round_id, user_id, track_meta")
+      .in("round_id", roundIds.slice(i, i + ID_CHUNK));
+    if (member !== null) query = query.eq("user_id", member);
+    const { data, error } = await query;
+    if (error) throw dbFailure("groups.record.submissions", error);
+    rows.push(...data);
+  }
+
+  const names = await namesByIds(db, [...new Set(rows.map((row) => row.user_id))]);
+  const unknown = (userId: string): MemberDTO =>
+    names.get(userId) ?? memberDTO({ user_id: userId, display_name: "" });
+
+  const byRound = new Map<string, RecordEntryDTO[]>();
+  for (const row of rows) {
+    const entries = byRound.get(row.round_id) ?? [];
+    entries.push(recordEntryDTO(unknown(row.user_id), row.track_meta));
+    byRound.set(row.round_id, entries);
+  }
+  for (const entries of byRound.values()) {
+    entries.sort((a, b) =>
+      a.display_name.localeCompare(b.display_name) || a.user_id.localeCompare(b.user_id)
+    );
+  }
+  return byRound;
+}
+
+/** The days of one page, in order, with their songs. Empty days are dropped — under a `member`
+ *  filter most nights have nothing to show, and a day with an empty `entries` array would say
+ *  "this person played and dropped nothing", which is not a thing that can happen. */
+function daysWithEntries(
+  rounds: ArchiveRound[],
+  entries: Map<string, RecordEntryDTO[]>,
+): RecordDayDTO[] {
+  return rounds
+    .map((round) => recordDayDTO(round, entries.get(round.round_id) ?? []))
+    .filter((day) => day.entries.length > 0);
+}
+
+/**
+ * How many nights fit on this page.
+ *
+ * `limit` counts *songs*, and a night is never split across pages — the cursor is a date, so
+ * half a night has no cursor that could resume it. Nights are taken while their songs fit, and
+ * the first one is always taken whether it fits or not, so a group larger than the requested
+ * limit still turns the page instead of returning nothing forever.
+ */
+function fitPage(rounds: ArchiveRound[], limit: number, member: string | null): ArchiveRound[] {
+  const chosen: ArchiveRound[] = [];
+  let budget = limit;
+  for (const round of rounds) {
+    // Under a `member` filter a night contributes at most one song, and `submitter_count`
+    // would over-count it by an order of magnitude.
+    const cost = member === null ? round.submitter_count : 1;
+    if (chosen.length > 0 && cost > budget) break;
+    chosen.push(round);
+    budget -= cost;
+    if (budget <= 0) break;
+  }
+  return chosen;
 }
 
 const MAX_INVITE_ATTEMPTS = 5;
@@ -396,6 +606,86 @@ serveFunction("groups", {
       );
 
     return ok(standingsDTO(played, bestEar, readability));
+  },
+
+  // ─── the record ────────────────────────────────────────────────────────────
+  // docs/04 §5. The archive: every night this group has finished, newest first, grouped by the
+  // group-local date it was played on.
+  //
+  // Safe in every phase for the same reason the standings are: it is a function of `scored`
+  // rounds only, so nothing on it moves while tonight's round is in flight. A member who
+  // refreshes The Record all evening watching for it to grow sees exactly what they saw at
+  // 09:00 — and at 22:00, when tonight's round scores, it grows by a whole night at once for
+  // everybody, which is a fact about the clock rather than about any person (docs/14 §3).
+  "GET /current/record": async (req, route) => {
+    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
+    const params = new URL(req.url).searchParams;
+    const limit = recordLimit(params.get("limit"));
+    const member = memberFilter(params.get("member"));
+    const rawCursor = params.get("cursor");
+    const before = rawCursor === null || rawCursor === "" ? null : decodeCursor(rawCursor);
+
+    // One more night than could possibly fit, which is what makes `next_cursor` honest: a
+    // cursor is sent when a night was left behind, and withheld when the archive ran out.
+    // Every scored round holds at least three songs (docs/02 §2, below that it voids), so
+    // `limit + 1` nights always over-covers a budget of `limit` songs — and under a `member`
+    // filter, where a night is worth one song, it over-covers it exactly.
+    const planned = await archiveRounds(ctx.db, ctx.groupId, before, limit + 1);
+    const page = fitPage(planned, limit, member);
+    const more = planned.length > page.length;
+
+    const entries = await archiveEntries(ctx.db, page.map((round) => round.round_id), member);
+    const cursor = more && page.length > 0 ? encodeCursor(page[page.length - 1].local_date) : null;
+    return ok(recordDTO(daysWithEntries(page, entries), cursor));
+  },
+
+  // ─── the export ────────────────────────────────────────────────────────────
+  // docs/04 §5, docs/06 §6. The ordered track list, and nothing else.
+  //
+  // **The server never creates the playlist.** It holds no Spotify or Apple Music credential
+  // belonging to a user and has no write side to this route: the client authorises with its
+  // own token — Spotify by PKCE, Apple by MusicKit — and posts the ids below to the service
+  // itself. What arrives here is a list; what happens to it happens in the user's account.
+  //
+  // Unresolved tracks are counted, not hidden. A song with no id for the requested service is
+  // skipped from `tracks` and shows up in `unresolved_count`, which the UI states plainly
+  // ("3 songs aren't on Spotify. The rest are in.", docs/11 `record.export.partial`). Silently
+  // shipping a shorter playlist is how somebody finds out three weeks later.
+  //
+  // The whole archive, uncapped: a group plays one round a night, so a year is a few hundred
+  // nights and the playlist the user asked for is the playlist they get. If this ever needs a
+  // cap it has to arrive as a number in the payload, the way `unresolved_count` did, and never
+  // as a silent `.limit()`.
+  "GET /current/record/export": async (req, route) => {
+    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
+    const service = new URL(req.url).searchParams.get("service");
+    if (service !== "spotify" && service !== "apple") {
+      throw new ApiError("INVALID_INPUT", { field: "service" });
+    }
+
+    const [group, rounds] = await Promise.all([
+      loadGroup(ctx.db, ctx.groupId),
+      archiveRounds(ctx.db, ctx.groupId, null),
+    ]);
+    const entries = await archiveEntries(ctx.db, rounds.map((round) => round.round_id), null);
+
+    // Newest night first, and within a night the order The Record shows on screen, so the
+    // playlist reads top to bottom the way the archive does (docs/06 §6).
+    const tracks: ExportTrackDTO[] = [];
+    let unresolved = 0;
+    for (const round of rounds) {
+      for (const entry of entries.get(round.round_id) ?? []) {
+        const track = exportTrackDTO(entry.track);
+        const id = service === "spotify" ? track.spotify_uri : track.apple_music_id;
+        if (id === null) unresolved += 1;
+        else tracks.push(track);
+      }
+    }
+
+    // docs/06 §6: `"{Group name} — Blind Drop"`, and a new playlist every time. An existing
+    // one with the same name is never reused — silently mutating a playlist the user may have
+    // edited is worse than a duplicate they can delete.
+    return ok(exportDTO(`${group.name} — Blind Drop`, tracks, unresolved));
   },
 
   // ─── leave ─────────────────────────────────────────────────────────────────

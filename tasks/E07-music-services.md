@@ -129,17 +129,30 @@ Client-credentials flow, our credentials, server-side only.
 
 ### E07-06 — Record and export endpoints
 
-**Status:** wip · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
-**Touches:** `functions/groups/index.ts`
+**Status:** done · **Deps:** E07-04, E05-03 · **Reads:** `docs/04` §5, `docs/06` §6
+**Touches:** `functions/groups/index.ts`, `functions/_shared/dto.ts`,
+`tests/functions/record.test.ts`, `tests/functions/leak.test.ts`, `tests/golden/`
 **Verify:** `npm run test:functions -- record`
 
-- [ ] `GET /groups/current/record` — newest first, grouped by `local_date`, cursor-paginated
+- [x] `GET /groups/current/record` — newest first, grouped by `local_date`, cursor-paginated
       at 50 (max 100), optional `member` filter
-- [ ] **Only `scored` rounds appear.** A `voided` round never enters the archive — publishing
+- [x] **Only `scored` rounds appear.** A `voided` round never enters the archive — publishing
       those submissions later would retroactively break the blind window
-- [ ] Every entry carries both `apple_music_url` and `spotify_url` (either may be null)
-- [ ] `GET …/record/export?service=` returns the ordered track list plus `unresolved_count`
-- [ ] The server **never** creates the playlist and never holds a user's third-party
+- [x] Every entry carries both `apple_music_url` and `spotify_url` (either may be null)
+- [x] `GET …/record/export?service=` returns the ordered track list plus `unresolved_count`
+- [x] The server **never** creates the playlist and never holds a user's third-party
       credentials — the client does it with the user's own token (`docs/06` §6)
-- [ ] Test: a `revealed` round's submissions are absent from the record
-- [ ] Test: `unresolved_count` matches the number of null ids for the requested service
+- [x] Test: a `revealed` round's submissions are absent from the record
+- [x] Test: `unresolved_count` matches the number of null ids for the requested service
+- [x] Golden files for both routes (`groups_record`, `groups_record_export`), so the archive's
+      shape is reviewed like every other payload reachable during `open`
+
+> **Open question:** `docs/04` §5 says the record is "cursor-paginated at 50 (max 100)" without
+> saying what is being counted. Implemented as **songs**, not nights: the payload's size is what
+> a page limit is for, and a group of twelve would otherwise ship 600 entries on one page. The
+> cursor is a `local_date`, so a night is never split across a page boundary — nights are taken
+> while their songs fit, and the first night of a page is taken whether it fits or not, so a
+> group larger than the requested limit can still turn the page. The consequence a client sees:
+> a page can carry more than `limit` songs when a single night is bigger than the budget.
+> Owner's call to confirm; the alternative reading (limit counts nights) is a one-line change in
+> `fitPage`.

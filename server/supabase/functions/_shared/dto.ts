@@ -624,6 +624,118 @@ export function standingsDTO(
   return { rounds_played: roundsPlayed, best_ear: bestEar, readability };
 }
 
+// ─── The Record — docs/04 §5 ─────────────────────────────────────────────────
+
+/**
+ * One song in the archive, with whose it was.
+ *
+ * The name is on the entry rather than looked up from the roster, because The Record keeps its
+ * attribution after somebody leaves (docs/02 §3): the night happened, and a page of songs
+ * belonging to nobody is not an archive of it. `display_name` is `profiles`, which is where a
+ * deleted account has already been anonymised in place (docs/03 §6).
+ */
+export interface RecordEntryDTO {
+  user_id: string;
+  display_name: string;
+  track: TrackDTO;
+}
+
+export function recordEntryDTO(member: MemberDTO, meta: unknown): RecordEntryDTO {
+  return {
+    user_id: member.user_id,
+    display_name: member.display_name,
+    track: trackDTO(meta),
+  };
+}
+
+/** One night, in full. `round_id` is here so the screen can link back to that night's results
+ *  (docs/11 `record.results`) without a second lookup. */
+export interface RecordDayDTO {
+  local_date: string;
+  round_id: string;
+  entries: RecordEntryDTO[];
+}
+
+export function recordDayDTO(
+  day: { local_date: string; round_id: string },
+  entries: RecordEntryDTO[],
+): RecordDayDTO {
+  return { local_date: day.local_date, round_id: day.round_id, entries };
+}
+
+/**
+ * `GET /groups/current/record` — docs/04 §5.
+ *
+ * **Only `scored` rounds are ever in here.** Tonight's `open` round is not an archive entry,
+ * and a `voided` round never becomes one: its submissions came back to their owners unseen,
+ * and publishing them a day later would retroactively break the blind window they were sealed
+ * inside (CLAUDE.md §2.1). The filter is a `where` on a view that cannot see the other states
+ * rather than a check in this file, so there is no branch here to get wrong.
+ *
+ * `next_cursor` is `null` on the last page — an absent cursor is the end of the archive, not
+ * an error, and the client stops paging when it sees one.
+ */
+export interface RecordDTO {
+  days: RecordDayDTO[];
+  next_cursor: string | null;
+}
+
+export function recordDTO(days: RecordDayDTO[], nextCursor: string | null): RecordDTO {
+  return { days, next_cursor: nextCursor };
+}
+
+/**
+ * One track in an export, in the shape a playlist call needs and no other.
+ *
+ * Deliberately not a `TrackDTO`: artwork, previews, durations and album names are what The
+ * Record renders, and none of them takes part in creating a playlist. The client sends
+ * `spotify_uri`s to Spotify or `apple_music_id`s to MusicKit (docs/06 §6); `isrc`, `title` and
+ * `artist` are here so a failed add can be reported as a song rather than as an identifier.
+ */
+export interface ExportTrackDTO {
+  spotify_uri: string | null;
+  apple_music_id: string | null;
+  isrc: string | null;
+  title: string;
+  artist: string;
+}
+
+export function exportTrackDTO(track: TrackDTO): ExportTrackDTO {
+  return {
+    spotify_uri: track.spotify_id === null ? null : `spotify:track:${track.spotify_id}`,
+    apple_music_id: track.apple_music_id === "" ? null : track.apple_music_id,
+    isrc: track.isrc,
+    title: track.title,
+    artist: track.artist,
+  };
+}
+
+/**
+ * `GET /groups/current/record/export` — docs/04 §5, docs/06 §6.
+ *
+ * The server builds the *list*. It never creates the playlist and never holds a user's Spotify
+ * or Apple Music credentials — the client does it with the user's own token, which is why
+ * there is no write side to this endpoint at all.
+ *
+ * `unresolved_count` is the number of archive tracks with no id for the requested service.
+ * They are skipped from `tracks` and **stated** (docs/11 `record.export.partial`): a song that
+ * is not on Spotify is a fact about the catalog, and silently shipping a shorter playlist is
+ * how somebody discovers it three weeks later.
+ */
+export interface ExportDTO {
+  playlist_name: string;
+  tracks: ExportTrackDTO[];
+  unresolved_count: number;
+}
+
+export function exportDTO(
+  playlistName: string,
+  tracks: ExportTrackDTO[],
+  unresolvedCount: number,
+): ExportDTO {
+  return { playlist_name: playlistName, tracks, unresolved_count: unresolvedCount };
+}
+
 // ─── shared field helpers ────────────────────────────────────────────────────
 
 /** Every timestamp that reaches a client goes through here, so the wire format is one format

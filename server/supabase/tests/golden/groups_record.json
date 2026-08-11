@@ -1,0 +1,38 @@
+{
+  "about": "GET /groups/current/record. The archive: `scored` nights only, newest first, each entry naming who dropped what. Nothing about tonight is in it, in any phase — an `open` round has no row here and a `voided` one never gets one.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "days",
+    "next_cursor"
+  ],
+  "nested": {
+    "days[]": [
+      "entries",
+      "local_date",
+      "round_id"
+    ],
+    "days[].entries[]": [
+      "display_name",
+      "track",
+      "user_id"
+    ],
+    "days[].entries[].track": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ]
+  }
+}
