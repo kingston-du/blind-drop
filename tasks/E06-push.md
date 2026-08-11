@@ -25,21 +25,28 @@ ES256 JWT signing with Web Crypto in Deno. No JWT library.
 
 ### E06-02 — `push-worker`
 
-**Status:** wip · **Deps:** E06-01 · **Reads:** `docs/05` §2, §4
-**Touches:** `functions/push-worker/index.ts`
+**Status:** done · **Deps:** E06-01 · **Reads:** `docs/05` §2, §4
+**Touches:** `migrations/*_claim_notifications.sql`, `functions/push-worker/`,
+`tests/functions/{push,leak}.test.ts`, `config.toml`
 **Verify:** `npm run test:functions -- push`
 
 Drains the outbox. Claim → send → mark, with `for update skip locked`.
 
-- [ ] Claim increments `attempts` and locks; two concurrent invocations claim disjoint rows
-- [ ] `apns-collapse-id = <round_id>:<kind>` — makes a duplicated batch invisible to the user
-- [ ] `apns-expiration`: reveal push expires at `scores_at`; results push at +12h. A reveal
+> **Open question:** The original touch set named only the Edge Function, but PostgREST cannot
+> keep a row lock open across an APNs request. This implementation uses an atomic SQL claim and
+> a 55-second persisted lease, so overlapping workers are disjoint and a crashed claim becomes
+> eligible on the next minute. This is the interpretation most protective against duplicate
+> delivery while retaining the specified crash retry.
+
+- [x] Claim increments `attempts` and locks; two concurrent invocations claim disjoint rows
+- [x] `apns-collapse-id = <round_id>:<kind>` — makes a duplicated batch invisible to the user
+- [x] `apns-expiration`: reveal push expires at `scores_at`; results push at +12h. A reveal
       push must never arrive at midnight.
-- [ ] `apns-priority: 10`, `apns-push-type: alert`, `interruption-level: active`
-- [ ] Payload carries `kind`, `round_id`, `deep_link` (`docs/05` §5)
-- [ ] Bounded concurrency of 16; whole group delivered within 20s
-- [ ] `sent_at` set **after** the send completes, never before
-- [ ] Test: a crash between send and mark re-sends with the same collapse id
+- [x] `apns-priority: 10`, `apns-push-type: alert`, `interruption-level: active`
+- [x] Payload carries `kind`, `round_id`, `deep_link` (`docs/05` §5)
+- [x] Bounded concurrency of 16; whole group delivered within 20s
+- [x] `sent_at` set **after** the send completes, never before
+- [x] Test: a crash between send and mark re-sends with the same collapse id
 
 ---
 

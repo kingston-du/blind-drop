@@ -441,6 +441,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // worker's own pass — no group, no round, no member — and `examined` is capped at the batch
     // size, so it cannot become a count of anything but its own work.
     "links-worker POST /": null,
+    // Also scheduler-only. Its four counters describe the bounded batch it just handled;
+    // none is keyed by a group, round, member, or participation state, and no device token
+    // can pass requireServiceRole to observe them.
+    "push-worker POST /": null,
     "tracks GET /search": "tracks_search",
     "tracks POST /resolve": "tracks_resolve",
   };
