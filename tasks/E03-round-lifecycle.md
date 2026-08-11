@@ -55,7 +55,7 @@ so the timezone offset used is never stale across a DST boundary.
 
 ### E03-02 — `tick_rounds()`: reveal and void
 
-**Status:** todo · **Deps:** E03-01 · **Reads:** `docs/02` §2–3, `docs/03` §4
+**Status:** wip · **Deps:** E03-01 · **Reads:** `docs/02` §2–3, `docs/03` §4
 **Touches:** `migrations/0004_round_lifecycle.sql`
 **Verify:** `npm run test:db -- lifecycle`
 
