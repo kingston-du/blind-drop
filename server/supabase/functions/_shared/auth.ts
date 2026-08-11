@@ -66,6 +66,35 @@ export async function requireUser(req: Request, route: string): Promise<UserCtx>
   return ctx;
 }
 
+// ─── the other kind of caller: a job ─────────────────────────────────────────
+
+/**
+ * Admits a request from the scheduler, and nothing else.
+ *
+ * The worker functions (`links-worker`, and `push-worker` when E06 lands) are driven by pg_cron
+ * through pg_net, carrying the service key from a database setting (0016). They have no user, so
+ * none of the pipeline above applies to them — and they must be unreachable from a device, since
+ * a member who could POST to a worker could drain the notification outbox at will (docs/14 §8).
+ *
+ * The comparison is over SHA-256 digests rather than the raw strings. `===` on secrets returns
+ * as soon as two bytes differ, which is a timing oracle that leaks the key a character at a time
+ * to anybody willing to make enough requests. Digesting first makes every comparison the same
+ * length and the same cost, and a wrong guess reveals nothing about how nearly right it was.
+ */
+export async function requireServiceRole(req: Request): Promise<void> {
+  const token = bearerToken(req);
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!token || !key) throw new ApiError("UNAUTHENTICATED");
+
+  const digest = async (value: string): Promise<Uint8Array> =>
+    new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  const [a, b] = await Promise.all([digest(token), digest(key)]);
+
+  let difference = 0;
+  for (let i = 0; i < a.length; i += 1) difference |= a[i] ^ b[i];
+  if (difference !== 0) throw new ApiError("UNAUTHENTICATED");
+}
+
 // ─── 2. profile ──────────────────────────────────────────────────────────────
 
 export async function requireProfile(ctx: UserCtx): Promise<ProfileCtx> {

@@ -16,6 +16,17 @@ import { findByIsrc, SUBMIT_BUDGET_MS } from "./spotify.ts";
 /** docs/06 §5: three misses and we stop. A fourth attempt has never once helped. */
 export const MAX_RESOLVE_ATTEMPTS = 3;
 
+/** docs/06 §5: up to twenty rows a minute. Small enough that a stuck upstream costs one
+ *  minute's work rather than a worker that never finishes, and large enough that a backlog
+ *  from an hour of Spotify being down clears in a few minutes. */
+export const BACKFILL_BATCH = 20;
+
+/** The backfill is nobody's foreground. It is not racing a person sealing a song, so it can
+ *  afford to wait longer than the 700ms budget the submission path lives under — a slow answer
+ *  here is a link that arrives, where the same slow answer inline is a person watching a
+ *  spinner. */
+export const BACKFILL_BUDGET_MS = 2_500;
+
 interface LinkRow {
   spotify_id: string | null;
   spotify_url: string | null;
@@ -74,6 +85,95 @@ export async function linkTrack(
   return { ...track, spotify_id: match.spotify_id, spotify_url: match.spotify_url };
 }
 
+// ─── the backfill — docs/06 §5 step 3, tasks/E07-05 ──────────────────────────
+// The second caller `writeLink` was written for. Everything about *when to give up* stays in
+// this file so the two paths cannot drift: the invariant docs/15 §2 asserts — every scored
+// submission either carries a Spotify URL or is flagged `unresolvable`, never in limbo — is
+// only true while the inline path and the backfill agree on what three failures means.
+
+/** A row the backfill can act on: it has an ISRC to look up, no link yet, and has not been
+ *  given up on. */
+export interface DueLink {
+  track_key: string;
+  isrc: string;
+  apple_music_id: string | null;
+  apple_music_url: string | null;
+  resolve_attempts: number;
+}
+
+/**
+ * Up to `limit` rows still worth a lookup, oldest-in-effort first.
+ *
+ * Ordering by `resolve_attempts` ascending is docs/06 §5's, and it is the kind way round: a
+ * track that has missed once is far likelier to resolve than one that has missed twice, so the
+ * cheap wins go first and the near-hopeless rows are the ones that wait. `track_links_needs_resolve`
+ * (0007) is a partial index on exactly this predicate, so the scan never touches the rows that
+ * are already linked — which, in a healthy database, is nearly all of them.
+ *
+ * A row with no ISRC is never due. `linkTrack` marks those `unresolvable` on sight, because a
+ * title/artist search returns the wrong recording often enough to be worse than nothing — and
+ * the filter here says so a second time rather than trusting that it happened.
+ */
+export async function dueForBackfill(db: Db, limit = BACKFILL_BATCH): Promise<DueLink[]> {
+  const { data, error } = await db
+    .from("track_links")
+    .select("track_key, isrc, apple_music_id, apple_music_url, resolve_attempts")
+    .is("spotify_id", null)
+    .eq("unresolvable", false)
+    .not("isrc", "is", null)
+    .order("resolve_attempts", { ascending: true })
+    .order("track_key", { ascending: true })
+    .limit(limit);
+  if (error) {
+    console.error(`track_links due: ${error.code ?? "?"} ${error.message}`);
+    return [];
+  }
+  return data as DueLink[];
+}
+
+export type BackfillOutcome = "resolved" | "retry" | "gave_up";
+
+/**
+ * One row's worth of backfill: look the ISRC up, record the attempt, and — on a hit — patch
+ * every submission already carrying that `track_key`.
+ *
+ * That last part is the point of the whole exercise (docs/06 §5). A link that arrived three
+ * days late is worth nothing if it only lands on the next person to drop the song; it has to
+ * reach the eight rows already in The Record, which is why `patch_track_meta_spotify` matches on
+ * `track_key` and not on a submission id.
+ *
+ * Like `linkTrack`, this never throws for an upstream reason. A worker that dies on the fourth
+ * of twenty rows leaves sixteen unexamined and no record of why.
+ */
+export async function backfillTrack(
+  db: Db,
+  row: DueLink,
+  opts: { budgetMs?: number; now?: Date } = {},
+): Promise<{ outcome: BackfillOutcome; patched: number }> {
+  const now = opts.now ?? new Date();
+  const match = await findByIsrc(row.isrc, { budgetMs: opts.budgetMs ?? BACKFILL_BUDGET_MS, now });
+  const attempts = row.resolve_attempts + 1;
+
+  await writeLink(
+    db,
+    {
+      track_key: row.track_key,
+      isrc: row.isrc,
+      apple_music_id: row.apple_music_id ?? "",
+      apple_music_url: row.apple_music_url ?? "",
+    },
+    { match, attempts, unresolvable: !match && attempts >= MAX_RESOLVE_ATTEMPTS, now },
+  );
+
+  if (!match) {
+    return { outcome: attempts >= MAX_RESOLVE_ATTEMPTS ? "gave_up" : "retry", patched: 0 };
+  }
+  return {
+    outcome: "resolved",
+    patched: await patchExistingSubmissions(db, row.track_key, match.spotify_id, match.spotify_url),
+  };
+}
+
 async function readLink(db: Db, trackKey: string): Promise<LinkRow | null> {
   const { data, error } = await db
     .from("track_links")
@@ -88,9 +188,14 @@ async function readLink(db: Db, trackKey: string): Promise<LinkRow | null> {
   return data;
 }
 
+/** The four fields a `track_links` row is built from. Narrower than `TrackDTO` on purpose: the
+ *  backfill has a row, not a resolved track, and widening the parameter would invite somebody to
+ *  write a whole snapshot's worth of fields into the cache. */
+type LinkIdentity = Pick<TrackDTO, "track_key" | "isrc" | "apple_music_id" | "apple_music_url">;
+
 async function writeLink(
   db: Db,
-  track: TrackDTO,
+  track: LinkIdentity,
   opts: {
     match?: { spotify_id: string; spotify_url: string } | null;
     attempts: number;
@@ -129,11 +234,17 @@ async function patchExistingSubmissions(
   trackKey: string,
   spotifyId: string,
   spotifyUrl: string,
-): Promise<void> {
-  const { error } = await db.rpc("patch_track_meta_spotify", {
+): Promise<number> {
+  const { data, error } = await db.rpc("patch_track_meta_spotify", {
     p_track_key: trackKey,
     p_spotify_id: spotifyId,
     p_spotify_url: spotifyUrl,
   });
-  if (error) console.error(`patch_track_meta_spotify ${trackKey}: ${error.code ?? "?"} ${error.message}`);
+  if (error) {
+    console.error(`patch_track_meta_spotify ${trackKey}: ${error.code ?? "?"} ${error.message}`);
+    return 0;
+  }
+  // The row count, so the backfill can report how much of The Record it repaired rather than
+  // just that it ran.
+  return typeof data === "number" ? data : 0;
 }

@@ -428,6 +428,11 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // all — and captured anyway, on the same principle as the guess sheet above: "this cannot
     // be called during `open`" is a claim that needs a golden file behind it.
     "rounds GET /:round_id/results": "round_results",
+    // The scheduler's, not a client's: `requireServiceRole` and nothing else, so there is no
+    // phase in which a device can reach it (tasks/E07-05). Its body is four integers about the
+    // worker's own pass — no group, no round, no member — and `examined` is capped at the batch
+    // size, so it cannot become a count of anything but its own work.
+    "links-worker POST /": null,
     "tracks GET /search": "tracks_search",
     "tracks POST /resolve": "tracks_resolve",
   };

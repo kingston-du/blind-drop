@@ -115,14 +115,14 @@ Client-credentials flow, our credentials, server-side only.
 
 ### E07-05 — `track_links` backfill
 
-**Status:** wip · **Deps:** E07-04, E03-05 · **Reads:** `docs/06` §5
+**Status:** done · **Deps:** E07-04, E03-05 · **Reads:** `docs/06` §5
 **Touches:** `functions/push-worker/index.ts` or a sibling, `migrations/0007_track_links.sql`
 **Verify:** `npm run test:db -- links`
 
-- [ ] Up to 20 unresolved rows per minute, ordered by `resolve_attempts`
-- [ ] After 3 failures set `unresolvable = true` and stop
-- [ ] Backfill patches every existing `submissions.track_meta` sharing the `track_key`
-- [ ] Test: for every `scored` submission, either `spotify_url` is present or
+- [x] Up to 20 unresolved rows per minute, ordered by `resolve_attempts`
+- [x] After 3 failures set `unresolvable = true` and stop
+- [x] Backfill patches every existing `submissions.track_meta` sharing the `track_key`
+- [x] Test: for every `scored` submission, either `spotify_url` is present or
       `track_links.unresolvable` is true — **no track is left in limbo** (`docs/15` §2)
 
 ---
