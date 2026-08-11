@@ -143,10 +143,12 @@ export async function call(
   };
   if (opts.token) headers.authorization = `Bearer ${opts.token}`;
 
+  const method = opts.method ?? "GET";
+  const sendsBody = opts.body !== undefined && method !== "GET" && method !== "HEAD";
   const res = await fetch(`${API_URL}/functions/v1/${functionName}${path === "/" ? "" : path}`, {
-    method: opts.method ?? "GET",
+    method,
     headers,
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    body: sendsBody ? JSON.stringify(opts.body) : undefined,
   });
   const text = await res.text();
   return {

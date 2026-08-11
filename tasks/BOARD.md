@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E02-03`. `E00` and `E01` are done.
+**Start here:** `E02-04`. `E00` and `E01` are done.
 
 ---
 
@@ -49,7 +49,7 @@ E04..E07 + E13  ─ E14 QA & release
 |---|---|---|---|
 | E02-01 `_shared` http, auth, dto, db | done | E01-02 | AC-1 |
 | E02-02 `/me` | done | E02-01 | — |
-| E02-03 `/groups` create, join, current, patch, leave | wip | E02-02 | AC-1 |
+| E02-03 `/groups` create, join, current, patch, leave | done | E02-02 | AC-1 |
 | E02-04 Invite code generation | todo | E02-03 | — |
 | E02-05 Account deletion | todo | E02-03 | — |
 
@@ -186,7 +186,7 @@ E04..E07 + E13  ─ E14 QA & release
 |---|---|
 | E00 | 5 / 5 |
 | E01 | 5 / 5 |
-| E02 | 2 / 5 |
+| E02 | 3 / 5 |
 | E03 | 0 / 6 |
 | E04 | 0 / 4 |
 | E05 | 0 / 6 |
@@ -199,4 +199,4 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **12 / 80** |
+| **Total** | **13 / 80** |

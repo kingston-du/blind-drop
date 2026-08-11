@@ -81,22 +81,33 @@ authenticating produced a 500 from `GET /auth/v1/user`.
 
 ### E02-03 — `/groups`
 
-**Status:** wip · **Deps:** E02-02 · **Reads:** `docs/04` §3, `docs/02` §1, `docs/14` §4
-**Touches:** `functions/groups/index.ts`
+**Status:** done · **Deps:** E02-02 · **Reads:** `docs/04` §3, `docs/02` §1, `docs/14` §4
+**Touches:** `functions/groups/index.ts`, `functions/_shared/invite.ts`,
+`migrations/0012_group_api.sql`, `config.toml`
 **Verify:** `npm run test:functions -- groups`
 
 Create, join, current, patch, leave.
 
-- [ ] `POST /groups` validates the IANA timezone against `pg_timezone_names`
-- [ ] `reveal_hour` constrained to 18–21; creator becomes `admin`
-- [ ] `ALREADY_IN_GROUP` when an active membership exists (ADR-005)
-- [ ] `POST /groups/join` is case-insensitive and whitespace-tolerant
-- [ ] `GET /groups/current` returns the roster with **`user_id` and `display_name` only** —
+- [x] `POST /groups` validates the IANA timezone against `pg_timezone_names`
+- [x] `reveal_hour` constrained to 18–21; creator becomes `admin`
+- [x] `ALREADY_IN_GROUP` when an active membership exists (ADR-005)
+- [x] `POST /groups/join` is case-insensitive and whitespace-tolerant
+- [x] `GET /groups/current` returns the roster with **`user_id` and `display_name` only** —
       no `joined_at`, no counts (`docs/14` §3)
-- [ ] `PATCH` is admin-only; `timezone` is immutable; response echoes `effective_from`
-- [ ] `POST /groups/current/leave` sets `left_at`; historical rows untouched
-- [ ] Test: a member of group A gets `NOT_FOUND` for every group-B resource
-- [ ] Test: an ex-member's live token gets `NO_GROUP`
+- [x] `PATCH` is admin-only; `timezone` is immutable; response echoes `effective_from`
+- [x] `POST /groups/current/leave` sets `left_at`; historical rows untouched
+- [x] Test: a member of group A gets `NOT_FOUND` for every group-B resource
+- [x] Test: an ex-member's live token gets `NO_GROUP`
+
+> **Open question:** "a member of group A gets `NOT_FOUND` for every group-B resource" has no
+> request to make: no route in this function takes a group id, so there is nothing to point at
+> group B. The test asserts the stronger property instead — a smuggled `group_id` in the body
+> is rejected as an unknown key, and group A's member sees only group A. Revisit when a
+> `round_id`-in-path route lands (E05-04), which is the first real IDOR surface.
+
+> **Note:** `_shared/invite.ts` (CSPRNG generation, normalisation) landed here because
+> `POST /groups` cannot work without it. E02-04 keeps the rate limits, the identical-
+> `NOT_FOUND` guarantee, and the 10k-code distribution test.
 
 ---
 

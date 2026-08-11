@@ -23,14 +23,20 @@ $$;
 -- ─── fixture handles ─────────────────────────────────────────────────────────
 -- The seed uses stable uuids so a test can name a person instead of pasting a uuid.
 
-create or replace function tests.person(p_name text) returns uuid
-language sql stable as $$
-  select id from public.profiles where display_name = p_name
-$$;
+
 
 create or replace function tests.the_group() returns uuid
 language sql stable as $$
   select id from public.groups where invite_code = 'K7MQ2X'
+$$;
+
+-- Scoped to the fixture group, not to the whole table: `npm run test:functions` creates its
+-- own profiles in the same local database and some of them are called Ana too.
+create or replace function tests.person(p_name text) returns uuid
+language sql stable as $$
+  select p.id from public.profiles p
+  join public.memberships m on m.user_id = p.id and m.group_id = tests.the_group()
+  where p.display_name = p_name
 $$;
 
 create or replace function tests.round_on(p_date date) returns uuid

@@ -13,21 +13,31 @@ set search_path = public, extensions, tests;
 select plan(51);
 
 -- ─── the cast ────────────────────────────────────────────────────────────────
-select is((select count(*)::int from public.profiles), 9, 'nine profiles');
+-- Scoped to the fixture group rather than to the whole table: `npm run test:functions` leaves
+-- its own profiles and groups behind in the same local database, and this file asserts the
+-- §4.4 fixture, not the tidiness of a dev machine.
+select is((select count(*)::int from public.memberships
+           where group_id = tests.the_group()), 9, 'nine profiles in the fixture group');
 select is_empty($$
   select n from unnest(array['Ana','Ben','Cal','Dee','Eli','Fay','Gus','Hal','Ivy']) as n
   where not exists (select 1 from public.profiles p where p.display_name = n)
 $$, 'the nine §4.4 names are all present');
 
-select is((select count(*)::int from public.groups), 1, 'one group');
-select is((select timezone from public.groups), 'America/New_York', 'the group is in New York');
-select is((select reveal_hour from public.groups), 20, 'reveal_hour is 20');
-select is((select count(*)::int from public.memberships where left_at is null), 9,
+select is((select count(*)::int from public.groups where invite_code = 'K7MQ2X'), 1,
+          'one fixture group');
+select is((select timezone from public.groups where id = tests.the_group()),
+          'America/New_York', 'the group is in New York');
+select is((select reveal_hour from public.groups where id = tests.the_group()), 20,
+          'reveal_hour is 20');
+select is((select count(*)::int from public.memberships
+           where group_id = tests.the_group() and left_at is null), 9,
           'all nine are active members');
 
-select is((select count(*)::int from public.rounds), 3, 'three rounds');
+select is((select count(*)::int from public.rounds where group_id = tests.the_group()), 3,
+          'three rounds');
 select bag_eq(
-  $$ select local_date::text || ' ' || state::text from public.rounds $$,
+  $$ select local_date::text || ' ' || state::text from public.rounds
+     where group_id = tests.the_group() $$,
   $$ values ('2026-08-08 scored'), ('2026-08-09 revealed'), ('2026-08-10 open') $$,
   'one scored round, one revealed, one open');
 
@@ -85,12 +95,16 @@ select is(tests.read_correct('2026-08-08','Eli'), 1,
 select is(tests.read_correct('2026-08-08','Ivy'), 0, 'Ivy has no card, so no readability');
 
 -- The two totals are the same 26 guesses counted from opposite ends.
+create or replace view tests.fixture_cast as
+  select p.display_name from public.profiles p
+  join public.memberships m on m.user_id = p.id and m.group_id = tests.the_group();
+
 select is(
-  (select sum(tests.ear_correct('2026-08-08', display_name))::int from public.profiles),
-  (select sum(tests.read_correct('2026-08-08', display_name))::int from public.profiles),
+  (select sum(tests.ear_correct('2026-08-08', display_name))::int from tests.fixture_cast),
+  (select sum(tests.read_correct('2026-08-08', display_name))::int from tests.fixture_cast),
   'ear total and readability total agree — the fixture is internally consistent');
 select is(
-  (select sum(tests.ear_correct('2026-08-08', display_name))::int from public.profiles),
+  (select sum(tests.ear_correct('2026-08-08', display_name))::int from tests.fixture_cast),
   26, '26 correct guesses in the round');
 
 -- The duplicate rule is load-bearing here, not incidental.
