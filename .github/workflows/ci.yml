@@ -26,10 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prove the lint rules still fire
+      - name: Prove the iOS lint rules still fire
         run: ./ios/scripts/lint.sh --self-test
-      - name: Lint
+      - name: Lint iOS
         run: ./ios/scripts/lint.sh
+      # The server rules need no npm install — lint.mjs is dependency-free on purpose, so a
+      # broken lockfile can never be the reason a lint rule stops running.
+      - name: Prove the server lint rules still fire
+        run: node server/scripts/lint.mjs --self-test
+      - name: Lint the Edge Functions
+        run: node server/scripts/lint.mjs
 
   server:
     name: Server

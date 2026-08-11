@@ -55,6 +55,7 @@ client switches on it. Never put a raw DB error in `message`.
 | `NOT_ADMIN` | 403 | Group settings change by a non-admin |
 | `RATE_LIMITED` | 429 | See §8 |
 | `UPSTREAM_UNAVAILABLE` | 502 | Apple Music / Spotify failure |
+| `INTERNAL` | 500 | Anything unhandled. Carries no detail — the detail is in the server log |
 
 **Phase errors must not leak.** `WRONG_PHASE` returns the round's `state` and nothing else —
 never "3 of 8 submitted, wait for reveal".

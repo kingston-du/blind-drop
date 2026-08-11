@@ -21,18 +21,23 @@
 set local role postgres;
 
 -- ─── auth users ──────────────────────────────────────────────────────────────
+--
+-- The four empty-string token columns are not decoration: GoTrue reads them as `string`, not
+-- `*string`, so a NULL there makes `GET /auth/v1/user` fail with a 500 and every fixture user
+-- unusable from an Edge Function test (tasks/E02-01 found this the hard way).
 insert into auth.users (instance_id, id, aud, role, email, email_confirmed_at,
-                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change_token_new, email_change)
 values
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000001','authenticated','authenticated','ana@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000002','authenticated','authenticated','ben@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000003','authenticated','authenticated','cal@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000004','authenticated','authenticated','dee@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000005','authenticated','authenticated','eli@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000006','authenticated','authenticated','fay@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000007','authenticated','authenticated','gus@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000008','authenticated','authenticated','hal@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000009','authenticated','authenticated','ivy@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z');
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000001','authenticated','authenticated','ana@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000002','authenticated','authenticated','ben@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000003','authenticated','authenticated','cal@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000004','authenticated','authenticated','dee@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000005','authenticated','authenticated','eli@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000006','authenticated','authenticated','fay@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000007','authenticated','authenticated','gus@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000008','authenticated','authenticated','hal@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','',''),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000009','authenticated','authenticated','ivy@fixture.blinddrop.test','2026-08-01T12:00:00Z','{"provider":"apple","providers":["apple"]}'::jsonb,'{}'::jsonb,'2026-08-01T12:00:00Z','2026-08-01T12:00:00Z','','','','');
 
 -- ─── profiles ────────────────────────────────────────────────────────────────
 insert into public.profiles (id, display_name, created_at, updated_at)

@@ -244,7 +244,11 @@ readability or commiserates a low one.
 |---|---|---|
 | `error.offline` | — | You're offline. |
 | `error.offline.stale` | — | Showing what we had. This may be out of date. |
-| `error.generic` | — | That didn't work. Try again. |
+| `error.generic` | `INTERNAL` | That didn't work. Try again. |
+| `error.unauthenticated` | `UNAUTHENTICATED` | Sign in again to keep playing. |
+| `error.noprofile` | `NO_PROFILE` | Pick a name first. |
+| `error.notfound` | `NOT_FOUND` | That doesn't exist. |
+| `error.invalidinput` | `INVALID_INPUT` | Check that and try again. |
 | `error.wrongphase` | `WRONG_PHASE` | That's not available right now. |
 | `error.notsubmitter` | `NOT_A_SUBMITTER` | You didn't drop a song tonight. |
 | `error.joinedlate` | `JOINED_LATE` | You joined after the reveal. You're in from tomorrow. |

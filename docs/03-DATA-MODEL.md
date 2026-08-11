@@ -211,6 +211,30 @@ create index track_links_needs_resolve on public.track_links (resolve_attempts)
   where spotify_id is null and unresolvable = false;
 ```
 
+### `0011_rate_limits.sql`
+
+The tenth table, and the only one that holds no game data. The limits in
+`04-API-CONTRACT.md` §8 need shared state, and an Edge Function has none of its own.
+
+```sql
+create table public.rate_limit_events (
+  id      bigserial primary key,
+  bucket  text        not null,     -- 'route:<key>:u:<user>' | 'join:ip:<sha256 prefix>'
+  at      timestamptz not null default public.now_()
+);
+create index rate_limit_events_bucket_at on public.rate_limit_events (bucket, at desc);
+```
+
+`consume_rate_limit(bucket, limit, window)` returns `0` when the request is allowed, else the
+seconds to wait, which the handler returns as `Retry-After`.
+
+- **A bucket key is a user id or a hashed IP. Never a group id.** A group-scoped counter would
+  let one member detect another's activity by watching for throttling
+  (`14-SECURITY-AND-THREAT-MODEL.md` §3).
+- Rows are deleted by the next call on the same bucket once they age out of the window, so a
+  hashed IP is retained for at most one window. That is what keeps IP addresses off the
+  collected-data list in `14-SECURITY-AND-THREAT-MODEL.md` §9.
+
 ---
 
 ## 3. RLS — `0003_rls.sql`
@@ -238,6 +262,19 @@ alter default privileges in schema public
 > This is intentionally the whole of the RLS file. Do not add "convenience" policies. If a
 > feature seems to need one, it needs an Edge Function instead. `E14` tests that every table
 > returns `[]` to an authenticated PostgREST request.
+
+### `0010_service_role_grants.sql`
+
+`config.toml` sets `auto_expose_new_tables = false`, so a new table is granted to **nobody** —
+including `service_role`, which is what the Edge Functions hold. This file grants
+`service_role` the verbs each table's handlers actually use, and nothing else: no `DELETE` on
+`profiles`, `memberships`, `rounds` or `submissions` (leaving is `left_at`, deleting an
+account is anonymisation, a submission is never removed), and no `INSERT` on
+`notification_outbox`, because "notification abuse is impossible by construction"
+(`14-SECURITY-AND-THREAT-MODEL.md` §8) depends on the API being unable to write to it.
+
+`anon` and `authenticated` — the only roles a client can hold — are untouched and still hold
+nothing.
 
 ---
 

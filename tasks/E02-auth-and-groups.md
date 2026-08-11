@@ -7,8 +7,9 @@ pipeline and the error envelope right once means the rest of the backend inherit
 
 ### E02-01 — `_shared`: http, auth, dto, db
 
-**Status:** wip · **Deps:** E01-02 · **Reads:** `docs/04` §1, `docs/14` §4, `docs/01` §2
-**Touches:** `functions/_shared/{http,auth,db,time,dto}.ts`
+**Status:** done · **Deps:** E01-02 · **Reads:** `docs/04` §1, `docs/14` §4, `docs/01` §2
+**Touches:** `functions/_shared/{http,auth,db,time,dto}.ts`, `scripts/lint.mjs`,
+`migrations/0010_service_role_grants.sql`, `migrations/0011_rate_limits.sql`
 **Verify:** `npm run test:functions -- shared`
 
 The spine. Five modules:
@@ -22,12 +23,34 @@ The spine. Five modules:
 - `dto.ts` — **every** response shape in one file, each built by naming its fields. This is
   the file a security reviewer reads.
 
-- [ ] `ok`/`fail` envelope matches `docs/04` §1 exactly
-- [ ] Every error code from `docs/04` §1 defined with its HTTP status and copy-deck message
-- [ ] `WRONG_PHASE` bodies carry `state` and nothing else (`docs/14` §3)
-- [ ] Guards compose; `requireMembership` takes no group parameter
-- [ ] Unknown request-body keys are **rejected**, not ignored (`docs/14` §7)
-- [ ] Tests: 401 for anonymous, 409 for no profile / no group, unknown-key rejection
+- [x] `ok`/`fail` envelope matches `docs/04` §1 exactly
+- [x] Every error code from `docs/04` §1 defined with its HTTP status and copy-deck message
+- [x] `WRONG_PHASE` bodies carry `state` and nothing else (`docs/14` §3)
+- [x] Guards compose; `requireMembership` takes no group parameter
+- [x] Unknown request-body keys are **rejected**, not ignored (`docs/14` §7)
+- [x] Tests: 401 for anonymous, 409 for no profile / no group, unknown-key rejection
+
+> **Open question:** `service_role` held **no** privilege on any table — `config.toml` sets
+> `auto_expose_new_tables = false`, so 0002/0006/0007 granted nothing to anyone, and every
+> handler would have failed with `42501`. `docs/01` §2 assumes "service-role queries" work, so
+> the lockdown needed a companion: `0010_service_role_grants.sql` grants `service_role` the
+> verbs each table's handlers use and nothing more. `anon` and `authenticated` are untouched.
+> Owner to confirm the per-table verb list.
+
+> **Open question:** rate limiting (`docs/04` §8) needs shared state, which an Edge Function
+> has none of, so it lives in a tenth table (`0011_rate_limits.sql`). That table is documented
+> in `docs/03` §2 and `tests/db/rls.sql` now asserts ten tables rather than nine — the count
+> is deliberate friction, so this is exactly the doc change it is asking for.
+
+> **Open question:** the invite alphabet `ABCDEFGHJKMNPQRSTUVWXYZ23456789` has **31**
+> characters, not 32 — `docs/03` §2 and `docs/14` §8 both say `32^6 ≈ 1.07e9`. The real space
+> is `31^6 ≈ 8.9e8`, which changes nothing about brute-force feasibility given the 10/hour and
+> 30/hour limits. The alphabet in the merged check constraint is authoritative; the arithmetic
+> in the docs is what is wrong.
+
+Also fixed here, because it blocked every function test: `seed.sql` left four `auth.users`
+token columns NULL, which GoTrue scans as `string` rather than `*string`. Any fixture user
+authenticating produced a 500 from `GET /auth/v1/user`.
 
 ---
 
