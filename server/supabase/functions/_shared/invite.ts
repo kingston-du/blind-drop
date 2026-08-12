@@ -2,9 +2,8 @@
 //
 // Six characters, read aloud across a lunch table and typed by a sixteen-year-old. The
 // alphabet excludes I, L, O, 0 and 1 for that reason, which leaves 31 characters and
-// 31^6 ≈ 8.9e8 codes. (docs/03 §2 and docs/14 §8 both say `32^6`; the alphabet in the merged
-// check constraint is the authority and it has 31 characters. Recorded as an open question in
-// tasks/E02.) Brute force is not stopped by the size of that space anyway — it is stopped by
+// 31^6 ≈ 8.9e8 codes, as approved in docs/03 §2 and docs/14 §8. Brute force is not stopped by
+// the size of that space anyway — it is stopped by
 // the 10/hour and 30/hour limits in docs/04 §8.
 
 export const INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";

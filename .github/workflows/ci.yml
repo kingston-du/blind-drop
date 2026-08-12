@@ -15,9 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # docs/13 §8 targets iOS 17.0; CI builds against whatever simulator the runner image has.
-  # Named devices drift with every Xcode release, so the destination is resolved rather than
-  # hardcoded — see tasks/E00, "Open question: iPhone 15 is not an available simulator".
+  # Routine CI uses the owner-approved current-runtime destination from tasks/E00. E14 also
+  # requires the full suite on the minimum supported iOS 17 runtime before release.
   DESTINATION: "platform=iOS Simulator,OS=latest,name=iPhone 17"
 
 jobs:

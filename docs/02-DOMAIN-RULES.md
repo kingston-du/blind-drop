@@ -173,6 +173,10 @@ Ear is pooled; readability is a mean of per-round rates. That asymmetry is inten
 "Best Ear" is a leaderboard and should reward volume, while readability is a character trait
 and should not be dominated by whichever round had the most participants.
 
+Standings contain the **active roster only**. When a member leaves, their row disappears from
+current standings, but their submissions and guesses remain in historical rounds and continue
+to affect every other member's historical scores.
+
 Voided rounds (`S < 3`) are excluded from everything.
 
 ### 4.3 Correctness under duplicate tracks
@@ -255,8 +259,8 @@ Guess activity:
 | Dee | 4 | 57.1% |
 | Eli | 1 | 14.3% |
 | Fay | 2 | 28.6% |
-| Gus | 0 | 0% |
-| Hal | 5 | 71.4% |
+| Gus | 1 | 14.3% |
+| Hal | 4 | 57.1% |
 | Ivy | — | no card, excluded |
 
 Note that Eli, who guessed nothing, **still has a readability** (14.3%), and Eli's

@@ -6,9 +6,9 @@ import SwiftUI
 ///
 /// > **No fill from the left** — filling implies more is better, and readability has no better.
 ///
-/// That is the whole design of this component and the reason it is not a progress bar. Five
-/// band labels sit below in `caption` `inkFaint`, the active one in `ink`. No arrow, no rank,
-/// no delta, no comparison to yesterday. `docs/02` §4.5 makes the same point in the data model:
+/// That is the whole design of this component and the reason it is not a progress bar. The
+/// active band label sits below in `caption` `ink`. No arrow, no rank, no delta, no comparison
+/// to yesterday. `docs/02` §4.5 makes the same point in the data model:
 /// the readability list is sorted but **unranked**, and rendering a rank position here is a
 /// spec violation.
 ///
@@ -56,52 +56,16 @@ struct StatMeter: View {
         .frame(height: markerHeight)
     }
 
-    /// Five labels if they fit, otherwise the active one alone.
-    ///
-    /// **On an iPhone SE they do not fit, at any text size.** The five strings measure 320pt at
-    /// `caption`'s 12pt, and 335pt is the whole content width — before spacing. `docs/07` §5
-    /// asks for five and `docs/08` §7.2 draws exactly one (*"open book"*, under the marker), so
-    /// this renders whichever the width allows: five on a device wide enough, the active band
-    /// alone otherwise. See the open question in `tasks/E08-ios-foundation.md`.
-    ///
-    /// `ViewThatFits` rather than a Dynamic Type threshold (`docs/12` §1 asks for exactly that,
-    /// and for it not to be a width check): whether five labels fit depends on how wide the
-    /// meter is, which the meter does not know and should not have to.
-    ///
-    /// Each label is `fixedSize`, so the row either fits at its natural width or does not fit at
-    /// all. Without it the labels get equal-width columns narrower than the word "Unreadable"
-    /// and break *mid-word*, which is a layout that technically fits and is unreadable.
+    /// The owner-approved rule is one active label only. It keeps the meter readable on small
+    /// phones at every Dynamic Type size and matches the results-screen specification.
     private var bandLabels: some View {
-        ViewThatFits(in: .horizontal) {
-            // No `Spacer`s between the labels. A `Spacer`'s ideal width is unbounded, so a row
-            // containing one never reports a size that fits and `ViewThatFits` would drop
-            // straight through to the fallback at every Dynamic Type size — including the ones
-            // where all five fit comfortably. Fixed spacing costs a little distribution and is
-            // the difference between the spectrum being drawn and not.
-            HStack(spacing: Space.sm) {
-                ForEach(ReadabilityBand.ordered, id: \.self) { candidate in
-                    label(candidate).fixedSize()
-                }
-            }
-            label(band)
-        }
-    }
-
-    private func label(_ candidate: ReadabilityBand) -> some View {
-        Text(verbatim: Copy.band(candidate))
+        Text(verbatim: Copy.band(band))
             .typeStyle(.caption)
-            .foregroundStyle(candidate == band ? Palette.ink : Palette.inkFaint)
+            .foregroundStyle(Palette.ink)
     }
 }
 
 extension ReadabilityBand {
-    /// Low to high, which is the order the track runs in. `CaseIterable`'s order is the
-    /// declaration order and runs the other way; relying on it would put *Open book* at the
-    /// left end of a meter whose marker moves right as readability rises.
-    static let ordered: [ReadabilityBand] = [
-        .unreadable, .hardToPlace, .mixedSignals, .legible, .openBook,
-    ]
-
     /// The band a rate falls in.
     ///
     /// **These thresholds mirror `server/supabase/migrations/0005_scoring.sql`.** The server

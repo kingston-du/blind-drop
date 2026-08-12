@@ -9,7 +9,7 @@
 | Client | Native SwiftUI | iOS 17.0 minimum, Swift 6 strict concurrency |
 | Auth | Supabase Auth — Sign in with Apple (primary), phone OTP (flagged) | — |
 | API | Supabase Edge Functions (Deno / TypeScript) | hand-written handlers only |
-| Database | Postgres 15 (Supabase) | RLS deny-by-default |
+| Database | Postgres 17 (Supabase) | RLS deny-by-default |
 | Scheduler | `pg_cron` + `pg_net` | 1-minute tick |
 | Push | APNs, HTTP/2, token-based (ES256 JWT) | from `push-worker` function |
 | Catalog | Apple Music API (REST, server-proxied) | developer-token JWT, ES256 |
@@ -49,8 +49,9 @@ now" a phase-dependent RLS puzzle that is easy to get subtly wrong. Enforcement:
 
 - Every table has `REVOKE ALL … FROM anon, authenticated`.
 - RLS policies exist anyway, deny-by-default, as a second lock.
-- `E14` includes a test that asserts an authenticated PostgREST call to every table returns
-  zero rows.
+- `E14` includes a test that asserts authenticated and anonymous PostgREST calls to every
+  table fail with PostgreSQL `42501 permission denied`. Failing at the privilege layer is
+  stronger than returning an empty result through RLS alone.
 
 ---
 
@@ -73,11 +74,18 @@ blind-drop/
 │       │   ├── 0005_scoring.sql           plpgsql/views: round_scores, standings
 │       │   ├── 0006_notifications.sql     outbox + unique idempotency key
 │       │   ├── 0007_track_links.sql       ISRC ↔ apple ↔ spotify cache
-│       │   ├── 0008_delete_account.sql    anonymise, don't cascade
-│       │   ├── 0016_cron.sql              pg_cron job registration
 │       │   ├── 0010_service_role_grants.sql  least-privilege grants for the API role
 │       │   ├── 0011_rate_limits.sql       sliding-window limiter (docs/04 §8)
-│       │   └── 0012_group_api.sql         timezone validation, atomic group creation
+│       │   ├── 0012_group_api.sql         timezone validation, atomic group creation
+│       │   ├── 0013_tick_rounds_reveal.sql reveal/void transition
+│       │   ├── 0014_delete_account.sql    anonymise, don't cascade
+│       │   ├── 0015_tick_rounds_score_nudge.sql score/nudge transition
+│       │   ├── 0016_cron.sql              pg_cron job registration
+│       │   ├── 0017_track_meta_spotify_patch.sql track bridge metadata
+│       │   ├── 0018_submission_upsert.sql atomic submission upsert
+│       │   ├── 0019_links_worker_job.sql  track-link backfill job
+│       │   ├── 20260811194721_claim_notifications.sql durable push claims
+│       │   └── 20260811201246_notification_retry.sql push retry state
 │       ├── functions/
 │       │   ├── _shared/
 │       │   │   ├── http.ts                ok(), fail(), error envelope

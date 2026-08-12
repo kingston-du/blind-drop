@@ -79,12 +79,10 @@ actor APIClient {
         while true {
             do {
                 return try await attemptOnce(endpoint, isRetry: attempt > 0)
-            } catch let error as APIError {
+            } catch {
                 guard error.isWorthRetrying, attempt < endpoint.retry.backoff.count else { throw error }
                 try? await Task.sleep(for: endpoint.retry.backoff[attempt])
                 attempt += 1
-            } catch {
-                throw APIError.unreadable
             }
         }
     }

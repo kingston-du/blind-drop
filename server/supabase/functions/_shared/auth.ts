@@ -4,8 +4,9 @@
 //   2. requireProfile(ctx)            → display_name, or 409 NO_PROFILE
 //   3. requireMembership(ctx)         → group_id, role, joined_at, or 409 NO_GROUP
 //   4. requirePhase(round, [...])     → or 409 WRONG_PHASE
-//   5. requireSubmitter(ctx, round)   → or 403 NOT_A_SUBMITTER   (guessing only)
-//   6. requireJoinedBefore(ctx, t)    → or 403 JOINED_LATE       (guessing only)
+//
+// Guess handlers apply joined-in-time before submitter eligibility through the shared helper
+// in `rounds/index.ts`; that owner-approved order keeps JOINED_LATE reachable for newcomers.
 //
 // The guards compose: each takes the context the previous one returned and widens it, so a
 // handler cannot reach step 3 without having passed steps 1 and 2. **`requireMembership`
@@ -142,7 +143,7 @@ export function requirePhase(
   throw new ApiError("WRONG_PHASE", { state: round.state });
 }
 
-// ─── 5. submitter ────────────────────────────────────────────────────────────
+// ─── submitter guard ─────────────────────────────────────────────────────────
 
 /** Only submitters may guess, enforced server-side (CLAUDE.md §2.3). Reads one row keyed by
  *  `(round_id, user_id)`: the caller's own. It never counts, so its cost cannot vary with how
@@ -158,7 +159,7 @@ export async function requireSubmitter(ctx: MemberCtx, roundId: string): Promise
   if (!data) throw new ApiError("NOT_A_SUBMITTER");
 }
 
-// ─── 6. joined in time ───────────────────────────────────────────────────────
+// ─── joined-in-time guard ────────────────────────────────────────────────────
 
 export function requireJoinedBefore(ctx: MemberCtx, revealsAt: string): void {
   if (new Date(ctx.joinedAt).getTime() >= new Date(revealsAt).getTime()) {

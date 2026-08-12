@@ -303,7 +303,8 @@ sequence immediately. Runs once per round.
    └──────────────────────┘        └──────────────────────┘
 ```
 
-- Readability uses `StatMeter` with a marker, **no fill from the left**, and its band label.
+- Readability uses `StatMeter` with a marker, **no fill from the left**, and its active band
+  label only.
   No rank, no arrow, no comparison to yesterday.
 - Ear with no guesses renders as **—** with the line *"You sat this one out."* Never `0%`.
 - Readability for a non-submitter is absent, not zero.

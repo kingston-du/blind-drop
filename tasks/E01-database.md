@@ -39,11 +39,11 @@ Enable RLS on all nine tables, create **no policies**, and revoke everything fro
 - [x] RLS enabled on all nine tables
 - [x] Zero policies created
 - [x] `revoke all` on tables, sequences, functions, and default privileges
-- [x] Test: an authenticated PostgREST `select` on each table returns no row — see the open
-      question below
+- [x] Test: an authenticated PostgREST `select` on each table fails with `42501` — see the
+      resolution below
 - [x] Test: `anon` likewise
 
-> **Open question:** the checklist asks for `[]` "not an error". With `REVOKE ALL` in place
+> **Resolved — owner, 2026-08-12:** the checklist asked for `[]` "not an error". With `REVOKE ALL` in place
 > the database answers `42501 permission denied`, which is a *stronger* outcome than an empty
 > array: it fails closed at the privilege layer rather than relying on RLS returning no rows.
 > Asserted "no row is ever returned, for either role, on any of the nine tables, for reads
@@ -110,7 +110,7 @@ the table; do not generate guesses randomly and hope.
 - [x] Test asserts the seeded counts before any view exists, so a seed drift is caught here
       and not blamed on E05
 
-> **Open question — needs the owner.** `docs/02` §4.4 as printed is unsatisfiable, so the
+> **Resolved — owner, 2026-08-12:** `docs/02` §4.4 as printed was unsatisfiable, so the
 > seed cannot match it exactly.
 >
 > "Cal guesses all 7; 7 correct" means Cal places a correct guess on every card except his
@@ -132,9 +132,8 @@ the table; do not generate guesses randomly and hope.
 > total 26. The alternative — keeping `Gus 0` and dropping Cal to 6/7 — costs the 100% ear
 > case instead and needs a second adjustment to rebalance.
 >
-> Cost of getting this wrong is low and contained: `seed.sql`, `tests/db/seed.sql`, and
-> `ios/Fixtures/payloads/results.json` carry the same two numbers and are the only places to
-> change. **Confirm before E05-06 hardens the scoring views against this fixture.**
+> `docs/02`, `seed.sql`, `tests/db/seed.sql`, and `ios/Fixtures/payloads/results.json` now use
+> the approved values. E05-06 hardens the scoring views against this fixture.
 
 ---
 

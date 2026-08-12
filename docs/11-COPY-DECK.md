@@ -263,11 +263,9 @@ The three coarse strings replace `HH:MM:SS` above `.accessibility2`
 (`12-ACCESSIBILITY.md` §1). They round **down**: "3 hours" with three hours and fifty minutes
 left, because a countdown that says 4 and then drops to 3 eleven minutes later reads as broken.
 
-> **Open question:** the two `%lld` strings need a `.stringsdict` for the one/other plural,
-> or "1 hours" ships at `.accessibility3`. E09 owns `Localizable.strings`; the pluralisation
-> belongs in the same commit. Flagged here rather than solved, because the singular wording is
-> the owner's call — "1 hour" and "an hour" are both defensible and only one of them is the
-> app's voice.
+`countdown.coarse.hours` and `countdown.coarse.minutes` use `.stringsdict` plural rules. Their
+singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%lld hours` and
+`%lld minutes`.
 
 ---
 

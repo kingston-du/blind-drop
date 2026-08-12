@@ -64,7 +64,7 @@ const SUITES = [
   {
     file: "postgrest_locked.test.ts",
     claims: [
-      "an authenticated PostgREST select on each of the 9 tables returns no row",
+      "authenticated and anonymous PostgREST selects on every audited table fail with 42501",
       "no lifecycle RPC is callable by anon or by a member",
       "every Edge Function returns 401 in our envelope to an anonymous caller",
       "no route takes a client-supplied resource id; a cross-group probe 404s",

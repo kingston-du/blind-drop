@@ -21,8 +21,8 @@ import {
   zoneWhereLocalHourIs,
 } from "./_harness.ts";
 
-/** Every table in docs/03 §2. Listed by hand: a table added later and not added here is
- *  caught by the count assertion at the bottom, which reads the schema. */
+/** Every table in docs/03 §2. Kept explicit so adding a table requires a human to add it to
+ *  this release-critical denial audit too. */
 const TABLES = [
   "profiles",
   "groups",
@@ -33,6 +33,7 @@ const TABLES = [
   "devices",
   "notification_outbox",
   "track_links",
+  "rate_limit_events",
 ] as const;
 
 async function restGet(table: string, token: string, query = "select=*"): Promise<Response> {
@@ -41,7 +42,7 @@ async function restGet(table: string, token: string, query = "select=*"): Promis
   });
 }
 
-Deno.test("an authenticated PostgREST select on every table returns no row", async () => {
+Deno.test("an authenticated PostgREST select on every table fails with 42501", async () => {
   // Not a bystander: a named member of a group, with a song sealed in tonight's round. If any
   // policy were to leak, this is the token it would leak to.
   const { user } = await newGroupOwner("Ana", {
@@ -59,32 +60,19 @@ Deno.test("an authenticated PostgREST select on every table returns no row", asy
     const res = await restGet(table, user.token);
     const text = await res.text();
 
-    if (res.ok) {
-      assertEquals(
-        JSON.parse(text),
-        [],
-        `PostgREST returned rows from ${table} to an authenticated member. ` +
-          `RLS is deny-by-default (0003) and this is what that has to mean on the wire.`,
-      );
-    } else {
-      // A privilege error is the better outcome — the table is not merely filtered, it is not
-      // readable — so 401/403/404 all pass. What must never happen is a 200 with rows.
-      assert(
-        [401, 403, 404].includes(res.status),
-        `${table}: unexpected ${res.status} ${text}`,
-      );
-    }
+    assert(!res.ok, `PostgREST returned ${res.status} from ${table}: ${text}`);
+    assertEquals(JSON.parse(text).code, "42501", `${table}: ${text}`);
   }
 });
 
-Deno.test("an anonymous PostgREST select is refused too", async () => {
+Deno.test("an anonymous PostgREST select on every table fails with 42501", async () => {
   for (const table of TABLES) {
     const res = await fetch(`${API_URL}/rest/v1/${table}?select=*`, {
       headers: { apikey: ANON_KEY },
     });
     const text = await res.text();
-    if (res.ok) assertEquals(JSON.parse(text), [], table);
-    else assert([401, 403, 404].includes(res.status), `${table}: ${res.status} ${text}`);
+    assert(!res.ok, `PostgREST returned ${res.status} from ${table}: ${text}`);
+    assertEquals(JSON.parse(text).code, "42501", `${table}: ${text}`);
   }
 });
 

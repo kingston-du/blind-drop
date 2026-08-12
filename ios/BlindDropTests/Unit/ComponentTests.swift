@@ -70,13 +70,6 @@ import Testing
         #expect(ReadabilityBand(readability: value) == expected)
     }
 
-    @Test func bandsRunLowToHighOnTheMeter() {
-        // The marker moves right as readability rises, so the labels under it have to as well.
-        // `CaseIterable`'s declaration order runs the other way.
-        #expect(ReadabilityBand.ordered == [.unreadable, .hardToPlace, .mixedSignals, .legible, .openBook])
-        #expect(Set(ReadabilityBand.ordered) == Set(ReadabilityBand.allCases))
-    }
-
     // MARK: - The accent is a parameter, not a lookup
 
     @Test func eachAccentPairsAFillWithSomethingLegibleOnIt() {

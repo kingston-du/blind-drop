@@ -301,8 +301,8 @@ Whole-sheet upsert. The client sends the complete current sheet; the server diff
 Server-side validation, each failing with `INVALID_INPUT` unless noted:
 
 1. `state` must be `revealed` → else `WRONG_PHASE`.
-2. Caller must have a submission in the round → else `NOT_A_SUBMITTER` (403).
-3. Caller's membership `joined_at` must be `< reveals_at` → else `JOINED_LATE` (403).
+2. Caller's membership `joined_at` must be `< reveals_at` → else `JOINED_LATE` (403).
+3. Caller must have a submission in the round → else `NOT_A_SUBMITTER` (403).
 4. `card_no` must be in `1..N` and must not be the caller's own card.
 5. `guessed_user_id` must be in the round's name pool and must not be the caller.
 6. Duplicate `guessed_user_id` across two cards in one request → **allowed**. Players
@@ -377,6 +377,8 @@ round, which is how the Record links back into results.
   purely so the list is stable. `band` is one of `open_book | legible | mixed_signals |
   hard_to_place | unreadable` (`02-DOMAIN-RULES.md` §4.5). Do not add a rank to this array —
   a client that receives one will render it.
+- Both arrays contain active group members only. A departed member disappears from current
+  standings, while their historical submissions and guesses remain part of past scoring.
 
 ---
 
@@ -489,8 +491,8 @@ Per user, sliding window, returned as `429 RATE_LIMITED` with `Retry-After`:
 | `POST /groups/join` | 10 / hour (invite-code brute force) |
 | everything else | 120 / minute |
 
-`POST /groups/join` additionally rate-limits per IP at 30/hour. `32^6` codes make brute force
-impractical, but the limit makes it pointless.
+`POST /groups/join` additionally rate-limits per IP at 30/hour. The 31-symbol alphabet yields
+`31^6 ≈ 8.9e8` codes, which makes brute force impractical; the limit makes it pointless.
 
 **Rate-limit counters are per-user and never per-group** — a shared group counter would let
 one member detect another member's activity by watching for throttling. That is a genuine

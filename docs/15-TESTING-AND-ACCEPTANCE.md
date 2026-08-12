@@ -18,7 +18,7 @@ a manual check. Each AC names the test that proves it.
 | Same, for a caller who has **not** submitted (`my_submission: null`) | `tests/golden/round_open_nosub.json` |
 | Same, for `voided` | `tests/golden/round_voided.json` |
 | Every other endpoint reachable during `open` is captured as a golden file and diffed | `tests/functions/leak.test.ts` |
-| Authenticated PostgREST call to each of the 9 tables returns `[]` | `tests/functions/postgrest_locked.test.ts` |
+| Authenticated and anonymous PostgREST calls to every table fail with `42501 permission denied` | `tests/functions/postgrest_locked.test.ts` |
 | Response byte-length for `GET /rounds/current` is invariant across 0/1/5/11 other submitters (holding `my_submission` fixed) | `tests/functions/leak.test.ts` |
 | Response latency shows no correlation (|r| < 0.2) with submitter count over 100 samples | `tests/functions/leak_timing.test.ts` |
 | Accessibility labels on `SubmitScreen`/`SealedScreen` contain no digit other than the countdown | `A11yLabelTests.swift` |
@@ -111,6 +111,7 @@ The fixture is `02-DOMAIN-RULES.md` §4.4, loaded by `server/supabase/seed.sql`.
 | Ivy (non-submitter) appears in neither | same |
 | Ben's 3 blanks count as wrong; denominator is still 7 | same |
 | All-time ear pools; all-time readability is a mean of rates (verified over 3 rounds of differing size) | `tests/db/standings.sql` |
+| Current standings contain active members only; leaving does not alter anyone's historical scores | `tests/db/standings.sql` |
 | `null` ear renders as "—", never "0%" | `ScoringFormatTests.swift` |
 
 ### AC-9 — Share image dimensions
@@ -204,7 +205,10 @@ phase testing instant and deterministic.
 
 ### CI
 
-On every push: lints → `npm run test` → iOS unit + snapshot.
+On every push: lints → `npm run test` → iOS unit + snapshot against the pinned current
+Xcode/simulator destination. The destination is configured centrally rather than repeated in
+scripts. Before release, run the same suite once on the minimum supported iOS 17 runtime and
+once on the current runtime.
 On PR to main: the above plus UI tests.
 Before release: the above plus `audit:leak`, the Instruments performance run, and the §10
 checklist in `14-SECURITY-AND-THREAT-MODEL.md`.

@@ -1,6 +1,6 @@
 # 03 — Data model
 
-Postgres 15 on Supabase. Forward-only migrations in `server/supabase/migrations/`.
+Postgres 17 on Supabase. Forward-only migrations in `server/supabase/migrations/`.
 
 Read `02-DOMAIN-RULES.md` first — this file encodes those rules, it does not restate them.
 
@@ -55,7 +55,8 @@ create table public.groups (
   created_at   timestamptz not null default now()
 );
 -- Invite alphabet excludes I, L, O, 0, 1 — this code gets read aloud and typed by
--- 16-year-olds. 32^6 ≈ 1.07e9; collisions handled by retry on unique violation.
+-- 16-year-olds. The alphabet has 31 symbols: 31^6 ≈ 8.9e8; collisions are handled by
+-- retry on unique violation.
 
 -- ─── memberships ─────────────────────────────────────────────────────────────
 create table public.memberships (
@@ -251,7 +252,7 @@ alter table public.notification_outbox enable row level security;
 alter table public.track_links         enable row level security;
 
 -- Deny-by-default: no policies are created for anon/authenticated. Combined with
--- the revokes below, a direct PostgREST call returns zero rows for every table.
+-- the revokes below, a direct PostgREST call fails with 42501 for every table.
 revoke all on all tables    in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 revoke all on all functions in schema public from anon, authenticated;
@@ -261,7 +262,7 @@ alter default privileges in schema public
 
 > This is intentionally the whole of the RLS file. Do not add "convenience" policies. If a
 > feature seems to need one, it needs an Edge Function instead. `E14` tests that every table
-> returns `[]` to an authenticated PostgREST request.
+> rejects authenticated and anonymous PostgREST requests with `42501 permission denied`.
 
 ### `0010_service_role_grants.sql`
 
@@ -291,13 +292,17 @@ Idempotently materialises the next rounds for every group.
 for each group g:
   for d in [today(g.timezone), today+1]:
     reveals_at := (d + g.reveal_hour hours) interpreted in g.timezone, cast to timestamptz
-    insert into rounds (group_id, local_date, opens_at, reveals_at, scores_at, state)
-      values (g.id, d, reveals_at - 10h, reveals_at, reveals_at + 2h, 'open')
-      on conflict (group_id, local_date) do nothing
+    if reveals_at > now_():
+      insert into rounds (group_id, local_date, opens_at, reveals_at, scores_at, state)
+        values (g.id, d, reveals_at - 10h, reveals_at, reveals_at + 2h, 'open')
+        on conflict (group_id, local_date) do nothing
 ```
 
 Notes:
 - Only two days ahead, so the timezone offset used is never stale across a DST boundary.
+- Today's round is created only while its reveal time is still in the future. A group created
+  after reveal starts tomorrow instead of receiving an immediately expired, voided round.
+  Existing rounds are never removed or re-timed, so outage recovery is unaffected.
 - `on conflict do nothing` means an existing round is never re-timed. A `reveal_hour` change
   therefore takes effect from the first *not-yet-created* round — exactly the rule in
   `02-DOMAIN-RULES.md` §1. If that day's round already exists, the change lands the day after.
@@ -449,7 +454,7 @@ group by group_id, user_id;
 | Event | Behaviour |
 |---|---|
 | User leaves group | `memberships.left_at = now()`. Submissions and guesses stay. Past attribution in The Record is preserved. |
-| User deletes account | `auth.users` row deleted → `profiles` cascade. Submissions/guesses reference `profiles(id)` **without** cascade, so the delete fails. Handle explicitly: replace `display_name` with `'Former member'`, null the auth link, keep the rows. Write this as a `delete_account()` function; do not rely on cascade. |
+| User deletes account | `delete_account()` replaces `display_name` with `'Former member'`, ends membership, removes device/rate-limit state, drops the auth link, and deletes the `auth.users` row. The stable profile, submissions, and guesses remain so historical scoring stays correct. |
 | Group deleted | Cascades everything. Only reachable by direct DB access in v1 — no endpoint. |
 
 `0014_delete_account.sql` resolves the apparent contradiction in the user-deletion row. A

@@ -25,17 +25,17 @@ so the timezone offset used is never stale across a DST boundary.
 - [x] Test: `Australia/Lord_Howe` (30-minute offset) works
 - [x] Test: an invalid timezone raises for that group only and the loop continues
 
-> **Open question:** should `ensure_rounds()` create today's round when `reveals_at` has
+> **Resolved — owner, 2026-08-12:** `ensure_rounds()` must not create today's round when `reveals_at` has
 > already passed? `docs/03` §4 says "today and today+1" with no condition. A group created at
 > 21:00 local would then be handed a round that reveals in the past, which the very next tick
 > voids — a `void` push to people who never had a chance to drop, against the three-a-day
 > budget (`CLAUDE.md` §2.6), and an `open` round that any read endpoint would render with a
 > countdown that has already expired.
-> **Reading taken (most protective):** the insert carries `where reveals_at > public.now_()`.
+> The approved implementation carries `where reveals_at > public.now_()`.
 > It suppresses *creation* only; it can neither re-time nor remove a round that already
 > exists, so the cron-outage path in `docs/05` §6 is untouched, and it matches the copy deck's
 > `reveal.blocked.joinedlate` — "You're in from tomorrow." Pinned by an assertion in
-> `tests/db/ensure_rounds_timezones.sql`. Owner's call to confirm.
+> `tests/db/ensure_rounds_timezones.sql`.
 
 > **Open question:** `docs/15` §? names the DST test `tests/db/timezones.sql`, but this task's
 > **Verify** command filters test filenames on the substring `ensure_rounds`, so a file called

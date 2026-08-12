@@ -83,7 +83,7 @@ Bundle the AC-1 group into one command. It gates release and it is the single mo
 command in the repo.
 
 - [x] Golden-file diff (E04-03)
-- [x] Authenticated PostgREST `select` on each of the nine tables returns `[]`
+- [x] Authenticated and anonymous PostgREST calls to every table fail with `42501`
 - [x] Anonymous call to every Edge Function returns 401
 - [x] Latency correlation with submitter count: |r| < 0.2 over 100 samples
 - [x] Cross-group probe: a member of A gets `NOT_FOUND` for every B resource, path-fuzzed

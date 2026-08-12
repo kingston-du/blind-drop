@@ -30,20 +30,21 @@ The spine. Five modules:
 - [x] Unknown request-body keys are **rejected**, not ignored (`docs/14` §7)
 - [x] Tests: 401 for anonymous, 409 for no profile / no group, unknown-key rejection
 
-> **Open question:** `service_role` held **no** privilege on any table — `config.toml` sets
+> **Resolved — owner, 2026-08-12:** `service_role` held **no** privilege on any table — `config.toml` sets
 > `auto_expose_new_tables = false`, so 0002/0006/0007 granted nothing to anyone, and every
 > handler would have failed with `42501`. `docs/01` §2 assumes "service-role queries" work, so
 > the lockdown needed a companion: `0010_service_role_grants.sql` grants `service_role` the
 > verbs each table's handlers use and nothing more. `anon` and `authenticated` are untouched.
-> Owner to confirm the per-table verb list.
+> This least-privilege list is the approved policy; tests must fail if a handler needs an
+> undocumented verb or a client role gains one.
 
 > **Open question:** rate limiting (`docs/04` §8) needs shared state, which an Edge Function
 > has none of, so it lives in a tenth table (`0011_rate_limits.sql`). That table is documented
 > in `docs/03` §2 and `tests/db/rls.sql` now asserts ten tables rather than nine — the count
 > is deliberate friction, so this is exactly the doc change it is asking for.
 
-> **Open question:** the invite alphabet `ABCDEFGHJKMNPQRSTUVWXYZ23456789` has **31**
-> characters, not 32 — `docs/03` §2 and `docs/14` §8 both say `32^6 ≈ 1.07e9`. The real space
+> **Resolved — owner, 2026-08-12:** the invite alphabet `ABCDEFGHJKMNPQRSTUVWXYZ23456789` has **31**
+> characters, not 32 — `docs/03` §2 and `docs/14` §8 had said `32^6 ≈ 1.07e9`. The real space
 > is `31^6 ≈ 8.9e8`, which changes nothing about brute-force feasibility given the 10/hour and
 > 30/hour limits. The alphabet in the merged check constraint is authoritative; the arithmetic
 > in the docs is what is wrong.
@@ -71,7 +72,7 @@ authenticating produced a 500 from `GET /auth/v1/user`.
 > `"AnaBen"` rather than `"Ana Ben"`. Taken literally, which is what the tests assert. Runs of
 > real whitespace still collapse to one space, so `"  Ana   Lucia "` is `"Ana Lucia"`.
 
-> **Open question:** `verify_jwt = false` is set for each function in `config.toml`. With the
+> **Resolved — owner, 2026-08-12:** `verify_jwt = false` is set for each function in `config.toml`. With the
 > platform gate on, an anonymous request is refused *before* the handler runs, with a body
 > that is not the `docs/04` §1 envelope — so a client switching on `error.code` gets nothing
 > to switch on. Every handler's first act is `requireUser()`, which returns
@@ -170,7 +171,7 @@ them.
 > would be an out-of-order rewrite on existing databases, so the forward-only implementation
 > is `0014_delete_account.sql`.
 
-> **Open question:** `profiles.id` was defined as `references auth.users(id) on delete
+> **Resolved — owner, 2026-08-12:** `profiles.id` was defined as `references auth.users(id) on delete
 > cascade`, while this task requires the profile to survive as the `Former member` principal.
 > A primary key cannot also be a nullable auth link. The migration drops that foreign key;
 > live profiles still use the auth UUID, and deleting the matching `auth.users` row is the

@@ -23,6 +23,7 @@ including the two channels nobody thinks about.
       then fix
 - [ ] `GET /groups/current` still carries no `joined_at`
 - [ ] Rate limiting is per-user, never per-group (`docs/14` §3)
+- [ ] Authenticated and anonymous PostgREST calls to every table fail with `42501`
 - [ ] Write the pass/fail summary into `docs/` as a dated release note
 
 ---
@@ -93,6 +94,7 @@ tap count and animation length, which are the things that actually drift.
 - [ ] All ten boxes of `docs/14` §10 ticked with output attached
 - [ ] All eleven acceptance criteria have a named passing test
 - [ ] The additional gates in `docs/15` §2 pass
+- [ ] Full iOS suite passes on both the minimum supported iOS 17 runtime and the current runtime
 - [ ] `strings` on the `.ipa` finds no secret
 - [ ] App Privacy nutrition label matches `docs/14` §9 — no tracking
 - [ ] Spotify dev-mode tester emails added in the Spotify dashboard

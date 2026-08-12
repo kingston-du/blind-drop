@@ -382,8 +382,8 @@ async function roundScores(ctx: MemberCtx, roundId: string): Promise<Map<string,
 /**
  * Why the caller may not guess, or `null` if they may. docs/02 §3, docs/04 §4.
  *
- * **`joined_late` is checked first, which is the opposite of the order docs/04 §4 numbers.**
- * See the open question in `tasks/E05`. The short version: joining after `reveals_at` implies
+ * **`joined_late` is checked first, matching the owner-approved order in docs/04 §4.**
+ * The short version: joining after `reveals_at` implies
  * having no submission — you cannot submit to a round that is no longer `open` — so checking
  * for a submission first makes `joined_late` unreachable for everyone except the rare member
  * who submitted, left, and rejoined the same evening. A reason code that can never be returned
@@ -615,7 +615,7 @@ serveFunction("rounds", {
     //    revealed — enforced here, server-side, not merely disabled in the UI (CLAUDE.md §2.3).
     //    The same helper as the read path, so the code a write is refused with and the reason
     //    the sheet is shown as disabled can never disagree. On the ordering, see its comment
-    //    and the open question in tasks/E05.
+    //    and the owner-approved resolution in tasks/E05.
     const reason = cannotGuessReason(ctx, round, mySubmissionId);
     if (reason === "joined_late") throw new ApiError("JOINED_LATE");
     if (reason === "not_a_submitter") throw new ApiError("NOT_A_SUBMITTER");

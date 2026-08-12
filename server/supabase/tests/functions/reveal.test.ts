@@ -406,7 +406,7 @@ Deno.test("somebody who joined after the reveal cannot guess", async () => {
   assertEquals(res.status, 403);
   // They are also not a submitter — they could not have been — so which code answers is a real
   // choice. JOINED_LATE, because it is the specific one and the general one would make it
-  // unreachable. See the open question in tasks/E05 and `cannotGuessReason`.
+  // unreachable. See the owner-approved resolution in tasks/E05 and `cannotGuessReason`.
   assertEquals(res.body.error.code, "JOINED_LATE");
 });
 

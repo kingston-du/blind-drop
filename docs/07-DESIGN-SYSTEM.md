@@ -218,10 +218,11 @@ Text-only, `inkDim`, `bodyL`. No border, no fill. For **Replace song**, **Open i
 **Skip**.
 
 ### `TrackRow`
-Search results and The Record. 56pt artwork, `Radius.artwork` · `bodyLStrong` title (1 line,
-truncating) · `bodyM` `inkDim` artist (1 line) · optional 28pt preview play control on the
-trailing edge. Whole row is the tap target; the play control is a nested button with its own
-44pt target.
+Search results and The Record. 56pt artwork, `Radius.artwork` · `bodyLStrong` title · `bodyM`
+`inkDim` artist (1 line) · optional 28pt preview play control on the trailing edge. At normal
+Dynamic Type sizes the title is one line and may truncate to keep results scannable. From
+`.accessibility1` upward it wraps without a line limit, so essential track identity is never
+lost. Whole row is the tap target; the play control is a nested button with its own 44pt target.
 
 ### `FlightCard`
 The reveal card. Reads like a tasting flight sheet.
@@ -262,8 +263,8 @@ it does not change state — it triggers a refetch.
 ### `StatMeter`
 The readability spectrum. A horizontal track, `paperSunk`, with a single `ultramarine` marker
 at the position. **No fill from the left** — filling implies more is better, and readability
-has no better. Five band labels below in `caption` `inkFaint`, with the active band in
-`ink`. No arrow, no rank, no delta.
+has no better. Show the active band label only, in `caption` `ink`. No arrow, no rank, no
+delta.
 
 ### `EmptyState`
 `displayM` line + `bodyM` `inkDim` line + one `PrimaryButton`. Empty states are invitations,

@@ -563,7 +563,7 @@ serveFunction("groups", {
     // in every past round's results — the rounds happened, and their guesses still count toward
     // everyone else's readability — but a leaderboard is about the room as it is now, and a
     // departed member sitting at rank 2 forever is a scoreline nobody can respond to. See the
-    // open question in tasks/E05.
+    // owner-approved resolution in tasks/E05.
     const byId = new Map(rows.map((row) => [row.user_id, row]));
     const present = members
       .map((member) => ({ member, row: byId.get(member.user_id) }))

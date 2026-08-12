@@ -19,6 +19,9 @@ Rules:
   - Results §7.2: the Readability / Ear pair stacks.
   - Share-card headline pair: stacks (already true in the story variant).
   - Reveal card: number moves above the artwork row rather than beside it.
+- `TrackRow` titles stay on one truncating line at normal reading sizes, then wrap without a
+  line limit from `.accessibility1` upward. The compact list is preserved for ordinary use
+  without hiding essential track identity from large-text users.
 - The reveal card's number is capped at 1.6× its base scale. At `.accessibility5` an
   uncapped 56pt display numeral is ~130pt and eats the card. The cap is the one place a
   scaling limit is allowed, and the number stays the largest element on the card regardless.

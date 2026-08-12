@@ -6,40 +6,30 @@ here rather than inlining it.
 
 Runs against the fixture server (`E00-05`), so it does not wait on the backend.
 
-> **Open question:** `CLAUDE.md` §5 and this epic's **Verify** lines pin
-> `platform=iOS Simulator,name=iPhone 15`, which no longer ships in Xcode on the build
-> machine — the available devices are iPhone 17, 17 Pro, 17 Pro Max, 17e and Air. Agents are
-> using `name=iPhone 17`, which is the interpretation that lets verification actually run.
-> The owner needs to decide whether `CLAUDE.md` §5 and CI keep pinning a device that no
-> longer exists, pin a generic `platform=iOS Simulator,OS=latest` destination instead, or fix
-> the fleet. Until then a fresh checkout on a machine with a different Xcode will fail
-> verification for a reason that has nothing to do with the code.
+> **Resolved — owner, 2026-08-12:** routine CI uses one centrally configured destination,
+> presently `platform=iOS Simulator,OS=latest,name=iPhone 17`, on a pinned Xcode image. The
+> deployment target remains iOS 17.0, and the release pass also runs against an iOS 17 runtime.
 
-> **Open question:** `docs/07` §5 gives `StatMeter` *"five band labels below in `caption`
-> `inkFaint`, with the active band in `ink`"*; `docs/08` §7.2 draws the same component with
-> **one** label — *"open book"* under the marker. The five strings measure 320pt at `caption`'s
-> 12pt and an iPhone SE has 335pt of content width, so five never fit there at any text size,
-> and the equal-width columns that make them "fit" break *"Unreadable"* mid-word. `E08-04`
-> renders five where the width allows and the active band alone otherwise, via `ViewThatFits`.
-> The owner should decide whether the five-label spectrum is worth a smaller type style on the
-> labels, or whether `docs/07` §5 should be amended to `docs/08` §7.2's single label.
+> **Resolved — owner, 2026-08-12:** `StatMeter` shows the active band label only. The five
+> labels do not fit on a small phone at accessible text sizes, and the active label gives the
+> user the information the meter is conveying without adding visual noise. `docs/07` and
+> `docs/08` use this rule.
 
-> **Open question:** `docs/07` §5 specifies `TrackRow`'s title as *"1 line, truncating"*;
+> **Resolved — owner, 2026-08-12:** `docs/07` §5 specified `TrackRow`'s title as *"1 line, truncating"*;
 > `docs/12` §1 says *"nothing truncates and nothing overlaps at `.accessibility5` on an iPhone
 > SE"* and `docs/12` §8 wants an assertion that no `Text` reports a truncated layout. At
 > `.accessibility5` a one-line row truncates *"Motion Sickness"* to *"Motion…"*, so the two
-> cannot both hold. `E08-04` reads each as governing its own case: one truncating line at the
+> cannot both hold. The approved behavior uses one truncating line at the
 > reading sizes, where the row is being scanned and a wrapping title turns a scannable list
 > into a paragraph, and unbounded wrapping from `.accessibility1` up, where the reader needs
-> the title more than they need the list to be short. The owner should confirm, because the
-> alternative — truncating at every size and letting `docs/12`'s assertion carve out an
-> exception for this row — is also defensible and is a smaller change.
+> the title more than they need the list to be short. `docs/07` and `docs/12` now state the
+> rule identically.
 
-> **Open question:** the **Verify** lines for `E08-02`, `E08-03`, `E08-05`, `E08-06` and
+> **Resolved — owner, 2026-08-12:** the **Verify** lines for `E08-02`, `E08-03`, `E08-05`, `E08-06` and
 > `E08-07` name `-only-testing:BlindDropTests/…`. `BlindDropTests/` is the directory on disk;
 > the three test *targets* are `BlindDropUnitTests`, `BlindDropSnapshotTests` and
 > `BlindDropUITests` (`E00-03`). The runnable form is
-> `-only-testing:BlindDropUnitTests/<SuiteName>`.
+> `-only-testing:BlindDropUnitTests/<SuiteName>`. The task commands use the actual target names.
 
 ---
 
@@ -88,7 +78,7 @@ Notes for the tasks that build on this:
 
 **Status:** done · **Deps:** E08-01 · **Reads:** `docs/07` §2
 **Touches:** `DesignSystem/Palette.swift`, `BlindDropTests/Unit/PaletteContrastTests.swift`
-**Verify:** `xcodebuild test -only-testing:BlindDropTests/PaletteContrastTests`
+**Verify:** `xcodebuild test -only-testing:BlindDropUnitTests/PaletteContrastTests`
 
 Transcribe the tokens exactly. Write the WCAG relative-luminance function and assert every
 row of the `docs/07` §2 contrast table.
@@ -289,8 +279,8 @@ Notes:
 - Four copy-deck rows were added for the countdown itself (`countdown.unknown`,
   `countdown.coarse.hours|minutes|soon`). `docs/12` §1 quotes those words and `docs/11` did not
   have them; `CLAUDE.md` §6 says add them in the same commit rather than invent them at the
-  call site. The plural of `%lld hours` needs a `.stringsdict` — flagged as an open question
-  there, for E09, since the singular wording is a voice decision.
+  call site. **Resolved — owner, 2026-08-12:** E09 supplies `.stringsdict` forms using
+  "1 hour" / `%lld hours` and "1 minute" / `%lld minutes`.
 - `hasElapsed` is deliberately a three-state `Bool?` and the screen refetches on `true`. A
   countdown reaching zero is **not** a phase transition (`CLAUDE.md` §2.2) — the server says
   what happens next, and a client that flipped its own state at zero would show a reveal that

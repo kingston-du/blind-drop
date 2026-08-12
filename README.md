@@ -13,16 +13,16 @@ game with a music substrate. Check every implementation decision against that se
 
 ## Status
 
-The backend game loop through reveal and scoring is in, along with the Apple Music catalog
-proxy and Spotify bridge. Push delivery (`E06`) and Record/export endpoints (`E07-06`) are
-the remaining backend epics; iOS foundation work is underway in `E08`.
+The backend is complete through push delivery, music bridging, the Record, and export
+endpoints. The iOS foundation and component/snapshot system are complete; onboarding begins
+at `E09-01`.
 
 | Area | State |
 |---|---|
 | Spec | Complete — `docs/` |
 | Task board | `tasks/BOARD.md` |
-| Backend | Auth, groups, lifecycle, submissions, reveal, guessing, scoring, and music bridging are covered by pgTAP and function tests. |
-| iOS client | Project foundation is underway in `E08`; palette tokens and contrast tests are in. |
+| Backend | Auth, groups, lifecycle, submissions, reveal, guessing, scoring, push, music bridging, Record, and exports are covered by pgTAP and function tests. |
+| iOS client | Foundation, networking, server clock, design-system components, and the snapshot matrix are complete. Onboarding is next. |
 
 ---
 

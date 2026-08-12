@@ -32,8 +32,8 @@ and a one-line comment each. It contains no real values, ever.
 **Verify:** `supabase start` then `supabase status` shows all services healthy
 
 Initialise the Supabase project. In `config.toml`: enable Apple as an auth provider, disable
-phone auth, and **disable the PostgREST-exposed schemas the client could reach** —
-`db.schemas` should not expose anything the app needs, because the app needs nothing from
+phone auth, expose `public` to PostgREST so the production attack surface can be tested, and
+grant `anon`/`authenticated` no privileges on it. The app needs and receives no data from
 PostgREST (`docs/01` §2).
 
 - [x] `supabase init` complete, `config.toml` committed
@@ -42,8 +42,8 @@ PostgREST (`docs/01` §2).
 - [x] `supabase start` / `supabase db reset` documented in `README.md`'s local-setup section
 - [x] Replace the placeholder local-setup section in the root `README.md`
 
-> **Open question:** the task says to "disable the PostgREST-exposed schemas the client could
-> reach", but `E01-02` requires a test in which an authenticated PostgREST `select` on each
+> **Resolved — owner, 2026-08-12:** the task said to "disable the PostgREST-exposed schemas the client could
+> reach", but `E01-02` had required a test in which an authenticated PostgREST `select` on each
 > table *returns `[]`*. Those pull in opposite directions: with `public` unexposed, PostgREST
 > answers with a schema error and the lock is never exercised; with `public` exposed and
 > everything revoked, the request fails closed with `42501` and the test is meaningful
@@ -52,10 +52,8 @@ PostgREST (`docs/01` §2).
 > a lock nobody tests is the weaker protection. `tests/db/rls.sql` asserts every table fails
 > closed for both `anon` and `authenticated`.
 
-> **Open question:** `docs/03` §1 says Postgres 15. The Supabase CLI initialises local
-> projects at `major_version = 17` and 15 is no longer offered for new projects. Left at 17.
-> Nothing in the schema uses a 16+ feature, so this is reversible if the pilot project must
-> be 15.
+> **Resolved — owner, 2026-08-12:** Postgres 17 is the project version. Local, CI, staging and
+> production must use 17; no environment may silently fall back to 15.
 
 > **Note:** ports moved from Supabase's 543xx defaults to 544xx so this stack coexists with
 > another local Supabase project on the same machine. `README.md` lists them.
@@ -66,7 +64,7 @@ PostgREST (`docs/01` §2).
 
 **Status:** done · **Deps:** E00-01 · **Reads:** `docs/13` §1, §8
 **Touches:** `ios/BlindDrop.xcodeproj`, `ios/BlindDrop/App/`
-**Verify:** `xcodebuild build -scheme BlindDrop -destination 'platform=iOS Simulator,name=iPhone 15'`
+**Verify:** `xcodebuild build -scheme BlindDrop -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17'`
 
 Create the project with the settings in `docs/13` §8. Empty folders per the tree in §1. Three
 test targets (Unit, Snapshot, UI) wired into one scheme.
@@ -79,12 +77,11 @@ test targets (Unit, Snapshot, UI) wired into one scheme.
 - [x] Three test targets build and run empty
 - [x] Zero package dependencies (verify `Package.resolved` is absent)
 
-> **Open question:** the verify command names `platform=iOS Simulator,name=iPhone 15`. No
-> iPhone 15 simulator exists under Xcode 26.5 — the only installed runtime is iOS 26.5, whose
-> oldest iPhone is the 17. Built and tested against `name=iPhone 17` instead. The deployment
-> target is unchanged at iOS 17.0, so nothing about what the app supports has moved; only the
-> machine the tests run on. CI resolves the destination through a `DESTINATION` env var so
-> the next simulator rename is a one-line change.
+> **Resolved — owner, 2026-08-12:** routine CI uses a centrally configured, pinned Xcode and
+> current simulator destination, presently `OS=latest,name=iPhone 17`; commands do not name a
+> simulator independently. The deployment target remains iOS 17.0. Before release, the full
+> suite also runs once on an iOS 17 runtime so the minimum supported version is real, not only
+> a build setting.
 
 > **Note:** the project uses Xcode 16+ file-system-synchronized groups, so `Features/…`,
 > `DesignSystem/…` and the rest sync from disk and no future task has to edit

@@ -91,15 +91,16 @@ the golden file, which requires a human to look at it. That friction is the cont
 ## 4. Authorization
 
 Edge Functions run with the service role, so **every handler does its own authorization.**
-The order is fixed and `_shared/auth.ts` enforces it:
+The base guards are fixed in `_shared/auth.ts`; the rounds handler's shared guess-eligibility
+helper enforces steps 5–6 in both its read and write paths:
 
 ```
 1. requireUser(req)              → user_id, or 401 UNAUTHENTICATED
 2. requireProfile(user_id)       → or 409 NO_PROFILE
 3. requireMembership(user_id)    → group_id, role, joined_at, or 409 NO_GROUP
 4. requirePhase(round, [...])    → or 409 WRONG_PHASE
-5. requireSubmitter(...)         → or 403 NOT_A_SUBMITTER  (guessing only)
-6. requireJoinedBefore(reveals)  → or 403 JOINED_LATE      (guessing only)
+5. requireJoinedBefore(reveals)  → or 403 JOINED_LATE      (guessing only)
+6. requireSubmitter(...)         → or 403 NOT_A_SUBMITTER  (guessing only)
 ```
 
 - **The group is never taken from the request.** It comes from the caller's active
@@ -116,6 +117,10 @@ The order is fixed and `_shared/auth.ts` enforces it:
 
 - Sign in with Apple via Supabase Auth. The client never sees a password because there isn't
   one.
+- Supabase's platform JWT gate is disabled for these functions so authentication failures can
+  use the API's documented error envelope. This does not make a route public: every handler's
+  first operation is `requireUser()`, and the release audit asserts every anonymous call
+  returns 401 `UNAUTHENTICATED`.
 - Access tokens are short-lived; refresh tokens live in the **Keychain** with
   `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. Never `UserDefaults`, never a file.
 - Sign out revokes the refresh token server-side, not just locally.
@@ -168,7 +173,7 @@ the binary.
 
 | Vector | Control |
 |---|---|
-| Invite-code brute force | 32⁶ ≈ 1.07e9 codes; 10/hour per user, 30/hour per IP |
+| Invite-code brute force | 31⁶ ≈ 8.9e8 codes; 10/hour per user, 30/hour per IP |
 | Search-endpoint abuse (our Apple quota) | 30/min per user, 10-minute edge cache |
 | Submission spam / replacement churn | 20/min; replacement is a no-op upsert, costs one row write |
 | Guess-sheet spam | 60/min; debounced client-side at 600ms |
@@ -196,7 +201,7 @@ the binary.
 ## 10. Audit checklist — run before every release
 
 - [ ] `npm run audit:leak` passes: `open`-phase payloads match golden files byte for byte
-- [ ] Authenticated PostgREST call to every table returns `[]`
+- [ ] Authenticated and anonymous PostgREST calls to every table fail with `42501 permission denied`
 - [ ] Anonymous call to every Edge Function returns 401
 - [ ] A member of group A cannot read any resource of group B (path-fuzzed with real UUIDs)
 - [ ] An ex-member's live token is rejected with `NO_GROUP`

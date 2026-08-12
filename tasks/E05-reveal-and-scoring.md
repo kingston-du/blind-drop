@@ -22,7 +22,7 @@ Cards addressed by `card_no` only. `submission_id` never crosses the wire before
 - [x] Test: all 8 members receive an identical `[card_no → track_key]` sequence (AC-5)
 - [x] Test: no `submission_id` appears anywhere in the `revealed` payload
 
-> **Open question:** `docs/04` §4 numbers the guess validations so that `NOT_A_SUBMITTER`
+> **Resolved — owner, 2026-08-12:** `docs/04` §4 numbered the guess validations so that `NOT_A_SUBMITTER`
 > (rule 2) is checked before `JOINED_LATE` (rule 3). Implemented in that order, `JOINED_LATE`
 > is unreachable: joining after `reveals_at` implies having no submission, because a round
 > stops accepting submissions the moment it leaves `open`. The only caller who could ever see
@@ -33,11 +33,11 @@ Cards addressed by `card_no` only. `submission_id` never crosses the wire before
 > and considerably kinder than telling a member who arrived at 20:30 that they "didn't drop a
 > song tonight".
 >
-> **Interpretation taken:** `joined_late` is checked first, in both the read path
+> The approved behavior checks `joined_late` first, in both the read path
 > (`cannot_guess_reason`) and the write path (the error code), from one shared helper so the
 > two can never disagree. Neither ordering discloses anything — both facts are the caller's
-> own — so the blind window does not decide this one; reachability and copy do. Owner's call
-> to confirm, and to renumber `docs/04` §4 if they agree.
+> own — so the blind window does not decide this one; reachability and copy do. `docs/04` §4
+> is renumbered to match.
 
 ---
 
@@ -157,15 +157,15 @@ stays in SQL, because a second implementation of it in TypeScript is the kind of
 subtly wrong and produces a number that is plausible, stable, and not the one the game is
 scored on.
 
-> **Open question:** `docs/04` §4 does not say whether standings cover the *active roster* or
+> **Resolved — owner, 2026-08-12:** standings cover the *active roster*, not
 > everyone who ever played in the group. Both readings are defensible and neither touches the
 > blind window — a departed member's name is already in The Record and in every past round's
 > results, so nothing is disclosed either way.
 >
-> **Interpretation taken:** the active roster. A leaderboard is about the room as it is, and
+> A leaderboard is about the room as it is, and
 > someone who left sitting at rank 2 in perpetuity is a scoreline nobody can respond to. Their
 > rounds still happened and still count toward everyone else's readability — only their own row
-> goes. Owner's call to confirm.
+> goes. `docs/02` and `docs/04` now state this explicitly.
 >
 > A member with no all-time ear at all — every round they played, they assigned nothing — is
 > absent from `best_ear` rather than ranked last. `docs/02` §4.1 draws that line for a single

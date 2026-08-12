@@ -142,7 +142,7 @@ directory owns a concern, so you can scope `grep`/`glob` instead of scanning the
 | SQL | `npm run test:db` (pgTAP, in `server/`) |
 | Edge Functions | `npm run test:functions` (Deno test) |
 | Leak audit | `npm run audit:leak` — asserts `open`-phase payloads by golden file |
-| iOS unit | `xcodebuild test -scheme BlindDrop -destination 'platform=iOS Simulator,name=iPhone 15'` |
+| iOS unit | `xcodebuild test -scheme BlindDrop -destination 'platform=iOS Simulator,OS=latest,name=iPhone 17'` |
 | iOS snapshot | included in the above scheme |
 
 `E00` is responsible for making all five commands exist and pass on an empty project.
