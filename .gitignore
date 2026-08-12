@@ -37,3 +37,9 @@ ios/BlindDropTests/__Snapshots__/__Failures__/
 
 # ── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
+
+# ── Snapshot failures ────────────────────────────────────────────────────────
+# Written by SnapshotRenderer when a golden does not match: the actual render, the golden it
+# was compared against, and a diff with the differing pixels in red. Evidence for the person
+# looking at the failure, not a file to commit — the goldens beside it are the committed half.
+ios/BlindDropTests/__Snapshots__/__Failures__/

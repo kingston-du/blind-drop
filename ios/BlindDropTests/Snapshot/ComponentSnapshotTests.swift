@@ -2,31 +2,28 @@ import SwiftUI
 import Testing
 @testable import BlindDrop
 
-/// One snapshot per component of `docs/07` §5, at `{large, accessibility1, accessibility5}`.
+/// File-scope rather than members of the suite: `@Test(arguments:)` evaluates its arguments
+/// outside the actor the suite is isolated to.
+private let devices = SnapshotRenderer.Device.matrix
+private let sizes = SnapshotRenderer.typeSizes
+
+/// Every component of `docs/07` §5 across `docs/12` §8's matrix — `{SE, 15 Pro Max}` ×
+/// `{large, accessibility1, accessibility5}`, sixty goldens.
 ///
-/// The three sizes are not arbitrary. `.large` is the default nobody's layout breaks at;
+/// Neither axis is arbitrary. `.large` is the default nobody's layout breaks at;
 /// `.accessibility1` is where `docs/12` §1 requires side-by-side layouts to **reflow to
 /// stacked**, so it is the size at which a `ViewThatFits` that never fires shows up; and
-/// `.accessibility5` on a 375pt width is the worst case in the app — the combination `docs/12`
+/// `.accessibility5` on an SE's 375pt is the worst case in the app — the combination `docs/12`
 /// §1 says to test explicitly, where *"nothing truncates and nothing overlaps"* either holds or
-/// visibly does not.
-///
-/// `E08-07` widens this to the full device × size matrix and adds the dark-mode test.
-/// iPhone SE's content width. The narrow case is the one worth pinning: anything that fits here
-/// fits a 15 Pro Max, and `E08-07` adds the wide device for the layouts that reflow.
-///
-/// File-scope rather than a member of the suite because `@Test(arguments:)` evaluates its
-/// arguments outside the actor the suite is isolated to.
-private let snapshotWidth: CGFloat = 375
-private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5]
-
+/// visibly does not. The 15 Pro Max catches the opposite failure: a layout that only looked
+/// right because it was cramped.
 @MainActor
 @Suite struct ComponentSnapshots {
 
     // MARK: - The ten components
 
-    @Test(arguments: sizes) func primaryButton(_ size: DynamicTypeSize) {
-        verify(named: "PrimaryButton", size) {
+    @Test(arguments: devices, sizes) func primaryButton(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "PrimaryButton", device, size) {
             VStack(spacing: Space.lg) {
                 PrimaryButton("submit.action", accent: .sealed) {}
                 PrimaryButton("reveal.action", accent: .revealed) {}
@@ -35,8 +32,8 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func secondaryButton(_ size: DynamicTypeSize) {
-        verify(named: "SecondaryButton", size) {
+    @Test(arguments: devices, sizes) func secondaryButton(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "SecondaryButton", device, size) {
             VStack(alignment: .leading, spacing: Space.lg) {
                 SecondaryButton("sealed.replace") {}
                 SecondaryButton("sealed.replace", isEnabled: false) {}
@@ -44,8 +41,8 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func trackRow(_ size: DynamicTypeSize) {
-        verify(named: "TrackRow", size) {
+    @Test(arguments: devices, sizes) func trackRow(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "TrackRow", device, size) {
             VStack(spacing: 0) {
                 TrackRow(track: .ribs, preview: .init(isPlaying: false) {}) {}
                 TrackRow(track: .motionSickness, preview: .init(isPlaying: true) {}) {}
@@ -54,8 +51,8 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func flightCard(_ size: DynamicTypeSize) {
-        verify(named: "FlightCard", size) {
+    @Test(arguments: devices, sizes) func flightCard(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "FlightCard", device, size) {
             VStack(spacing: Space.lg) {
                 FlightCard(
                     number: 4,
@@ -77,14 +74,14 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func sealedCard(_ size: DynamicTypeSize) {
-        verify(named: "SealedCard", size) {
+    @Test(arguments: devices, sizes) func sealedCard(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "SealedCard", device, size) {
             SealedCard(track: .ribs, groupInitial: "H", remaining: "02:01:05")
         }
     }
 
-    @Test(arguments: sizes) func nameChip(_ size: DynamicTypeSize) {
-        verify(named: "NameChip", size) {
+    @Test(arguments: devices, sizes) func nameChip(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "NameChip", device, size) {
             VStack(alignment: .leading, spacing: Space.sm) {
                 NameChip(member: .cal, state: .unused) {}
                 NameChip(member: .priya, state: .consumed(cardNumber: 3)) {}
@@ -93,14 +90,14 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func countdown(_ size: DynamicTypeSize) {
-        verify(named: "CountdownView", size) {
+    @Test(arguments: devices, sizes) func countdown(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "CountdownView", device, size) {
             CountdownFixture.view(remaining: 7265, size: size)
         }
     }
 
-    @Test(arguments: sizes) func statMeter(_ size: DynamicTypeSize) {
-        verify(named: "StatMeter", size) {
+    @Test(arguments: devices, sizes) func statMeter(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "StatMeter", device, size) {
             VStack(alignment: .leading, spacing: Space.x3) {
                 StatMeter(value: 0.86, band: ReadabilityBand(readability: 0.86))
                 StatMeter(value: 0.14, band: ReadabilityBand(readability: 0.14))
@@ -108,8 +105,8 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func artwork(_ size: DynamicTypeSize) {
-        verify(named: "ArtworkView", size) {
+    @Test(arguments: devices, sizes) func artwork(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "ArtworkView", device, size) {
             HStack(alignment: .top, spacing: Space.lg) {
                 ArtworkView(.ribs, size: Layout.Artwork.searchRow)
                 ArtworkView(.ribs, size: Layout.Artwork.flightCard)
@@ -120,8 +117,8 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
         }
     }
 
-    @Test(arguments: sizes) func emptyState(_ size: DynamicTypeSize) {
-        verify(named: "EmptyState", size) {
+    @Test(arguments: devices, sizes) func emptyState(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "EmptyState", device, size) {
             EmptyState(
                 headline: "submit.headline",
                 message: "submit.subhead",
@@ -134,18 +131,15 @@ private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5
 
     private func verify(
         named name: String,
+        _ device: SnapshotRenderer.Device,
         _ size: DynamicTypeSize,
         sourceLocation: SourceLocation = #_sourceLocation,
         @ViewBuilder content: () -> some View
     ) {
-        let image = SnapshotRenderer.image(
-            of: content(),
-            width: snapshotWidth,
-            typeSize: size
-        )
+        let image = SnapshotRenderer.image(of: content(), device: device, typeSize: size)
         SnapshotRenderer.verify(
             image,
-            named: "\(name)-\(size.snapshotName)",
+            named: "\(name)-\(device.name)-\(size.snapshotName)",
             in: "Components",
             sourceLocation: sourceLocation
         )

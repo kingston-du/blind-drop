@@ -300,16 +300,48 @@ Notes:
 
 ### E08-07 — Snapshot test harness
 
-**Status:** wip · **Deps:** E08-04 · **Reads:** `docs/15` §3, `docs/12` §8
-**Touches:** `BlindDropTests/Snapshot/*`
+**Status:** done · **Deps:** E08-04 · **Reads:** `docs/15` §3, `docs/12` §8
+**Touches:** `BlindDropTests/Snapshot/{SnapshotRenderer,ComponentSnapshotTests,
+LightModeOnlySnapshotTests}.swift`, `BlindDropTests/__Snapshots__/Components/*` (60 goldens),
+`.gitignore`
 **Verify:** `xcodebuild test -only-testing:BlindDropSnapshotTests`
 
 Hand-rolled against golden PNGs — no third-party snapshot library (zero dependencies). The
 renderer itself lands in `E08-04`, which needs it to verify; this task is everything built on
 top of it.
 
-- [ ] Matrix helper: `{SE, 15 Pro Max} × {large, accessibility1, accessibility5}`
-- [ ] Failure writes the actual and the diff into a reviewable directory
-- [ ] `RECORD_SNAPSHOTS=1` regenerates goldens
-- [ ] A test that renders with the OS in dark mode and asserts output is identical to light —
+- [x] Matrix helper: `{SE, 15 Pro Max} × {large, accessibility1, accessibility5}`
+- [x] Failure writes the actual and the diff into a reviewable directory
+- [x] `RECORD_SNAPSHOTS=1` regenerates goldens
+- [x] A test that renders with the OS in dark mode and asserts output is identical to light —
       this is how "light mode only" stays true
+
+Notes:
+
+- **The matrix is 60 goldens** — ten components × two devices × three sizes. `SE` is 375pt at
+  2× and is where every layout that breaks breaks first (`docs/12` §1, §8); `15 Pro Max` is
+  430pt at 3× and catches the opposite failure, a layout that only looked right because it was
+  cramped, and a `ViewThatFits` that should have taken its wide branch. Neither boots a
+  simulator: a `Device` here is a width and a scale, so the goldens do not depend on which
+  device the suite happened to run on.
+- **Failures write `.actual.png`, `.expected.png` and `.diff.png`** into
+  `__Snapshots__/__Failures__/`, git-ignored, with the path printed in the issue. The diff is
+  the golden at half strength with the differing pixels in `alert` red — the first question
+  about a snapshot failure is *where on the card*, and a percentage in a log cannot answer it.
+  Verified by breaking a golden two ways: a size change (writes actual and expected, no diff —
+  there is nothing to overlay) and a pixel change (writes all three).
+- **The dark-mode test compares two renders, not a render and a golden**, at zero tolerance on
+  both axes. Goldens can be re-recorded and a re-record with a bug in it would take the
+  assertion with it; two renders in the same process cannot drift apart for any reason except
+  the thing being tested. It catches what `lint.sh` rule 4 and `PaletteContrastTests`' source
+  scan cannot: a system semantic colour — `Color.primary`, an unstyled control's tint, a
+  `Material` — carries a dark appearance with the word `colorScheme` nowhere near it.
+- **`theDarkModeCheckCanFail` is a control**, and it is the reason the nine assertions above it
+  mean anything. It renders `Color.primary` and requires the two appearances to *differ*. If it
+  ever passes at zero difference, the environment is not reaching `ImageRenderer` and every
+  light-mode assertion has quietly become a comparison of two identical light renders.
+- `RECORD_SNAPSHOTS` must reach `xcodebuild` as **`TEST_RUNNER_RECORD_SNAPSHOTS=1`** — see the
+  note on `E08-04`, and the doc comment on `SnapshotRenderer.isRecording`.
+- The renderer pins the width **before** applying the `paper` background. With `isOpaque` on,
+  a background sized to the content's intrinsic width leaves the rest of the frame black; the
+  first countdown golden was a strip of amber digits between two black bars.

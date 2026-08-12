@@ -17,6 +17,37 @@ import UIKit
 @MainActor
 enum SnapshotRenderer {
 
+    // MARK: - The matrix
+
+    /// A width and a scale to render at. Not a simulator — nothing here boots a device, and the
+    /// point of naming them is that a golden says which phone it is a picture of.
+    /// `nonisolated` throughout: `@Test(arguments:)` evaluates its arguments outside whatever
+    /// actor the suite is isolated to, so a `@MainActor` constant is not reachable from one.
+    nonisolated struct Device: Sendable, CustomStringConvertible {
+        let name: String
+        /// Screen width in points. Content width is this minus `Layout.screenInset` either side.
+        let width: CGFloat
+        let scale: CGFloat
+
+        var description: String { name }
+
+        /// **The worst case in the app** (`docs/12` §1): 375pt, and every layout that breaks
+        /// breaks here first. `docs/12` §8 names it explicitly and so does the 12-member case in
+        /// §6.
+        static let iPhoneSE = Device(name: "SE", width: 375, scale: 2)
+        /// The wide end, at 3×. It catches the opposite failure: a layout that only looks right
+        /// because it was cramped, and a `ViewThatFits` that should have taken its wide branch.
+        static let iPhone15ProMax = Device(name: "15ProMax", width: 430, scale: 3)
+
+        /// `docs/12` §8's device axis.
+        static let matrix: [Device] = [.iPhoneSE, .iPhone15ProMax]
+    }
+
+    /// `docs/12` §8's Dynamic Type axis. `.large` is the default; `.accessibility1` is where
+    /// side-by-side layouts must have reflowed to stacked; `.accessibility5` is the size at
+    /// which *"nothing truncates and nothing overlaps"* either holds or visibly does not.
+    nonisolated static let typeSizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5]
+
     // MARK: - Rendering
 
     /// Renders a view to a bitmap.
@@ -36,13 +67,20 @@ enum SnapshotRenderer {
     ///     the goldens do not depend on which device the suite happened to run on.
     static func image(
         of view: some View,
-        width: CGFloat,
+        device: Device = .iPhoneSE,
         typeSize: DynamicTypeSize,
-        scale: CGFloat = 2
+        colorScheme: ColorScheme = .light
     ) -> UIImage {
+        let width = device.width
+        let scale = device.scale
         let content = view
             .dynamicTypeSize(typeSize)
             .environment(\.displayScale, scale)
+            // The only place in the repository this environment key is written. `docs/07` and
+            // `CLAUDE.md` §2.4 forbid a `colorScheme` branch in the app, and `lint.sh` rule 4
+            // enforces it — the way that rule stays *proven* rather than merely enforced is a
+            // test that hands the components the other value and gets the same pixels back.
+            .environment(\.colorScheme, colorScheme)
             // Every component that draws artwork gets a loader that answers from memory. The
             // real one would return nil here and every card would snapshot its placeholder,
             // which would make the goldens agree about nothing.
@@ -101,38 +139,38 @@ enum SnapshotRenderer {
             // Reported in **pixels**. `UIImage.size` is points, and a golden decoded from PNG
             // has scale 1 while a fresh render has scale 2 — comparing those two numbers would
             // print a mismatch for two images that are identical.
-            Issue.record(
+            return report(
+                Mismatch(name: name, directory: directory, expected: golden, actual: image,
+                         differingFraction: 1, diff: nil),
                 """
-                \(directory)/\(name): size changed — golden \
+                size changed — golden \
                 \(golden.cgImage?.width ?? 0)×\(golden.cgImage?.height ?? 0)px, rendered \
                 \(image.cgImage?.width ?? 0)×\(image.cgImage?.height ?? 0)px
                 """,
                 sourceLocation: sourceLocation
             )
-            return Mismatch(name: name, directory: directory, expected: golden, actual: image,
-                            differingFraction: 1, diff: nil)
         }
 
         guard comparison.differingFraction > tolerance else { return nil }
 
-        Issue.record(
+        return report(
+            Mismatch(
+                name: name,
+                directory: directory,
+                expected: golden,
+                actual: image,
+                differingFraction: comparison.differingFraction,
+                diff: comparison.diff
+            ),
             """
-            \(directory)/\(name): \(percentage(comparison.differingFraction)) of pixels differ \
-            (tolerance \(percentage(tolerance))).
+            \(percentage(comparison.differingFraction)) of pixels differ \
+            (tolerance \(percentage(tolerance)))
             """,
             sourceLocation: sourceLocation
         )
-        return Mismatch(
-            name: name,
-            directory: directory,
-            expected: golden,
-            actual: image,
-            differingFraction: comparison.differingFraction,
-            diff: comparison.diff
-        )
     }
 
-    /// What a failed comparison produced, for a caller that writes it somewhere.
+    /// What a failed comparison produced.
     struct Mismatch {
         let name: String
         let directory: String
@@ -141,6 +179,39 @@ enum SnapshotRenderer {
         let differingFraction: Double
         /// The differing pixels, in `alert` red over a dimmed copy of the golden.
         let diff: UIImage?
+    }
+
+    /// Records the failure **and writes it somewhere a person can look at it.**
+    ///
+    /// A snapshot failure that is only a percentage in a log is a failure nobody can act on: the
+    /// question is always *"what moved"*, and the answer is an image. The actual render and a
+    /// diff go into `__Snapshots__/__Failures__/`, which is git-ignored — a failure is evidence,
+    /// not a file to commit — and the paths are printed with the issue so they are one click
+    /// away in the test report.
+    @discardableResult
+    private static func report(
+        _ mismatch: Mismatch,
+        _ reason: String,
+        sourceLocation: SourceLocation
+    ) -> Mismatch {
+        let directory = failureURL(named: mismatch.name, in: mismatch.directory)
+        write(mismatch.actual, to: directory.appendingPathExtension("actual.png"),
+              sourceLocation: sourceLocation)
+        write(mismatch.expected, to: directory.appendingPathExtension("expected.png"),
+              sourceLocation: sourceLocation)
+        if let diff = mismatch.diff {
+            write(diff, to: directory.appendingPathExtension("diff.png"), sourceLocation: sourceLocation)
+        }
+
+        Issue.record(
+            """
+            \(mismatch.directory)/\(mismatch.name): \(reason).
+            Actual, expected and diff written to \
+            \(directory.deletingLastPathComponent().path(percentEncoded: false))
+            """,
+            sourceLocation: sourceLocation
+        )
+        return mismatch
     }
 
     /// The share of pixels allowed to differ before a snapshot is a failure.
@@ -178,7 +249,22 @@ enum SnapshotRenderer {
 
     // MARK: - Pixels
 
-    private static func compare(_ a: UIImage, _ b: UIImage) -> (differingFraction: Double, diff: UIImage?)? {
+    /// The share of pixels that differ between two images, or `nil` if they are different sizes.
+    ///
+    /// Exposed so a test can compare two *renders* rather than a render and a golden — which is
+    /// what `LightModeOnlySnapshots` needs, and what it needs at zero tolerance on both axes:
+    /// no share of pixels allowed to differ, and no per-channel slack either. A dark-mode leak
+    /// through a system semantic colour can be a few points of grey, well inside the slack the
+    /// golden comparison allows for antialiasing.
+    static func differingFraction(_ a: UIImage, _ b: UIImage) -> Double? {
+        compare(a, b, channelTolerance: 0)?.differingFraction
+    }
+
+    private static func compare(
+        _ a: UIImage,
+        _ b: UIImage,
+        channelTolerance: Int = SnapshotRenderer.channelTolerance
+    ) -> (differingFraction: Double, diff: UIImage?)? {
         guard let left = raster(a), let right = raster(b),
               left.width == right.width, left.height == right.height
         else { return nil }
@@ -238,8 +324,11 @@ enum SnapshotRenderer {
             if mask[pixel] == 1 {
                 bytes[offset] = 0xB3; bytes[offset + 1] = 0x26; bytes[offset + 2] = 0x1E
             } else {
+                // Halfway to white. Far enough that the red reads as the subject, close enough
+                // that the rest of the component is still legible — the first question about a
+                // diff is always "where on the card", and a wash nobody can read cannot answer it.
                 for channel in 0..<3 {
-                    bytes[offset + channel] = UInt8(255 - (255 - Int(bytes[offset + channel])) / 4)
+                    bytes[offset + channel] = UInt8(255 - (255 - Int(bytes[offset + channel])) / 2)
                 }
             }
             bytes[offset + 3] = 0xFF
@@ -271,13 +360,24 @@ enum SnapshotRenderer {
     /// **editable in place**: `RECORD_SNAPSHOTS=1` writes back to the repository, and a copy
     /// inside a built bundle is a file the next build overwrites.
     static func goldenURL(named name: String, in directory: String) -> URL {
-        URL(fileURLWithPath: #filePath)          // …/BlindDropTests/Snapshot/SnapshotRenderer.swift
-            .deletingLastPathComponent()         // …/BlindDropTests/Snapshot
-            .deletingLastPathComponent()         // …/BlindDropTests
-            .appending(path: "__Snapshots__")
+        snapshotsDirectory
             .appending(path: directory)
             .appending(path: "\(name).png")
     }
+
+    /// `…/__Snapshots__/__Failures__/<directory>/<name>` — **without** an extension, so the
+    /// caller appends `actual.png`, `expected.png` and `diff.png` to the one stem.
+    static func failureURL(named name: String, in directory: String) -> URL {
+        snapshotsDirectory
+            .appending(path: "__Failures__")
+            .appending(path: directory)
+            .appending(path: name)
+    }
+
+    private static let snapshotsDirectory = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()   // …/BlindDropTests/Snapshot
+        .deletingLastPathComponent()   // …/BlindDropTests
+        .appending(path: "__Snapshots__")
 
     private static func write(_ image: UIImage, to url: URL, sourceLocation: SourceLocation) {
         guard let data = image.pngData() else {

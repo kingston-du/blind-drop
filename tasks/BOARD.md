@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E08-07`. `E00`–`E07` and `E08-01`–`E08-06` are done.
+**Start here:** `E09-01`. `E00`–`E08` are done.
 
 ---
 
@@ -114,7 +114,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E08-04 Component library | done | E08-02, E08-03 | — |
 | E08-05 `APIClient` and DTOs | done | E08-01 | AC-1 |
 | E08-06 `ServerClock` and the `Date()` lint | done | E08-05 | AC-2 |
-| E08-07 Snapshot test harness | wip | E08-04 | AC-9 |
+| E08-07 Snapshot test harness | done | E08-04 | AC-9 |
 
 ## E09 — Onboarding · [file](E09-onboarding.md)
 
@@ -192,11 +192,11 @@ E04..E07 + E13  ─ E14 QA & release
 | E05 | 6 / 6 |
 | E06 | 4 / 4 |
 | E07 | 6 / 6 |
-| E08 | 6 / 7 |
+| E08 | 7 / 7 |
 | E09 | 0 / 4 |
 | E10 | 0 / 7 |
 | E11 | 0 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **47 / 80** |
+| **Total** | **48 / 80** |
