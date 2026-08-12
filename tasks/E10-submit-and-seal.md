@@ -7,7 +7,7 @@ Two things matter in this epic: the submit screen leaks nothing, and the seal is
 
 ### E10-01 — `SubmitScreen`
 
-**Status:** todo · **Deps:** E08-04, E08-06, E09-03 · **Reads:** `docs/08` §2, `docs/11` (submit), `docs/07` §6
+**Status:** wip · **Deps:** E08-04, E08-06, E09-03 · **Reads:** `docs/08` §2, `docs/11` (submit), `docs/07` §6
 **Touches:** `Features/Round/{RoundScreen,RoundStore}.swift`, `Features/Submit/SubmitScreen.swift`
 **Verify:** snapshot matrix; `PHASE=open` fixture run
 
@@ -28,7 +28,7 @@ until 8:00 PM."*
 
 ### E10-02 — `SearchSheet` and preview player
 
-**Status:** todo · **Deps:** E10-01 · **Reads:** `docs/08` §3.1, `docs/06` §4 (previews), `docs/11` (search)
+**Status:** wip · **Deps:** E10-01 · **Reads:** `docs/08` §3.1, `docs/06` §4 (previews), `docs/11` (search)
 **Touches:** `Features/Submit/SearchSheet.swift`, `Core/Audio/PreviewPlayer.swift`
 **Verify:** search returns results < 400ms against the fixture server
 
@@ -45,7 +45,7 @@ until 8:00 PM."*
 
 ### E10-03 — `ConfirmScreen`
 
-**Status:** todo · **Deps:** E10-02 · **Reads:** `docs/08` §3.2, `docs/11` (confirm)
+**Status:** wip · **Deps:** E10-02 · **Reads:** `docs/08` §3.2, `docs/11` (confirm)
 **Touches:** `Features/Submit/ConfirmScreen.swift`, `SubmitStore.swift`
 **Verify:** snapshot matrix
 
@@ -61,7 +61,7 @@ until 8:00 PM."*
 
 ### E10-04 — The seal animation
 
-**Status:** todo · **Deps:** E10-03 · **Reads:** `docs/09` §1–2, §5, `docs/07` §2 (shadow rule)
+**Status:** wip · **Deps:** E10-03 · **Reads:** `docs/09` §1–2, §5, `docs/07` §2 (shadow rule)
 **Touches:** `DesignSystem/Motion/{SealAnimation,MotionTokens}.swift`, `DesignSystem/Components/SealedCard.swift`
 **Verify:** Instruments — 10 consecutive seals, zero hitches on iPhone 12
 
@@ -84,7 +84,7 @@ in `docs/09` §2. Implement it against that timeline, not from memory.
 
 ### E10-05 — `SealedScreen` and countdown
 
-**Status:** todo · **Deps:** E10-04 · **Reads:** `docs/08` §4, `docs/11` (sealed), `docs/12` §1
+**Status:** wip · **Deps:** E10-04 · **Reads:** `docs/08` §4, `docs/11` (sealed), `docs/12` §1
 **Touches:** `Features/Submit/SealedScreen.swift`
 **Verify:** snapshot matrix; `PHASE=open` with a submission
 
@@ -102,7 +102,7 @@ in `docs/09` §2. Implement it against that timeline, not from memory.
 
 ### E10-06 — `VoidedScreen`
 
-**Status:** todo · **Deps:** E10-05 · **Reads:** `docs/08` §5, `docs/11` (voided)
+**Status:** wip · **Deps:** E10-05 · **Reads:** `docs/08` §5, `docs/11` (voided)
 **Touches:** `Features/Submit/VoidedScreen.swift`
 **Verify:** snapshot; `PHASE=voided` fixture run
 
@@ -116,7 +116,7 @@ in `docs/09` §2. Implement it against that timeline, not from memory.
 
 ### E10-07 — Push permission prompt
 
-**Status:** todo · **Deps:** E10-05, E06-03 · **Reads:** `docs/05` §4, `docs/11` (push.permission)
+**Status:** wip · **Deps:** E10-05, E06-03 · **Reads:** `docs/05` §4, `docs/11` (push.permission)
 **Touches:** `Core/Push/{PushRegistrar,PushRouter}.swift`
 **Verify:** prompt appears once, ~1.2s after the first successful seal
 
