@@ -300,7 +300,7 @@ Notes:
 
 ### E08-07 — Snapshot test harness
 
-**Status:** todo · **Deps:** E08-04 · **Reads:** `docs/15` §3, `docs/12` §8
+**Status:** wip · **Deps:** E08-04 · **Reads:** `docs/15` §3, `docs/12` §8
 **Touches:** `BlindDropTests/Snapshot/*`
 **Verify:** `xcodebuild test -only-testing:BlindDropSnapshotTests`
 

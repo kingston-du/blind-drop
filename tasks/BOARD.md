@@ -114,7 +114,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E08-04 Component library | done | E08-02, E08-03 | — |
 | E08-05 `APIClient` and DTOs | done | E08-01 | AC-1 |
 | E08-06 `ServerClock` and the `Date()` lint | done | E08-05 | AC-2 |
-| E08-07 Snapshot test harness | todo | E08-04 | AC-9 |
+| E08-07 Snapshot test harness | wip | E08-04 | AC-9 |
 
 ## E09 — Onboarding · [file](E09-onboarding.md)
 
