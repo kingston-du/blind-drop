@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E10-01`. `E00`–`E09` are done; `E10` is in progress.
+**Start here:** `E11-03`. `E00`–`E10` are done.
 
 ---
 
@@ -129,13 +129,13 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E10-01 `SubmitScreen` | wip | E08-04, E08-06, E09-03 | AC-1 |
-| E10-02 `SearchSheet` and preview player | wip | E10-01 | AC-10 |
-| E10-03 `ConfirmScreen` | wip | E10-02 | — |
-| E10-04 **The seal animation** | wip | E10-03 | AC-11 |
-| E10-05 `SealedScreen` and countdown | wip | E10-04 | AC-1, AC-2 |
-| E10-06 `VoidedScreen` | wip | E10-05 | AC-4 |
-| E10-07 Push permission prompt | wip | E10-05, E06-03 | — |
+| E10-01 `SubmitScreen` | done | E08-04, E08-06, E09-03 | AC-1 |
+| E10-02 `SearchSheet` and preview player | done | E10-01 | AC-10 |
+| E10-03 `ConfirmScreen` | done | E10-02 | — |
+| E10-04 **The seal animation** | done | E10-03 | AC-11 |
+| E10-05 `SealedScreen` and countdown | done | E10-04 | AC-1, AC-2 |
+| E10-06 `VoidedScreen` | done | E10-05 | AC-4 |
+| E10-07 Push permission prompt | done | E10-05, E06-03 | — |
 
 ## E11 — Reveal and guess · [file](E11-reveal-and-guess.md)
 
@@ -194,9 +194,9 @@ E04..E07 + E13  ─ E14 QA & release
 | E07 | 6 / 6 |
 | E08 | 7 / 7 |
 | E09 | 4 / 4 |
-| E10 | 0 / 7 |
+| E10 | 7 / 7 |
 | E11 | 3 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **55 / 80** |
+| **Total** | **62 / 80** |
