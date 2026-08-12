@@ -127,7 +127,7 @@ exist on one screen**, and exactly what the transition is for.
 
 ### E11-05 — Non-submitter and joined-late states
 
-**Status:** todo · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
+**Status:** wip · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
 **Touches:** `Features/Reveal/RevealScreen.swift`
 **Verify:** snapshot; fixture with `can_guess: false`
 
