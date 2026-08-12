@@ -7,7 +7,7 @@ Accent **ultramarine**. This screen must work equally well at 6 cards and 12, an
 
 ### E11-01 — `FlightCard`
 
-**Status:** todo · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
+**Status:** wip · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
 **Touches:** `DesignSystem/Components/FlightCard.swift`, `Features/Reveal/RevealScreen.swift`
 **Verify:** snapshot matrix at 6 and 12 cards
 
