@@ -37,7 +37,8 @@ create table public.groups (
   created_at   timestamptz not null default now()
 );
 -- Invite alphabet excludes I, L, O, 0, 1 — this code gets read aloud and typed by
--- 16-year-olds. 32^6 ≈ 1.07e9; collisions handled by retry on unique violation.
+-- 16-year-olds. The 31-character alphabet gives 31^6 ≈ 8.88e8 codes; collisions are
+-- handled by retry on unique violation.
 
 -- ─── memberships ─────────────────────────────────────────────────────────────
 create table public.memberships (

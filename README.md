@@ -14,15 +14,15 @@ game with a music substrate. Check every implementation decision against that se
 ## Status
 
 The backend is complete through push delivery, music bridging, the Record, and export
-endpoints. The iOS foundation and component/snapshot system are complete; onboarding begins
-at `E09-01`.
+endpoints. The iOS foundation and component/snapshot system are complete; onboarding is in
+progress, with display-name setup next at `E09-02`.
 
 | Area | State |
 |---|---|
 | Spec | Complete — `docs/` |
 | Task board | `tasks/BOARD.md` |
 | Backend | Auth, groups, lifecycle, submissions, reveal, guessing, scoring, push, music bridging, Record, and exports are covered by pgTAP and function tests. |
-| iOS client | Foundation, networking, server clock, design-system components, and the snapshot matrix are complete. Onboarding is next. |
+| iOS client | Foundation, networking, server clock, design-system components, snapshots, and Sign in with Apple are complete. Display-name onboarding is next. |
 
 ---
 

@@ -135,7 +135,7 @@ private let sizes = SnapshotRenderer.typeSizes
         clock.sync(serverNow: CountdownFixture.serverNow)
         let timer = CountdownTimer(clock: clock)
         timer.start(until: store.answersAt, form: Typography.countdownForm(for: size))
-        return RevealScreen(store: store, timer: timer).content
+        return RevealScreen(store: store, timer: timer).snapshotContent
     }
 
     private func verify(

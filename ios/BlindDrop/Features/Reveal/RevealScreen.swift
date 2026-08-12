@@ -149,7 +149,20 @@ struct RevealScreen: View {
     /// Rendering the content directly gives an image as tall as twelve cards actually are, which
     /// is the only form in which *"nothing truncates and nothing overlaps"* (`docs/12` §1) is a
     /// thing a diff can show.
-    var content: some View {
+    private var content: some View {
+        flightContent(includeRotorEntries: true)
+    }
+
+    /// The same flight content without namespace-backed rotor entries.
+    ///
+    /// Snapshot tests render this outside `body`; reading an `@Namespace` there is invalid and
+    /// produces identifiers that can never match. The production path above keeps the rotor,
+    /// while this path isolates the purely visual layout the goldens are meant to verify.
+    var snapshotContent: some View {
+        flightContent(includeRotorEntries: false)
+    }
+
+    private func flightContent(includeRotorEntries: Bool) -> some View {
         // A plain `VStack`, not a `LazyVStack`. A group runs to **twelve members** (`docs/02`),
         // so the whole flight is twelve cards at the absolute most — laziness would save nothing
         // and costs two real things: a lazy stack builds no off-screen row, which is exactly the
@@ -157,7 +170,7 @@ struct RevealScreen: View {
         // `ImageRenderer`, which clipped the first line off every golden until this changed.
         VStack(alignment: .leading, spacing: Space.lg) {
             header
-            cards
+            cards(includeRotorEntries: includeRotorEntries)
         }
         .padding(.bottom, Layout.blockGap)
     }
@@ -214,9 +227,9 @@ struct RevealScreen: View {
     }
 
     /// The flight. A vertical stack, **never a grid** (`docs/07` §5).
-    private var cards: some View {
+    @ViewBuilder private func cards(includeRotorEntries: Bool) -> some View {
         ForEach(state.cards) { card in
-            FlightCard(
+            let cardView = FlightCard(
                 number: card.cardNumber,
                 track: card.track,
                 accent: accent,
@@ -232,7 +245,12 @@ struct RevealScreen: View {
                     : { store.clearGuess(on: card.cardNumber) }
             )
             .overlay(focusRing(on: card.cardNumber))
-            .accessibilityRotorEntry(id: card.cardNumber, in: songs)
+
+            if includeRotorEntries {
+                cardView.accessibilityRotorEntry(id: card.cardNumber, in: songs)
+            } else {
+                cardView
+            }
         }
     }
 
