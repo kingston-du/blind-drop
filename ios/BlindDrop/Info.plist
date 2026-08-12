@@ -40,6 +40,14 @@
 	<key>SPOTIFY_CLIENT_ID</key>
 	<string>$(SPOTIFY_CLIENT_ID)</string>
 
+	<!-- The Supabase publishable anon key, sent as `apikey` on the two /auth/v1 calls
+	     (docs/14 §5). Public by design: every table is deny-by-default under RLS and
+	     PostgREST is not client-reachable, so the key on its own grants nothing (docs/14 §4).
+	     The service role key is a different string and never ships (docs/14 §6).
+	     Injected at build time; empty until the project ref is assigned in E14-05. -->
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+
 	<!-- There is deliberately no UIBackgroundModes key. docs/13 §8: the app has nothing to do
 	     while backgrounded, notifications are alert-only, and adding a background mode is how
 	     an app starts feeling like it's watching you. -->

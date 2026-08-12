@@ -65,10 +65,13 @@ lint_tree() {
   swift_files "$base/Features" \
     | scan "bare numeric spacing in Features/" '\.(padding|cornerRadius)\([0-9]|(spacing|width|height|lineWidth): *[0-9]' 'docs/07 §4'
 
-  # 3 — inline copy. docs/11: every user-facing string is in Localizable.strings, so no
-  #     string literal is ever passed to Text(_:).
+  # 3 — inline copy. docs/11: every user-facing string is in Localizable.strings. What a
+  #     screen may pass to Text(_:) is a *key* — DesignSystem/Copy.swift: "screens … write
+  #     Text("some.key") and let SwiftUI resolve the LocalizedStringKey" — and a key is
+  #     dotted and has no spaces. So the rule fires on a literal with a space in it, or on
+  #     one with no dot at all. Both of those are prose; neither is a key.
   swift_files "$base/Features" \
-    | scan "string literal in Text(_:)" 'Text\("' 'docs/11'
+    | scan "string literal in Text(_:)" 'Text\("([^".]*"|[^"]*[[:space:]][^"]*")' 'docs/11'
 
   # 4 — light mode only. docs/07: no colorScheme branching anywhere.
   { swift_files "$base/Features"; swift_files "$base/DesignSystem"; } \
@@ -82,6 +85,12 @@ lint_tree() {
   #     RoundDTO.state is assigned, and it is the decoder.
   swift_files "$base/Features" \
     | scan "round state assigned in a feature" '\.state *= *\.(open|revealed|scored|voided)' 'docs/13 §2, CLAUDE.md §2.2'
+
+  # 9 — the refresh token's home. docs/14 §5: refresh tokens live in the Keychain,
+  #     "never UserDefaults, never a file". Scoped to Core/Auth because that is the only
+  #     directory that holds a credential; App/ reads UserDefaults for launch arguments.
+  swift_files "$base/Core/Auth" \
+    | scan "credential outside the Keychain" '(UserDefaults|FileManager|NSKeyedArchiver|\.write\(to:)' 'docs/14 §5'
 
   lint_strings "$base/Resources/Localizable.strings"
 
@@ -132,7 +141,7 @@ self_test() {
   SELF_TEST_TMP="$(mktemp -d)"
   trap 'rm -rf "$SELF_TEST_TMP"; rm -f "$FAIL_FILE"' EXIT
   local tmp="$SELF_TEST_TMP"
-  mkdir -p "$tmp/Features" "$tmp/DesignSystem" "$tmp/Core/Time" "$tmp/Resources"
+  mkdir -p "$tmp/Features" "$tmp/DesignSystem" "$tmp/Core/Time" "$tmp/Core/Auth" "$tmp/Resources"
   local passed=0 failed=0
 
   expect_catch() { # $1 = name, $2 = file path under tmp, $3 = contents
@@ -155,6 +164,8 @@ self_test() {
 '
   expect_catch "a string literal in Text"     "Features/S.swift" 'Text("Drop a song")
 '
+  expect_catch "a one-word literal in Text"   "Features/S.swift" 'Text("Sealed")
+'
   expect_catch "a colorScheme branch"         "Features/S.swift" 'if colorScheme == .dark { }
 '
   expect_catch "a colorScheme branch in DS"   "DesignSystem/P.swift" 'let x: ColorScheme = .light
@@ -162,6 +173,8 @@ self_test() {
   expect_catch "@unchecked Sendable"          "Core/C.swift" 'final class X: @unchecked Sendable {}
 '
   expect_catch "a phase assigned client-side" "Features/S.swift" 'round.state = .revealed
+'
+  expect_catch "a token in UserDefaults"      "Core/Auth/S.swift" 'UserDefaults.standard.set(token, forKey: "refresh")
 '
   expect_catch "an exclamation mark in copy"  "Resources/Localizable.strings" '"a.b" = "Sealed!";
 '
@@ -174,9 +187,11 @@ self_test() {
 // Date() is fine to mention in a comment, and .padding(20) too.
 struct SubmitScreen: View {
     var body: some View {
-        Text(verbatim: title)
+        Text("submit.headline")
             .padding(Space.xl)
             .foregroundStyle(Palette.ink)
+        Text(verbatim: title)
+            .accessibilityLabel(Text("a11y.sealed"))
     }
 }
 EOF
@@ -187,7 +202,7 @@ EOF
 EOF
   local out; out="$(lint_tree "$tmp" 2>&1)"; local rc=$?
   if [ "$rc" -eq 0 ]; then
-    printf '%s  ok%s   passes a clean tree (key name "submit.action" is not copy)\n' "$GREEN" "$OFF"
+    printf '%s  ok%s   passes a clean tree (a dotted key in Text(_:) is not copy)\n' "$GREEN" "$OFF"
     passed=$((passed + 1))
   else
     printf '%snot ok%s passes a clean tree\n%s\n' "$RED" "$OFF" "$out"; failed=$((failed + 1))

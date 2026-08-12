@@ -39,6 +39,29 @@ install globally. A `deno` already on `PATH` works too.
 
 `GET /__fixture` reports the running configuration.
 
+## Supabase Auth (E09-01)
+
+Sign in with Apple exchanges Apple's identity token for a Supabase session, and Supabase Auth
+is a **sibling** of the functions service rather than a route inside it. So the fixture also
+answers two GoTrue routes, in GoTrue's own shapes — no `docs/04` §1 envelope, no `server_now`:
+
+| Route | Behaviour |
+|---|---|
+| `POST /auth/v1/token?grant_type=id_token` | 400 unless `provider: "apple"`, `id_token` and `nonce` are all present; otherwise a session |
+| `POST /auth/v1/token?grant_type=refresh_token` | Rotates. Spending a token twice is a 400 `invalid_grant`, exactly as Supabase behaves — which is what makes a client that refreshes twice on one 401 fail visibly |
+| `POST /auth/v1/logout?scope=local` | 204, or 401 without a bearer |
+
+The client derives the auth address from `-apiBaseURL` (`…/functions/v1` → `…/auth/v1`, or
+`/auth/v1` appended), so one launch argument still points a whole run here.
+
+**These routes are not an auth gate.** Everything else in this file answers anyone; the fixture
+is the contract, canned, not a copy of the server's authorization pipeline. `docs/14` §10's
+"every anonymous call returns 401" is audited against the real functions, not against this.
+
+`ios/scripts/verify-signin.sh` starts this server and runs
+`BlindDropUnitTests/FixtureSignInTests` against it — the real `SupabaseAuthService`, the real
+`Keychain` and the real `APIClient`, with only Apple's sheet stubbed.
+
 ## What the payloads contain
 
 One group ("The Cove", `America/New_York`, reveal hour 20, invite code `K7MQ2X`), nine

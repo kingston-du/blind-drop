@@ -84,12 +84,16 @@ import Testing
     }
 
     /// A client wired to the stub, with a real clock and a real session store.
+    ///
+    /// The store's two dependencies are the doubles from `AuthTests`: a network these tests do
+    /// not want and a keychain they must not touch. It has no refresh token, which is what
+    /// makes `a401RefreshesOnceAndThenEndsTheSession` reach the end of the session.
     @MainActor
     private static func makeClient() -> (APIClient, ServerClock, SessionStore) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [Stub.self]
         let clock = ServerClock()
-        let session = SessionStore()
+        let session = SessionStore(auth: FakeAuth(), secrets: MemorySecrets())
         let client = APIClient(
             baseURL: URL(string: "https://fixture.test/functions/v1")!,
             clock: clock,

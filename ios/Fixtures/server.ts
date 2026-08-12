@@ -84,8 +84,81 @@ function fail(status: number, code: string, message: string, details?: unknown):
 }
 const noContent = () => new Response(null, { status: 204 });
 
+// ─── Supabase Auth (docs/14 §5) ──────────────────────────────────────────────
+//
+// GoTrue is a sibling service, not one of our functions: it lives under /auth/v1, it does not
+// use the docs/04 §1 envelope, and it carries no server_now. So it gets its own two shapes.
+// The refresh token rotates on every issue, which is what the client's "one 401 buys one
+// refresh" path has to survive — a fixture that returned a fixed token would make a
+// double-spend look like a success.
+
+const FIXTURE_ACCESS_TOKEN = "fixture-access-token";
+let refreshCounter = 0;
+const issuedRefreshTokens = new Set<string>(["fixture-refresh-token-0"]);
+
+function issueSession(): Response {
+  const refresh = `fixture-refresh-token-${++refreshCounter}`;
+  issuedRefreshTokens.add(refresh);
+  return new Response(
+    JSON.stringify({
+      access_token: `${FIXTURE_ACCESS_TOKEN}-${refreshCounter}`,
+      token_type: "bearer",
+      expires_in: 3600,
+      refresh_token: refresh,
+      user: { id: "u_ana", aud: "authenticated", role: "authenticated" },
+    }, null, 2),
+    { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+  );
+}
+
+function authFail(status: number, code: string, message: string): Response {
+  return new Response(
+    JSON.stringify({ code: status, error_code: code, msg: message }, null, 2),
+    { status, headers: { "content-type": "application/json; charset=utf-8" } },
+  );
+}
+
+async function authRoute(req: Request, url: URL, p: string): Promise<Response | null> {
+  if (req.method !== "POST") return null;
+
+  if (p === "/auth/v1/token") {
+    const grant = url.searchParams.get("grant_type");
+    const body = await req.json().catch(() => ({}));
+
+    if (grant === "id_token") {
+      // The nonce is the whole point of the exchange (see Core/Auth/AppleSignIn.swift): a
+      // request without one is one the real GoTrue would refuse, so this one does too.
+      if (body.provider !== "apple" || !body.id_token || !body.nonce) {
+        return authFail(400, "validation_failed", "Missing provider, id_token or nonce.");
+      }
+      return issueSession();
+    }
+    if (grant === "refresh_token") {
+      // Rotation, enforced: spending a token twice fails, which is how a client that
+      // refreshes twice on one 401 shows up as a broken test rather than as a working app.
+      if (!body.refresh_token || !issuedRefreshTokens.delete(body.refresh_token)) {
+        return authFail(400, "invalid_grant", "Invalid Refresh Token.");
+      }
+      return issueSession();
+    }
+    return authFail(400, "validation_failed", `Unsupported grant_type: ${grant}`);
+  }
+
+  if (p === "/auth/v1/logout") {
+    if (!req.headers.get("authorization")) return authFail(401, "no_authorization", "No bearer.");
+    return noContent();
+  }
+
+  return null;
+}
+
 // ─── routes ──────────────────────────────────────────────────────────────────
 async function route(req: Request, url: URL): Promise<Response> {
+  // /auth/v1 is matched before the functions prefix is stripped — it is a sibling of
+  // /functions/v1, not a route inside it.
+  const auth = await authRoute(req, url, url.pathname.replace(/\/$/, ""));
+  if (auth) return auth;
+
   const p = url.pathname.replace(/^\/functions\/v1/, "").replace(/\/$/, "") || "/";
   const m = req.method;
 

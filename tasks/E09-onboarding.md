@@ -9,16 +9,40 @@ Four steps, no tutorial carousel, no permission asks. A user must reach today's 
 
 **Status:** wip · **Deps:** E08-05 · **Reads:** `docs/08` §1.1, `docs/13` §1 (Core/Auth), `docs/14` §5
 **Touches:** `Core/Auth/{SessionStore,AppleSignIn,Keychain}.swift`, `Features/Onboarding/SignInScreen.swift`
-**Verify:** sign-in completes against the fixture server; `xcodebuild test -only-testing:BlindDropTests/AuthTests`
+**Verify:** sign-in completes against the fixture server; `xcodebuild test -only-testing:BlindDropUnitTests/AuthTests`
 
-- [ ] `ASAuthorizationController` wrapped in an `async` API
-- [ ] Session exchanged with Supabase Auth; refresh token in the **Keychain** with
+- [x] `ASAuthorizationController` wrapped in an `async` API
+- [x] Session exchanged with Supabase Auth; refresh token in the **Keychain** with
       `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
-- [ ] Never `UserDefaults`, never a file
-- [ ] Sign out revokes server-side, not just locally
-- [ ] 401 → refresh once → retry once → sign out
-- [ ] Phone auth behind a build flag, **off** in v1
-- [ ] Minimal `Keychain` wrapper, no dependency
+- [x] Never `UserDefaults`, never a file
+- [x] Sign out revokes server-side, not just locally
+- [x] 401 → refresh once → retry once → sign out
+- [x] Phone auth behind a build flag, **off** in v1
+- [x] Minimal `Keychain` wrapper, no dependency
+
+> **Open question:** *Where does the client get the Supabase Auth address and the anon key?*
+> `docs/04` gives the functions base (`https://<project>.supabase.co/functions/v1`) and
+> `docs/14` §5 says the session comes from Supabase Auth, but nothing names `/auth/v1` or says
+> where the publishable key lives. Chosen: `AppConfiguration` **derives** the auth base from
+> the API base (`…/functions/v1` → `…/auth/v1`, otherwise `/auth/v1` appended), overridable
+> with `-authBaseURL`; the anon key comes from `Info.plist`'s `SUPABASE_ANON_KEY`, injected at
+> build time and public by design like `SPOTIFY_CLIENT_ID` (`docs/14` §6). One launch argument
+> therefore points a whole run at the fixture server. Both are empty until the project ref is
+> assigned in E14-05, which is the same state `SPOTIFY_CLIENT_ID` is already in.
+
+> **Open question:** *Which Apple scopes does the request ask for?* `docs/08` §1.1 does not
+> say. Chosen: **none.** `docs/14` §9 lists the complete set of data the app collects — "Apple
+> sub or phone, display name, group membership, song choices, guesses, APNs token" — and the
+> display name is the one the user types in §1.2, not the one on their Apple ID. Requesting
+> `.email` or `.fullName` would collect a field nothing reads, and a field we do not hold is a
+> field we cannot leak. The consequence to note: there is no email on file, so account recovery
+> is Apple's problem and not ours, which is the correct division.
+
+> **Note, not a question:** the simulator returns `errSecMissingEntitlement` (-34018) for every
+> Keychain call when the app is built with `CODE_SIGNING_ALLOWED = NO`, which is what E00-03
+> set so CI needs no team. All eight build configurations now ad-hoc sign **on the simulator
+> only** (`CODE_SIGN_IDENTITY[sdk=iphonesimulator*] = "-"`); device builds are unchanged and
+> still need no signing identity. Without this no keychain code can be run or tested at all.
 
 ---
 

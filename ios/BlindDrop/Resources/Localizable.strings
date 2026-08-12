@@ -18,6 +18,35 @@
 "countdown.coarse.minutes" = "%lld minutes";
 "countdown.coarse.soon" = "under a minute";
 
+/* ── Onboarding (docs/11 §Onboarding) ──────────────────────────────────────── */
+/* Sign in is E09-01; the naming, joining and creating rows land with E09-02..04. */
+
+"onboarding.title" = "Blind Drop";
+"onboarding.subtitle" = "One song each, every day. Nobody sees anything until 8:00.";
+"onboarding.signin.apple" = "Sign in with Apple";
+
+/* ── Errors (docs/11 §Errors) ──────────────────────────────────────────────── */
+/* One row per `APIError.copyKey` and `AuthError.copyKey`. A failure the user cannot */
+/* read is a failure they cannot act on, so the whole set lands with the first screen */
+/* that can fail. */
+
+"error.offline" = "You're offline.";
+"error.offline.stale" = "Showing what we had. This may be out of date.";
+"error.generic" = "That didn't work. Try again.";
+"error.unauthenticated" = "Sign in again to keep playing.";
+"error.noprofile" = "Pick a name first.";
+"error.nogroup" = "You're not in a group yet.";
+"error.notfound" = "That doesn't exist.";
+"error.invalidinput" = "Check that and try again.";
+"error.wrongphase" = "That's not available right now.";
+"error.notsubmitter" = "You didn't drop a song tonight.";
+"error.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
+"error.roundvoided" = "Not enough drops tonight. Nothing revealed.";
+"error.alreadyingroup" = "You're already in a group. Leave it first.";
+"error.notadmin" = "Only the group's admin can change that.";
+"error.ratelimited" = "Slow down a second.";
+"error.upstream" = "The music catalog isn't answering. Try again in a minute.";
+
 /* ── Rows the component snapshots stand a button or an empty state up with ─── */
 /* Their screens land in E09–E12 and bring the rest of their sections with them. */
 

@@ -93,9 +93,14 @@ actor APIClient {
         _ endpoint: Endpoint<Response>,
         isRetry: Bool
     ) async throws(APIError) -> Data {
+        // Captured before the request goes out, and handed back to the session on a 401. It is
+        // what lets "one 401 buys one refresh" survive three requests failing at once: the two
+        // that were already carrying a token somebody else has since rotated retry instead of
+        // spending a second refresh (`docs/13` §3).
+        let token = await session.accessToken
         let request: URLRequest
         do {
-            request = try await makeRequest(endpoint)
+            request = try await makeRequest(endpoint, token: token)
         } catch {
             throw APIError.unreadable
         }
@@ -131,15 +136,18 @@ actor APIClient {
 
         if case .unauthenticated = error, !isRetry {
             // One refresh, one retry, then the session is over (`docs/13` §3).
-            if await session.refreshCredentials() {
+            if await session.refreshCredentials(after: token) {
                 return try await attemptOnce(endpoint, isRetry: true)
             }
-            await session.signOut()
+            await session.endSession()
         }
         throw error
     }
 
-    private func makeRequest<Response>(_ endpoint: Endpoint<Response>) async throws -> URLRequest {
+    private func makeRequest<Response>(
+        _ endpoint: Endpoint<Response>,
+        token: String?
+    ) async throws -> URLRequest {
         var components = URLComponents(
             url: baseURL.appendingPathComponent(endpoint.path.trimmingPrefix("/").description),
             resolvingAgainstBaseURL: false
@@ -155,7 +163,7 @@ actor APIClient {
         // Brooklyn should get the American catalog. It rides every request, not just the two
         // catalog ones, so there is no route where forgetting it is possible.
         request.setValue(Self.storefront, forHTTPHeaderField: "X-Storefront")
-        if let token = await session.accessToken {
+        if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let body = endpoint.body {

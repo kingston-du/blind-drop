@@ -21,15 +21,31 @@ final class AppEnvironment {
     /// `DesignSystem/` never depends on `UIImpactFeedbackGenerator` being real.
     let haptics: HapticEngine
 
-    init(configuration: AppConfiguration = .resolve(), haptics: HapticEngine = SystemHaptics()) {
+    /// `auth` and `secrets` are parameters so `AuthTests` can build a whole environment around
+    /// doubles — the alternative is a test that reaches into the simulator's keychain daemon
+    /// and a network it has no business touching. Their defaults are what the app ships with.
+    init(
+        configuration: AppConfiguration = .resolve(),
+        haptics: HapticEngine = SystemHaptics(),
+        auth: (any AuthService)? = nil,
+        secrets: any SecretStore = Keychain()
+    ) {
         self.configuration = configuration
         // The clock is made first and handed to the client, so the instance the client
         // re-anchors on every response is the instance every countdown reads (docs/13 §3, §5).
         let clock = ServerClock()
-        let session = SessionStore()
+        let session = SessionStore(
+            auth: auth ?? SupabaseAuthService(configuration: configuration),
+            secrets: secrets
+        )
+        let api = APIClient(baseURL: configuration.apiBaseURL, clock: clock, session: session)
+        // The store needs the client to ask `GET /me`, and the client needs the store for the
+        // auth header — so the edge is closed here, after both exist, and the store holds its
+        // half weakly (`SessionStore.api`).
+        session.attach(api)
         self.clock = clock
         self.session = session
-        self.api = APIClient(baseURL: configuration.apiBaseURL, clock: clock, session: session)
+        self.api = api
         self.router = Router()
         self.haptics = haptics
     }
