@@ -142,7 +142,7 @@ E04..E07 + E13  ─ E14 QA & release
 | Task | Status | Deps | Proves |
 |---|---|---|---|
 | E11-01 `FlightCard` | done | E08-04 | AC-5 |
-| E11-02 Guess interaction | wip | E11-01 | AC-10 |
+| E11-02 Guess interaction | done | E11-01 | AC-10 |
 | E11-03 Name pool and the 12-member layout | todo | E11-02 | — |
 | E11-04 **The unseal animation** | todo | E11-01 | AC-11 |
 | E11-05 Non-submitter and joined-late states | todo | E11-02 | AC-6 |
@@ -195,7 +195,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E08 | 7 / 7 |
 | E09 | 1 / 4 |
 | E10 | 0 / 7 |
-| E11 | 1 / 6 |
+| E11 | 2 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |

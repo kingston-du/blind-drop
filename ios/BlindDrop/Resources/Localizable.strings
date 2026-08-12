@@ -65,6 +65,7 @@
 "reveal.countdown.label" = "until answers";
 "reveal.card.prompt" = "Who dropped this?";
 "reveal.card.mine" = "Yours";
+"reveal.progress" = "%lld of %lld assigned";
 
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
 /* No band is framed as good or bad. */

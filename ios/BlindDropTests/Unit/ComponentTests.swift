@@ -123,7 +123,7 @@ import Testing
         let keys = [
             "countdown.unknown", "countdown.coarse.hours", "countdown.coarse.minutes",
             "countdown.coarse.soon",
-            "reveal.title", "reveal.subtitle", "reveal.countdown.label",
+            "reveal.title", "reveal.subtitle", "reveal.countdown.label", "reveal.progress",
             "reveal.card.prompt", "reveal.card.mine",
             "a11y.rotor.songs", "a11y.rotor.song",
             "a11y.card", "a11y.card.guessed", "a11y.card.unguessed", "a11y.card.mine",

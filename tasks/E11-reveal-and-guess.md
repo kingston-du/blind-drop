@@ -45,24 +45,41 @@ artwork and metadata to the right.
 
 ### E11-02 — Guess interaction
 
-**Status:** wip · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
+**Status:** done · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
 **Touches:** `Features/Reveal/{GuessSheet,RevealStore}.swift`
 **Verify:** UI test covering both interaction directions
 
 Both directions, because teenagers will try both.
 
-- [ ] Tap card → tap name: card gets an `ultramarine` focus ring, assignment advances focus to
+- [x] Tap card → tap name: card gets an `ultramarine` focus ring, assignment advances focus to
       the next unassigned card
-- [ ] Tap name → tap card: chip selects, next card tap assigns
-- [ ] Tapping a consumed name **moves** it and clears its previous card — the move is the
+- [x] Tap name → tap card: chip selects, next card tap assigns
+- [x] Tapping a consumed name **moves** it and clears its previous card — the move is the
       default behaviour rather than a blocked action
-- [ ] `✕` on an inline chip clears it
-- [ ] **No gesture-only interaction.** No drag-and-drop, no swipe-to-assign, no required
+- [x] `✕` on an inline chip clears it
+- [x] **No gesture-only interaction.** No drag-and-drop, no swipe-to-assign, no required
       long-press (`docs/12` §5, and taps are faster for the 90-second budget)
-- [ ] Assigning posts a VoiceOver announcement: "No. 3 assigned to Cal"
-- [ ] Progress subtitle "%lld of %lld assigned"
-- [ ] Your own card is displayed with a *Yours* label in `amberText` and no chip — the one
+- [x] Assigning posts a VoiceOver announcement: "No. 3 assigned to Cal"
+- [x] Progress subtitle "%lld of %lld assigned"
+- [x] Your own card is displayed with a *Yours* label in `amberText` and no chip — the one
       place amber appears on this screen, because your card is still your secret
+
+> **Open question:** the **Verify** line asks for *"a UI test covering both interaction
+> directions"*. Both directions are covered — `RevealStoreTests` drives them in pairs and asserts
+> the two orders leave byte-identical state — but by **unit** test against `RevealStore`, not by
+> `XCUITest`.
+>
+> Two reasons, and the first is the blocking one. **The app cannot reach this screen yet.**
+> Routing to a revealed round needs `E09-03` (a group), `E10-01` (`RoundStore` loading
+> `GET /rounds/current`) and `E11-06` (the store wired to the API); none has landed. A UI test
+> written now could only drive a screen stood up by the test itself, which is a unit test with a
+> simulator boot attached. Second: the interaction *is* a state machine with no view in it —
+> focus, selection, the move, the wrap — and driving it directly is what makes "both directions
+> agree" assertable at all, rather than inferred from two sequences of taps.
+>
+> **`E14-04` is the right home for the end-to-end version** — it already exists, it already
+> depends on the full loop being routable, and it is where a tap-driven pass belongs. Noted so it
+> is a deliberate placement rather than a gap.
 
 ---
 

@@ -86,14 +86,10 @@ struct RevealViewState: Equatable, Sendable {
 /// `docs/08` §6 names and the reason it is named: the caller's own song is the one thing on a
 /// revealed screen that is still sealed.
 struct RevealScreen: View {
-    let state: RevealViewState
+    let store: RevealStore
     let timer: CountdownTimer
-    /// Tapping a card opens the guess sheet (`E11-02`). `nil` while there is nothing to open,
-    /// which is also what a non-submitter gets — `FlightCard` drops its `.isButton` trait and
-    /// its hint when this is absent, so VoiceOver stops offering an action that does nothing.
-    var chooseGuess: ((Int) -> Void)?
-    /// The `✕` on an inline chip (`docs/08` §6).
-    var clearGuess: ((Int) -> Void)?
+
+    private var state: RevealViewState { store.viewState }
 
     /// Ties each card to its rotor entry. The entries are declared on the `ScrollView` and the
     /// cards are built further down the tree, so the namespace is what pairs the two — it is how
@@ -104,6 +100,24 @@ struct RevealScreen: View {
     private let accent = PhaseAccent.revealed
 
     var body: some View {
+        VStack(spacing: Space.none) {
+            flight
+            // Pinned, so the names stay reachable however far down the flight the reader is
+            // (`docs/08` §6). The two scroll independently.
+            GuessSheet(store: store)
+        }
+        .background(Palette.paper)
+        // `docs/12` §2: *"Assigning a guess posts an `.announcement`"*. Posted here rather than
+        // from the store so the store stays free of UIKit — and cleared immediately, because an
+        // announcement that stays set would fire again on the next unrelated redraw.
+        .onChange(of: store.announcement) {
+            guard let announcement = store.announcement else { return }
+            AccessibilityNotification.Announcement(announcement).post()
+            store.consumeAnnouncement()
+        }
+    }
+
+    private var flight: some View {
         ScrollView {
             // The screen inset belongs to the scroll container, not to the column inside it
             // (`docs/07` §4). Keeping it here is also what lets `content` be snapshot directly:
@@ -113,7 +127,6 @@ struct RevealScreen: View {
             content
                 .padding(.horizontal, Layout.screenInset)
         }
-        .background(Palette.paper)
         // `docs/12` §2: *"reveal cards form a custom rotor 'Songs' so a VoiceOver user can jump
         // between numbers directly"*. Without it, reaching the last card of a twelve-card
         // reveal is twelve swipes.
@@ -211,16 +224,28 @@ struct RevealScreen: View {
                 // A card the caller cannot act on is not a button. `.mine` and `.unavailable`
                 // both land here, from opposite directions: one is theirs already, the other is
                 // never going to be theirs to fill in.
-                chooseGuess: isGuessable(card.cardNumber) ? { chooseGuess?(card.cardNumber) } : nil,
+                chooseGuess: store.isGuessable(card.cardNumber)
+                    ? { store.tapCard(card.cardNumber) }
+                    : nil,
                 clearGuess: state.guesses[card.cardNumber] == nil
                     ? nil
-                    : { clearGuess?(card.cardNumber) }
+                    : { store.clearGuess(on: card.cardNumber) }
             )
+            .overlay(focusRing(on: card.cardNumber))
             .accessibilityRotorEntry(id: card.cardNumber, in: songs)
         }
     }
 
-    private func isGuessable(_ number: Int) -> Bool {
-        state.canGuess && number != state.myCardNumber
+    /// The focused card's `ultramarine` ring (`docs/08` §6).
+    ///
+    /// An overlay on the screen's side rather than a parameter on `FlightCard`, because focus is
+    /// a fact about *this screen's* interaction and not about a card — `E12`'s results reuse the
+    /// same card with no focus concept at all. Drawn on `Radius.card` so it sits exactly on the
+    /// border it replaces.
+    @ViewBuilder private func focusRing(on number: Int) -> some View {
+        if store.focusedCard == number {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(accent.fill, lineWidth: Stroke.mark)
+        }
     }
 }

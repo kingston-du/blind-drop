@@ -40,7 +40,7 @@ private let sizes = SnapshotRenderer.typeSizes
     func threeCards(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "Reveal-3", device, size) {
             screen(
-                RevealFixture.state(cardCount: 3, myCardNumber: 2, guesses: [1: "Cal"]),
+                RevealFixture.store(cardCount: 3, myCardNumber: 2, guesses: [1: "Cal"]),
                 size: size
             )
         }
@@ -54,7 +54,7 @@ private let sizes = SnapshotRenderer.typeSizes
     func threeCardsUnguessable(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "Reveal-3-blocked", device, size) {
             screen(
-                RevealFixture.state(cardCount: 3, myCardNumber: nil, canGuess: false),
+                RevealFixture.store(cardCount: 3, myCardNumber: nil, canGuess: false),
                 size: size
             )
         }
@@ -66,7 +66,7 @@ private let sizes = SnapshotRenderer.typeSizes
     func sixCards(_ device: SnapshotRenderer.Device) {
         verify(named: "Reveal-6", device, .large) {
             screen(
-                RevealFixture.state(cardCount: 6, myCardNumber: 4, guesses: [1: "Cal", 3: "Ana"]),
+                RevealFixture.store(cardCount: 6, myCardNumber: 4, guesses: [1: "Cal", 3: "Ana"]),
                 size: .large
             )
         }
@@ -79,7 +79,7 @@ private let sizes = SnapshotRenderer.typeSizes
     func twelveCards(_ device: SnapshotRenderer.Device) {
         verify(named: "Reveal-12", device, .large) {
             screen(
-                RevealFixture.state(
+                RevealFixture.store(
                     cardCount: 12,
                     myCardNumber: 7,
                     guesses: [1: "Cal", 2: "Ana", 3: "Dee", 11: "Ben"]
@@ -96,12 +96,12 @@ private let sizes = SnapshotRenderer.typeSizes
     /// `ImageRenderer` does not run `.onAppear`, so a timer nobody started reads `--:--:--` and
     /// the status line snapshots a row of hyphens. Started here against the same frozen clock
     /// `CountdownFixture` uses, so *"01:42:19"* is the same nineteen seconds on every run.
-    private func screen(_ state: RevealViewState, size: DynamicTypeSize) -> some View {
+    private func screen(_ store: RevealStore, size: DynamicTypeSize) -> some View {
         let clock = ServerClock(uptime: { 1_000 })
         clock.sync(serverNow: CountdownFixture.serverNow)
         let timer = CountdownTimer(clock: clock)
-        timer.start(until: state.answersAt, form: Typography.countdownForm(for: size))
-        return RevealScreen(state: state, timer: timer).content
+        timer.start(until: store.answersAt, form: Typography.countdownForm(for: size))
+        return RevealScreen(store: store, timer: timer).content
     }
 
     private func verify(
@@ -149,18 +149,37 @@ enum RevealFixture {
         CardDTO(cardNumber: number, track: number.isMultiple(of: 2) ? .ribs : .motionSickness)
     }
 
-    static func state(
+    /// Eleven names plus the caller — the largest pool the product allows (`docs/02`).
+    static let members = ["Ana", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus", "Hal", "Ivy", "Jo", "Kit"]
+        .enumerated()
+        .map { MemberDTO(userID: "u\($0.offset)", displayName: $0.element) }
+
+    /// The caller. Present in the pool the server sends and removed by the store, which is the
+    /// behaviour worth exercising rather than stubbing around.
+    static let me = MemberDTO(userID: "me", displayName: "You")
+
+    /// A store standing in the state a golden is a picture of.
+    ///
+    /// `guesses` is keyed by card number and valued by **display name**, because that is what
+    /// reads at a call site; it is mapped back to the `user_id` the store actually holds here.
+    static func store(
         cardCount: Int,
         myCardNumber: Int? = nil,
         canGuess: Bool = true,
         guesses: [Int: String] = [:]
-    ) -> RevealViewState {
-        RevealViewState(
+    ) -> RevealStore {
+        let store = RevealStore(
             cards: (1...cardCount).map(card(number:)),
+            pool: members + [me],
             myCardNumber: myCardNumber,
             canGuess: canGuess,
-            guesses: guesses,
-            answersAt: answersAt
+            me: me.userID
         )
+        store.answersAt = answersAt
+        let byName = Dictionary(members.map { ($0.displayName, $0.userID) }, uniquingKeysWith: { a, _ in a })
+        store.adopt(guesses.compactMap { card, name in
+            byName[name].map { GuessDTO(cardNumber: card, guessedUserID: $0) }
+        })
+        return store
     }
 }
