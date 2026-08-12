@@ -57,8 +57,12 @@
 "reveal.action" = "Lock in guesses";
 
 /* ── Reveal (docs/11 §Reveal and guess) ────────────────────────────────────── */
-/* The two `FlightCard` prints for itself; the rest of the section lands with E11. */
+/* E11-01 brings the status line and the cards. The guess apparatus — the pool, the progress
+ * line, the button and the blocked states — lands with E11-02, E11-03 and E11-05. */
 
+"reveal.title" = "Tonight's drop";
+"reveal.subtitle" = "%lld songs";
+"reveal.countdown.label" = "until answers";
 "reveal.card.prompt" = "Who dropped this?";
 "reveal.card.mine" = "Yours";
 
@@ -88,6 +92,8 @@
 "a11y.namechip.assigned" = "Assigned to No. %lld";
 "a11y.guess.assigned" = "No. %lld assigned to %@.";
 "a11y.guess.clear" = "Clear guess";
+"a11y.rotor.songs" = "Songs";
+"a11y.rotor.song" = "No. %lld";
 "a11y.preview.play" = "Play preview";
 "a11y.preview.stop" = "Stop preview";
 "a11y.track" = "%@ by %@";

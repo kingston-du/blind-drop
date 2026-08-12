@@ -123,7 +123,9 @@ import Testing
         let keys = [
             "countdown.unknown", "countdown.coarse.hours", "countdown.coarse.minutes",
             "countdown.coarse.soon",
+            "reveal.title", "reveal.subtitle", "reveal.countdown.label",
             "reveal.card.prompt", "reveal.card.mine",
+            "a11y.rotor.songs", "a11y.rotor.song",
             "a11y.card", "a11y.card.guessed", "a11y.card.unguessed", "a11y.card.mine",
             "a11y.card.hint", "a11y.sealed", "a11y.countdown", "a11y.countdown.answers",
             "a11y.namechip", "a11y.namechip.unassigned", "a11y.namechip.assigned",

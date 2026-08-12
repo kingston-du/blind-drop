@@ -7,21 +7,39 @@ Accent **ultramarine**. This screen must work equally well at 6 cards and 12, an
 
 ### E11-01 — `FlightCard`
 
-**Status:** wip · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
+**Status:** done · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
 **Touches:** `DesignSystem/Components/FlightCard.swift`, `Features/Reveal/RevealScreen.swift`
 **Verify:** snapshot matrix at 6 and 12 cards
 
 Vertical stack, **never a grid**. It should read like a flight sheet: number large and left,
 artwork and metadata to the right.
 
-- [ ] `displayXL` number in `ultramarine`, capped at 1.6× scale
-- [ ] 88pt artwork, `Radius.artwork`, nothing layered on it
-- [ ] Above `.accessibility1` the number moves above the artwork row rather than beside it
-- [ ] A **single** accessibility element announcing number, title, artist, and current guess
+- [x] `displayXL` number in `ultramarine`, capped at 1.6× scale
+- [x] 88pt artwork, `Radius.artwork`, nothing layered on it
+- [x] Above `.accessibility1` the number moves above the artwork row rather than beside it
+- [x] A **single** accessibility element announcing number, title, artist, and current guess
       — do not let VoiceOver walk into three sub-elements (36 swipes for 12 cards)
-- [ ] Preview control nested as both a child and a custom action
-- [ ] Custom rotor "Songs" so a VoiceOver user can jump between numbers
-- [ ] Cards render in ascending `card_no`, exactly as the server ordered them
+- [x] Preview control nested as both a child and a custom action
+- [x] Custom rotor "Songs" so a VoiceOver user can jump between numbers
+- [x] Cards render in ascending `card_no`, exactly as the server ordered them
+
+> **Open question:** *"Snapshot matrix at 6 and 12 cards"* cannot be taken literally across the
+> whole Dynamic Type axis. `SnapshotRenderer` draws a screen at its natural height so that
+> truncation is visible rather than clipped away, and `UIImage.pngData()` returns `nil` above
+> roughly 8 000 px — twelve cards at `.accessibility5` on a 3× device is about 20 000 px. The
+> renderer reports this (`Could not encode …`) instead of writing a truncated file, which is how
+> the ceiling was found; measured: 6 cards × SE × `.accessibility5` = 750 × 7 150 px encodes, 6 ×
+> 15ProMax × `.accessibility5` does not.
+>
+> **Interpretation taken:** the two axes are split by what each one proves. The reflow axis (the
+> full 2 × 3 matrix) runs on a **3-card** flight — at `.accessibility1` and above `FlightCard`
+> stacks, so a longer flight repeats one card's reflow and proves nothing further. The **6-card**
+> and **12-card** flights run at `.large`, which is the only size where a number *column* exists
+> and therefore the only size at which two-digit alignment can go ragged.
+>
+> This is not a coverage gap for *"SE × 12 members × `.accessibility5`: everything reachable"* —
+> that claim is about reachability, not pixels, and `E14-02` owns it as a UI test that walks the
+> elements. Noted here so `E11-03` and `E14-02` do not re-litigate it.
 
 ---
 

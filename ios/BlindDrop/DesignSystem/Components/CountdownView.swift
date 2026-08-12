@@ -25,14 +25,48 @@ struct CountdownView: View {
     /// What the countdown is counting to, for the announcement — *"%@ until reveal"* or
     /// *"%@ until answers"* (`docs/11`).
     let announces: Copy.A11y.Deadline
+    /// How loudly it is drawn. Defaults to `.hero`, which is `docs/07` §5's `monoXL`.
+    var prominence: Prominence = .hero
+
+    /// The two jobs a countdown does in this app.
+    ///
+    /// `docs/07` §5 specifies `monoXL` because on Submit and Sealed the countdown **is** the
+    /// screen's second subject — the thing the eye lands on after the song. On Reveal it is not:
+    /// `docs/08` §6 draws it as one half of a `bodyM` status line, *"8 songs · 01:42:19"*, in
+    /// `monoM`. Both are the same countdown with the same clock and the same announcement, so
+    /// this is a size, not a second component.
+    ///
+    /// It deliberately does not touch `CountdownForm`. Which *words* a countdown uses at a given
+    /// Dynamic Type size is a legibility rule (`docs/12` §1) and stays the component's decision;
+    /// how large it is drawn is the screen's. Above `.accessibility2` both prominences still go
+    /// coarse — an inline countdown that kept eight monospaced digits at `.accessibility5` would
+    /// break the status line exactly the way the hero one breaks the screen.
+    enum Prominence: Sendable, Equatable {
+        /// Submit, Sealed, Voided: `monoXL`, the screen's second subject.
+        case hero
+        /// Reveal's status line: `monoM`, beside the song count.
+        case inline
+    }
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var form: CountdownForm { Typography.countdownForm(for: dynamicTypeSize) }
 
+    /// The style the two decisions resolve to: the form picks the words, the prominence the size.
+    private var typeStyle: TypeStyle {
+        switch (form, prominence) {
+        case (.precise, .hero): .monoXL
+        case (.precise, .inline): .monoM
+        case (.coarse, .hero): .bodyLStrong
+        // The coarse form is words, not digits, so its inline size comes off the body ramp and
+        // sits on the same baseline as the song count it follows.
+        case (.coarse, .inline): .bodyM
+        }
+    }
+
     var body: some View {
         Text(verbatim: Copy.countdown(timer.display))
-            .typeStyle(form.typeStyle)
+            .typeStyle(typeStyle)
             .foregroundStyle(accent.text)
             .accessibilityLabel(Copy.A11y.countdown(timer.display, until: announces))
             // Recomputed on focus rather than announced on every tick (`docs/12` §2). Without
