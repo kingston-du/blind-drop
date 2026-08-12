@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["$APP_ID_PREFIX.com.blinddrop.app"],
+        "components": [
+          {
+            "/": "/j/*",
+            "comment": "Invite links. Every other path on the domain opens in the browser."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -13,10 +13,13 @@
 		<string>Default</string>
 	</array>
 
-	<!-- Invite links (docs/04 §3). The domain lands when the pilot group's host is chosen. -->
+	<!-- Invite links: https://blinddrop.app/j/<CODE> (docs/05 §5, docs/16 §3). The claim is
+	     the whole domain — Apple's `applinks:` syntax has no path component; the paths live in
+	     the apple-app-site-association file at web/.well-known/, and DeepLink refuses every URL
+	     on the domain that is not /j/<CODE>. -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:blinddrop.example</string>
+		<string>applinks:blinddrop.app</string>
 	</array>
 
 	<!-- MusicKit is used for exactly one thing: Apple Music playlist export (docs/06 §6).

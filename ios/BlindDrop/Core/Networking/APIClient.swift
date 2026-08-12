@@ -139,6 +139,11 @@ actor APIClient {
             }
             await session.endSession()
         }
+
+        // `NO_PROFILE` and `NO_GROUP` are facts about the caller, not about the request, and
+        // they route (`docs/04` §2). Every other code is left alone here — the screen that
+        // asked is the one that knows what a `WRONG_PHASE` means to it.
+        await session.noteServerSaid(error)
         throw error
     }
 

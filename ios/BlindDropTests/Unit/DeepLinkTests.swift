@@ -21,6 +21,33 @@ import Testing
         #expect(DeepLink(URL(string: "blinddrop://join/%20k7mq2x%20")!) == .join(code: "K7MQ2X"))
     }
 
+    /// The invite universal link (`docs/05` §5, E09-04). It arrives through
+    /// `.onContinueUserActivity` rather than `.onOpenURL`, and it is the **same** destination as
+    /// the custom scheme — parsed here so there is one grammar for what an invite code is.
+    @Test func theInviteUniversalLinkParsesToTheSameJoin() {
+        #expect(DeepLink(URL(string: "https://blinddrop.app/j/K7MQ2X")!) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(URL(string: "https://blinddrop.app/j/k7mq2x")!) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!)
+                == DeepLink(URL(string: "https://blinddrop.app/j/K7MQ2X")!))
+    }
+
+    /// `applinks:blinddrop.app` hands the app **every** URL on the domain, so everything that
+    /// is not `/j/<CODE>` has to fall through to the browser. The entitlement cannot express
+    /// that; this initialiser is where it is expressed on the client.
+    @Test(arguments: [
+        "https://blinddrop.app",                  // the root
+        "https://blinddrop.app/j",                // no code
+        "https://blinddrop.app/j/",               // empty code
+        "https://blinddrop.app/j/A/B",            // a code is one path component
+        "https://blinddrop.app/privacy",          // some other page on the domain
+        "https://blinddrop.app/record",           // a scheme route's name, on the web host
+        "https://evil.example/j/K7MQ2X",          // the right shape, the wrong domain
+        "http://blinddrop.app/j/K7MQ2X",          // http, not https
+    ])
+    func onlyTheInvitePathOnTheInviteHostIsAUniversalLink(_ raw: String) {
+        #expect(URL(string: raw).flatMap(DeepLink.init) == nil)
+    }
+
     @Test(arguments: [
         "blinddrop://",                          // no route at all
         "blinddrop://round",                     // "current" is not optional
@@ -29,7 +56,6 @@ import Testing
         "blinddrop://join",                      // no code
         "blinddrop://join/",                     // empty code
         "blinddrop://join/A/B",                  // a code is one path component
-        "https://blinddrop.app/j/K7MQ2X",        // universal link — .onContinueUserActivity
         "http://127.0.0.1:8787/rounds/current",  // the API, not a deep link
     ])
     func malformedOrForeignURLsParseToNil(_ raw: String) {

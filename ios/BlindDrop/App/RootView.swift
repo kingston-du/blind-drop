@@ -46,10 +46,13 @@ struct RootView: View {
                     Color.clear
                 case .signIn:
                     SignInScreen()
-                case .displayName:
-                    DisplayNameScreen()
-                case .joinOrCreate:
-                    JoinOrCreateScreen(prefilledCode: router.pendingInviteCode)
+                // Both onboarding destinations are rendered by the one flow, deliberately. The
+                // routing table above still has two rows — they are two different things the
+                // server said — but the *view* is one, so `OnboardingStore` survives the
+                // transition between them. See `OnboardingStore`'s note on why the creator's
+                // invite code cannot live in `SessionState`.
+                case .displayName, .joinOrCreate:
+                    OnboardingFlow()
                 case .round:
                     RoundScreen()
                 }

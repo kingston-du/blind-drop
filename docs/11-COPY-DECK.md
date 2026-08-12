@@ -48,9 +48,12 @@ level up, don't miss out, hurry.*
 | `onboarding.create.name.placeholder` | Group name |
 | `onboarding.create.timezone` | Timezone |
 | `onboarding.create.timezone.help` | Everyone plays on this group's clock. It can't be changed later. |
+| `onboarding.create.timezone.search` | Search |
+| `onboarding.create.timezone.close` | Close |
 | `onboarding.create.hour` | Reveal at |
 | `onboarding.create.hour.help` | Songs open ten hours before. Answers land two hours after. |
 | `onboarding.create.action` | Create group |
+| `onboarding.create.back` | Join a group instead |
 | `onboarding.invite.title` | Your invite code |
 | `onboarding.invite.help` | Send this to your group. They'll need it to get in. |
 | `onboarding.invite.share` | Share invite |
@@ -334,6 +337,7 @@ Not visible copy, but user-facing. See `12-ACCESSIBILITY.md` for where each is a
 | `a11y.track` | %@ by %@ | (title, artist) — a search result row |
 | `a11y.track.hint` | Double-tap to choose this song |
 | `a11y.readability` | Readability %lld percent. %@. | (value, band) |
+| `a11y.invite.code` | Your invite code is %@. | the code spelled out, one character at a time |
 | `a11y.seal.done` | Sealed. |
 | `a11y.unseal.done` | Songs revealed. |
 

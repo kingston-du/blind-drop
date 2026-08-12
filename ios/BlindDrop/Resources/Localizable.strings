@@ -19,11 +19,35 @@
 "countdown.coarse.soon" = "under a minute";
 
 /* ── Onboarding (docs/11 §Onboarding) ──────────────────────────────────────── */
-/* Sign in is E09-01; the naming, joining and creating rows land with E09-02..04. */
 
 "onboarding.title" = "Blind Drop";
 "onboarding.subtitle" = "One song each, every day. Nobody sees anything until 8:00.";
 "onboarding.signin.apple" = "Sign in with Apple";
+"onboarding.name.title" = "What should we call you?";
+"onboarding.name.help" = "This is the name people guess with. Use the one your friends use.";
+"onboarding.name.placeholder" = "First name";
+"onboarding.name.error.empty" = "Enter a name to continue.";
+"onboarding.name.error.long" = "Keep it to 24 characters.";
+"onboarding.continue" = "Continue";
+"onboarding.group.title" = "Find your group";
+"onboarding.group.join" = "Join a group";
+"onboarding.group.code.placeholder" = "6-character code";
+"onboarding.group.code.error" = "No group with that code. Check it and try again.";
+"onboarding.group.create" = "Create a group instead";
+"onboarding.create.title" = "Start a group";
+"onboarding.create.name.placeholder" = "Group name";
+"onboarding.create.timezone" = "Timezone";
+"onboarding.create.timezone.help" = "Everyone plays on this group's clock. It can't be changed later.";
+"onboarding.create.timezone.search" = "Search";
+"onboarding.create.timezone.close" = "Close";
+"onboarding.create.hour" = "Reveal at";
+"onboarding.create.hour.help" = "Songs open ten hours before. Answers land two hours after.";
+"onboarding.create.action" = "Create group";
+"onboarding.create.back" = "Join a group instead";
+"onboarding.invite.title" = "Your invite code";
+"onboarding.invite.help" = "Send this to your group. They'll need it to get in.";
+"onboarding.invite.share" = "Share invite";
+"onboarding.invite.done" = "Go to today's round";
 
 /* ── Errors (docs/11 §Errors) ──────────────────────────────────────────────── */
 /* One row per `APIError.copyKey` and `AuthError.copyKey`. A failure the user cannot */
@@ -103,5 +127,6 @@
 "a11y.track" = "%@ by %@";
 "a11y.track.hint" = "Double-tap to choose this song";
 "a11y.readability" = "Readability %lld percent. %@.";
+"a11y.invite.code" = "Your invite code is %@.";
 "a11y.seal.done" = "Sealed.";
 "a11y.unseal.done" = "Songs revealed.";

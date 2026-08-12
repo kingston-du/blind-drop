@@ -116,6 +116,34 @@ final class SessionStore {
         }
     }
 
+    /// What **any** endpoint's failure says about who the caller is.
+    ///
+    /// `docs/04` §2: *"Returns `NO_PROFILE` … the client routes to onboarding step 2 on that
+    /// code"* — on the code, from wherever it arrives, and not only from `GET /me`. The two
+    /// cases that carry identity are the two in the table at the top of this file, and both can
+    /// come back from a route that has nothing to do with identity: a person who left their
+    /// group on another device gets `NO_GROUP` from `GET /rounds/current` and belongs on step
+    /// 1.3, not on a round screen showing an error they cannot act on.
+    ///
+    /// Every other error is ignored here on purpose. A `WRONG_PHASE` or a `NOT_FOUND` says
+    /// something about a request, not about a person, and a session that moved on those would be
+    /// a session that signs people out because a song lookup failed.
+    func noteServerSaid(_ error: APIError) {
+        // A dead session is not walked backwards into onboarding by a response that was already
+        // in flight when it ended.
+        guard state != .signedOut else { return }
+
+        switch error {
+        case .noProfile:
+            user = nil
+            state = .noProfile
+        case .noGroup:
+            state = .noGroup
+        default:
+            break
+        }
+    }
+
     // MARK: - Signing in
 
     /// Apple → Supabase → the Keychain → `GET /me`.
