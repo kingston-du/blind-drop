@@ -118,7 +118,7 @@ face down.
 
 ### E08-04 — Component library
 
-**Status:** todo · **Deps:** E08-02, E08-03 · **Reads:** `docs/07` §4–5, `docs/12` §2–5
+**Status:** wip · **Deps:** E08-02, E08-03 · **Reads:** `docs/07` §4–5, `docs/12` §2–5
 **Touches:** `DesignSystem/Components/*`, `DesignSystem/Space.swift`, `DesignSystem/Haptics.swift`,
 `BlindDropTests/Snapshot/SnapshotRenderer.swift`
 **Verify:** `xcodebuild test -only-testing:BlindDropSnapshotTests` — one snapshot per component
