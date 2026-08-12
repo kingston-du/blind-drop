@@ -45,7 +45,7 @@ artwork and metadata to the right.
 
 ### E11-02 — Guess interaction
 
-**Status:** todo · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
+**Status:** wip · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
 **Touches:** `Features/Reveal/{GuessSheet,RevealStore}.swift`
 **Verify:** UI test covering both interaction directions
 
