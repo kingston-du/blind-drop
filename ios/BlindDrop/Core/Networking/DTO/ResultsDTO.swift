@@ -102,7 +102,7 @@ struct ResultsDTO: Decodable, Sendable, Equatable {
 }
 
 /// How legible somebody is, in words (`docs/02` §4.5).
-enum ReadabilityBand: String, Decodable, Sendable, Equatable {
+enum ReadabilityBand: String, Decodable, Sendable, Equatable, CaseIterable {
     case openBook = "open_book"
     case legible
     case mixedSignals = "mixed_signals"

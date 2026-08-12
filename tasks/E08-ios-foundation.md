@@ -15,6 +15,26 @@ Runs against the fixture server (`E00-05`), so it does not wait on the backend.
 > the fleet. Until then a fresh checkout on a machine with a different Xcode will fail
 > verification for a reason that has nothing to do with the code.
 
+> **Open question:** `docs/07` §5 gives `StatMeter` *"five band labels below in `caption`
+> `inkFaint`, with the active band in `ink`"*; `docs/08` §7.2 draws the same component with
+> **one** label — *"open book"* under the marker. The five strings measure 320pt at `caption`'s
+> 12pt and an iPhone SE has 335pt of content width, so five never fit there at any text size,
+> and the equal-width columns that make them "fit" break *"Unreadable"* mid-word. `E08-04`
+> renders five where the width allows and the active band alone otherwise, via `ViewThatFits`.
+> The owner should decide whether the five-label spectrum is worth a smaller type style on the
+> labels, or whether `docs/07` §5 should be amended to `docs/08` §7.2's single label.
+
+> **Open question:** `docs/07` §5 specifies `TrackRow`'s title as *"1 line, truncating"*;
+> `docs/12` §1 says *"nothing truncates and nothing overlaps at `.accessibility5` on an iPhone
+> SE"* and `docs/12` §8 wants an assertion that no `Text` reports a truncated layout. At
+> `.accessibility5` a one-line row truncates *"Motion Sickness"* to *"Motion…"*, so the two
+> cannot both hold. `E08-04` reads each as governing its own case: one truncating line at the
+> reading sizes, where the row is being scanned and a wrapping title turns a scannable list
+> into a paragraph, and unbounded wrapping from `.accessibility1` up, where the reader needs
+> the title more than they need the list to be short. The owner should confirm, because the
+> alternative — truncating at every size and letting `docs/12`'s assertion carve out an
+> exception for this row — is also defensible and is a smaller change.
+
 > **Open question:** the **Verify** lines for `E08-02`, `E08-03`, `E08-05`, `E08-06` and
 > `E08-07` name `-only-testing:BlindDropTests/…`. `BlindDropTests/` is the directory on disk;
 > the three test *targets* are `BlindDropUnitTests`, `BlindDropSnapshotTests` and
@@ -118,11 +138,16 @@ face down.
 
 ### E08-04 — Component library
 
-**Status:** wip · **Deps:** E08-02, E08-03 · **Reads:** `docs/07` §4–5, `docs/12` §2–5
+**Status:** done · **Deps:** E08-02, E08-03 · **Reads:** `docs/07` §4–5, `docs/12` §2–5
 **Touches:** `DesignSystem/Components/*`, `DesignSystem/Space.swift`, `DesignSystem/Haptics.swift`,
-`BlindDropTests/Snapshot/SnapshotRenderer.swift`
+`DesignSystem/PhaseAccent.swift`, `DesignSystem/Copy.swift`, `Resources/Localizable.strings`,
+`App/AppEnvironment.swift`, `BlindDropTests/Snapshot/{SnapshotRenderer,ComponentSnapshotTests}.swift`,
+`BlindDropTests/Unit/ComponentTests.swift`, `BlindDropTests/__Snapshots__/Components/*`,
+`docs/11-COPY-DECK.md`
 **Verify:** `xcodebuild test -only-testing:BlindDropSnapshotTests` — one snapshot per component
-at `{large, accessibility1, accessibility5}`
+at `{large, accessibility1, accessibility5}` — plus
+`-only-testing:BlindDropUnitTests/ComponentRules` and `…/AccessibilityCopyTests` for the parts
+that are rules rather than pixels
 
 **Resolved** (owner, 2026-08-11): this task's **Verify** was snapshot tests, and the snapshot
 harness is `E08-07`, which depends on `E08-04` — the two could not both go first. The renderer
@@ -132,19 +157,61 @@ on top of it. The checklists below reflect that; the numbering is unchanged.
 Ten components from `docs/07` §5. Build them with their accessibility from `docs/12` §2 —
 retrofitting VoiceOver later means rebuilding the view hierarchy.
 
-- [ ] The renderer, first: draws a view at a given device size and Dynamic Type size and diffs
+- [x] The renderer, first: draws a view at a given device size and Dynamic Type size and diffs
       it against a golden PNG. Hand-rolled, no third-party snapshot library (`docs/13` §1).
       `E08-07` builds the matrix, the diff output and the dark-mode test on top of it
-- [ ] `PrimaryButton` takes the phase accent as a parameter, never hardcodes it
-- [ ] `FlightCard` is a **single** accessibility element with the preview control as a nested
+- [x] `PrimaryButton` takes the phase accent as a parameter, never hardcodes it
+- [x] `FlightCard` is a **single** accessibility element with the preview control as a nested
       child and a custom action
-- [ ] `StatMeter` renders a marker, **no fill from the left** — filling implies more is better
-- [ ] `NameChip` consumed state carries both opacity and an accessibility value change
-- [ ] `ArtworkView` substitutes `{w}x{h}` at the sizes in `docs/06` §2.1 × display scale,
+- [x] `StatMeter` renders a marker, **no fill from the left** — filling implies more is better
+- [x] `NameChip` consumed state carries both opacity and an accessibility value change
+- [x] `ArtworkView` substitutes `{w}x{h}` at the sizes in `docs/06` §2.1 × display scale,
       capped at 1200, with the `artwork_bg_color` placeholder at 12%
-- [ ] `CountdownView` takes a `ServerClock`, never `Date()`
-- [ ] No shadows on any component
-- [ ] Every interactive element ≥ 44×44 `contentShape`
+- [x] `CountdownView` takes a `ServerClock`, never `Date()`
+- [x] No shadows on any component
+- [x] Every interactive element ≥ 44×44 `contentShape`
+
+Notes:
+
+- **`PhaseAccent` is the type that keeps "one accent per screen" true.** Every component takes
+  one; none reaches into `Palette` for amber or ultramarine. `PhaseAccent(_ state:)` maps
+  `docs/07` §6, so a screen holding a `RoundDTO` never has to remember that `voided` is amber.
+- **An eleventh file, `PreviewControl`, joins the ten.** It is a *part* of `TrackRow` and
+  `FlightCard` rather than a component of its own — `docs/12` §2 gives it its own VoiceOver row,
+  which is the clearest sign it is one thing and not two copies of thirty lines.
+- **`Resources/Localizable.strings` starts here**, not at `E09-01`. `docs/12` §2 requires
+  components to build their own VoiceOver labels, and a label is a string; the alternative was
+  hardcoding words a component's file, which is what `docs/11` exists to prevent. Only the rows
+  `DesignSystem/` renders are in it. Seven VoiceOver rows `docs/12` §2 specified in prose but
+  never gave keys — the two hints, the two name-chip states, the assignment announcement, the
+  track-row label, and the clear-guess action — were added to `docs/11` in the same commit
+  (`CLAUDE.md` §6). Lint rules 7 and 8 are live from now on.
+- **Two spec details came from `docs/08` rather than `docs/07` §5**, and both change what the
+  component draws: the caller's own card renders *"Yours"* as a plain `amberText` label and not
+  a chip — §6's *"the ONE place amber appears here, because your card is still your secret"* —
+  and an assigned card's chip carries a `✕`, exposed to VoiceOver as a named action so no
+  gesture is the only way to do anything (`docs/12` §5).
+- `SealedCard` draws the **landed** state of `docs/09` §2 rather than the animation, so
+  `E10-04` has an end state to animate *to* instead of being the only place a sealed card
+  exists. Its `coverage` parameter is the seam the animation drives.
+- `ArtworkLoading` is a protocol with a **synchronous** cache read on it, because a view has to
+  answer "do I have this already" while building its body. That is also what makes the
+  snapshots deterministic: `ImageRenderer` never runs `.task`, so a rendered artwork is one the
+  test put in the cache and nothing else.
+- Three layout facts were found by looking at the goldens, not by reading the spec, and each is
+  now a comment where it was fixed: `FlightCard` reserves a two-digit number column measured off
+  the font (otherwise the artwork edge is ragged down a twelve-card list); its assignment chip
+  sits below the artwork row indented to the artwork's edge, where `docs/08` §6 draws it, because
+  the metadata column is narrower than *"Who dropped this?"*; and at `.accessibility1` the whole
+  card stacks — the artwork leaves the row with the number — because an 88pt thumbnail beside the
+  text leaves the title a column narrower than the word *Sickness*, and a column narrower than a
+  word does not wrap, it breaks mid-word.
+- `RECORD_SNAPSHOTS=1` must be exported to `xcodebuild` as **`TEST_RUNNER_RECORD_SNAPSHOTS=1`**.
+  `xcodebuild` forwards only `TEST_RUNNER_`-prefixed variables into the simulator, with the
+  prefix stripped. A bare `RECORD_SNAPSHOTS=1` and a trailing
+  `TEST_RUNNER_RECORD_SNAPSHOTS=1` *argument* both fail the same quiet way — the goldens are
+  written anyway, because a missing golden is always written, but every test reports the failure
+  that says it happened.
 
 ---
 

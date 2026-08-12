@@ -1,0 +1,68 @@
+/* Localizable.strings — every user-facing string in the app.
+ *
+ * The source of truth is docs/11-COPY-DECK.md. Rows are transcribed from it verbatim, and a
+ * string that is not in the deck does not get invented here: CLAUDE.md §6 says add it to the
+ * deck in the same commit. ios/scripts/lint.sh rules 7 and 8 read this file — no exclamation
+ * marks, and none of the words the deck's voice section rules out.
+ *
+ * Rows land as the screens that need them land. This first set is what DesignSystem/ renders:
+ * the countdown's own words, the readability bands, and the VoiceOver formats — the components
+ * build those themselves because a label is part of the view hierarchy, not part of a screen's
+ * copy (docs/12 §2).
+ */
+
+/* ── The countdown (docs/11 §The countdown) ────────────────────────────────── */
+
+"countdown.unknown" = "--:--:--";
+"countdown.coarse.hours" = "%lld hours";
+"countdown.coarse.minutes" = "%lld minutes";
+"countdown.coarse.soon" = "under a minute";
+
+/* ── Rows the component snapshots stand a button or an empty state up with ─── */
+/* Their screens land in E09–E12 and bring the rest of their sections with them. */
+
+"submit.headline" = "Drop one song.";
+"submit.subhead" = "Nobody sees it until 8:00 PM.";
+"submit.action" = "Drop a song";
+"sealed.replace" = "Replace song";
+"reveal.action" = "Lock in guesses";
+
+/* ── Reveal (docs/11 §Reveal and guess) ────────────────────────────────────── */
+/* The two `FlightCard` prints for itself; the rest of the section lands with E11. */
+
+"reveal.card.prompt" = "Who dropped this?";
+"reveal.card.mine" = "Yours";
+
+/* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
+/* No band is framed as good or bad. */
+
+"band.open_book" = "Open book";
+"band.legible" = "Legible";
+"band.mixed_signals" = "Mixed signals";
+"band.hard_to_place" = "Hard to place";
+"band.unreadable" = "Unreadable";
+
+/* ── VoiceOver (docs/11 §VoiceOver, applied per docs/12 §2) ────────────────── */
+
+"a11y.card" = "No. %lld. %@ by %@.";
+"a11y.card.guessed" = "No. %lld. %@ by %@. Guessed as %@.";
+"a11y.card.unguessed" = "No. %lld. %@ by %@. No guess yet.";
+"a11y.card.mine" = "No. %lld. %@ by %@. Your song.";
+"a11y.card.hint" = "Double-tap to choose who dropped this";
+"a11y.card.result" = "No. %lld. %@ by %@. Dropped by %@. %lld of %lld got it.";
+"a11y.card.result.mine" = "Your guess was %@. %@.";
+"a11y.sealed" = "Your song is sealed. %@ by %@. Reveal in %@.";
+"a11y.countdown" = "%@ until reveal";
+"a11y.countdown.answers" = "%@ until answers";
+"a11y.namechip" = "%@. %@";
+"a11y.namechip.unassigned" = "Unassigned";
+"a11y.namechip.assigned" = "Assigned to No. %lld";
+"a11y.guess.assigned" = "No. %lld assigned to %@.";
+"a11y.guess.clear" = "Clear guess";
+"a11y.preview.play" = "Play preview";
+"a11y.preview.stop" = "Stop preview";
+"a11y.track" = "%@ by %@";
+"a11y.track.hint" = "Double-tap to choose this song";
+"a11y.readability" = "Readability %lld percent. %@.";
+"a11y.seal.done" = "Sealed.";
+"a11y.unseal.done" = "Songs revealed.";

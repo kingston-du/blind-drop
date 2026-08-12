@@ -318,14 +318,27 @@ Not visible copy, but user-facing. See `12-ACCESSIBILITY.md` for where each is a
 | `a11y.card.guessed` | No. %lld. %@ by %@. Guessed as %@. |
 | `a11y.card.unguessed` | No. %lld. %@ by %@. No guess yet. |
 | `a11y.card.mine` | No. %lld. %@ by %@. Your song. |
+| `a11y.card.hint` | Double-tap to choose who dropped this |
 | `a11y.card.result` | No. %lld. %@ by %@. Dropped by %@. %lld of %lld got it. |
 | `a11y.card.result.mine` | Your guess was %@. %@. |
 | `a11y.sealed` | Your song is sealed. %@ by %@. Reveal in %@. |
 | `a11y.countdown` | %@ until reveal |
 | `a11y.countdown.answers` | %@ until answers |
-| `a11y.namechip` | %@. %@ | (name, "unassigned" / "assigned to No. 3") |
+| `a11y.namechip` | %@. %@ | (name, then one of the two below) |
+| `a11y.namechip.unassigned` | Unassigned |
+| `a11y.namechip.assigned` | Assigned to No. %lld |
+| `a11y.guess.assigned` | No. %lld assigned to %@. | posted as an `.announcement` |
+| `a11y.guess.clear` | Clear guess | the `✕` on an inline chip, as a named action |
 | `a11y.preview.play` | Play preview |
 | `a11y.preview.stop` | Stop preview |
+| `a11y.track` | %@ by %@ | (title, artist) — a search result row |
+| `a11y.track.hint` | Double-tap to choose this song |
 | `a11y.readability` | Readability %lld percent. %@. | (value, band) |
 | `a11y.seal.done` | Sealed. |
 | `a11y.unseal.done` | Songs revealed. |
+
+Seven of these rows were written down at `E08-04` rather than invented at a call site
+(`CLAUDE.md` §6). `12-ACCESSIBILITY.md` §2 already specified every one of them in prose — the
+two card and track-row hints, the two name-chip states that fill `a11y.namechip`'s second
+placeholder, the assignment announcement, and the track row's own label — but none of them had
+a key, so a component would have had to hardcode the words to satisfy the accessibility spec.

@@ -1,0 +1,255 @@
+import SwiftUI
+import Testing
+@testable import BlindDrop
+
+/// One snapshot per component of `docs/07` §5, at `{large, accessibility1, accessibility5}`.
+///
+/// The three sizes are not arbitrary. `.large` is the default nobody's layout breaks at;
+/// `.accessibility1` is where `docs/12` §1 requires side-by-side layouts to **reflow to
+/// stacked**, so it is the size at which a `ViewThatFits` that never fires shows up; and
+/// `.accessibility5` on a 375pt width is the worst case in the app — the combination `docs/12`
+/// §1 says to test explicitly, where *"nothing truncates and nothing overlaps"* either holds or
+/// visibly does not.
+///
+/// `E08-07` widens this to the full device × size matrix and adds the dark-mode test.
+/// iPhone SE's content width. The narrow case is the one worth pinning: anything that fits here
+/// fits a 15 Pro Max, and `E08-07` adds the wide device for the layouts that reflow.
+///
+/// File-scope rather than a member of the suite because `@Test(arguments:)` evaluates its
+/// arguments outside the actor the suite is isolated to.
+private let snapshotWidth: CGFloat = 375
+private let sizes: [DynamicTypeSize] = [.large, .accessibility1, .accessibility5]
+
+@MainActor
+@Suite struct ComponentSnapshots {
+
+    // MARK: - The ten components
+
+    @Test(arguments: sizes) func primaryButton(_ size: DynamicTypeSize) {
+        verify(named: "PrimaryButton", size) {
+            VStack(spacing: Space.lg) {
+                PrimaryButton("submit.action", accent: .sealed) {}
+                PrimaryButton("reveal.action", accent: .revealed) {}
+                PrimaryButton("reveal.action", accent: .revealed, isEnabled: false) {}
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func secondaryButton(_ size: DynamicTypeSize) {
+        verify(named: "SecondaryButton", size) {
+            VStack(alignment: .leading, spacing: Space.lg) {
+                SecondaryButton("sealed.replace") {}
+                SecondaryButton("sealed.replace", isEnabled: false) {}
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func trackRow(_ size: DynamicTypeSize) {
+        verify(named: "TrackRow", size) {
+            VStack(spacing: 0) {
+                TrackRow(track: .ribs, preview: .init(isPlaying: false) {}) {}
+                TrackRow(track: .motionSickness, preview: .init(isPlaying: true) {}) {}
+                TrackRow(track: .longTitle) {}
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func flightCard(_ size: DynamicTypeSize) {
+        verify(named: "FlightCard", size) {
+            VStack(spacing: Space.lg) {
+                FlightCard(
+                    number: 4,
+                    track: .motionSickness,
+                    accent: .revealed,
+                    assignment: .unguessed,
+                    preview: .init(isPlaying: false) {},
+                    chooseGuess: {}
+                )
+                FlightCard(
+                    number: 11,
+                    track: .ribs,
+                    accent: .revealed,
+                    assignment: .guessed(name: "Cal"),
+                    chooseGuess: {}
+                )
+                FlightCard(number: 7, track: .ribs, accent: .revealed, assignment: .mine)
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func sealedCard(_ size: DynamicTypeSize) {
+        verify(named: "SealedCard", size) {
+            SealedCard(track: .ribs, groupInitial: "H", remaining: "02:01:05")
+        }
+    }
+
+    @Test(arguments: sizes) func nameChip(_ size: DynamicTypeSize) {
+        verify(named: "NameChip", size) {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                NameChip(member: .cal, state: .unused) {}
+                NameChip(member: .priya, state: .consumed(cardNumber: 3)) {}
+                NameChip(member: .theo, state: .selected) {}
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func countdown(_ size: DynamicTypeSize) {
+        verify(named: "CountdownView", size) {
+            CountdownFixture.view(remaining: 7265, size: size)
+        }
+    }
+
+    @Test(arguments: sizes) func statMeter(_ size: DynamicTypeSize) {
+        verify(named: "StatMeter", size) {
+            VStack(alignment: .leading, spacing: Space.x3) {
+                StatMeter(value: 0.86, band: ReadabilityBand(readability: 0.86))
+                StatMeter(value: 0.14, band: ReadabilityBand(readability: 0.14))
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func artwork(_ size: DynamicTypeSize) {
+        verify(named: "ArtworkView", size) {
+            HStack(alignment: .top, spacing: Space.lg) {
+                ArtworkView(.ribs, size: Layout.Artwork.searchRow)
+                ArtworkView(.ribs, size: Layout.Artwork.flightCard)
+                // No template: the placeholder, which is the state a card in The Record can
+                // legitimately reach when Apple's URL stops resolving.
+                ArtworkView(template: nil, backgroundColor: "1d2b3a", size: Layout.Artwork.flightCard)
+            }
+        }
+    }
+
+    @Test(arguments: sizes) func emptyState(_ size: DynamicTypeSize) {
+        verify(named: "EmptyState", size) {
+            EmptyState(
+                headline: "submit.headline",
+                message: "submit.subhead",
+                action: .init(title: "submit.action", accent: .sealed) {}
+            )
+        }
+    }
+
+    // MARK: -
+
+    private func verify(
+        named name: String,
+        _ size: DynamicTypeSize,
+        sourceLocation: SourceLocation = #_sourceLocation,
+        @ViewBuilder content: () -> some View
+    ) {
+        let image = SnapshotRenderer.image(
+            of: content(),
+            width: snapshotWidth,
+            typeSize: size
+        )
+        SnapshotRenderer.verify(
+            image,
+            named: "\(name)-\(size.snapshotName)",
+            in: "Components",
+            sourceLocation: sourceLocation
+        )
+    }
+}
+
+extension DynamicTypeSize {
+    /// The name a golden file carries. Spelled out rather than derived from `String(describing:)`
+    /// so that a Swift release renaming a case does not rename every file on disk.
+    var snapshotName: String {
+        switch self {
+        case .xSmall: "xSmall"
+        case .small: "small"
+        case .medium: "medium"
+        case .large: "large"
+        case .xLarge: "xLarge"
+        case .xxLarge: "xxLarge"
+        case .xxxLarge: "xxxLarge"
+        case .accessibility1: "accessibility1"
+        case .accessibility2: "accessibility2"
+        case .accessibility3: "accessibility3"
+        case .accessibility4: "accessibility4"
+        case .accessibility5: "accessibility5"
+        @unknown default: "unknown"
+        }
+    }
+}
+
+// MARK: - Fixtures
+
+/// A countdown wired to a frozen clock.
+///
+/// The clock is anchored with a fixed uptime reading and a fixed `server_now`, so the timer
+/// resolves to the same digits on every run — and the view is handed a started timer, because
+/// `ImageRenderer` does not run `.onAppear` and a timer nobody started reads `--:--:--`.
+@MainActor
+enum CountdownFixture {
+    static let serverNow = Date(timeIntervalSince1970: 1_786_000_000)
+
+    static func view(remaining: TimeInterval, size: DynamicTypeSize) -> some View {
+        let clock = ServerClock(uptime: { 1_000 })
+        clock.sync(serverNow: serverNow)
+        let timer = CountdownTimer(clock: clock)
+        let deadline = serverNow.addingTimeInterval(remaining)
+        timer.start(until: deadline, form: Typography.countdownForm(for: size))
+        return CountdownView(timer: timer, deadline: deadline, accent: .sealed, announces: .reveal)
+    }
+}
+
+extension TrackDTO {
+    static let ribs = TrackDTO(
+        trackKey: "isrc:NZUM71300123",
+        isrc: "NZUM71300123",
+        title: "Ribs",
+        artist: "Lorde",
+        album: "Pure Heroine",
+        artworkURL: "https://example.test/{w}x{h}bb.jpg",
+        artworkBackgroundColor: "1d2b3a",
+        durationMilliseconds: 249_000,
+        previewURL: URL(string: "https://example.test/ribs.m4a"),
+        appleMusicID: "1440857781",
+        appleMusicURL: URL(string: "https://music.apple.com/us/song/ribs/1440857781")!,
+        spotifyID: nil,
+        spotifyURL: nil
+    )
+
+    static let motionSickness = TrackDTO(
+        trackKey: "isrc:USUM71703861",
+        isrc: "USUM71703861",
+        title: "Motion Sickness",
+        artist: "Phoebe Bridgers",
+        album: "Stranger in the Alps",
+        artworkURL: "https://example.test/{w}x{h}bb.jpg",
+        artworkBackgroundColor: "3a2b1d",
+        durationMilliseconds: 240_000,
+        previewURL: URL(string: "https://example.test/motion.m4a"),
+        appleMusicID: "1440857782",
+        appleMusicURL: URL(string: "https://music.apple.com/us/song/motion-sickness/1440857782")!,
+        spotifyID: nil,
+        spotifyURL: nil
+    )
+
+    /// The truncation case. A one-line row that grows with the text and truncates at its end is
+    /// intact; a layout that overlaps at `.accessibility5` is not, and this is the fixture that
+    /// tells them apart in a diff.
+    static let longTitle = TrackDTO(
+        trackKey: "am:1234567890",
+        isrc: nil,
+        title: "Everything Is Embarrassing (Extended Mix) [Remastered 2019]",
+        artist: "Sky Ferreira with a very long collaborator credit",
+        album: "Ghost",
+        artworkURL: nil,
+        artworkBackgroundColor: nil,
+        durationMilliseconds: 300_000,
+        previewURL: nil,
+        appleMusicID: "1234567890",
+        appleMusicURL: URL(string: "https://music.apple.com/us/song/x/1234567890")!,
+        spotifyID: nil,
+        spotifyURL: nil
+    )
+}
+
+extension MemberDTO {
+    static let cal = MemberDTO(userID: "u1", displayName: "Cal")
+    static let priya = MemberDTO(userID: "u2", displayName: "Priya")
+    static let theo = MemberDTO(userID: "u3", displayName: "Theo")
+}
