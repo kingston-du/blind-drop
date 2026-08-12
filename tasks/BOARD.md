@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E09-02`. `E00`–`E08` and `E09-01` are done.
+**Start here:** `E10-01`. `E00`–`E09` are done.
 
 ---
 
@@ -121,9 +121,9 @@ E04..E07 + E13  ─ E14 QA & release
 | Task | Status | Deps | Proves |
 |---|---|---|---|
 | E09-01 Sign in with Apple | done | E08-05 | — |
-| E09-02 Display name | wip | E09-01 | — |
-| E09-03 Join or create group | wip | E09-02 | — |
-| E09-04 Invite code screen and deep link | wip | E09-03 | — |
+| E09-02 Display name | done | E09-01 | — |
+| E09-03 Join or create group | done | E09-02 | — |
+| E09-04 Invite code screen and deep link | done | E09-03 | — |
 
 ## E10 — Submit and the seal · [file](E10-submit-and-seal.md)
 
@@ -193,10 +193,10 @@ E04..E07 + E13  ─ E14 QA & release
 | E06 | 4 / 4 |
 | E07 | 6 / 6 |
 | E08 | 7 / 7 |
-| E09 | 1 / 4 |
+| E09 | 4 / 4 |
 | E10 | 0 / 7 |
 | E11 | 3 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **52 / 80** |
+| **Total** | **55 / 80** |
