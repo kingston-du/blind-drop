@@ -52,9 +52,10 @@ import UIKit
 
     // MARK: - The variation axes
 
-    /// `wdth` is asked for at 110 and the shipped face stops at 100, so what is asserted is
-    /// the *clamp*: the numerals are set at the widest cut the typeface has, and the request
-    /// is not silently dropped on the floor. See the open question in `tasks/E08`.
+    /// `docs/07` §3: the numerals are set in the widest cut the face carries, and the width is
+    /// read off the font rather than transcribed. What is asserted is both halves — the axis
+    /// is set to its own maximum, and that maximum is still the number the doc records, so a
+    /// font swap that quietly narrows the family fails here instead of shipping.
     @Test func theDisplayFaceIsSetOnItsAxes() throws {
         let font = Typography.uiFont(.displayXL, for: smallest)
         let axes = try #require(CTFontCopyVariationAxes(font as CTFont) as? [[CFString: Any]])
@@ -84,10 +85,9 @@ import UIKit
         let weight = try axis("wght")
         let optical = try axis("opsz")
 
-        // The clamp, in writing: 110 is asked for, and what the numerals are set in is the
-        // widest cut the face has.
-        #expect(Typography.displayWidth > width.maximum, "the axis grew — revisit tasks/E08")
-        #expect(try setting("wdth") == width.maximum)
+        #expect(try setting("wdth") == width.maximum, "the widest cut the face has")
+        #expect(Typography.displayWidth == width.maximum,
+                "the face's width axis moved — docs/07 §3 records this number")
 
         #expect(try setting("wght") == Typography.displayWeight)
         #expect(Typography.displayWeight >= weight.minimum)

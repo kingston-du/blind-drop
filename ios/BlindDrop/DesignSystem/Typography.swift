@@ -17,11 +17,11 @@ import UIKit
 /// raw size in a feature file, because a fixed size is a screen that breaks at
 /// `.accessibility5` and nobody notices until somebody who needs it opens the app.
 enum TypeStyle: String, CaseIterable, Sendable {
-    /// 56/56 · Bricolage 600 wdth110 — the reveal card number, the countdown.
+    /// 56/56 · Bricolage 600 wdth max — the reveal card number, the countdown.
     case displayXL
-    /// 40/44 · Bricolage 600 wdth110 — the results headline.
+    /// 40/44 · Bricolage 600 wdth max — the results headline.
     case displayL
-    /// 28/32 · Bricolage 600 wdth110 — a screen title, used sparingly.
+    /// 28/32 · Bricolage 600 wdth max — a screen title, used sparingly.
     case displayM
     /// 17/24 · SF Pro Text Regular — the default.
     case bodyL
@@ -165,16 +165,16 @@ enum Typography {
     /// `TypographyTests` asserts it actually loaded rather than trusting the plist.
     static let displayFamily = "Bricolage Grotesque"
 
-    /// `docs/07` §3: *"Set the `wdth` axis to 110 — the expanded cut is what gives the numbers
-    /// character."*
+    /// `docs/07` §3: *"Set the `wdth` axis to the widest cut the face carries — the expanded
+    /// cut is what gives the numbers character."*
     ///
-    /// The shipped face tops out at 100 (see the open question in `tasks/E08`), so the request
-    /// is **clamped to the axis**, not dropped: the widest cut the typeface has is what the
-    /// numbers are set in. Clamping rather than passing 110 through matters — CoreText's
-    /// behaviour for an out-of-range axis value is not something to be relying on, and a
-    /// silently ignored variation would leave the numerals at the default width with nothing
-    /// on screen to say so.
-    static let displayWidth: CGFloat = 110
+    /// So the value is **read off the face** rather than written down: whatever the width axis
+    /// tops out at is what the numerals are set in, which is what the rule actually says. The
+    /// constant below is the shipped face's maximum, and it is used for one thing — the
+    /// fallback when a face has no width axis at all, and the number `TypographyTests` checks
+    /// the face against, so that a font swap which quietly narrows the family is noticed
+    /// rather than absorbed.
+    static let displayWidth: CGFloat = 100
 
     /// `wght 600` — semibold. Inside the face's 200…800 range, so it is set exactly.
     static let displayWeight: CGFloat = 600
@@ -252,7 +252,9 @@ enum Typography {
         let probe = UIFont(descriptor: descriptor, size: pointSize)
         let variations: [Int: CGFloat] = [
             Axis.weight: clamped(displayWeight, to: Axis.weight, of: probe),
-            Axis.width: clamped(displayWidth, to: Axis.width, of: probe),
+            // The widest cut the face has, whatever that is — `docs/07` §3's rule, read off
+            // the font rather than transcribed from it.
+            Axis.width: widest(Axis.width, of: probe) ?? displayWidth,
             Axis.opticalSize: clamped(pointSize, to: Axis.opticalSize, of: probe),
         ]
         let variationKey = UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String)
@@ -263,14 +265,24 @@ enum Typography {
     /// A variation value, clamped into the axis's own range. An axis the face does not have
     /// returns the value unchanged — setting an absent axis is a no-op either way.
     private static func clamped(_ value: CGFloat, to axis: Int, of font: UIFont) -> CGFloat {
+        guard let range = range(of: axis, in: font) else { return value }
+        return min(max(value, range.minimum), range.maximum)
+    }
+
+    /// The top of an axis, or `nil` if the face does not have it.
+    private static func widest(_ axis: Int, of font: UIFont) -> CGFloat? {
+        range(of: axis, in: font)?.maximum
+    }
+
+    private static func range(of axis: Int, in font: UIFont) -> (minimum: CGFloat, maximum: CGFloat)? {
         guard let axes = CTFontCopyVariationAxes(font as CTFont) as? [[CFString: Any]],
               let match = axes.first(where: {
                   ($0[kCTFontVariationAxisIdentifierKey] as? Int) == axis
               }),
               let minimum = match[kCTFontVariationAxisMinimumValueKey] as? CGFloat,
               let maximum = match[kCTFontVariationAxisMaximumValueKey] as? CGFloat
-        else { return value }
-        return min(max(value, minimum), maximum)
+        else { return nil }
+        return (minimum, maximum)
     }
 
     /// Pins the numerals to one advance width, so nothing moves sideways as a number changes.

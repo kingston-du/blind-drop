@@ -147,12 +147,11 @@ Client-credentials flow, our credentials, server-side only.
 - [x] Golden files for both routes (`groups_record`, `groups_record_export`), so the archive's
       shape is reviewed like every other payload reachable during `open`
 
-> **Open question:** `docs/04` §5 says the record is "cursor-paginated at 50 (max 100)" without
-> saying what is being counted. Implemented as **songs**, not nights: the payload's size is what
-> a page limit is for, and a group of twelve would otherwise ship 600 entries on one page. The
-> cursor is a `local_date`, so a night is never split across a page boundary — nights are taken
-> while their songs fit, and the first night of a page is taken whether it fits or not, so a
-> group larger than the requested limit can still turn the page. The consequence a client sees:
-> a page can carry more than `limit` songs when a single night is bigger than the budget.
-> Owner's call to confirm; the alternative reading (limit counts nights) is a one-line change in
-> `fitPage`.
+**Resolved** (owner, 2026-08-11): `docs/04` §5 said the record is "cursor-paginated at 50 (max
+100)" without saying what was being counted. It counts **songs**, not nights — the payload's
+size is what a page limit is for, and a group of twelve would otherwise ship 600 entries on one
+page. A night is never split across a page boundary, because the cursor is a `local_date` and
+half a night has no cursor that could resume it; the first night of a page is taken whether it
+fits or not, so a group larger than the requested limit still turns the page. The consequence a
+client sees — a page may carry more than `limit` songs when one night is bigger than the whole
+budget — is now written into `docs/04` §5.

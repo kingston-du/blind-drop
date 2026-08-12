@@ -402,6 +402,14 @@ max 100).
 ```
 
 - Newest first, grouped by `local_date`.
+- **`limit` counts songs, not nights**, because what a page limit is protecting is the size of
+  the payload — a group of twelve would otherwise ship 600 entries on one page. Nights are
+  taken while their songs fit and **a night is never split across a page**: the cursor is a
+  date, so half a night has no cursor that could resume it. The first night of a page is taken
+  whether it fits or not, so a group larger than the requested limit still turns the page
+  rather than getting nothing forever — which means a page may carry more than `limit` songs
+  when one night is bigger than the whole budget. `next_cursor` is sent when a night was left
+  behind and is `null` when the archive ran out.
 - **Only rounds in state `scored`** appear. A `revealed` round is not in the archive yet, and
   a `voided` round never enters it — its submissions were returned unseen and publishing them
   later would retroactively break the blind window.

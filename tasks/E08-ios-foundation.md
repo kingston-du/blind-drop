@@ -89,8 +89,8 @@ row of the `docs/07` §2 contrast table.
 `Resources/Fonts/OFL.txt`, `Info.plist`, `BlindDropTests/Unit/TypographyTests.swift`
 **Verify:** `xcodebuild test -only-testing:BlindDropUnitTests/TypographyTests`
 
-- [x] Bricolage Grotesque variable font bundled and registered; `wdth` axis set as high as the
-      face goes — see the open question below
+- [x] Bricolage Grotesque variable font bundled and registered; `wdth` axis set to the widest
+      cut the face carries — see the resolution below
 - [x] The eleven `TypeStyle` cases from `docs/07` §3
 - [x] Every style scales with Dynamic Type via `UIFontMetrics` / `ScaledMetric`
 - [x] **Tabular figures on every mono style and every display numeral**
@@ -98,41 +98,43 @@ row of the `docs/07` §2 contrast table.
 - [x] Countdown switches to the coarse form above `.accessibility2` (`docs/12` §1)
 - [x] Test: the display face actually loaded — assert the resolved font name is not SF Pro
 
-> **Open question:** `docs/07` §3 says *"Set the `wdth` axis to 110"*. Bricolage Grotesque's
-> width axis runs **75…100** — the shipped variable font (Google Fonts / ateliertriay, the same
-> 408KB file in both) has no 110, so no build of this app can honour the number as written. The
-> request is therefore **clamped to the axis maximum**: the numerals are set in the widest cut
-> the typeface has, which is what "the expanded cut" means for this family, and
-> `TypographyTests.theDisplayFaceIsSetOnItsAxes` asserts the clamp rather than the literal 110
-> so that a silently-ignored variation cannot pass. The owner needs to decide whether `docs/07`
-> §3 should say 100, or whether the design intends a different face. Clamping applies to every
-> axis, so if a future release widens the axis the app picks it up with no code change.
->
-> Two smaller calls made here, both noted for review: the `opsz` axis (which `docs/07` §3 does
-> not mention) is set to the size the glyphs are actually drawn at, because leaving it at the
-> file's 96pt default sets a 28pt screen title in spacing designed for a poster; and each style
-> scales along a named Dynamic Type ramp (`largeTitle` for the display face, `body` for body
-> text) rather than all of them riding `.body`, which is what keeps the 1.6× ceiling from being
-> the only thing holding the display face down.
+**Resolved** (owner, 2026-08-11): `docs/07` §3 asked for `wdth 110` and Bricolage Grotesque's
+width axis runs **75…100** — the shipped variable font (Google Fonts and ateliertriay ship the
+same 408KB file) has no 110, so no build could honour the number as written. The rule is now
+*the widest cut the face carries*, **read off the font** rather than transcribed: the numerals
+are set at 100 today, and a release that widens the axis is picked up with no code change.
+`docs/07` §3 is updated to say so, and `TypographyTests.theDisplayFaceIsSetOnItsAxes` asserts
+both halves — the axis is at its own maximum, and that maximum is still the number the doc
+records, so a font swap that quietly narrows the family fails the build.
+
+Two smaller calls, also confirmed: the `opsz` axis is set to the size the glyphs are actually
+drawn at (the file's 96pt default would set a 28pt screen title in spacing designed for a
+poster), now documented in `docs/07` §3; and each style scales along a named Dynamic Type ramp
+(`largeTitle` for the display face, `body` for body text) rather than all of them riding
+`.body`, which is what keeps the 1.6× ceiling from being the only thing holding the display
+face down.
 
 ---
 
 ### E08-04 — Component library
 
 **Status:** todo · **Deps:** E08-02, E08-03 · **Reads:** `docs/07` §4–5, `docs/12` §2–5
-**Touches:** `DesignSystem/Components/*`, `DesignSystem/Space.swift`, `DesignSystem/Haptics.swift`
-**Verify:** snapshot tests for each component at three type sizes
+**Touches:** `DesignSystem/Components/*`, `DesignSystem/Space.swift`, `DesignSystem/Haptics.swift`,
+`BlindDropTests/Snapshot/SnapshotRenderer.swift`
+**Verify:** `xcodebuild test -only-testing:BlindDropSnapshotTests` — one snapshot per component
+at `{large, accessibility1, accessibility5}`
 
-> **Open question:** this task's **Verify** is snapshot tests, and the snapshot harness is
-> `E08-07`, which depends on `E08-04`. The two cannot both go first. The reading that lets
-> verification run is to build the harness as the first step of `E08-04` (it is `E08-07`'s
-> first checklist item and needs no component to exist), then the components against it, and
-> leave `E08-07` to add the matrix helper, the diff output, `RECORD_SNAPSHOTS=1`, and the
-> dark-mode-identity test. The owner may prefer to renumber instead.
+**Resolved** (owner, 2026-08-11): this task's **Verify** was snapshot tests, and the snapshot
+harness is `E08-07`, which depends on `E08-04` — the two could not both go first. The renderer
+moves **into this task** (it needs no component to exist), and `E08-07` keeps everything built
+on top of it. The checklists below reflect that; the numbering is unchanged.
 
 Ten components from `docs/07` §5. Build them with their accessibility from `docs/12` §2 —
 retrofitting VoiceOver later means rebuilding the view hierarchy.
 
+- [ ] The renderer, first: draws a view at a given device size and Dynamic Type size and diffs
+      it against a golden PNG. Hand-rolled, no third-party snapshot library (`docs/13` §1).
+      `E08-07` builds the matrix, the diff output and the dark-mode test on top of it
 - [ ] `PrimaryButton` takes the phase accent as a parameter, never hardcodes it
 - [ ] `FlightCard` is a **single** accessibility element with the preview control as a nested
       child and a custom action
@@ -233,11 +235,12 @@ Notes:
 
 **Status:** todo · **Deps:** E08-04 · **Reads:** `docs/15` §3, `docs/12` §8
 **Touches:** `BlindDropTests/Snapshot/*`
-**Verify:** `xcodebuild test -only-testing:BlindDropTests/Snapshot`
+**Verify:** `xcodebuild test -only-testing:BlindDropSnapshotTests`
 
-Hand-rolled against golden PNGs — no third-party snapshot library (zero dependencies).
+Hand-rolled against golden PNGs — no third-party snapshot library (zero dependencies). The
+renderer itself lands in `E08-04`, which needs it to verify; this task is everything built on
+top of it.
 
-- [ ] Renders a view at a given device size and Dynamic Type size, diffs against a golden
 - [ ] Matrix helper: `{SE, 15 Pro Max} × {large, accessibility1, accessibility5}`
 - [ ] Failure writes the actual and the diff into a reviewable directory
 - [ ] `RECORD_SNAPSHOTS=1` regenerates goldens

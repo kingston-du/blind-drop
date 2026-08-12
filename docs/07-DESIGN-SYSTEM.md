@@ -121,23 +121,32 @@ Three roles, three faces. Do not use one for another's job.
 
 | Role | Face | Where |
 |---|---|---|
-| **Display / numerals** | Bricolage Grotesque (variable, `wdth 110`, `wght 600`) | Card numbers. The countdown. Results headlines. **Nothing else.** |
+| **Display / numerals** | Bricolage Grotesque (variable, `wdth` widest, `wght 600`) | Card numbers. The countdown. Results headlines. **Nothing else.** |
 | **Body / UI** | SF Pro Text (system) | Everything else. Do not fight the platform. |
 | **Data / timers** | SF Mono (`.system(design: .monospaced)`) | Countdown digits, percentages, scores, counts. |
 
 Bricolage Grotesque is SIL OFL and ships in the bundle as a variable font
-(`Resources/Fonts/BricolageGrotesque.ttf`). Set the `wdth` axis to 110 — the expanded cut is
-what gives the numbers character. Do not use it below 20pt; at small sizes its personality
-reads as noise.
+(`Resources/Fonts/BricolageGrotesque.ttf`), with its licence beside it. Set the `wdth` axis to
+**the widest cut the face carries** — the expanded cut is what gives the numbers character.
+Read that value off the font rather than writing it down: today the axis runs 75–100, so the
+numerals are set at 100, and a release that widens the axis is picked up with no code change.
+`wght` is 600, which sits inside the face's 200–800 range and is set exactly.
+
+The `opsz` axis is set to the size the glyphs are actually drawn at, scaling included. The
+file's own default is 96pt — spacing designed for a poster — and leaving it there would set a
+28pt screen title in it. This is the one axis that is not a fixed value, because it is the
+one whose right value depends on the size.
+
+Do not use the display face below 20pt; at small sizes its personality reads as noise.
 
 ### The scale
 
 ```swift
 // DesignSystem/Typography.swift  — all sizes scale with Dynamic Type
 enum TypeStyle {
-    case displayXL   // 56/56  Bricolage 600 wdth110  — reveal card number, countdown
-    case displayL    // 40/44  Bricolage 600 wdth110  — results headline
-    case displayM    // 28/32  Bricolage 600 wdth110  — screen title (sparing)
+    case displayXL   // 56/56  Bricolage 600 wdth max  — reveal card number, countdown
+    case displayL    // 40/44  Bricolage 600 wdth max  — results headline
+    case displayM    // 28/32  Bricolage 600 wdth max  — screen title (sparing)
     case bodyL       // 17/24  SF Pro Text Regular    — default
     case bodyLStrong // 17/24  SF Pro Text Semibold   — track titles
     case bodyM       // 15/20  SF Pro Text Regular    — artist, supporting
