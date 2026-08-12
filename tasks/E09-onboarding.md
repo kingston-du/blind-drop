@@ -7,7 +7,7 @@ Four steps, no tutorial carousel, no permission asks. A user must reach today's 
 
 ### E09-01 — Sign in with Apple
 
-**Status:** wip · **Deps:** E08-05 · **Reads:** `docs/08` §1.1, `docs/13` §1 (Core/Auth), `docs/14` §5
+**Status:** done · **Deps:** E08-05 · **Reads:** `docs/08` §1.1, `docs/13` §1 (Core/Auth), `docs/14` §5
 **Touches:** `Core/Auth/{SessionStore,AppleSignIn,Keychain}.swift`, `Features/Onboarding/SignInScreen.swift`
 **Verify:** sign-in completes against the fixture server; `xcodebuild test -only-testing:BlindDropUnitTests/AuthTests`
 
