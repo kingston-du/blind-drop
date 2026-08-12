@@ -17,6 +17,14 @@ struct NameChip: View {
     let member: MemberDTO
     let state: State
     let action: () -> Void
+    /// Why this chip cannot be used, when it cannot (`E11-05`). Present for a non-submitter and
+    /// for someone who joined after the reveal; `nil` in the ordinary case.
+    ///
+    /// It carries the reason into the **label**, which is `docs/12` §2's requirement, and it
+    /// drops `.accessibilityRespondsToUserInteraction` so VoiceOver stops offering an activation
+    /// that does nothing. The chip stays visible and stays in the pool: `docs/08` §6 wants the
+    /// apparatus *disabled, not hidden*, because the user has to see exactly what they missed.
+    var unavailableReason: String?
 
     /// A chip's three states. `.consumed` carries the card number it went to, because *"already
     /// used"* is not the fact — *"on No. 3"* is, and it is what the announcement says.
@@ -52,10 +60,16 @@ struct NameChip: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(
-            Copy.A11y.nameChip(member.displayName, assignedTo: state.assignedCardNumber)
-        )
+        .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(state == .selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityRespondsToUserInteraction(unavailableReason == nil)
+    }
+
+    private var accessibilityLabel: String {
+        if let unavailableReason {
+            return Copy.A11y.nameChip(member.displayName, unavailable: unavailableReason)
+        }
+        return Copy.A11y.nameChip(member.displayName, assignedTo: state.assignedCardNumber)
     }
 
     private var fill: Color {

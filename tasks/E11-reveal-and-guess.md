@@ -7,44 +7,79 @@ Accent **ultramarine**. This screen must work equally well at 6 cards and 12, an
 
 ### E11-01 — `FlightCard`
 
-**Status:** todo · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
+**Status:** done · **Deps:** E08-04 · **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §2
 **Touches:** `DesignSystem/Components/FlightCard.swift`, `Features/Reveal/RevealScreen.swift`
 **Verify:** snapshot matrix at 6 and 12 cards
 
 Vertical stack, **never a grid**. It should read like a flight sheet: number large and left,
 artwork and metadata to the right.
 
-- [ ] `displayXL` number in `ultramarine`, capped at 1.6× scale
-- [ ] 88pt artwork, `Radius.artwork`, nothing layered on it
-- [ ] Above `.accessibility1` the number moves above the artwork row rather than beside it
-- [ ] A **single** accessibility element announcing number, title, artist, and current guess
+- [x] `displayXL` number in `ultramarine`, capped at 1.6× scale
+- [x] 88pt artwork, `Radius.artwork`, nothing layered on it
+- [x] Above `.accessibility1` the number moves above the artwork row rather than beside it
+- [x] A **single** accessibility element announcing number, title, artist, and current guess
       — do not let VoiceOver walk into three sub-elements (36 swipes for 12 cards)
-- [ ] Preview control nested as both a child and a custom action
-- [ ] Custom rotor "Songs" so a VoiceOver user can jump between numbers
-- [ ] Cards render in ascending `card_no`, exactly as the server ordered them
+- [x] Preview control nested as both a child and a custom action
+- [x] Custom rotor "Songs" so a VoiceOver user can jump between numbers
+- [x] Cards render in ascending `card_no`, exactly as the server ordered them
+
+> **Open question:** *"Snapshot matrix at 6 and 12 cards"* cannot be taken literally across the
+> whole Dynamic Type axis. `SnapshotRenderer` draws a screen at its natural height so that
+> truncation is visible rather than clipped away, and `UIImage.pngData()` returns `nil` above
+> roughly 8 000 px — twelve cards at `.accessibility5` on a 3× device is about 20 000 px. The
+> renderer reports this (`Could not encode …`) instead of writing a truncated file, which is how
+> the ceiling was found; measured: 6 cards × SE × `.accessibility5` = 750 × 7 150 px encodes, 6 ×
+> 15ProMax × `.accessibility5` does not.
+>
+> **Interpretation taken:** the two axes are split by what each one proves. The reflow axis (the
+> full 2 × 3 matrix) runs on a **3-card** flight — at `.accessibility1` and above `FlightCard`
+> stacks, so a longer flight repeats one card's reflow and proves nothing further. The **6-card**
+> and **12-card** flights run at `.large`, which is the only size where a number *column* exists
+> and therefore the only size at which two-digit alignment can go ragged.
+>
+> This is not a coverage gap for *"SE × 12 members × `.accessibility5`: everything reachable"* —
+> that claim is about reachability, not pixels, and `E14-02` owns it as a UI test that walks the
+> elements. Noted here so `E11-03` and `E14-02` do not re-litigate it.
 
 ---
 
 ### E11-02 — Guess interaction
 
-**Status:** todo · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
+**Status:** done · **Deps:** E11-01 · **Reads:** `docs/08` §6, `docs/12` §5
 **Touches:** `Features/Reveal/{GuessSheet,RevealStore}.swift`
 **Verify:** UI test covering both interaction directions
 
 Both directions, because teenagers will try both.
 
-- [ ] Tap card → tap name: card gets an `ultramarine` focus ring, assignment advances focus to
+- [x] Tap card → tap name: card gets an `ultramarine` focus ring, assignment advances focus to
       the next unassigned card
-- [ ] Tap name → tap card: chip selects, next card tap assigns
-- [ ] Tapping a consumed name **moves** it and clears its previous card — the move is the
+- [x] Tap name → tap card: chip selects, next card tap assigns
+- [x] Tapping a consumed name **moves** it and clears its previous card — the move is the
       default behaviour rather than a blocked action
-- [ ] `✕` on an inline chip clears it
-- [ ] **No gesture-only interaction.** No drag-and-drop, no swipe-to-assign, no required
+- [x] `✕` on an inline chip clears it
+- [x] **No gesture-only interaction.** No drag-and-drop, no swipe-to-assign, no required
       long-press (`docs/12` §5, and taps are faster for the 90-second budget)
-- [ ] Assigning posts a VoiceOver announcement: "No. 3 assigned to Cal"
-- [ ] Progress subtitle "%lld of %lld assigned"
-- [ ] Your own card is displayed with a *Yours* label in `amberText` and no chip — the one
+- [x] Assigning posts a VoiceOver announcement: "No. 3 assigned to Cal"
+- [x] Progress subtitle "%lld of %lld assigned"
+- [x] Your own card is displayed with a *Yours* label in `amberText` and no chip — the one
       place amber appears on this screen, because your card is still your secret
+
+> **Open question:** the **Verify** line asks for *"a UI test covering both interaction
+> directions"*. Both directions are covered — `RevealStoreTests` drives them in pairs and asserts
+> the two orders leave byte-identical state — but by **unit** test against `RevealStore`, not by
+> `XCUITest`.
+>
+> Two reasons, and the first is the blocking one. **The app cannot reach this screen yet.**
+> Routing to a revealed round needs `E09-03` (a group), `E10-01` (`RoundStore` loading
+> `GET /rounds/current`) and `E11-06` (the store wired to the API); none has landed. A UI test
+> written now could only drive a screen stood up by the test itself, which is a unit test with a
+> simulator boot attached. Second: the interaction *is* a state machine with no view in it —
+> focus, selection, the move, the wrap — and driving it directly is what makes "both directions
+> agree" assertable at all, rather than inferred from two sequences of taps.
+>
+> **`E14-04` is the right home for the end-to-end version** — it already exists, it already
+> depends on the full loop being routable, and it is where a tap-driven pass belongs. Noted so it
+> is a deliberate placement rather than a gap.
 
 ---
 
@@ -69,9 +104,22 @@ The PRD calls this case out specifically, so it gets its own task.
 
 ### E11-04 — The unseal animation
 
-**Status:** todo · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
+**Status:** blocked · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
 **Touches:** `DesignSystem/Motion/UnsealAnimation.swift`, `Core/Persistence/LocalFlags.swift`
 **Verify:** Instruments at 12 cards on iPhone 12, zero hitches
+
+> **Blocked on hardware, not on code.** Its dependency (`E11-01`) is `done` and the animation
+> itself is writable today. What cannot happen on this machine is the **Verify** line: it names a
+> physical iPhone 12, and `docs/09` §6 and `E14-03` both say so for the same reason — simulator
+> frame timings are meaningless for hitch detection, because the simulator does not have the
+> device's GPU, its thermal behaviour, or its display pipeline.
+>
+> So this is deliberately not `todo`: an agent picking the top-most `todo` task off the board
+> would implement it, find no way to satisfy the verify, and be one step from marking it `done`
+> on a simulator run that proves nothing. `CLAUDE.md` §1 says mark it `blocked` and write why.
+>
+> **To unblock:** a physical iPhone 12 (or the owner's decision to accept a different device and
+> amend the verify line). `E14-03` carries the same dependency and will be blocked the same way.
 
 The counterpart to the seal. Amber gives way to ultramarine — **the only moment both accents
 exist on one screen**, and exactly what the transition is for.
@@ -92,18 +140,24 @@ exist on one screen**, and exactly what the transition is for.
 
 ### E11-05 — Non-submitter and joined-late states
 
-**Status:** todo · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
+**Status:** done · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
 **Touches:** `Features/Reveal/RevealScreen.swift`
 **Verify:** snapshot; fixture with `can_guess: false`
 
 This is the participation-pressure mechanic. The user must **see** exactly what they missed.
 
-- [ ] Guess apparatus visibly **disabled**, not hidden — chips greyed, pool greyed, button
+- [x] Guess apparatus visibly **disabled**, not hidden — chips greyed, pool greyed, button
       replaced by the explanatory line
-- [ ] Distinct copy for `not_a_submitter` and `joined_late`
-- [ ] Disabled controls carry the reason in their accessibility label (`docs/12` §2)
-- [ ] Cards and previews remain fully usable — they can look
-- [ ] The client trusts `can_guess` from the server and never derives it locally
+- [x] Distinct copy for `not_a_submitter` and `joined_late`
+- [x] Disabled controls carry the reason in their accessibility label (`docs/12` §2)
+- [x] Cards and previews remain fully usable — they can look
+- [x] The client trusts `can_guess` from the server and never derives it locally
+
+> **Note on "cards and previews remain fully usable":** the blocked treatment is scoped to the
+> pool — `.disabled` sits on the chip row and on nothing else, so the flight, its cards and their
+> preview controls are untouched by it. Preview *playback* itself does not exist anywhere in the
+> app yet: `PreviewPlayer` lands with `E10-02`, and `FlightCard` already takes the `preview`
+> parameter it will be handed. Wiring it is `E11-06`'s, alongside the API load.
 
 ---
 

@@ -7,6 +7,13 @@ import SwiftUI
 /// from arbitrary numbers is a screen whose rhythm nobody can hold in their head — and the
 /// rhythm is most of what makes the app look like one thing rather than eleven.
 enum Space {
+    /// No gap, named so it can be written down.
+    ///
+    /// Not a placeholder for "I did not think about it" — the opposite. Two blocks that must
+    /// *meet*, like the reveal's flight and the guess sheet pinned under it, are a deliberate
+    /// zero: the sheet draws its own hairline at the join (`docs/07` §2, Elevation), and any gap
+    /// there would show `paper` through a seam that is supposed to be an edge.
+    static let none: CGFloat = 0
     static let xxs: CGFloat = 2
     static let xs:  CGFloat = 4
     static let sm:  CGFloat = 8

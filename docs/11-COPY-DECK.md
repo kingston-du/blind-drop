@@ -327,6 +327,8 @@ Not visible copy, but user-facing. See `12-ACCESSIBILITY.md` for where each is a
 | `a11y.namechip.assigned` | Assigned to No. %lld |
 | `a11y.guess.assigned` | No. %lld assigned to %@. | posted as an `.announcement` |
 | `a11y.guess.clear` | Clear guess | the `✕` on an inline chip, as a named action |
+| `a11y.rotor.songs` | Songs | the custom rotor over the reveal's cards (`docs/12` §2) |
+| `a11y.rotor.song` | No. %lld | one entry in that rotor — the number is what it is jumped to by |
 | `a11y.preview.play` | Play preview |
 | `a11y.preview.stop` | Stop preview |
 | `a11y.track` | %@ by %@ | (title, artist) — a search result row |
