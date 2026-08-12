@@ -48,7 +48,7 @@ Four steps, no tutorial carousel, no permission asks. A user must reach today's 
 
 ### E09-02 — Display name
 
-**Status:** todo · **Deps:** E09-01 · **Reads:** `docs/08` §1.2, `docs/11` (onboarding), `docs/14` §7
+**Status:** wip · **Deps:** E09-01 · **Reads:** `docs/08` §1.2, `docs/11` (onboarding), `docs/14` §7
 **Touches:** `Features/Onboarding/DisplayNameScreen.swift`, `OnboardingStore.swift`
 **Verify:** snapshot at three type sizes; unit test on validation
 
@@ -64,7 +64,7 @@ Four steps, no tutorial carousel, no permission asks. A user must reach today's 
 
 ### E09-03 — Join or create
 
-**Status:** todo · **Deps:** E09-02 · **Reads:** `docs/08` §1.3–1.4, `docs/11`, `docs/04` §3
+**Status:** wip · **Deps:** E09-02 · **Reads:** `docs/08` §1.3–1.4, `docs/11`, `docs/04` §3
 **Touches:** `Features/Onboarding/{JoinOrCreateScreen,CreateGroupScreen}.swift`
 **Verify:** both paths complete against the fixture server
 
@@ -83,7 +83,7 @@ Join first — most users arrive via a link.
 
 ### E09-04 — Invite code screen and deep link
 
-**Status:** todo · **Deps:** E09-03 · **Reads:** `docs/08` §1.4–1.5, `docs/05` §5
+**Status:** wip · **Deps:** E09-03 · **Reads:** `docs/08` §1.4–1.5, `docs/05` §5
 **Touches:** `Features/Onboarding/CreateGroupScreen.swift`, `App/DeepLink.swift`
 **Verify:** `xcrun simctl openurl booted blinddrop://join/K7MQ2X` prefills the field
 

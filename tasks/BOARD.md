@@ -121,9 +121,9 @@ E04..E07 + E13  ─ E14 QA & release
 | Task | Status | Deps | Proves |
 |---|---|---|---|
 | E09-01 Sign in with Apple | done | E08-05 | — |
-| E09-02 Display name | todo | E09-01 | — |
-| E09-03 Join or create group | todo | E09-02 | — |
-| E09-04 Invite code screen and deep link | todo | E09-03 | — |
+| E09-02 Display name | wip | E09-01 | — |
+| E09-03 Join or create group | wip | E09-02 | — |
+| E09-04 Invite code screen and deep link | wip | E09-03 | — |
 
 ## E10 — Submit and the seal · [file](E10-submit-and-seal.md)
 
