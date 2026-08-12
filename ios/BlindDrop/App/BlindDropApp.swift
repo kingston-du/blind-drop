@@ -15,11 +15,22 @@ struct BlindDropApp: App {
     /// `shared` (`docs/13` §2).
     @State private var env = AppEnvironment()
 
+    /// The two APNs callbacks SwiftUI has no equivalent for (`docs/05` §4). It holds no state and
+    /// makes no decisions; `attach(_:)` below is how it reaches the environment without a global.
+    @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushDelegate
+
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(env)
                 .preferredColorScheme(.light)
+                .task {
+                    pushDelegate.attach(env)
+                    // `docs/05` §4: `POST /devices` on every launch, a cheap upsert that refreshes
+                    // `last_seen_at`. It **never prompts** — a launch that asked for notification
+                    // permission is the thing that section exists to forbid.
+                    await env.push.registerIfAuthorized()
+                }
                 // docs/05 §5: a deep link is a navigation hint, not an authorization. It is
                 // stored here and applied only after the round has loaded.
                 .onOpenURL { url in env.router.receive(DeepLink(url)) }

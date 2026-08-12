@@ -7,7 +7,12 @@ import Foundation
 /// with no ISRC keys as `am:` and can never have a Spotify link; a track with no preview
 /// renders with **no play control** — not a disabled one (`docs/06` §7); and `spotify*` may
 /// simply not have resolved yet, in which case the *Open in Spotify* button is absent.
-struct TrackDTO: Decodable, Sendable, Equatable, Identifiable {
+/// `Hashable` as well as `Identifiable`, because the confirm step is a `navigationDestination(item:)`
+/// inside the search sheet (`docs/08` §3.2) and SwiftUI keys a value-driven destination by hash.
+/// The synthesised conformance is over every field, which is stricter than `track_key` alone — two
+/// snapshots of the same recording that differ in their Spotify link are different values here, and
+/// that is the right answer for a navigation identity.
+struct TrackDTO: Decodable, Sendable, Equatable, Hashable, Identifiable {
     /// `isrc:…` or `am:…` — the dedupe identity (`docs/06` §3). Also the stable id for a card
     /// in a list, which is why this type is `Identifiable` on it rather than on a UUID.
     let trackKey: String

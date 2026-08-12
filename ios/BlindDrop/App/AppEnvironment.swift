@@ -20,6 +20,13 @@ final class AppEnvironment {
     /// seal and unseal can be driven by a counting double in a test (`docs/09` §6) — and so
     /// `DesignSystem/` never depends on `UIImpactFeedbackGenerator` being real.
     let haptics: HapticEngine
+    /// What this install remembers about itself. Not game state (`docs/13` §7) — one flag about
+    /// whether the notification ask has happened.
+    let flags: LocalFlags
+    /// Notification permission and `POST /devices` (`docs/05` §4). App-wide because the ask is
+    /// tied to *the first seal ever*, not to a screen: the sealed screen triggers it, the app
+    /// delegate feeds it the APNs token, and neither of those can own it.
+    let push: PushRegistrar
 
     /// `auth` and `secrets` are parameters so `AuthTests` can build a whole environment around
     /// doubles — the alternative is a test that reaches into the simulator's keychain daemon
@@ -28,7 +35,14 @@ final class AppEnvironment {
         configuration: AppConfiguration = .resolve(),
         haptics: HapticEngine = SystemHaptics(),
         auth: (any AuthService)? = nil,
-        secrets: any SecretStore = Keychain()
+        secrets: any SecretStore = Keychain(),
+        defaults: UserDefaults = .standard,
+        notifications: (any NotificationAuthority)? = nil,
+        /// The transport, so a store test can build a whole environment around a stubbed
+        /// `URLProtocol` — same reason as `auth` and `secrets` above. The default is the one
+        /// configuration the app ships with (`docs/13` §3), so a caller cannot accidentally get a
+        /// session that waits for connectivity.
+        transport: URLSession = APIClient.makeTransport()
     ) {
         self.configuration = configuration
         // The clock is made first and handed to the client, so the instance the client
@@ -38,7 +52,12 @@ final class AppEnvironment {
             auth: auth ?? SupabaseAuthService(configuration: configuration),
             secrets: secrets
         )
-        let api = APIClient(baseURL: configuration.apiBaseURL, clock: clock, session: session)
+        let api = APIClient(
+            baseURL: configuration.apiBaseURL,
+            clock: clock,
+            session: session,
+            transport: transport
+        )
         // The store needs the client to ask `GET /me`, and the client needs the store for the
         // auth header — so the edge is closed here, after both exist, and the store holds its
         // half weakly (`SessionStore.api`).
@@ -48,5 +67,12 @@ final class AppEnvironment {
         self.api = api
         self.router = Router()
         self.haptics = haptics
+        let flags = LocalFlags(defaults: defaults)
+        self.flags = flags
+        self.push = PushRegistrar(
+            api: api,
+            flags: flags,
+            center: notifications ?? SystemNotificationAuthority()
+        )
     }
 }

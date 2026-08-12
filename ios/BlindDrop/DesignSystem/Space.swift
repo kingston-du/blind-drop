@@ -82,7 +82,11 @@ enum Layout {
     enum Artwork {
         static let searchRow: CGFloat = 56
         static let flightCard: CGFloat = 88
-        static let confirm: CGFloat = 240
+        /// `docs/08` §3.2 draws the confirm screen's artwork at **280pt**, and `docs/06` §2.1
+        /// fetches that spot at 600×600 — which 280 at 2× very nearly is and 240 was not. The
+        /// sealed card fetches at this size too and draws at its container's width, so the number
+        /// is the fetch for both and the drawn size for one.
+        static let confirm: CGFloat = 280
         static let shareCard: CGFloat = 300
     }
 }

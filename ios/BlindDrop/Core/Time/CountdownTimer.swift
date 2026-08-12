@@ -27,6 +27,28 @@ enum CountdownDisplay: Sendable, Equatable {
     /// says what happens next.
     static let elapsed = CountdownDisplay.precise(hours: 0, minutes: 0, seconds: 0)
 
+    /// Roughly how long is left, as the display itself knows it, or `nil` while the clock has no
+    /// anchor.
+    ///
+    /// It exists so a screen can react to a **threshold** without keeping a second clock of its
+    /// own: `docs/08` §2's nudge appears under two hours, and the honest way to notice that is to
+    /// read the countdown that is already ticking. A screen computing its own remainder from
+    /// `ServerClock` would not re-render when the timer ticked — SwiftUI observes what the body
+    /// reads, and the body reads this.
+    ///
+    /// It is the **displayed** remainder, not the exact one: the coarse form has already rounded
+    /// down to the minute, and a threshold measured against what the user can see is the one that
+    /// agrees with the screen.
+    var secondsRemaining: Int? {
+        switch self {
+        case .unknown: nil
+        case let .precise(hours, minutes, seconds): hours * 3600 + minutes * 60 + seconds
+        case let .coarse(.hours(hours)): hours * 3600
+        case let .coarse(.minutes(minutes)): minutes * 60
+        case .coarse(.underAMinute): 0
+        }
+    }
+
     /// Builds the display for a number of seconds remaining, in the requested form.
     init(remaining: TimeInterval?, form: CountdownForm) {
         guard let remaining else { self = .unknown; return }

@@ -61,6 +61,17 @@ level up, don't miss out, hurry.*
 
 ---
 
+## The round's header
+
+| Key | String |
+|---|---|
+| `menu.title` | Menu |
+
+The `[≡]` in every phase's header (`08-SCREEN-SPECS.md` §2, §8). Not visible copy — it labels an
+icon — but a control with no name is unreachable to VoiceOver, so it is a string and it lives here.
+
+---
+
 ## Submit — open, nothing dropped
 
 | Key | String |
@@ -85,6 +96,7 @@ level up, don't miss out, hurry.*
 | `search.placeholder` | Search for a song |
 | `search.paste` | Paste a Spotify or Apple Music link |
 | `search.paste.placeholder` | Paste a link |
+| `search.close` | Close |
 | `search.empty` | No songs matched that. |
 | `search.error` | Search is down. Paste a Spotify or Apple Music link instead. |
 | `search.error.offline` | You're offline. Nothing can be dropped right now. |

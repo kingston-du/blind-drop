@@ -133,6 +133,50 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         }
     }
 
+    /// The same round with the caller's own submission replaced.
+    ///
+    /// `PUT /rounds/current/submission` returns the sealed submission (`docs/04` §4), and this is
+    /// how the screen adopts it without a second round trip — which is what lets the confirm sheet
+    /// dismiss onto an already-sealed card rather than onto a submit screen that corrects itself a
+    /// moment later (`docs/08` §3.2).
+    ///
+    /// **It cannot change the phase, and that is structural rather than careful.** Each branch
+    /// rebuilds its own case and there is no parameter to pass a different one, so this method has
+    /// no way to express "and now the round is revealed". `CLAUDE.md` §2.2 says the client never
+    /// decides a phase; the only thing being replaced here is the caller's own data, which the
+    /// server has just handed back.
+    func adopting(mySubmission submission: SubmissionDTO) -> RoundDTO {
+        let adopted: Phase = switch phase {
+        case .open: .open(mySubmission: submission)
+        case .voided: .voided(mySubmission: submission)
+        case .scored: .scored(mySubmission: submission)
+        case let .revealed(_, payload): .revealed(mySubmission: submission, payload: payload)
+        }
+        return RoundDTO(
+            id: id, localDate: localDate,
+            opensAt: opensAt, revealsAt: revealsAt, scoresAt: scoresAt,
+            phase: adopted
+        )
+    }
+
+    /// **Private on purpose.** `docs/13` §2: *"There is exactly one place `RoundDTO.state` is
+    /// assigned, and it is the decoder."* Keeping the memberwise initialiser unreachable is what
+    /// makes that true of the type rather than of everybody's discipline — including in tests,
+    /// which build rounds by decoding the contract's own JSON and therefore exercise the decoder
+    /// they are relying on.
+    private init(
+        id: String, localDate: String,
+        opensAt: Date, revealsAt: Date, scoresAt: Date,
+        phase: Phase
+    ) {
+        self.id = id
+        self.localDate = localDate
+        self.opensAt = opensAt
+        self.revealsAt = revealsAt
+        self.scoresAt = scoresAt
+        self.phase = phase
+    }
+
     enum CodingKeys: String, CodingKey {
         case id = "round_id"
         case localDate = "local_date"

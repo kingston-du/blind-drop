@@ -71,14 +71,63 @@
 "error.ratelimited" = "Slow down a second.";
 "error.upstream" = "The music catalog isn't answering. Try again in a minute.";
 
-/* ── Rows the component snapshots stand a button or an empty state up with ─── */
-/* Their screens land in E09–E12 and bring the rest of their sections with them. */
+/* ── The round's header (docs/11 §The round's header) ──────────────────────── */
+
+"menu.title" = "Menu";
+
+/* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
 
 "submit.headline" = "Drop one song.";
 "submit.subhead" = "Nobody sees it until 8:00 PM.";
+"submit.countdown.label" = "until reveal";
 "submit.action" = "Drop a song";
+"submit.nudge" = "Two hours left to drop.";
+"submit.closed.headline" = "Tonight's round is done.";
+"submit.closed.subhead" = "The next one opens at %@.";
+"submit.closed.countdown.label" = "until it opens";
+
+/* ── Search and confirm (docs/11 §Search and confirm) ──────────────────────── */
+
+"search.placeholder" = "Search for a song";
+"search.paste" = "Paste a Spotify or Apple Music link";
+"search.paste.placeholder" = "Paste a link";
+"search.close" = "Close";
+"search.empty" = "No songs matched that.";
+"search.error" = "Search is down. Paste a Spotify or Apple Music link instead.";
+"search.error.offline" = "You're offline. Nothing can be dropped right now.";
+"resolve.error.notfound" = "That song isn't in the Apple catalog. Search for it instead.";
+"resolve.error.badlink" = "That's not a song link.";
+"confirm.action" = "Seal it";
+"confirm.another" = "Pick another";
+"confirm.error" = "That didn't seal. Try again.";
+
+/* ── Sealed (docs/11 §Sealed) ──────────────────────────────────────────────── */
+
+"sealed.status" = "Sealed until %@.";
+"sealed.countdown.label" = "until reveal";
 "sealed.replace" = "Replace song";
+"sealed.replaced" = "Sealed again.";
+"push.permission.title" = "Want to know when it opens?";
+"push.permission.body" = "Two notifications a night: when the songs go up, and when the answers land. Nothing else.";
+"push.permission.allow" = "Turn on notifications";
+"push.permission.skip" = "Not now";
+
+/* ── Voided (docs/11 §Voided) ──────────────────────────────────────────────── */
+/* Never state how many people did drop. */
+
+"voided.headline" = "Not enough drops tonight. Nothing revealed.";
+"voided.returned" = "Your song came back.";
+"voided.next" = "Next round opens at %@.";
+
+/* ── Rows the component snapshots stand a button or an empty state up with ─── */
+
 "reveal.action" = "Lock in guesses";
+
+/* ── The Record and Group settings, as far as the header menu names them ───── */
+/* Their screens are E13-01 and a later pass; the menu that reaches them is E10-01's. */
+
+"record.title" = "The Record";
+"settings.title" = "Group";
 
 /* ── Reveal (docs/11 §Reveal and guess) ────────────────────────────────────── */
 /* E11-01 brings the status line and the cards. The guess apparatus — the pool, the progress
