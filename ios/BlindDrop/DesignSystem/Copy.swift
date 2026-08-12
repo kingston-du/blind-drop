@@ -141,6 +141,14 @@ enum Copy {
             return format("a11y.namechip", name, state)
         }
 
+        /// A chip the caller cannot use, with **why** in place of the state (`docs/12` §2:
+        /// *"their label includes the reason. A disabled control that does not explain itself is
+        /// worse than a hidden one."*). Same format as the assignable case, because to a
+        /// VoiceOver user the shape of the sentence should not change with the caller's luck.
+        static func nameChip(_ name: String, unavailable reason: String) -> String {
+            format("a11y.namechip", name, reason)
+        }
+
         /// Posted as an `.announcement` when a guess is assigned (`docs/12` §2).
         static func guessAssigned(cardNumber: Int, name: String) -> String {
             format("a11y.guess.assigned", cardNumber, name)

@@ -238,6 +238,44 @@ import Testing
         #expect(store.assignableCount == 8)
     }
 
+    // MARK: - Why the caller cannot play (E11-05)
+
+    /// The two reasons get **distinct copy**, because telling someone who joined this afternoon
+    /// that they *"didn't drop tonight"* blames them for a round they were never in.
+    @Test func theTwoBlockedReasonsSayDifferentThings() {
+        let notSubmitter = RevealFixture.store(canGuess: false, reason: .notASubmitter)
+        let joinedLate = RevealFixture.store(canGuess: false, reason: .joinedLate)
+
+        #expect(notSubmitter.blockedReason == "You didn't drop tonight, so you're sitting this one out.")
+        #expect(joinedLate.blockedReason == "You joined after the reveal. You're in from tomorrow.")
+        #expect(notSubmitter.blockedReason != joinedLate.blockedReason)
+    }
+
+    /// A caller who can play is not told why they can.
+    @Test func aSubmitterHasNoBlockedLine() {
+        #expect(RevealFixture.store().blockedReason == nil)
+    }
+
+    /// `can_guess: false` with no reason is a server the client does not argue with: it still
+    /// withholds the apparatus rather than falling open.
+    @Test func blockedWithoutAReasonStillBlocks() {
+        let store = RevealFixture.store(canGuess: false, reason: nil)
+        #expect(store.blockedReason == "You can still look.")
+        store.tapCard(1)
+        store.tapName("u0")
+        #expect(store.assignments.isEmpty)
+    }
+
+    /// *"Cards and previews remain fully usable — they can look."* The flight keeps every card;
+    /// what goes is the chip, not the song.
+    @Test func aBlockedCallerStillSeesEveryCard() {
+        let store = RevealFixture.store(cardCount: 6, canGuess: false, reason: .notASubmitter)
+        #expect(store.viewState.cards.count == 6)
+        for number in 1...6 {
+            #expect(store.viewState.assignment(for: number) == .unavailable)
+        }
+    }
+
     // MARK: - Adopting a saved sheet
 
     /// A re-fetch must not reset the interaction: the sheet is replaced, the focus is not.
@@ -269,13 +307,15 @@ extension RevealFixture {
     static func store(
         cardCount: Int = 6,
         myCardNumber: Int? = nil,
-        canGuess: Bool = true
+        canGuess: Bool = true,
+        reason: CannotGuessReason? = nil
     ) -> RevealStore {
         RevealStore(
             cards: (1...cardCount).map(card(number:)),
             pool: members + [me],
             myCardNumber: myCardNumber,
             canGuess: canGuess,
+            cannotGuessReason: reason,
             me: me.userID
         )
     }

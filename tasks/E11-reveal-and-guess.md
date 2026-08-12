@@ -127,18 +127,24 @@ exist on one screen**, and exactly what the transition is for.
 
 ### E11-05 — Non-submitter and joined-late states
 
-**Status:** wip · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
+**Status:** done · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/11` (reveal.blocked), `docs/02` §3
 **Touches:** `Features/Reveal/RevealScreen.swift`
 **Verify:** snapshot; fixture with `can_guess: false`
 
 This is the participation-pressure mechanic. The user must **see** exactly what they missed.
 
-- [ ] Guess apparatus visibly **disabled**, not hidden — chips greyed, pool greyed, button
+- [x] Guess apparatus visibly **disabled**, not hidden — chips greyed, pool greyed, button
       replaced by the explanatory line
-- [ ] Distinct copy for `not_a_submitter` and `joined_late`
-- [ ] Disabled controls carry the reason in their accessibility label (`docs/12` §2)
-- [ ] Cards and previews remain fully usable — they can look
-- [ ] The client trusts `can_guess` from the server and never derives it locally
+- [x] Distinct copy for `not_a_submitter` and `joined_late`
+- [x] Disabled controls carry the reason in their accessibility label (`docs/12` §2)
+- [x] Cards and previews remain fully usable — they can look
+- [x] The client trusts `can_guess` from the server and never derives it locally
+
+> **Note on "cards and previews remain fully usable":** the blocked treatment is scoped to the
+> pool — `.disabled` sits on the chip row and on nothing else, so the flight, its cards and their
+> preview controls are untouched by it. Preview *playback* itself does not exist anywhere in the
+> app yet: `PreviewPlayer` lands with `E10-02`, and `FlightCard` already takes the `preview`
+> parameter it will be handed. Wiring it is `E11-06`'s, alongside the API load.
 
 ---
 

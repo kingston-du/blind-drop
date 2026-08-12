@@ -125,6 +125,7 @@ import Testing
             "countdown.coarse.soon",
             "reveal.title", "reveal.subtitle", "reveal.countdown.label", "reveal.progress",
             "reveal.card.prompt", "reveal.card.mine",
+            "reveal.blocked.notsubmitter", "reveal.blocked.joinedlate", "reveal.blocked.canview",
             "a11y.rotor.songs", "a11y.rotor.song",
             "a11y.card", "a11y.card.guessed", "a11y.card.unguessed", "a11y.card.mine",
             "a11y.card.hint", "a11y.sealed", "a11y.countdown", "a11y.countdown.answers",

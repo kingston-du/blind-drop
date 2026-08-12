@@ -39,6 +39,27 @@ final class RevealStore {
     /// compute afterwards.
     private(set) var canGuess: Bool
 
+    /// Why not, when `canGuess` is false (`docs/04` §4). Set exactly when it is.
+    private(set) var cannotGuessReason: CannotGuessReason?
+
+    /// The line that replaces the button (`docs/11` — `reveal.blocked.*`), or `nil` when the
+    /// caller can play.
+    ///
+    /// The two reasons get **distinct copy** because they are distinct situations: one is a
+    /// consequence of something the user did not do, the other of when they arrived, and telling
+    /// a person who joined this afternoon that they *"didn't drop tonight"* would be blaming
+    /// them for a round they were never in.
+    var blockedReason: String? {
+        guard !canGuess else { return nil }
+        return switch cannotGuessReason {
+        case .notASubmitter: Copy.string("reveal.blocked.notsubmitter")
+        case .joinedLate: Copy.string("reveal.blocked.joinedlate")
+        // `can_guess: false` with no reason is a server the client does not argue with: it still
+        // withholds the apparatus, and says the one thing that is true in every such case.
+        case nil: Copy.string("reveal.blocked.canview")
+        }
+    }
+
     // MARK: - The sheet
 
     /// Card number → the guessed member's `user_id`. The caller's own answer, and nobody else's.
@@ -57,11 +78,19 @@ final class RevealStore {
     /// stays free of UIKit and stays testable — the assertion is on this string.
     private(set) var announcement: String?
 
-    init(cards: [CardDTO], pool: [MemberDTO], myCardNumber: Int?, canGuess: Bool, me: String?) {
+    init(
+        cards: [CardDTO],
+        pool: [MemberDTO],
+        myCardNumber: Int?,
+        canGuess: Bool,
+        cannotGuessReason: CannotGuessReason? = nil,
+        me: String?
+    ) {
         self.cards = cards
         self.pool = pool.filter { $0.userID != me }
         self.myCardNumber = myCardNumber
         self.canGuess = canGuess
+        self.cannotGuessReason = cannotGuessReason
     }
 
     /// Adopts the caller's saved sheet — what `GET /rounds/current` returned in `my_guesses`.

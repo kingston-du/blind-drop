@@ -89,6 +89,40 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    // MARK: - The guess sheet (E11-05)
+
+    /// The apparatus as a submitter sees it: the pool, **Lock in guesses**, and the progress
+    /// line. `.large` and `.accessibility5` only — the sheet has no reflow of its own to prove at
+    /// `.accessibility1`, and `E11-03` is what takes its layout over.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func guessSheet(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "GuessSheet", device, size) {
+            GuessSheet(store: RevealFixture.store(cardCount: 6, myCardNumber: 4, poolSize: 5,
+                                                  guesses: [1: "Cal", 3: "Ana"])).content
+        }
+    }
+
+    /// The non-submitter's sheet. **Disabled, not hidden** (`docs/08` §6): the pool is still
+    /// there, dimmed, and the button is replaced by the line that says why. The whole point is
+    /// that the user sees exactly what they missed, so the golden has to show a pool.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func guessSheetNotASubmitter(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "GuessSheet-notsubmitter", device, size) {
+            GuessSheet(store: RevealFixture.store(cardCount: 6, canGuess: false,
+                                                  reason: .notASubmitter, poolSize: 5)).content
+        }
+    }
+
+    /// Same treatment, different line — someone who joined this afternoon is not told they
+    /// *"didn't drop tonight"*.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func guessSheetJoinedLate(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "GuessSheet-joinedlate", device, size) {
+            GuessSheet(store: RevealFixture.store(cardCount: 6, canGuess: false,
+                                                  reason: .joinedLate, poolSize: 5)).content
+        }
+    }
+
     // MARK: - Rendering
 
     /// The screen with a **started** timer.
@@ -162,17 +196,28 @@ enum RevealFixture {
     ///
     /// `guesses` is keyed by card number and valued by **display name**, because that is what
     /// reads at a call site; it is mapped back to the `user_id` the store actually holds here.
+    /// - Parameter poolSize: how many names the round's pool holds.
+    ///
+    ///   The sheet goldens use five — a real six-person group, and a row that fits on an SE.
+    ///   Eleven chips do not fit, and the interesting thing about that is the trailing fade and
+    ///   the two-row grid that `E11-03` adds, which do not exist yet. Rendering the overflow now
+    ///   would only prove that a row wider than the screen is wider than the screen, and it would
+    ///   drag the sheet's whole width out with it — `.fixedSize()` propagates its ideal width to
+    ///   the enclosing stack, so the copy underneath ends up centred against a phantom width.
     static func store(
         cardCount: Int,
         myCardNumber: Int? = nil,
         canGuess: Bool = true,
+        reason: CannotGuessReason? = nil,
+        poolSize: Int = members.count,
         guesses: [Int: String] = [:]
     ) -> RevealStore {
         let store = RevealStore(
             cards: (1...cardCount).map(card(number:)),
-            pool: members + [me],
+            pool: Array(members.prefix(poolSize)) + [me],
             myCardNumber: myCardNumber,
             canGuess: canGuess,
+            cannotGuessReason: reason,
             me: me.userID
         )
         store.answersAt = answersAt
