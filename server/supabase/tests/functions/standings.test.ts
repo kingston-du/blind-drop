@@ -215,7 +215,7 @@ Deno.test("readability is sorted descending, with the docs/02 §4.5 band", async
   assertEquals(
     rows.map((r) => r.band),
     ["mixed_signals", "mixed_signals", "mixed_signals", "hard_to_place", "hard_to_place"],
-    "40–59% is mixed signals, 20–39% is hard to place",
+    "40–59% uses mixed_signals, 20–39% uses hard_to_place",
   );
 });
 

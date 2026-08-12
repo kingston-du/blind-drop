@@ -56,8 +56,8 @@ struct StatMeter: View {
         .frame(height: markerHeight)
     }
 
-    /// The owner-approved rule is one active label only. It keeps the meter readable on small
-    /// phones at every Dynamic Type size and matches the results-screen specification.
+    /// The owner-approved rule is one active, one-word label only. It keeps the meter readable
+    /// on small phones at every Dynamic Type size and matches the results-screen specification.
     private var bandLabels: some View {
         Text(verbatim: Copy.band(band))
             .typeStyle(.caption)

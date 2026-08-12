@@ -276,10 +276,10 @@ readability is its own kind of win.
 
 | Readability (all-time) | Label |
 |---|---|
-| 80–100% | Open book |
+| 80–100% | Clear |
 | 60–79% | Legible |
-| 40–59% | Mixed signals |
-| 20–39% | Hard to place |
+| 40–59% | Mixed |
+| 20–39% | Elusive |
 | 0–19% | Unreadable |
 
 **Best Ear** is a straightforward leaderboard and *is* ranked 1..N.

@@ -169,10 +169,10 @@ Never state how many people did drop.
 
 | Key | String |
 |---|---|
-| `band.open_book` | Open book |
+| `band.open_book` | Clear |
 | `band.legible` | Legible |
-| `band.mixed_signals` | Mixed signals |
-| `band.hard_to_place` | Hard to place |
+| `band.mixed_signals` | Mixed |
+| `band.hard_to_place` | Elusive |
 | `band.unreadable` | Unreadable |
 
 No band is framed as good or bad. There is no copy anywhere that congratulates a high

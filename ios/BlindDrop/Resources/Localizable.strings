@@ -73,10 +73,10 @@
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
 /* No band is framed as good or bad. */
 
-"band.open_book" = "Open book";
+"band.open_book" = "Clear";
 "band.legible" = "Legible";
-"band.mixed_signals" = "Mixed signals";
-"band.hard_to_place" = "Hard to place";
+"band.mixed_signals" = "Mixed";
+"band.hard_to_place" = "Elusive";
 "band.unreadable" = "Unreadable";
 
 /* ── VoiceOver (docs/11 §VoiceOver, applied per docs/12 §2) ────────────────── */

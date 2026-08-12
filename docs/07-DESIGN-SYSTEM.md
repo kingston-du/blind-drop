@@ -263,8 +263,8 @@ it does not change state — it triggers a refetch.
 ### `StatMeter`
 The readability spectrum. A horizontal track, `paperSunk`, with a single `ultramarine` marker
 at the position. **No fill from the left** — filling implies more is better, and readability
-has no better. Show the active band label only, in `caption` `ink`. No arrow, no rank, no
-delta.
+has no better. Show one active, one-word band label only, in `caption` `ink`: Clear, Legible,
+Mixed, Elusive, or Unreadable. No arrow, no rank, no delta.
 
 ### `EmptyState`
 `displayM` line + `bodyM` `inkDim` line + one `PrimaryButton`. Empty states are invitations,

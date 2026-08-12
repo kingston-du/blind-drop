@@ -10,10 +10,10 @@ Runs against the fixture server (`E00-05`), so it does not wait on the backend.
 > presently `platform=iOS Simulator,OS=latest,name=iPhone 17`, on a pinned Xcode image. The
 > deployment target remains iOS 17.0, and the release pass also runs against an iOS 17 runtime.
 
-> **Resolved — owner, 2026-08-12:** `StatMeter` shows the active band label only. The five
-> labels do not fit on a small phone at accessible text sizes, and the active label gives the
-> user the information the meter is conveying without adding visual noise. `docs/07` and
-> `docs/08` use this rule.
+> **Resolved — owner, 2026-08-12:** `StatMeter` shows one active, one-word band label only.
+> The five labels do not fit on a small phone at accessible text sizes, and multi-word labels
+> add avoidable wrapping pressure. The active word gives the user the information the meter is
+> conveying without visual noise. `docs/02`, `docs/07`, `docs/08`, and `docs/11` use this rule.
 
 > **Resolved — owner, 2026-08-12:** `docs/07` §5 specified `TrackRow`'s title as *"1 line, truncating"*;
 > `docs/12` §1 says *"nothing truncates and nothing overlaps at `.accessibility5` on an iPhone

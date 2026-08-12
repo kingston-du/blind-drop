@@ -8,6 +8,7 @@ import Testing
 /// the right number of pixels, that a band boundary falls on the same side as the server's, or
 /// that a VoiceOver label carries the four facts `docs/12` §2 requires — those are assertions,
 /// and `docs/15` §7 wants a passing test rather than a look at a picture.
+@MainActor
 @Suite struct ComponentRules {
 
     // MARK: - Artwork sizing (docs/06 §2.1)
@@ -183,7 +184,7 @@ import Testing
     }
 
     @Test func theReadabilityMeterAnnouncesAPercentageAndABand() {
-        #expect(Copy.A11y.readability(percent: 86, band: .openBook) == "Readability 86 percent. Open book.")
+        #expect(Copy.A11y.readability(percent: 86, band: .openBook) == "Readability 86 percent. Clear.")
     }
 
     @Test func theSealedCardAnnouncesTheSongAndWhenItOpens() {

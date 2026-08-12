@@ -299,12 +299,12 @@ sequence immediately. Runs once per round.
    │        86%           │        │        71%           │   monoXL, tabular
    │  6 of 7 read you     │        │  5 of 7 correct      │   caption, inkDim
    │  ──────────●─────    │        │                      │   StatMeter
-   │  open book           │        │                      │   band label
+   │  clear               │        │                      │   band label
    └──────────────────────┘        └──────────────────────┘
 ```
 
-- Readability uses `StatMeter` with a marker, **no fill from the left**, and its active band
-  label only.
+- Readability uses `StatMeter` with a marker, **no fill from the left**, and its active
+  one-word band label only.
   No rank, no arrow, no comparison to yesterday.
 - Ear with no guesses renders as **—** with the line *"You sat this one out."* Never `0%`.
 - Readability for a non-submitter is absent, not zero.
