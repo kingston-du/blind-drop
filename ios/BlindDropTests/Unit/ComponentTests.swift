@@ -163,6 +163,8 @@ import Testing
         // docs/12 §3: opacity alone is not a status indicator.
         #expect(Copy.A11y.nameChip("Cal", assignedTo: 3) == "Cal. Assigned to No. 3")
         #expect(Copy.A11y.nameChip("Cal", assignedTo: nil) == "Cal. Unassigned")
+        #expect(Copy.A11y.nameChipValue(assignedTo: 3) == "Assigned to No. 3")
+        #expect(Copy.A11y.nameChipValue(assignedTo: nil) == "Unassigned")
     }
 
     @Test func theCountdownAnnouncesWhatItIsCountingTo() {

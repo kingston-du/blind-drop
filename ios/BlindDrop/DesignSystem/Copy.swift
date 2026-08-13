@@ -136,9 +136,14 @@ enum Copy {
         /// A name chip: the name, then its state. **The state is a real announcement, not the
         /// 0.6 opacity** — `docs/12` §3: opacity alone is not a status indicator.
         static func nameChip(_ name: String, assignedTo cardNumber: Int?) -> String {
-            let state = cardNumber.map { format("a11y.namechip.assigned", $0) }
+            format("a11y.namechip", name, nameChipValue(assignedTo: cardNumber))
+        }
+
+        /// The state is also supplied separately as the control's accessibility value. Keeping
+        /// it here makes the full copy string and the VoiceOver value impossible to drift.
+        static func nameChipValue(assignedTo cardNumber: Int?) -> String {
+            cardNumber.map { format("a11y.namechip.assigned", $0) }
                 ?? string("a11y.namechip.unassigned")
-            return format("a11y.namechip", name, state)
         }
 
         /// A chip the caller cannot use, with **why** in place of the state (`docs/12` §2:

@@ -106,10 +106,11 @@ final class RevealStore {
 
     // MARK: - Deriving the view
 
-    /// The names as the cards print them. `E11-03` replaces this with the disambiguating
-    /// version (`Sam B.` / `Sam K.`); everything downstream reads a resolved string either way.
+    /// The names as the cards and the pool print them. A `user_id` remains the identity through
+    /// assignment; this is presentation only, resolved once so a chip and its matching card can
+    /// never disagree about whether it is *Sam B.* or *Sam K.*.
     var displayNames: [String: String] {
-        Dictionary(pool.map { ($0.userID, $0.displayName) }, uniquingKeysWith: { first, _ in first })
+        NameDisambiguator.labels(for: pool)
     }
 
     /// What `RevealScreen` draws.
@@ -246,5 +247,49 @@ final class RevealStore {
     /// A card the caller may put a name on: not theirs, and only if they may guess at all.
     func isGuessable(_ number: Int) -> Bool {
         canGuess && number != myCardNumber
+    }
+}
+
+/// Resolves the one ambiguity a name-only guessing game cannot leave to chance.
+///
+/// A member may choose a multi-word display name. When two people share its leading word, the
+/// pool contracts them to `Sam B.` / `Sam K.` from the next word's initial. If no distinct
+/// initial is available — identical one-word names, or two `Sam B…` names — an ordinal is
+/// appended to later occurrences: `Sam`, `Sam (2)`. The latter is intentionally a fallback:
+/// exposing more of somebody's name just to make a label unique would defeat the point of a
+/// display name in the first place.
+enum NameDisambiguator {
+    static func labels(for members: [MemberDTO]) -> [String: String] {
+        let groups = Dictionary(grouping: members, by: baseName)
+        var labels = Dictionary(uniqueKeysWithValues: members.map { ($0.userID, $0.displayName) })
+
+        for group in groups.values where group.count > 1 {
+            let initials = group.map(suffixInitial)
+            let hasDistinctInitials = initials.allSatisfy { $0 != nil }
+                && Set(initials.compactMap { $0 }).count == group.count
+
+            if hasDistinctInitials {
+                for (member, initial) in zip(group, initials.compactMap { $0 }) {
+                    labels[member.userID] = "\(baseName(member)) \(initial)."
+                }
+            } else {
+                for (index, member) in group.enumerated() {
+                    let base = baseName(member)
+                    labels[member.userID] = index == 0 ? base : "\(base) (\(index + 1))"
+                }
+            }
+        }
+        return labels
+    }
+
+    private static func baseName(_ member: MemberDTO) -> String {
+        member.displayName.split(whereSeparator: \.isWhitespace).first.map(String.init)
+            ?? member.displayName
+    }
+
+    private static func suffixInitial(_ member: MemberDTO) -> String? {
+        let words = member.displayName.split(whereSeparator: \.isWhitespace)
+        guard words.count > 1, let scalar = words[1].unicodeScalars.first else { return nil }
+        return String(scalar).uppercased()
     }
 }

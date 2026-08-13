@@ -203,6 +203,53 @@ import Testing
         #expect(store.pool.count == RevealFixture.members.count)
     }
 
+    // MARK: - Names (E11-03)
+
+    @Test func sharedFirstNamesUseTheNextWordInitialOnThePoolAndTheCard() {
+        let samBrown = MemberDTO(userID: "sam-b", displayName: "Sam Brown")
+        let samKwan = MemberDTO(userID: "sam-k", displayName: "Sam Kwan")
+        let store = RevealStore(
+            cards: [RevealFixture.card(number: 1)],
+            pool: [samBrown, samKwan],
+            myCardNumber: nil,
+            canGuess: true,
+            me: nil
+        )
+        store.adopt([GuessDTO(cardNumber: 1, guessedUserID: "sam-k")])
+
+        #expect(store.displayNames == ["sam-b": "Sam B.", "sam-k": "Sam K."])
+        #expect(store.viewState.assignment(for: 1) == .guessed(name: "Sam K."))
+    }
+
+    @Test func identicalNamesFallBackToAnOrdinalRatherThanExposingMoreData() {
+        let first = MemberDTO(userID: "sam-1", displayName: "Sam")
+        let second = MemberDTO(userID: "sam-2", displayName: "Sam")
+        let labels = NameDisambiguator.labels(for: [first, second])
+
+        #expect(labels["sam-1"] == "Sam")
+        #expect(labels["sam-2"] == "Sam (2)")
+    }
+
+    @Test func collidingSurnameInitialsAlsoFallBackToOrdinals() {
+        let first = MemberDTO(userID: "sam-brown", displayName: "Sam Brown")
+        let second = MemberDTO(userID: "sam-baker", displayName: "Sam Baker")
+        let labels = NameDisambiguator.labels(for: [first, second])
+
+        #expect(labels["sam-brown"] == "Sam")
+        #expect(labels["sam-baker"] == "Sam (2)")
+    }
+
+    @Test func consumedChipExposesAssignmentAsItsAccessibilityValue() {
+        let chip = NameChip(
+            member: MemberDTO(userID: "cal", displayName: "Cal"),
+            state: .consumed(cardNumber: 3),
+            action: {}
+        )
+
+        #expect(chip.accessibilityLabel == "Cal")
+        #expect(chip.accessibilityValue == "Assigned to No. 3")
+    }
+
     // MARK: - Announcements and progress
 
     /// `docs/12` §2: *"Assigning a guess posts an `.announcement`: 'No. 3 assigned to Cal.'"*

@@ -100,11 +100,13 @@ struct RevealScreen: View {
     private let accent = PhaseAccent.revealed
 
     var body: some View {
-        VStack(spacing: Space.none) {
-            flight
-            // Pinned, so the names stay reachable however far down the flight the reader is
-            // (`docs/08` §6). The two scroll independently.
-            GuessSheet(store: store)
+        GeometryReader { proxy in
+            VStack(spacing: Space.none) {
+                flight
+                // Pinned, so the names stay reachable however far down the flight the reader is
+                // (`docs/08` §6). The two scroll independently.
+                GuessSheet(store: store, availableHeight: proxy.size.height)
+            }
         }
         .background(Palette.paper)
         // `docs/12` §2: *"Assigning a guess posts an `.announcement`"*. Posted here rather than

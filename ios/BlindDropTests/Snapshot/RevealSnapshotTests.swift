@@ -98,7 +98,8 @@ private let sizes = SnapshotRenderer.typeSizes
     func guessSheet(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "GuessSheet", device, size) {
             GuessSheet(store: RevealFixture.store(cardCount: 6, myCardNumber: 4, poolSize: 5,
-                                                  guesses: [1: "Cal", 3: "Ana"])).content
+                                                  guesses: [1: "Cal", 3: "Ana"]))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size))
         }
     }
 
@@ -109,7 +110,8 @@ private let sizes = SnapshotRenderer.typeSizes
     func guessSheetNotASubmitter(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "GuessSheet-notsubmitter", device, size) {
             GuessSheet(store: RevealFixture.store(cardCount: 6, canGuess: false,
-                                                  reason: .notASubmitter, poolSize: 5)).content
+                                                  reason: .notASubmitter, poolSize: 5))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size))
         }
     }
 
@@ -119,7 +121,20 @@ private let sizes = SnapshotRenderer.typeSizes
     func guessSheetJoinedLate(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "GuessSheet-joinedlate", device, size) {
             GuessSheet(store: RevealFixture.store(cardCount: 6, canGuess: false,
-                                                  reason: .joinedLate, poolSize: 5)).content
+                                                  reason: .joinedLate, poolSize: 5))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size))
+        }
+    }
+
+    /// The PRD's large-text stress case. At `.accessibility5` the horizontal strip becomes the
+    /// two-column vertical grid; rendering its contents without the scroll container makes all
+    /// eleven chips reviewable in one image, while `A11yReachabilityTests` proves the production
+    /// container exposes that whole set through its visible vertical scroll indicator.
+    @Test(arguments: devices)
+    func guessSheetTwelveMembersAtAccessibilityFive(_ device: SnapshotRenderer.Device) {
+        verify(named: "GuessSheet-12", device, .accessibility5) {
+            GuessSheet(store: RevealFixture.store(cardCount: 12, myCardNumber: 7))
+                .content(layout: .verticalGrid)
         }
     }
 

@@ -15,6 +15,10 @@ import SwiftUI
 /// same fact the sighted user gets from the dimming — which card the name is currently on.
 struct NameChip: View {
     let member: MemberDTO
+    /// The resolved name the reveal screen shows. It differs from `member.displayName` only
+    /// when two people share a first name (`Sam B.` / `Sam K.`); identity and interaction stay
+    /// on `userID`, never on what happens to fit on the chip.
+    var displayName: String?
     let state: State
     let action: () -> Void
     /// Why this chip cannot be used, when it cannot (`E11-05`). Present for a non-submitter and
@@ -25,6 +29,9 @@ struct NameChip: View {
     /// that does nothing. The chip stays visible and stays in the pool: `docs/08` §6 wants the
     /// apparatus *disabled, not hidden*, because the user has to see exactly what they missed.
     var unavailableReason: String?
+    /// The accessibility-size pool is two columns wide, so a long, resolved name must grow its
+    /// chip rather than disappear behind a one-line truncation.
+    var allowsWrapping = false
 
     /// A chip's three states. `.consumed` carries the card number it went to, because *"already
     /// used"* is not the fact — *"on No. 3"* is, and it is what the announcement says.
@@ -40,10 +47,11 @@ struct NameChip: View {
 
     var body: some View {
         Button(action: action) {
-            Text(verbatim: member.displayName)
+            Text(verbatim: name)
                 .typeStyle(.bodyM)
                 .foregroundStyle(labelColor)
-                .lineLimit(1)
+                .lineLimit(allowsWrapping ? nil : 1)
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, Space.md)
                 .frame(minHeight: Layout.chipHeight)
                 .background(
@@ -60,17 +68,26 @@ struct NameChip: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("nameChip.\(member.userID)")
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(accessibilityValue)
         .accessibilityAddTraits(state == .selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityRespondsToUserInteraction(unavailableReason == nil)
     }
 
-    private var accessibilityLabel: String {
+    var accessibilityLabel: String {
         if let unavailableReason {
-            return Copy.A11y.nameChip(member.displayName, unavailable: unavailableReason)
+            return Copy.A11y.nameChip(name, unavailable: unavailableReason)
         }
-        return Copy.A11y.nameChip(member.displayName, assignedTo: state.assignedCardNumber)
+        return name
     }
+
+    var accessibilityValue: String {
+        guard unavailableReason == nil else { return "" }
+        return Copy.A11y.nameChipValue(assignedTo: state.assignedCardNumber)
+    }
+
+    private var name: String { displayName ?? member.displayName }
 
     private var fill: Color {
         switch state {

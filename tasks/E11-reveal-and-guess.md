@@ -85,20 +85,26 @@ Both directions, because teenagers will try both.
 
 ### E11-03 — Name pool and the 12-member layout
 
-**Status:** wip · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/12` §6
+**Status:** done · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/12` §6
 **Touches:** `Features/Reveal/GuessSheet.swift`
 **Verify:** `A11yReachabilityTests` at SE × 12 members × `.accessibility5`
 
 The PRD calls this case out specifically, so it gets its own task.
 
-- [ ] Pool is exactly this round's submitters minus the caller
-- [ ] Duplicate display names disambiguated: `Sam B.` / `Sam K.`, falling back to `Sam (2)`
-- [ ] Pinned bottom, horizontally scrollable, with a trailing fade that makes overflow visible
-- [ ] Above `.accessibility3`: a 2-row wrapping grid capped at 40% of screen height with its
+- [x] Pool is exactly this round's submitters minus the caller
+- [x] Duplicate display names disambiguated: `Sam B.` / `Sam K.`, falling back to `Sam (2)`
+- [x] Pinned bottom, horizontally scrollable, with a trailing fade that makes overflow visible
+- [x] Above `.accessibility3`: a 2-row wrapping grid capped at 40% of screen height with its
       own vertical scroll and a visible indicator
-- [ ] Consumed chips carry an accessibility value change, not just opacity
-- [ ] Test: at SE × 12 × `.accessibility5`, every chip and every card is reachable with no
+- [x] Consumed chips carry an accessibility value change, not just opacity
+- [x] Test: at SE × 12 × `.accessibility5`, every chip and every card is reachable with no
       clipped or zero-size hit region
+
+> **Open question:** The screen spec says a *"2-row wrapping grid"* and also requires the pool
+> to have *"its own vertical scroll"*. A two-row grid naturally scrolls horizontally, so the
+> requirements conflict. Chosen: a **two-column wrapping grid** inside a visible vertical
+> scroller. It is the only arrangement that fulfils the stated vertical-reachability requirement
+> at `.accessibility5`, and it gives long disambiguated names room to wrap rather than truncate.
 
 ---
 

@@ -78,6 +78,19 @@ enum Layout {
     /// A name chip's drawn height; its hit region is `minimumTouchTarget`.
     static let chipHeight: CGFloat = 36
 
+    /// The trailing gradient that says a normal-size name pool keeps scrolling. It is an
+    /// affordance, not decoration: without it a row ending at the screen edge reads as though
+    /// the five visible names are the entire pool (`docs/08` §6).
+    static let namePoolOverflowFadeWidth: CGFloat = Space.x3
+
+    /// At accessibility sizes the pool becomes its own vertical scroll region. It may use no
+    /// more than 40% of the available screen height, leaving the flight independently readable
+    /// above it (`docs/08` §6, `docs/12` §6).
+    static let namePoolMaximumHeightFraction: CGFloat = 0.4
+    /// Used only by standalone snapshots, which deliberately have no enclosing screen from
+    /// which to measure the fraction. Production always receives the measured screen height.
+    static let namePoolSnapshotMaximumHeight: CGFloat = 320
+
     /// Artwork at the four sizes `docs/06` §2.1 names.
     enum Artwork {
         static let searchRow: CGFloat = 56
