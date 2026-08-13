@@ -7,7 +7,7 @@ not cleanup tasks at the end of the epic — they are the point of it.
 
 ### E12-01 — Answer reveal
 
-**Status:** todo · **Deps:** E11-04, E05-04 · **Reads:** `docs/08` §7.1, `docs/09` §4, `docs/11` (results)
+**Status:** wip · **Deps:** E11-04, E05-04 · **Reads:** `docs/08` §7.1, `docs/09` §4, `docs/11` (results)
 **Touches:** `Features/Results/{ResultsScreen,ResultsStore}.swift`
 **Verify:** snapshot matrix; `PHASE=scored` fixture run
 

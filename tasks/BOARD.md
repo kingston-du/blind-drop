@@ -152,7 +152,7 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E12-01 Answer reveal | todo | E11-04, E05-04 | AC-8 |
+| E12-01 Answer reveal | wip | E11-04, E05-04 | AC-8 |
 | E12-02 Personal stats and `StatMeter` | todo | E12-01 | AC-8 |
 | E12-03 Standings | todo | E12-02, E05-05 | AC-8 |
 | E12-04 Share card views | todo | E12-03 | AC-9 |
