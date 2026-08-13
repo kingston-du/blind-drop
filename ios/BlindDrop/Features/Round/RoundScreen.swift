@@ -157,7 +157,8 @@ struct RoundScreen: View {
                     answersAt: context.round.scoresAt,
                     groupInitial: context.groupInitial,
                     me: store.me,
-                    timer: timer
+                    timer: timer,
+                    player: player
                 )
 
             case .scored:
@@ -265,6 +266,7 @@ private struct RevealHost: View {
     let groupInitial: String
     let me: String?
     let timer: CountdownTimer
+    let player: PreviewPlayer
 
     @State private var store: RevealStore?
     @State private var unseal: UnsealAnimation?
@@ -276,7 +278,8 @@ private struct RevealHost: View {
                     store: store,
                     timer: timer,
                     groupInitial: groupInitial,
-                    unseal: unseal
+                    unseal: unseal,
+                    player: player
                 )
             } else {
                 Color.clear
@@ -288,13 +291,17 @@ private struct RevealHost: View {
                 store?.adopt(payload.myGuesses)
                 return
             }
+            let api = env.api
             let built = RevealStore(
                 cards: payload.cards,
                 pool: payload.namePool,
                 myCardNumber: payload.myCardNumber,
                 canGuess: payload.canGuess,
                 cannotGuessReason: payload.cannotGuessReason,
-                me: me
+                me: me,
+                saveGuesses: { assignments in
+                    try await api.send(.saveGuesses(assignments))
+                }
             )
             built.adopt(payload.myGuesses)
             built.answersAt = answersAt

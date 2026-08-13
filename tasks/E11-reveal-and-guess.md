@@ -153,25 +153,24 @@ This is the participation-pressure mechanic. The user must **see** exactly what 
 
 > **Note on "cards and previews remain fully usable":** the blocked treatment is scoped to the
 > pool — `.disabled` sits on the chip row and on nothing else, so the flight, its cards and their
-> preview controls are untouched by it. Preview *playback* itself does not exist anywhere in the
-> app yet: `PreviewPlayer` lands with `E10-02`, and `FlightCard` already takes the `preview`
-> parameter it will be handed. Wiring it is `E11-06`'s, alongside the API load.
+> preview controls are untouched by it. The reveal uses the same `PreviewPlayer` as submission,
+> stops it when the screen leaves, and omits the control entirely when a track has no preview URL.
 
 ---
 
 ### E11-06 — Debounced guess save
 
-**Status:** wip · **Deps:** E11-02, E05-02 · **Reads:** `docs/08` §6, `docs/13` §6
+**Status:** done · **Deps:** E11-02, E05-02 · **Reads:** `docs/08` §6, `docs/13` §6
 **Touches:** `Features/Reveal/RevealStore.swift`
 **Verify:** unit test on debounce and cancellation
 
-- [ ] Saves on every change, debounced 600ms, whole-sheet upsert
-- [ ] One `Task` held by the store, cancelled and replaced per edit. Never detached, never a
+- [x] Saves on every change, debounced 600ms, whole-sheet upsert
+- [x] One `Task` held by the store, cancelled and replaced per edit. Never detached, never a
       timer that outlives the screen.
-- [ ] **Lock in guesses** is a confirmation and a dismissal, not the only save — a user who
+- [x] **Lock in guesses** is a confirmation and a dismissal, not the only save — a user who
       closes the app keeps their sheet
-- [ ] After locking, chips render locked-styled but stay editable via **Change a guess**; the
+- [x] After locking, chips render locked-styled but stay editable via **Change a guess**; the
       countdown continues to 10:00 PM
-- [ ] Save failure surfaces inline and the sheet stays editable — never lose a user's work to
+- [x] Save failure surfaces inline and the sheet stays editable — never lose a user's work to
       a network blip
-- [ ] Test: rapid edits produce one request; the store cancels cleanly on disappear
+- [x] Test: rapid edits produce one request; the store cancels cleanly on disappear

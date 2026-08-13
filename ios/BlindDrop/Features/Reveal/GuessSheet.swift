@@ -25,19 +25,18 @@ enum NamePoolLayout: Equatable, Sendable {
 /// └─────────────────────────────┘
 /// ```
 ///
-/// `E11-03` takes over the pool's layout: the trailing fade that makes overflow visible, and the
-/// two-row wrapping grid it becomes above `.accessibility3`. What lands here is the part `E11-02`
-/// and `E11-05` need — chips that select, move and announce, and the blocked treatment that keeps
-/// all of it visible when the caller cannot play.
+/// The pool becomes a vertically scrolling, two-column wrapping grid above `.accessibility3`;
+/// the ordinary-size row keeps a trailing fade so its horizontal overflow is visible. Chips
+/// select, move and announce, while the blocked treatment keeps the full apparatus visible when
+/// the caller cannot play.
 struct GuessSheet: View {
     let store: RevealStore
     /// The height of the screen hosting this sheet. `RevealScreen` measures it once and passes
     /// it down, so the accessibility grid can honour its 40%-of-screen cap without guessing
     /// from the device model.
     var availableHeight: CGFloat? = nil
-    /// **Lock in guesses** — a confirmation and a dismissal, not the only save (`docs/08` §6).
-    /// `E11-06` adds the debounced save that makes that true; until then the button reports the
-    /// intent and nothing is lost by it.
+    /// Optional host callback after **Lock in guesses** changes the store to its confirmed state.
+    /// Saving is owned by the store and happens on every edit; this is never the only save.
     var lockIn: (() -> Void)?
 
     private let accent = PhaseAccent.revealed
@@ -72,10 +71,25 @@ struct GuessSheet: View {
             if let blocked = store.blockedReason {
                 blockedLine(blocked)
             } else {
-                PrimaryButton("reveal.action", accent: accent, isEnabled: store.assignedCount > 0) {
-                    lockIn?()
+                if store.isLocked {
+                    PrimaryButton("reveal.action.locked", accent: accent, isEnabled: false) {}
+                        .padding(.horizontal, Layout.screenInset)
+                    SecondaryButton("reveal.edit") { store.changeAGuess() }
+                } else {
+                    PrimaryButton("reveal.action", accent: accent, isEnabled: store.assignedCount > 0) {
+                        store.lockIn()
+                        lockIn?()
+                    }
+                    .padding(.horizontal, Layout.screenInset)
                 }
-                .padding(.horizontal, Layout.screenInset)
+                if let errorKey = store.saveErrorKey {
+                    Text(LocalizedStringKey(errorKey))
+                        .typeStyle(.caption)
+                        .foregroundStyle(Palette.alert)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Layout.screenInset)
+                        .accessibilityAddTraits(.isStaticText)
+                }
                 Text(verbatim: store.progress)
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
@@ -172,8 +186,8 @@ struct GuessSheet: View {
         // The row takes its natural width rather than the one it is offered, so twelve chips
         // scroll instead of being squeezed onto a 375pt screen.
         .fixedSize()
-        .disabled(!store.canGuess)
-        .opacity(store.canGuess ? 1 : 0.5)
+        .disabled(!store.canGuess || store.isLocked)
+        .opacity(store.canGuess && !store.isLocked ? 1 : 0.5)
     }
 
     /// The large-text alternative. The task says "2-row" *and* requires a vertical scroll;
@@ -200,7 +214,7 @@ struct GuessSheet: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .disabled(!store.canGuess)
-        .opacity(store.canGuess ? 1 : 0.5)
+        .disabled(!store.canGuess || store.isLocked)
+        .opacity(store.canGuess && !store.isLocked ? 1 : 0.5)
     }
 }

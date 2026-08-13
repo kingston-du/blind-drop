@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import BlindDrop
 
-/// `E10-01`'s *"`PHASE=open` fixture run"* and `E10-02`'s *"search returns results < 400ms against
-/// the fixture server"*.
+/// The round flow's live-fixture checks: E10's open/search/seal paths and E11's revealed guess
+/// save.
 ///
 /// `RoundStoreTests` and `SubmitStoreTests` are stubs — fast, exact, and unable to notice that the
 /// client builds a body the server would refuse or reads a field the contract does not send. This
@@ -32,11 +32,15 @@ struct FixtureRoundTests {
     /// `E10-01`'s *"`PHASE=open` fixture run"* and `E10-06`'s *"`PHASE=voided` fixture run"* — by
     /// being run twice against a server started differently, instead of by two suites that would
     /// each be skipped half the time.
-    private func servedPhase() async throws -> RoundState {
+    private func servedFixturePhase() async throws -> String {
         let base = try #require(FixtureServer.baseURL)
         let (data, _) = try await URLSession.shared.data(from: base.appending(path: "__fixture"))
         let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        let phase = (envelope?["data"] as? [String: Any])?["phase"] as? String ?? "open"
+        return (envelope?["data"] as? [String: Any])?["phase"] as? String ?? "open"
+    }
+
+    private func servedPhase() async throws -> RoundState {
+        let phase = try await servedFixturePhase()
         // The server's phase names carry a variant suffix (`open_nosub`, `revealed_joinedlate`);
         // the round's state is the part before it.
         return RoundState(rawValue: phase.split(separator: "_").first.map(String.init) ?? phase) ?? .open
@@ -126,6 +130,22 @@ struct FixtureRoundTests {
         let context = try #require(round.state.value)
         #expect(context.round.state == .open, "sealing does not move the round along")
         #expect(context.round.mySubmission?.track.title == "Ribs")
+    }
+
+    /// E11-06 through the real `APIClient`: the whole sheet reaches the revealed fixture, a
+    /// `null` clears its card, and the response decodes into the same DTO production adopts.
+    @Test func guessesSaveAgainstTheRevealedFixture() async throws {
+        guard try await servedFixturePhase() == "revealed" else { return }
+        let env = try environment()
+
+        let sheet = try await env.api.send(.saveGuesses([
+            GuessAssignment(cardNumber: 1, guessedUserID: "u_ben"),
+            GuessAssignment(cardNumber: 2, guessedUserID: nil),
+        ]))
+
+        #expect(sheet.assignments == [GuessDTO(cardNumber: 1, guessedUserID: "u_ben")])
+        #expect(sheet.assignedCount == 1)
+        #expect(sheet.assignableCount == 7)
     }
 
     private func resolvedTrack(_ store: SubmitStore) async -> TrackDTO? {

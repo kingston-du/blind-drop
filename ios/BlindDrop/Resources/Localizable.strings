@@ -122,6 +122,8 @@
 /* ── Rows the component snapshots stand a button or an empty state up with ─── */
 
 "reveal.action" = "Lock in guesses";
+"reveal.action.locked" = "Locked in";
+"reveal.edit" = "Change a guess";
 
 /* ── The Record and Group settings, as far as the header menu names them ───── */
 /* Their screens are E13-01 and a later pass; the menu that reaches them is E10-01's. */

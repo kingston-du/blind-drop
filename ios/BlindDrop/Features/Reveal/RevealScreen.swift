@@ -90,6 +90,7 @@ struct RevealScreen: View {
     let timer: CountdownTimer
     var groupInitial = ""
     var unseal: UnsealAnimation? = nil
+    var player: PreviewPlayer? = nil
 
     private var state: RevealViewState { store.viewState }
 
@@ -121,6 +122,10 @@ struct RevealScreen: View {
             store.consumeAnnouncement()
         }
         .task { await unseal?.run(reducedMotion: reduceMotion) }
+        .onDisappear {
+            player?.stop()
+            store.cancelPendingSave()
+        }
     }
 
     private var flight: some View {
@@ -245,13 +250,16 @@ struct RevealScreen: View {
                 track: card.track,
                 accent: accent,
                 assignment: state.assignment(for: card.cardNumber),
+                // No preview URL means no control at all. When one exists, the shared player
+                // keeps the reveal and submit flows to one sound at a time and never autoplays.
+                preview: preview(for: card.track),
                 // A card the caller cannot act on is not a button. `.mine` and `.unavailable`
                 // both land here, from opposite directions: one is theirs already, the other is
                 // never going to be theirs to fill in.
                 chooseGuess: store.isGuessable(card.cardNumber)
                     ? { store.tapCard(card.cardNumber) }
                     : nil,
-                clearGuess: state.guesses[card.cardNumber] == nil
+                clearGuess: store.isLocked || state.guesses[card.cardNumber] == nil
                     ? nil
                     : { store.clearGuess(on: card.cardNumber) },
                 unseal: unseal.map {
@@ -277,6 +285,13 @@ struct RevealScreen: View {
             } else {
                 cardView
             }
+        }
+    }
+
+    private func preview(for track: TrackDTO) -> TrackRow.Preview? {
+        guard track.previewURL != nil, let player else { return nil }
+        return TrackRow.Preview(isPlaying: player.playing == track.trackKey) {
+            player.toggle(track)
         }
     }
 

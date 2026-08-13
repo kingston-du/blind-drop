@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E11-06`. `E00`–`E10` are done.
+**Start here:** `E12-01`. `E00`–`E11` are done.
 
 ---
 
@@ -146,7 +146,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E11-03 Name pool and the 12-member layout | done | E11-02 | — |
 | E11-04 **The unseal animation** | done | E11-01 | AC-11 |
 | E11-05 Non-submitter and joined-late states | done | E11-02 | AC-6 |
-| E11-06 Debounced guess save | wip | E11-02, E05-02 | — |
+| E11-06 Debounced guess save | done | E11-02, E05-02 | — |
 
 ## E12 — Results and share · [file](E12-results-and-share.md)
 
@@ -195,8 +195,8 @@ E04..E07 + E13  ─ E14 QA & release
 | E08 | 7 / 7 |
 | E09 | 4 / 4 |
 | E10 | 7 / 7 |
-| E11 | 5 / 6 |
+| E11 | 6 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **64 / 80** |
+| **Total** | **65 / 80** |

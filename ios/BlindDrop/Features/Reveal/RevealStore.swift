@@ -17,6 +17,9 @@ import Foundation
 @Observable @MainActor
 final class RevealStore {
 
+    typealias GuessSaver = @Sendable ([GuessAssignment]) async throws -> GuessSheetDTO
+    static let saveDebounce = Duration.milliseconds(600)
+
     // MARK: - The round
 
     /// Every card in the round, in the server's order. The caller's own card is here too — the
@@ -65,6 +68,12 @@ final class RevealStore {
     /// Card number → the guessed member's `user_id`. The caller's own answer, and nobody else's.
     private(set) var assignments: [Int: String] = [:]
 
+    /// `nil` is quiet; a key is rendered inline under the apparatus. A failed save never locks
+    /// the sheet and never discards the local assignments.
+    private(set) var saveErrorKey: String?
+    private(set) var isSaving = false
+    private(set) var isLocked = false
+
     // MARK: - The interaction
 
     /// The card wearing the `ultramarine` focus ring, if any.
@@ -78,19 +87,27 @@ final class RevealStore {
     /// stays free of UIKit and stays testable — the assertion is on this string.
     private(set) var announcement: String?
 
+    private let saveGuesses: GuessSaver?
+    private var saveTask: Task<Void, Never>?
+    private var editRevision = 0
+
+    var hasPendingSave: Bool { saveTask != nil }
+
     init(
         cards: [CardDTO],
         pool: [MemberDTO],
         myCardNumber: Int?,
         canGuess: Bool,
         cannotGuessReason: CannotGuessReason? = nil,
-        me: String?
+        me: String?,
+        saveGuesses: GuessSaver? = nil
     ) {
         self.cards = cards
         self.pool = pool.filter { $0.userID != me }
         self.myCardNumber = myCardNumber
         self.canGuess = canGuess
         self.cannotGuessReason = cannotGuessReason
+        self.saveGuesses = saveGuesses
     }
 
     /// Adopts the caller's saved sheet — what `GET /rounds/current` returned in `my_guesses`.
@@ -125,8 +142,7 @@ final class RevealStore {
         )
     }
 
-    /// When the answers land. Set by whoever loaded the round; `E11-06` wires the store to the
-    /// API and this becomes part of that load.
+    /// When the answers land. Set from the server-owned round loaded by `RoundStore`.
     var answersAt: Date = .distantFuture
 
     /// Every card the caller could put a name on: all of them except their own.
@@ -186,7 +202,7 @@ final class RevealStore {
     /// the default behaviour rather than a blocked action, because blocking it would make the
     /// commonest correction — "no, Cal was the other one" — into two operations.
     func tapName(_ userID: String) {
-        guard canGuess else { return }
+        guard canGuess, !isLocked else { return }
         if let card = focusedCard {
             assign(userID, to: card)
             return
@@ -196,10 +212,37 @@ final class RevealStore {
 
     /// The `✕` on an inline chip (`docs/08` §6), and the card's "Clear guess" action.
     func clearGuess(on cardNumber: Int) {
+        guard canGuess, !isLocked else { return }
         guard assignments.removeValue(forKey: cardNumber) != nil else { return }
         // The card that was just emptied takes the focus, because the overwhelmingly likely next
         // action is putting a different name on it.
         focusedCard = cardNumber
+        didEdit()
+    }
+
+    /// Confirms the current sheet and dismisses its active focus. Saving has already happened on
+    /// every edit; this also replaces a pending debounce with an immediate final whole-sheet PUT.
+    func lockIn() {
+        guard canGuess, !assignments.isEmpty else { return }
+        isLocked = true
+        focusedCard = nil
+        selectedMember = nil
+        scheduleSave(debounce: false)
+    }
+
+    /// Locked is a presentation state, not a deadline. The server remains open until `scores_at`,
+    /// so this affordance restores the ordinary editable sheet and the countdown keeps running.
+    func changeAGuess() {
+        isLocked = false
+        saveErrorKey = nil
+        focusedCard = cards.lazy.map(\.cardNumber).first { isAssignable($0) }
+    }
+
+    /// The view owns the lifetime boundary. There is one task and it does not survive the screen.
+    func cancelPendingSave() {
+        saveTask?.cancel()
+        saveTask = nil
+        isSaving = false
     }
 
     /// The view has spoken it; do not say it twice.
@@ -215,9 +258,8 @@ final class RevealStore {
 
         // The move. A name lives on at most one card at a time in this UI, so putting it on a
         // new one takes it off the old one. The API permits the same name on two cards
-        // (`docs/04` §4 rule 6 — "players are allowed to be wrong in that particular way"), and
-        // this is the UI discouraging it without forbidding it: the user can still double up by
-        // assigning, moving on, and coming back.
+        // (`docs/04` §4 rule 6 — "players are allowed to be wrong in that particular way"), while
+        // this interaction deliberately makes moving a consumed chip the default correction.
         for (card, member) in assignments where member == userID && card != cardNumber {
             assignments.removeValue(forKey: card)
         }
@@ -231,6 +273,7 @@ final class RevealStore {
         // *"Assignment advances focus to the next unassigned card"* (`docs/08` §6) — the sheet
         // fills top to bottom without a tap in between.
         focusedCard = nextUnassignedCard(after: cardNumber)
+        didEdit()
     }
 
     /// The next card without a name, searching forward from `number` and wrapping once.
@@ -246,7 +289,71 @@ final class RevealStore {
 
     /// A card the caller may put a name on: not theirs, and only if they may guess at all.
     func isGuessable(_ number: Int) -> Bool {
-        canGuess && number != myCardNumber
+        canGuess && !isLocked && isAssignable(number)
+    }
+
+    // MARK: - Saving
+
+    private func didEdit() {
+        editRevision += 1
+        isLocked = false
+        saveErrorKey = nil
+        scheduleSave(debounce: true)
+    }
+
+    private func scheduleSave(debounce: Bool) {
+        guard let saveGuesses else { return }
+        saveTask?.cancel()
+
+        let revision = editRevision
+        let sheet = wholeSheet
+        isSaving = true
+        saveTask = Task { [weak self] in
+            if debounce {
+                do {
+                    try await Task.sleep(for: Self.saveDebounce)
+                } catch {
+                    return
+                }
+            }
+            guard !Task.isCancelled else { return }
+
+            do {
+                _ = try await saveGuesses(sheet)
+                guard !Task.isCancelled else { return }
+                self?.finishSave(revision: revision)
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.failSave(error)
+            }
+        }
+    }
+
+    private var wholeSheet: [GuessAssignment] {
+        cards.compactMap { card in
+            guard isAssignable(card.cardNumber) else { return nil }
+            return GuessAssignment(
+                cardNumber: card.cardNumber,
+                guessedUserID: assignments[card.cardNumber]
+            )
+        }
+    }
+
+    private func finishSave(revision: Int) {
+        if revision == editRevision { saveErrorKey = nil }
+        saveTask = nil
+        isSaving = false
+    }
+
+    private func failSave(_ error: any Error) {
+        saveErrorKey = (error as? APIError)?.copyKey ?? APIError.unreadable.copyKey
+        isLocked = false
+        saveTask = nil
+        isSaving = false
+    }
+
+    private func isAssignable(_ number: Int) -> Bool {
+        number != myCardNumber
     }
 }
 
