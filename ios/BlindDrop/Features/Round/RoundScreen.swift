@@ -151,7 +151,14 @@ struct RoundScreen: View {
                 )
 
             case let .revealed(_, payload):
-                RevealHost(payload: payload, answersAt: context.round.scoresAt, me: store.me, timer: timer)
+                RevealHost(
+                    roundID: context.round.id,
+                    payload: payload,
+                    answersAt: context.round.scoresAt,
+                    groupInitial: context.groupInitial,
+                    me: store.me,
+                    timer: timer
+                )
 
             case .scored:
                 // `E12-01` lands `ResultsScreen` here. Until then the round is over and this says
@@ -250,17 +257,27 @@ struct RoundScreen: View {
 /// a fresh payload's saved guesses in without touching the interaction, which is exactly what that
 /// method was written for (`E11-02`).
 private struct RevealHost: View {
+    @Environment(AppEnvironment.self) private var env
+
+    let roundID: String
     let payload: RevealPayload
     let answersAt: Date
+    let groupInitial: String
     let me: String?
     let timer: CountdownTimer
 
     @State private var store: RevealStore?
+    @State private var unseal: UnsealAnimation?
 
     var body: some View {
         Group {
-            if let store {
-                RevealScreen(store: store, timer: timer)
+            if let store, let unseal {
+                RevealScreen(
+                    store: store,
+                    timer: timer,
+                    groupInitial: groupInitial,
+                    unseal: unseal
+                )
             } else {
                 Color.clear
             }
@@ -281,6 +298,12 @@ private struct RevealHost: View {
             )
             built.adopt(payload.myGuesses)
             built.answersAt = answersAt
+            unseal = UnsealAnimation(
+                roundID: roundID,
+                cardNumbers: payload.cards.map(\.cardNumber),
+                flags: env.flags,
+                haptics: env.haptics
+            )
             store = built
         }
     }

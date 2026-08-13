@@ -88,6 +88,8 @@ struct RevealViewState: Equatable, Sendable {
 struct RevealScreen: View {
     let store: RevealStore
     let timer: CountdownTimer
+    var groupInitial = ""
+    var unseal: UnsealAnimation? = nil
 
     private var state: RevealViewState { store.viewState }
 
@@ -96,6 +98,7 @@ struct RevealScreen: View {
     /// VoiceOver jumps to No. 11 on a twelve-card reveal, and how the scroll view knows to bring
     /// it into view when it does.
     @Namespace private var songs
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let accent = PhaseAccent.revealed
 
@@ -117,28 +120,34 @@ struct RevealScreen: View {
             AccessibilityNotification.Announcement(announcement).post()
             store.consumeAnnouncement()
         }
+        .task { await unseal?.run(reducedMotion: reduceMotion) }
     }
 
     private var flight: some View {
-        ScrollView {
-            // The screen inset belongs to the scroll container, not to the column inside it
-            // (`docs/07` §4). Keeping it here is also what lets `content` be snapshot directly:
-            // `SnapshotRenderer` supplies the same inset itself, and a column carrying its own
-            // would be indented twice — which costs the metadata 40pt and wraps titles that fit
-            // perfectly well on the device.
-            content
-                .padding(.horizontal, Layout.screenInset)
-        }
-        // `docs/12` §2: *"reveal cards form a custom rotor 'Songs' so a VoiceOver user can jump
-        // between numbers directly"*. Without it, reaching the last card of a twelve-card
-        // reveal is twelve swipes.
-        .accessibilityRotor("a11y.rotor.songs") {
-            ForEach(state.cards) { card in
-                AccessibilityRotorEntry(
-                    Text(verbatim: Copy.format("a11y.rotor.song", card.cardNumber)),
-                    id: card.cardNumber,
-                    in: songs
-                )
+        GeometryReader { viewport in
+            ScrollView {
+                // The screen inset belongs to the scroll container, not to the column inside it
+                // (`docs/07` §4). Keeping it here is also what lets `content` be snapshot directly.
+                content
+                    .padding(.horizontal, Layout.screenInset)
+            }
+            .coordinateSpace(name: "reveal-flight")
+            .onPreferenceChange(RevealCardFrames.self) { frames in
+                let bounds = CGRect(origin: .zero, size: viewport.size)
+                unseal?.updateVisibleCards(Set(frames.compactMap { number, frame in
+                    frame.intersects(bounds) && frame.width > 0 && frame.height > 0 ? number : nil
+                }))
+            }
+            // `docs/12` §2: *"reveal cards form a custom rotor 'Songs' so a VoiceOver user can
+            // jump between numbers directly"*.
+            .accessibilityRotor("a11y.rotor.songs") {
+                ForEach(state.cards) { card in
+                    AccessibilityRotorEntry(
+                        Text(verbatim: Copy.format("a11y.rotor.song", card.cardNumber)),
+                        id: card.cardNumber,
+                        in: songs
+                    )
+                }
             }
         }
     }
@@ -244,9 +253,24 @@ struct RevealScreen: View {
                     : nil,
                 clearGuess: state.guesses[card.cardNumber] == nil
                     ? nil
-                    : { store.clearGuess(on: card.cardNumber) }
+                    : { store.clearGuess(on: card.cardNumber) },
+                unseal: unseal.map {
+                    UnsealPresentation(
+                        phase: $0.phase(for: card.cardNumber),
+                        groupInitial: groupInitial,
+                        reducedMotion: reduceMotion
+                    )
+                }
             )
             .overlay(focusRing(on: card.cardNumber))
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: RevealCardFrames.self,
+                        value: [card.cardNumber: proxy.frame(in: .named("reveal-flight"))]
+                    )
+                }
+            }
 
             if includeRotorEntries {
                 cardView.accessibilityRotorEntry(id: card.cardNumber, in: songs)
@@ -267,5 +291,13 @@ struct RevealScreen: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(accent.fill, lineWidth: Stroke.mark)
         }
+    }
+}
+
+private struct RevealCardFrames: PreferenceKey {
+    static let defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
     }
 }

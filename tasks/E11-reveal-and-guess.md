@@ -110,7 +110,7 @@ The PRD calls this case out specifically, so it gets its own task.
 
 ### E11-04 — The unseal animation
 
-**Status:** wip · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
+**Status:** done · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
 **Touches:** `DesignSystem/Motion/UnsealAnimation.swift`, `Core/Persistence/LocalFlags.swift`
 **Verify:** Instruments at 12 cards on iPhone 12, zero hitches
 
@@ -122,17 +122,17 @@ The PRD calls this case out specifically, so it gets its own task.
 The counterpart to the seal. Amber gives way to ultramarine — **the only moment both accents
 exist on one screen**, and exactly what the transition is for.
 
-- [ ] Per-card phases A–E at the timings in `docs/09` §3
-- [ ] `stagger = min(80, 900 / max(1, cardCount - 1))`
-- [ ] **One** haptic, `.soft`, at the first card's cover release. Twelve haptics is a massage
+- [x] Per-card phases A–E at the timings in `docs/09` §3
+- [x] `stagger = min(80, 900 / max(1, cardCount - 1))`
+- [x] **One** haptic, `.soft`, at the first card's cover release. Twelve haptics is a massage
       chair.
-- [ ] The number fades in; it does **not** count up. Numbers that spin are a slot machine.
-- [ ] Cards below the fold animate when scrolled into view if the sequence has passed them —
+- [x] The number fades in; it does **not** count up. Numbers that spin are a slot machine.
+- [x] Cards below the fold animate when scrolled into view if the sequence has passed them —
       nothing appears pre-unsealed
-- [ ] `hasSeenUnseal(roundId)` persisted; runs exactly once per round across relaunch
-- [ ] Reduced motion: 240ms crossfade per card, stagger 40ms, capped at 400ms total, **colour
+- [x] `hasSeenUnseal(roundId)` persisted; runs exactly once per round across relaunch
+- [x] Reduced motion: 240ms crossfade per card, stagger 40ms, capped at 400ms total, **colour
       interpolation retained** because it carries meaning
-- [ ] Tests: stagger clamp values, haptic count, once-per-round across relaunch
+- [x] Tests: stagger clamp values, haptic count, once-per-round across relaunch
 
 ---
 

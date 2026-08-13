@@ -37,6 +37,8 @@ struct FlightCard: View {
     /// Clears an assigned guess — the `✕` on the inline chip (`docs/08` §6). `nil` leaves the
     /// chip without one, which is what a locked-in sheet renders.
     var clearGuess: (() -> Void)?
+    /// Present only while the reveal's once-per-round unseal is being coordinated.
+    var unseal: UnsealPresentation? = nil
 
     /// The state of the caller's guess for this card.
     enum Assignment: Equatable {
@@ -113,13 +115,13 @@ struct FlightCard: View {
                 // leaves the title a column narrower than the word "Sickness" — and a column
                 // narrower than a word does not wrap, it breaks mid-word.
                 cardNumber
-                ArtworkView(track, size: Layout.Artwork.flightCard)
+                artwork
                 metadata
                 assignmentChip
             } else {
                 HStack(alignment: .top, spacing: Space.lg) {
                     cardNumber
-                    ArtworkView(track, size: Layout.Artwork.flightCard)
+                    artwork
                     metadata
                 }
                 // Indented to the artwork's left edge and running to the card's right, which is
@@ -134,13 +136,19 @@ struct FlightCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .fill(Palette.surface)
+                .fill(cardFill)
+                .animation(unseal?.reducedMotion == true
+                    ? .easeInOut(duration: 0.240)
+                    : Motion.Unseal.colors.animation, value: unseal?.phase)
         )
         .overlay(
             // A card is `surface` on `paper` with a 1pt border. There is no shadow in this app
             // (`docs/07` §2, Elevation).
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Palette.edge, lineWidth: Stroke.border)
+                .stroke(cardBorder, lineWidth: Stroke.border)
+                .animation(unseal?.reducedMotion == true
+                    ? .easeInOut(duration: 0.240)
+                    : Motion.Unseal.colors.animation, value: unseal?.phase)
         )
         .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .onTapGesture { chooseGuess?() }
@@ -154,7 +162,11 @@ struct FlightCard: View {
             // No `.monospacedDigit()` here: `Typography` already sets tabular figures on every
             // display style through the font descriptor, and the modifier would replace the
             // resolved Bricolage face — its axes and its 1.6× ceiling with it — with a system one.
-            .foregroundStyle(accent.mark)
+            .foregroundStyle(numberColor)
+            .opacity(unseal?.phase == .sealed ? 0.4 : 1)
+            .animation(unseal?.reducedMotion == true
+                ? .easeInOut(duration: 0.240)
+                : Motion.Unseal.number.animation, value: unseal?.phase)
             .fixedSize()
             // A fixed column, so the artwork starts at the same x on every card in the list.
             // A group runs to twelve members, so two digits is the widest the number ever gets,
@@ -173,6 +185,26 @@ struct FlightCard: View {
     private var numberColumnWidth: CGFloat {
         let font = Typography.uiFont(.displayXL, for: UIContentSizeCategory(dynamicTypeSize))
         return ("88" as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    @ViewBuilder private var artwork: some View {
+        if let unseal {
+            UnsealingArtwork(track: track, presentation: unseal)
+        } else {
+            ArtworkView(track, size: Layout.Artwork.flightCard)
+        }
+    }
+
+    private var cardFill: Color {
+        unseal?.phase == .sealed ? Palette.amberWash : Palette.surface
+    }
+
+    private var cardBorder: Color {
+        unseal?.phase == .sealed ? Palette.amberDeep : Palette.edge
+    }
+
+    private var numberColor: Color {
+        unseal?.phase == .sealed ? Palette.amberDeep : accent.mark
     }
 
     private var metadata: some View {

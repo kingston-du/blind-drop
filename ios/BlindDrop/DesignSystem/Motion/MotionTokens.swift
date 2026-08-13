@@ -128,6 +128,41 @@ enum Motion {
     /// for a unit test on exactly this arithmetic.
     enum Unseal {
 
+        struct Stage: Sendable {
+            let phase: String
+            let start: Double
+            let duration: Double
+            let animation: Animation
+
+            var end: Double { start + duration }
+        }
+
+        static let cover = Stage(
+            phase: "A", start: 0, duration: 220,
+            animation: .easeOut(duration: 0.220)
+        )
+        static let stamp = Stage(
+            phase: "B", start: 60, duration: 140,
+            animation: .easeIn(duration: 0.140).delay(0.060)
+        )
+        static let colors = Stage(
+            phase: "C", start: 140, duration: 260,
+            animation: .easeInOut(duration: 0.260).delay(0.140)
+        )
+        static let artwork = Stage(
+            phase: "D", start: 200, duration: 140,
+            animation: .spring(response: 0.34, dampingFraction: 0.78).delay(0.200)
+        )
+        static let number = Stage(
+            phase: "E", start: 260, duration: 140,
+            animation: .easeOut(duration: 0.140).delay(0.260)
+        )
+        static let stages = [cover, stamp, colors, artwork, number]
+        static var end: Double { stages.map(\.end).max() ?? 0 }
+
+        static let reducedDuration = 240
+        static let reducedSequenceLimit = 400
+
         /// ```swift
         /// let stagger = min(80, 900 / max(1, cardCount - 1))   // milliseconds
         /// ```
@@ -136,6 +171,13 @@ enum Motion {
         /// At twelve cards it is still 80; at thirty it compresses to 31.
         static func stagger(cardCount: Int) -> Int {
             min(80, 900 / max(1, cardCount - 1))
+        }
+
+        /// Reduced motion keeps a nominal 40ms stagger but compresses it so the final card's
+        /// 240ms crossfade ends by 400ms (`docs/09` §5).
+        static func reducedStagger(cardCount: Int) -> Int {
+            let available = reducedSequenceLimit - reducedDuration
+            return min(40, available / max(1, cardCount - 1))
         }
     }
 

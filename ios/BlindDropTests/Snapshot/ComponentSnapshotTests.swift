@@ -74,6 +74,23 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    @Test(arguments: devices)
+    func flightCardBeforeUnseal(_ device: SnapshotRenderer.Device) {
+        verify(named: "FlightCard-sealed", device, .large) {
+            FlightCard(
+                number: 4,
+                track: .motionSickness,
+                accent: .revealed,
+                assignment: .unguessed,
+                unseal: UnsealPresentation(
+                    phase: .sealed,
+                    groupInitial: "H",
+                    reducedMotion: false
+                )
+            )
+        }
+    }
+
     @Test(arguments: devices, sizes) func sealedCard(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "SealedCard", device, size) {
             SealedCard(track: .ribs, groupInitial: "H", remaining: "02:01:05")

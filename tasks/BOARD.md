@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E11-04`. `E00`–`E10` are done.
+**Start here:** `E11-06`. `E00`–`E10` are done.
 
 ---
 
@@ -144,7 +144,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E11-01 `FlightCard` | done | E08-04 | AC-5 |
 | E11-02 Guess interaction | done | E11-01 | AC-10 |
 | E11-03 Name pool and the 12-member layout | done | E11-02 | — |
-| E11-04 **The unseal animation** | wip | E11-01 | AC-11 |
+| E11-04 **The unseal animation** | done | E11-01 | AC-11 |
 | E11-05 Non-submitter and joined-late states | done | E11-02 | AC-6 |
 | E11-06 Debounced guess save | todo | E11-02, E05-02 | — |
 
@@ -195,8 +195,8 @@ E04..E07 + E13  ─ E14 QA & release
 | E08 | 7 / 7 |
 | E09 | 4 / 4 |
 | E10 | 7 / 7 |
-| E11 | 4 / 6 |
+| E11 | 5 / 6 |
 | E12 | 0 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **63 / 80** |
+| **Total** | **64 / 80** |

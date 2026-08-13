@@ -42,8 +42,24 @@ final class LocalFlags {
         set { defaults.set(newValue, forKey: Key.declinedNotifications) }
     }
 
+    // MARK: - Reveal (`docs/09` §3)
+
+    /// Whether this install has already begun the unseal for a round. The check and write live
+    /// together so relaunching midway through the sequence cannot replay its haptic or covers.
+    func beginUnseal(roundID: String) -> Bool {
+        var seen = Set(defaults.stringArray(forKey: Key.seenUnsealRounds) ?? [])
+        guard seen.insert(roundID).inserted else { return false }
+        defaults.set(seen.sorted(), forKey: Key.seenUnsealRounds)
+        return true
+    }
+
+    func hasSeenUnseal(roundID: String) -> Bool {
+        defaults.stringArray(forKey: Key.seenUnsealRounds)?.contains(roundID) == true
+    }
+
     private enum Key {
         static let askedAboutNotifications = "flags.notifications.asked"
         static let declinedNotifications = "flags.notifications.declined"
+        static let seenUnsealRounds = "flags.reveal.seen-unseal-rounds"
     }
 }

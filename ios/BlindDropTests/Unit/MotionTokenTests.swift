@@ -58,7 +58,23 @@ import Testing
         #expect(Motion.Seal.reducedHapticAt == 120)
     }
 
-    // MARK: - The unseal's stagger (`docs/09` §3, §6)
+    // MARK: - The unseal (`docs/09` §3, §6)
+
+    @Test func theFiveUnsealPhasesRunAtTheSpecifiedTimes() {
+        let expected: [(String, Double, Double)] = [
+            ("A", 0, 220),
+            ("B", 60, 200),
+            ("C", 140, 400),
+            ("D", 200, 340),
+            ("E", 260, 400),
+        ]
+        for (stage, expectation) in zip(Motion.Unseal.stages, expected) {
+            #expect(stage.phase == expectation.0)
+            #expect(stage.start == expectation.1)
+            #expect(stage.end == expectation.2)
+        }
+        #expect(Motion.Unseal.end == 400)
+    }
 
     /// `stagger(for: 6) == 80`, `stagger(for: 12) == 80`, `stagger(for: 30) == 31` — the three
     /// rows `docs/09` §6 asks for by name.
@@ -80,5 +96,15 @@ import Testing
             let total = Motion.Unseal.stagger(cardCount: cards) * (cards - 1)
             #expect(total <= 900, "\(cards) cards would stagger for \(total)ms")
         }
+    }
+
+    @Test func reducedMotionEndsTheWholeSequenceWithinFourHundredMilliseconds() {
+        for cards in 1...12 {
+            let total = Motion.Unseal.reducedStagger(cardCount: cards) * (cards - 1)
+                + Motion.Unseal.reducedDuration
+            #expect(total <= Motion.Unseal.reducedSequenceLimit)
+        }
+        #expect(Motion.Unseal.reducedStagger(cardCount: 2) == 40)
+        #expect(Motion.Unseal.reducedStagger(cardCount: 12) == 14)
     }
 }
