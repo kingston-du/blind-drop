@@ -1,66 +1,69 @@
 import SwiftUI
 
-/// `docs/08` §7.3 — two lists that deliberately do not have the same shape.
+/// The group's all-time lists (`docs/08` §7.3), drawn as one table rather than two.
 ///
-/// > **Best Ear** — ranked 1..N.
-/// > **Readability** — sorted but **unranked**, no numbers in front of names. Rendering a rank
-/// > position here is a spec violation (`docs/02` §4.5).
-///
-/// That asymmetry is the product, not a layout preference. Guessing well is a scoreboard;
-/// being hard to read is a trait, and *"low readability is its own kind of win"*. So the two
-/// lists are two views rather than one generic list with a `showsRank` flag — a flag is a thing
-/// somebody eventually passes `true` to, and `ReadabilityRow` has nowhere to put a rank even if
-/// it wanted one, exactly as `ReadabilityStandingDTO` has nowhere to decode one from.
+/// **The table is sorted on ear only.** Readability rides along in the same row as a trait, not
+/// as a second ranking — there is no better end of the readability scale, so a list ordered by
+/// it would be a leaderboard for something that is not a competition (`docs/16`). Putting both
+/// numbers on one row is what makes that legible: one column is a rank, the other is a fact
+/// about a person, and they are read together the way you would read them out loud.
 struct StandingsView: View {
     let standings: StandingsDTO
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
 
-    /// Above `.accessibility1` every row is two lines instead of one, so the gap *between*
-    /// people has to grow past the gap *inside* one. At the same spacing a stacked list reads
-    /// as one long column of unrelated lines, which is the failure mode `docs/12` §1 is really
-    /// asking about when it says nothing may overlap: legibility, not collision.
-    private var rowSpacing: CGFloat {
-        dynamicTypeSize >= .accessibility1 ? Layout.blockGap : Layout.itemGap
+    /// The caller's own row, matched by name against the readability list, which is the only
+    /// place both numbers meet.
+    private var readabilityByUser: [String: ReadabilityStandingDTO] {
+        Dictionary(uniqueKeysWithValues: standings.readability.map { ($0.userID, $0) })
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.blockGap) {
-            Text("results.standings.title")
-                .typeStyle(.displayM)
-                .foregroundStyle(Palette.ink)
-
-            list("results.standings.ear") {
-                ForEach(standings.bestEar) { EarRow(standing: $0) }
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                Text("results.standings.title")
+                    .typeStyle(.displayM)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: Space.sm)
+                SectionLabel(
+                    verbatim: Copy.format("results.standings.rounds", standings.roundsPlayed)
+                )
             }
-
-            list("results.standings.readability") {
-                ForEach(standings.readability) { ReadabilityRow(standing: $0) }
-            }
+            table
         }
     }
 
-    private func list(
-        _ title: LocalizedStringKey,
-        @ViewBuilder rows: () -> some View
-    ) -> some View {
-        VStack(alignment: .leading, spacing: rowSpacing) {
-            Text(title)
-                .typeStyle(.label)
-                .foregroundStyle(Palette.inkDim)
-            rows()
+    /// One surface with rules between the rows, rather than a card each. A list of eight cards
+    /// is eight things; a list of eight rows is one table, which is what this is.
+    private var table: some View {
+        VStack(spacing: Space.none) {
+            ForEach(Array(standings.bestEar.enumerated()), id: \.element.id) { index, standing in
+                if index > 0 { Rule() }
+                StandingRow(
+                    standing: standing,
+                    readability: readabilityByUser[standing.userID]
+                )
+            }
         }
+        .background(
+            RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
+                .fill(Palette.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
+                .stroke(Palette.edge, lineWidth: Stroke.border)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
     }
 }
 
-/// One line of **Best Ear**: the rank, the name, the percentage, and how many that was.
-///
-/// The rank is **printed, never computed**. `docs/04` §4 has the server share a rank on a tie
-/// and skip the next one, so two people on 0.68 are both second and nobody is third — an index
-/// into the array would quietly renumber them 2 and 3, which is a different claim about the
-/// same night. `StandingsTests` holds a fixture with a tie in it for that reason.
-private struct EarRow: View {
+/// One person: where they sit on ear, what they are called, and the two numbers.
+private struct StandingRow: View {
     let standing: EarStandingDTO
+    /// `nil` when the readability list does not carry this person — someone who has never had a
+    /// song of theirs in a round has an ear and no readability, and a zero would be a lie.
+    let readability: ReadabilityStandingDTO?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -68,157 +71,69 @@ private struct EarRow: View {
 
     var body: some View {
         row
-            // One stop per person. The rank, the name and the two numbers are one fact about
-            // one member, and four swipes to hear it is three too many (`docs/12` §2).
-            .accessibilityElement(children: .combine)
+            .padding(.horizontal, Layout.rowInset + Space.xs)
+            .padding(.vertical, Layout.rowInset)
+            // One stop per person. The rank, the name and the numbers are one fact about one
+            // member, and four swipes to hear it is three too many (`docs/12` §2).
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: announcement))
+            .accessibilityAddTraits(.isStaticText)
     }
 
     @ViewBuilder private var row: some View {
         if isStacked {
-            // Two lines, not three: who, then how they did. The two numbers belong together —
-            // *"79%"* on its own line above *"77 correct"* reads as two separate scores.
-            VStack(alignment: .leading, spacing: Space.xxs) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.md) {
                     rank
                     name
                 }
-                HStack(alignment: .firstTextBaseline, spacing: Space.md) {
-                    percentage
-                    correct
-                }
+                numbers
             }
         } else {
             HStack(alignment: .firstTextBaseline, spacing: Space.md) {
                 rank
                 name
                 Spacer(minLength: Space.sm)
-                percentage
-                correct
+                numbers
             }
         }
     }
 
-    /// `monoS` and tabular, so a two-digit rank does not shift the column of names beside it.
+    /// Tabular and monospaced, so a two-digit rank does not shift the column of names beside it.
     private var rank: some View {
         Text(verbatim: standing.rank.formatted(.number.grouping(.never)))
             .typeStyle(.monoS)
             .foregroundStyle(Palette.inkDim)
+            .frame(minWidth: Space.lg, alignment: .leading)
     }
 
     /// One truncating line while the row is a row, wrapping once it has stacked.
     ///
-    /// The same trade `TrackRow` makes and for the same reason (`docs/07` §5 against `docs/12`
-    /// §1): a display name runs to 24 characters, which at `.large` is most of an SE's width, so
-    /// an unbounded name would wrap and leave the percentage floating beside its third line.
-    /// Above `.accessibility1` the row is already two lines and the whole name fits on the first.
+    /// A display name runs to 24 characters, which at `.large` is most of an SE's width, so an
+    /// unbounded name would wrap and leave the numbers floating beside its third line.
     private var name: some View {
         Text(verbatim: standing.displayName)
-            .typeStyle(.bodyM)
+            .typeStyle(.bodyLStrong)
             .foregroundStyle(Palette.ink)
             .lineLimit(isStacked ? nil : 1)
             .truncationMode(.tail)
             .frame(maxWidth: isStacked ? .infinity : nil, alignment: .leading)
     }
 
-    private var percentage: some View {
-        Text(verbatim: ScoringFormat.percent(standing.earAllTime))
-            .typeStyle(.monoM)
-            .foregroundStyle(Palette.ink)
+    /// *"EAR 78 · READ 62"* — both numbers, in the apparatus voice, so neither reads as the
+    /// score. The middot is a separator, not copy.
+    private var numbers: some View {
+        SectionLabel(verbatim: Copy.format(
+            "results.standings.row",
+            ScoringFormat.percentValue(standing.earAllTime),
+            ScoringFormat.percentValue(readability?.readabilityAllTime ?? 0)
+        ))
+        .fixedSize()
     }
 
-    /// *"61 correct"* — the raw count behind the rate, so a 100% off two rounds cannot pass for
-    /// a 100% off fourteen.
-    private var correct: some View {
-        Text(verbatim: Copy.format("results.standings.ear.detail", standing.earCorrectTotal))
-            .typeStyle(.monoS)
-            .foregroundStyle(Palette.inkDim)
-    }
-}
-
-/// One line of **Readability**: a name, a position on the spectrum, and a word for it.
-///
-/// **No rank, no number in front of the name, and no percentage either.** The list is sorted so
-/// it is stable between refreshes and for no other reason; printing the rate would turn the
-/// spectrum back into a score with the digits hidden one row apart. What a reader gets is where
-/// somebody sits and what that is called, which is what `docs/02` §4.5 asks for.
-private struct ReadabilityRow: View {
-    let standing: ReadabilityStandingDTO
-
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
-
-    var body: some View {
-        row
-            // The meter announces the percentage and the band already; letting VoiceOver walk
-            // into it *and* read the row would say the band twice. One element, one sentence,
-            // built from the same two facts (`docs/12` §2).
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(
-                "\(standing.displayName). \(Copy.A11y.readability(percent: percent, band: standing.band))"
-            )
-            .accessibilityAddTraits(.isStaticText)
-    }
-
-    private var percent: Int {
-        ScoringFormat.percentValue(standing.readabilityAllTime)
-    }
-
-    @ViewBuilder private var row: some View {
-        if isStacked {
-            // The word stays on the name's line and the track moves under both. Stacking all
-            // three would put a band label directly above the next person's name, at which
-            // point the list stops saying who is who.
-            VStack(alignment: .leading, spacing: Space.xs) {
-                HStack(alignment: .firstTextBaseline, spacing: Space.md) {
-                    name
-                    band
-                }
-                meter
-            }
-        } else {
-            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
-                name
-                meter
-                band
-            }
-        }
-    }
-
-    /// One truncating line in the fixed column, wrapping once the row has stacked and the
-    /// column has stopped existing — the same rule the Best Ear row follows.
-    private var name: some View {
-        Text(verbatim: standing.displayName)
-            .typeStyle(.bodyM)
-            .foregroundStyle(Palette.ink)
-            .lineLimit(isStacked ? nil : 1)
-            .truncationMode(.tail)
-            .frame(
-                maxWidth: isStacked ? .infinity : Layout.standingsNameColumn,
-                alignment: .leading
-            )
-    }
-
-    private var meter: some View {
-        StatMeter(
-            value: standing.readabilityAllTime,
-            band: standing.band,
-            // The row prints the word itself, beside the track rather than under it.
-            showsBand: false
-        )
-    }
-
-    /// The band the **server** sent, not one derived here. `docs/04` §4 sends it with the
-    /// standings, and the client deriving a second opinion from the rate is how a boundary
-    /// disagreement becomes a row that says *Legible* next to a marker in the Clear range.
-    private var band: some View {
-        Text(verbatim: Copy.band(standing.band))
-            .typeStyle(.caption)
-            .foregroundStyle(Palette.ink)
-            .lineLimit(isStacked ? nil : 1)
-            .frame(
-                maxWidth: isStacked ? .infinity : Layout.standingsBandColumn,
-                alignment: .leading
-            )
+    private var announcement: String {
+        let ear = "\(standing.displayName). \(Copy.format("results.standings.ear.detail", standing.earCorrectTotal))"
+        guard let readability else { return ear }
+        return "\(ear) \(Copy.A11y.readability(percent: ScoringFormat.percentValue(readability.readabilityAllTime), band: readability.band))"
     }
 }

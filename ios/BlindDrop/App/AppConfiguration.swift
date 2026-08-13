@@ -15,19 +15,44 @@ struct AppConfiguration: Sendable, Equatable {
     /// (`docs/14` §4, §6): it grants nothing on its own. Empty in a fixture run, where there
     /// is no gate to satisfy.
     let anonKey: String
+    /// Spotify's public app identifier. It is not a credential; PKCE is what lets a mobile
+    /// client use it without carrying a client secret (`docs/06` §6).
+    let spotifyClientID: String
+    /// Debug UI tests can begin with a fixture-issued bearer rather than trying to automate
+    /// Apple's system-owned sign-in sheet. `RootView` only consults this under `#if DEBUG`, so
+    /// Release/TestFlight builds have no session-bypass path even if an argument is supplied.
+    let usesFixtureSession: Bool
+    /// The reduced-motion full-loop variant is injected at the SwiftUI environment boundary.
+    /// Like `usesFixtureSession`, this is ignored by Release builds.
+    let forcesReducedMotionForUITests: Bool
+    /// Opens the archive directly for its isolated accessibility walk. Debug-only at resolution.
+    let opensRecordForUITests: Bool
 
     /// The launch-argument key. `-apiBaseURL http://127.0.0.1:8787` in the UI test scheme
     /// points the app at `ios/Fixtures/server.ts` (E00-05).
     static let apiBaseURLKey = "apiBaseURL"
     static let authBaseURLKey = "authBaseURL"
     static let anonKeyKey = "supabaseAnonKey"
+    static let spotifyClientIDKey = "spotifyClientID"
 
     /// `authBaseURL` and `anonKey` default off `apiBaseURL` and the bundle, so every existing
     /// call site — and every test that only cares about the API address — keeps working.
-    init(apiBaseURL: URL, authBaseURL: URL? = nil, anonKey: String = "") {
+    init(
+        apiBaseURL: URL,
+        authBaseURL: URL? = nil,
+        anonKey: String = "",
+        spotifyClientID: String = "",
+        usesFixtureSession: Bool = false,
+        forcesReducedMotionForUITests: Bool = false,
+        opensRecordForUITests: Bool = false
+    ) {
         self.apiBaseURL = apiBaseURL
         self.authBaseURL = authBaseURL ?? Self.deriveAuthBaseURL(from: apiBaseURL)
         self.anonKey = anonKey
+        self.spotifyClientID = spotifyClientID
+        self.usesFixtureSession = usesFixtureSession
+        self.forcesReducedMotionForUITests = forcesReducedMotionForUITests
+        self.opensRecordForUITests = opensRecordForUITests
     }
 
     /// `…/functions/v1` → `…/auth/v1`; anything else gets `/auth/v1` appended.
@@ -48,10 +73,10 @@ struct AppConfiguration: Sendable, Equatable {
         return components.url ?? api.appending(path: "auth/v1")
     }
 
-    /// docs/04 intro: `https://<project>.supabase.co/functions/v1`. The project ref is not
-    /// assigned yet (it lands with the release checklist, E14-05); until then the fixture
-    /// server is the only address that actually resolves.
-    static let productionAPIBaseURL = URL(string: "https://project.supabase.co/functions/v1")!
+    /// docs/04 intro: the hosted production Edge Functions root.
+    static let productionAPIBaseURL = URL(
+        string: "https://ojzwgaffeegssfscoaiv.supabase.co/functions/v1"
+    )!
 
     /// Foundation folds `-key value` launch arguments into `UserDefaults`' `NSArgumentDomain`
     /// before any of our code runs, so we read the key rather than hand-scanning
@@ -62,9 +87,19 @@ struct AppConfiguration: Sendable, Equatable {
     /// prove the override works without mutating the test runner's own defaults.
     static func resolve(
         _ defaults: UserDefaults = .standard,
-        bundle: Bundle = .main
+        bundle: Bundle = .main,
+        arguments: [String] = ProcessInfo.processInfo.arguments
     ) -> AppConfiguration {
         let api = absoluteURL(defaults.string(forKey: apiBaseURLKey)) ?? productionAPIBaseURL
+        #if DEBUG
+        let usesFixtureSession = arguments.contains("-fixtureSession")
+        let forcesReducedMotionForUITests = arguments.contains("-uiTestReduceMotion")
+        let opensRecordForUITests = arguments.contains("-uiTestRecord")
+        #else
+        let usesFixtureSession = false
+        let forcesReducedMotionForUITests = false
+        let opensRecordForUITests = false
+        #endif
         return AppConfiguration(
             apiBaseURL: api,
             authBaseURL: absoluteURL(defaults.string(forKey: authBaseURLKey)),
@@ -72,7 +107,13 @@ struct AppConfiguration: Sendable, Equatable {
             // `Info.plist` value, which is injected at build time and is public by design.
             anonKey: defaults.string(forKey: anonKeyKey)
                 ?? bundle.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String
-                ?? ""
+                ?? "",
+            spotifyClientID: defaults.string(forKey: spotifyClientIDKey)
+                ?? bundle.object(forInfoDictionaryKey: "SPOTIFY_CLIENT_ID") as? String
+                ?? "",
+            usesFixtureSession: usesFixtureSession,
+            forcesReducedMotionForUITests: forcesReducedMotionForUITests,
+            opensRecordForUITests: opensRecordForUITests
         )
     }
 

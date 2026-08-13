@@ -143,15 +143,13 @@ final class OnboardingStore {
         do {
             _ = try await api.send(.setDisplayName(cleanedName))
             await session.loadIdentity()
-        } catch let error as APIError {
+        } catch let error {
             // The server cleans and length-checks the same string this client just cleaned, so
             // an `INVALID_INPUT` here means the two disagree — which is a bug worth showing the
             // user the specific line for rather than a shrug.
             nameFailure = error == .invalidInput(field: "display_name")
                 ? DisplayName.Problem.empty.copyKey
                 : error.copyKey
-        } catch {
-            nameFailure = APIError.unreadable.copyKey
         }
     }
 
@@ -179,10 +177,8 @@ final class OnboardingStore {
             // a group, which is where they were trying to get. Re-read the session and let them
             // through (`docs/04` §3).
             await session.loadIdentity()
-        } catch let error as APIError {
+        } catch let error {
             joinFailure = error.copyKey
-        } catch {
-            joinFailure = APIError.unreadable.copyKey
         }
     }
 
@@ -215,10 +211,8 @@ final class OnboardingStore {
             step = .invite(group)
         } catch APIError.alreadyInGroup {
             await session.loadIdentity()
-        } catch let error as APIError {
+        } catch let error {
             createFailure = error.copyKey
-        } catch {
-            createFailure = APIError.unreadable.copyKey
         }
     }
 

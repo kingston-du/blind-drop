@@ -53,15 +53,20 @@ struct JoinOrCreateScreen: View {
 
         return VStack(alignment: .leading, spacing: Layout.blockGap) {
             Text("onboarding.group.title")
-                .typeStyle(.displayM)
+                .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: Space.none)
 
             VStack(alignment: .leading, spacing: Space.sm) {
+                SectionLabel("onboarding.group.code.label")
                 InsetField(
                     "onboarding.group.code.placeholder",
                     text: $store.code,
                     style: .monoM,
-                    alignment: .center
+                    alignment: .leading,
+                    isFocused: isCodeFocused
                 )
                 .focused($isCodeFocused)
                 .textInputAutocapitalization(.characters)
@@ -100,10 +105,17 @@ struct JoinOrCreateScreen: View {
                     joinButton
                 }
 
-                SecondaryButton("onboarding.group.create") {
+                OutlineButton("onboarding.group.create") {
                     isCodeFocused = false
                     store.startCreating()
                 }
+                Text("onboarding.group.help")
+                    .typeStyle(.bodyS)
+                    .foregroundStyle(Palette.inkDim)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Space.xs)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

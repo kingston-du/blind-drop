@@ -36,7 +36,11 @@ struct CreateGroupScreen: View {
                 .typeStyle(.displayM)
                 .foregroundStyle(Palette.ink)
 
-            InsetField("onboarding.create.name.placeholder", text: $store.groupName)
+            InsetField(
+                "onboarding.create.name.placeholder",
+                text: $store.groupName,
+                isFocused: isNameFocused
+            )
                 .focused($isNameFocused)
                 .textInputAutocapitalization(.words)
                 .submitLabel(.done)
@@ -64,7 +68,7 @@ struct CreateGroupScreen: View {
                     action: create
                 )
 
-                SecondaryButton("onboarding.create.back") {
+                OutlineButton("onboarding.create.back") {
                     isNameFocused = false
                     store.cancelCreating()
                 }
@@ -126,14 +130,18 @@ struct CreateGroupScreen: View {
             content()
             Spacer(minLength: Space.sm)
             Image(systemName: "chevron.down")
-                .foregroundStyle(Palette.inkFaint)
+                .foregroundStyle(Palette.inkDim)
         }
         .padding(.horizontal, Space.lg)
         .frame(minHeight: Layout.buttonHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .fill(Palette.paperSunk)
+                .fill(Palette.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .stroke(Palette.edge, lineWidth: Stroke.border)
         )
     }
 
@@ -146,15 +154,13 @@ struct CreateGroupScreen: View {
         @ViewBuilder control: () -> some View
     ) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text(label)
-                .typeStyle(.label)
-                .foregroundStyle(Palette.inkDim)
+            SectionLabel(label)
 
             control()
 
             Text(help)
                 .typeStyle(.caption)
-                .foregroundStyle(Palette.inkFaint)
+                .foregroundStyle(Palette.inkDim)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

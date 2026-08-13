@@ -37,7 +37,35 @@ enum Copy {
     /// positional (`%lld`, `%@`) and a translator has to be able to reorder them — which is
     /// what `%1$@` exists for and what interpolation cannot express.
     static func format(_ key: String, _ arguments: any CVarArg...) -> String {
-        String(format: string(key), locale: .current, arguments: arguments)
+        let template = string(key)
+        // `localizedStringWithFormat` is the formatter that resolves `%#@rule@` tokens from
+        // Localizable.stringsdict. Spell out the small, bounded arities used by the copy deck
+        // because Swift variadics cannot otherwise forward an already-collected argument array.
+        switch arguments.count {
+        case 0: return template
+        case 1: return String.localizedStringWithFormat(template, arguments[0])
+        case 2: return String.localizedStringWithFormat(template, arguments[0], arguments[1])
+        case 3:
+            return String.localizedStringWithFormat(
+                template, arguments[0], arguments[1], arguments[2]
+            )
+        case 4:
+            return String.localizedStringWithFormat(
+                template, arguments[0], arguments[1], arguments[2], arguments[3]
+            )
+        case 5:
+            return String.localizedStringWithFormat(
+                template, arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]
+            )
+        case 6:
+            return String.localizedStringWithFormat(
+                template, arguments[0], arguments[1], arguments[2], arguments[3], arguments[4],
+                arguments[5]
+            )
+        default:
+            assertionFailure("Copy format \(key) exceeds the supported copy-deck arity")
+            return String(format: template, locale: .current, arguments: arguments)
+        }
     }
 
     // MARK: - The countdown
@@ -210,6 +238,10 @@ enum Copy {
 
         static func track(title: String, artist: String) -> String {
             format("a11y.track", title, artist)
+        }
+
+        static func recordTrack(title: String, artist: String, member: String) -> String {
+            format("a11y.record.track", title, artist, member)
         }
 
         static let trackHint = string("a11y.track.hint")

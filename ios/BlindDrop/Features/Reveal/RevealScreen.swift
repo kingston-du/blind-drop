@@ -99,7 +99,9 @@ struct RevealScreen: View {
     /// VoiceOver jumps to No. 11 on a twelve-card reveal, and how the scroll view knows to bring
     /// it into view when it does.
     @Namespace private var songs
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
 
     private let accent = PhaseAccent.revealed
 
@@ -184,45 +186,35 @@ struct RevealScreen: View {
         // and costs two real things: a lazy stack builds no off-screen row, which is exactly the
         // row the "Songs" rotor has to be able to jump to, and it mis-reports its height to
         // `ImageRenderer`, which clipped the first line off every golden until this changed.
-        VStack(alignment: .leading, spacing: Space.lg) {
+        VStack(alignment: .leading, spacing: Space.sm) {
             header
+            if store.isLocked { lockedPanel }
             cards(includeRotorEntries: includeRotorEntries)
         }
         .padding(.bottom, Layout.blockGap)
     }
 
-    /// *"Tonight's drop / 8 songs · 01:42:19"* (`docs/08` §6).
+    /// *"Tonight's drop"*, the size of the flight, and how long there is to place it.
+    ///
+    /// The countdown sits in a badge on the title's line rather than under it: it is the only
+    /// thing in the header that changes while somebody is reading, and putting it in the corner
+    /// means nothing in the column moves when it does.
     private var header: some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            Text(verbatim: Copy.string("reveal.title"))
-                .typeStyle(.displayM)
-                .foregroundStyle(Palette.ink)
-
-            statusLine
+        VStack(alignment: .leading, spacing: Space.sm) {
+            HStack(alignment: .center, spacing: Space.md) {
+                Text(verbatim: Copy.string("reveal.title"))
+                    .typeStyle(.displayL)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Space.sm)
+                countdown
+            }
+            songCount
         }
         // One element, so the title and the status line are one stop rather than three. The
         // countdown keeps its own `.updatesFrequently` announcement by staying a child of it.
         .accessibilityElement(children: .contain)
         .padding(.bottom, Space.sm)
-    }
-
-    /// `bodyM inkDim` and a `monoM` countdown, separated by a middot.
-    ///
-    /// A `ViewThatFits` rather than a fixed row: at `.accessibility5` on a 375pt screen *"12
-    /// songs"* and a countdown do not share a line, and the middot between them is a separator
-    /// that has stopped separating anything. The stacked branch drops it.
-    private var statusLine: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: Space.sm) {
-                songCount
-                Text(verbatim: "·").typeStyle(.bodyM).foregroundStyle(Palette.inkFaint)
-                countdown
-            }
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                songCount
-                countdown
-            }
-        }
     }
 
     private var songCount: some View {
@@ -238,8 +230,28 @@ struct RevealScreen: View {
             accent: accent,
             // It counts to the answers, and it says so (`docs/11` — `a11y.countdown.answers`).
             announces: .answers,
-            prominence: .inline
+            prominence: .badge
         )
+    }
+
+    /// *"Locked in."* — the one piece of state on this screen that is not a card.
+    ///
+    /// A wash panel rather than a line of text, because it is a change to what the whole screen
+    /// is now for: the flight below it has stopped being a form and become a list to re-read
+    /// while the clock runs out. The countdown is not repeated here; it is in the header, and
+    /// two of the same number on one screen is two things to keep in sync.
+    private var lockedPanel: some View {
+        Text("reveal.locked.title")
+            .typeStyle(.bodyLStrong)
+            .foregroundStyle(Palette.ultramarineDeep)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface(
+                radius: Radius.panel,
+                fill: accent.wash,
+                border: accent.washEdge,
+                inset: Layout.rowInset
+            )
+            .padding(.bottom, Space.sm)
     }
 
     /// The flight. A vertical stack, **never a grid** (`docs/07` §5).
@@ -304,7 +316,7 @@ struct RevealScreen: View {
     @ViewBuilder private func focusRing(on number: Int) -> some View {
         if store.focusedCard == number {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(accent.fill, lineWidth: Stroke.mark)
+                .strokeBorder(accent.fill, lineWidth: Stroke.mark)
         }
     }
 }

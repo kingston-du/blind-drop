@@ -45,22 +45,32 @@ enum PhaseAccent: Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// What is legible **on** `fill`. `ink` on amber is 6.74:1; white on ultramarine is 7.26:1.
-    /// Both are in the `PaletteContrastTests` table, which is why this is a lookup rather than a
-    /// judgement call at the call site.
+    /// What is legible **on** `fill`. White on amber is 4.23:1 and white on ultramarine is
+    /// 8.98:1. Both are in the `PaletteContrastTests` table, which is why this is a lookup
+    /// rather than a judgement call at the call site — and why the amber row is pinned to the
+    /// large-text bar: it carries a 17pt semibold button label and is never asked to carry
+    /// anything smaller.
     var onFill: Color {
         switch self {
-        case .sealed: Palette.ink
+        case .sealed: Color.white
         case .revealed: Color.white
         }
     }
 
-    /// The drawing tier — marks, borders, icons, a card number. `amberDeep` clears 3.0:1 on
-    /// `surface`; `amber` does not, which is the whole reason the amber is split in three.
+    /// The drawing tier — marks, borders, icons, a card number. Both clear 3.0:1 on `surface`,
+    /// which is the bar a non-text graphic has to meet.
     var mark: Color {
         switch self {
-        case .sealed: Palette.amberDeep
+        case .sealed: Palette.amber
         case .revealed: Palette.ultramarine
+        }
+    }
+
+    /// The border that closes `wash` — a badge's outline, a sealed card's edge.
+    var washEdge: Color {
+        switch self {
+        case .sealed: Palette.amberEdge
+        case .revealed: Palette.ultramarineEdge
         }
     }
 

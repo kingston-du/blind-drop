@@ -5,7 +5,8 @@
 	<!-- docs/13 §8. Keys that have an INFOPLIST_KEY_ build setting live in the target's
 	     build configuration instead; only what cannot be expressed there is here. -->
 
-	<!-- blinddrop:// — invite deep links, and the Spotify PKCE redirect (docs/06 §6). -->
+	<!-- blinddrop:// — invite deep links. Spotify's PKCE callback is the associated HTTPS
+	     domain declared in BlindDrop.entitlements (docs/06 §6). -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -32,8 +33,11 @@
 	     web player (docs/06 §5). -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
+		<string>music</string>
 		<string>spotify</string>
 	</array>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Blind Drop uses Apple Music access only when you export The Record.</string>
 
 	<!-- Public by design — PKCE exists so the client secret never has to ship (docs/06 §8).
 	     Injected at build time; never a literal in this file. -->

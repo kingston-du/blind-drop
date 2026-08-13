@@ -87,5 +87,6 @@ real images, which is what makes the placeholder path testable.
 
 ## Wiring it to the app
 
-The test scheme launches this server and passes `-apiBaseURL http://127.0.0.1:8787`, which
-`AppEnvironment` honours (`E08-01`). Nothing else in the app knows the fixture exists.
+The test harness launches this server before the scheme; the UI target passes
+`-apiBaseURL http://127.0.0.1:8787`, which `AppEnvironment` honours (`E08-01`). Nothing else
+in the app knows the fixture exists.

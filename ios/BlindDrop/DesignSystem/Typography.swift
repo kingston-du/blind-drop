@@ -17,27 +17,36 @@ import UIKit
 /// raw size in a feature file, because a fixed size is a screen that breaks at
 /// `.accessibility5` and nobody notices until somebody who needs it opens the app.
 enum TypeStyle: String, CaseIterable, Sendable {
-    /// 56/56 · Bricolage 600 wdth max — the reveal card number, the countdown.
+    /// 56/56 · Bricolage 800 wdth max — the hero countdown, a stat tile's number.
     case displayXL
-    /// 40/44 · Bricolage 600 wdth max — the results headline.
+    /// 44/42 · Bricolage 700 wdth max, tracking −0.9 — the screen headline.
     case displayL
-    /// 28/32 · Bricolage 600 wdth max — a screen title, used sparingly.
+    /// 32/34 · Bricolage 700 wdth max, tracking −0.5 — a screen title.
     case displayM
+    /// 24/26 · Bricolage 700 — a card title, a name printed as a result.
+    case displayS
+    /// 44/44 · Bricolage 800, tabular — the results card's number.
+    case numberL
+    /// 26/26 · Bricolage 800, tabular — the flight card's number.
+    case numberM
     /// 17/24 · SF Pro Text Regular — the default.
     case bodyL
     /// 17/24 · SF Pro Text Semibold — track titles.
     case bodyLStrong
     /// 15/20 · SF Pro Text Regular — artist, supporting text.
     case bodyM
-    /// 13/16 · SF Pro Text Medium, tracking +0.6, uppercase — section labels.
+    /// 13/18 · SF Pro Text Regular — the line under a control.
+    case bodyS
+    /// 11/14 · SF Mono Medium, tracking +1.3, uppercase — the micro-label that runs above a
+    /// block, inside a badge, and down the side of every number in the app.
     case label
-    /// 12/16 · SF Pro Text Regular — helper text.
+    /// 13/18 · SF Pro Text Regular — helper text.
     case caption
-    /// 34/36 · SF Mono Medium — countdown digits.
+    /// 34/36 · SF Mono Medium — a large monospaced figure.
     case monoXL
-    /// 17/22 · SF Mono Medium — percentages, scores.
+    /// 15/20 · SF Mono Medium — percentages, scores.
     case monoM
-    /// 13/16 · SF Mono Regular — small counts.
+    /// 12/16 · SF Mono Regular — small counts, a badge's digits.
     case monoS
 }
 
@@ -88,15 +97,29 @@ extension TypeStyle {
     var spec: Spec {
         switch self {
         case .displayXL:
-            Spec(size: 56, lineHeight: 56, face: .display, weight: .semibold,
+            Spec(size: 56, lineHeight: 56, face: .display, weight: .heavy,
                  textStyle: .largeTitle, tracking: 0, isUppercase: false,
                  maximumScale: Typography.displayMaximumScale, isTabular: true)
         case .displayL:
-            Spec(size: 40, lineHeight: 44, face: .display, weight: .semibold,
-                 textStyle: .largeTitle, tracking: 0, isUppercase: false,
+            // Negative tracking and leading below the point size: the headline is set to be
+            // read as a block of two or three short lines, which is what the width axis is for.
+            Spec(size: 44, lineHeight: 42, face: .display, weight: .bold,
+                 textStyle: .largeTitle, tracking: -0.9, isUppercase: false,
                  maximumScale: Typography.displayMaximumScale, isTabular: true)
         case .displayM:
-            Spec(size: 28, lineHeight: 32, face: .display, weight: .semibold,
+            Spec(size: 32, lineHeight: 34, face: .display, weight: .bold,
+                 textStyle: .title1, tracking: -0.5, isUppercase: false,
+                 maximumScale: Typography.displayMaximumScale, isTabular: true)
+        case .displayS:
+            Spec(size: 24, lineHeight: 26, face: .display, weight: .bold,
+                 textStyle: .title2, tracking: -0.2, isUppercase: false,
+                 maximumScale: Typography.displayMaximumScale, isTabular: true)
+        case .numberL:
+            Spec(size: 44, lineHeight: 44, face: .display, weight: .heavy,
+                 textStyle: .largeTitle, tracking: 0, isUppercase: false,
+                 maximumScale: Typography.displayMaximumScale, isTabular: true)
+        case .numberM:
+            Spec(size: 26, lineHeight: 26, face: .display, weight: .heavy,
                  textStyle: .title1, tracking: 0, isUppercase: false,
                  maximumScale: Typography.displayMaximumScale, isTabular: true)
         case .bodyL:
@@ -111,12 +134,18 @@ extension TypeStyle {
             Spec(size: 15, lineHeight: 20, face: .body, weight: .regular,
                  textStyle: .subheadline, tracking: 0, isUppercase: false,
                  maximumScale: nil, isTabular: false)
-        case .label:
-            Spec(size: 13, lineHeight: 16, face: .body, weight: .medium,
-                 textStyle: .footnote, tracking: 0.6, isUppercase: true,
+        case .bodyS:
+            Spec(size: 13, lineHeight: 18, face: .body, weight: .regular,
+                 textStyle: .footnote, tracking: 0, isUppercase: false,
                  maximumScale: nil, isTabular: false)
+        case .label:
+            // The micro-label is monospaced and widely tracked, which is what makes a four-word
+            // caption read as apparatus rather than as a sentence somebody forgot to finish.
+            Spec(size: 11, lineHeight: 14, face: .mono, weight: .medium,
+                 textStyle: .caption1, tracking: 1.3, isUppercase: true,
+                 maximumScale: nil, isTabular: true)
         case .caption:
-            Spec(size: 12, lineHeight: 16, face: .body, weight: .regular,
+            Spec(size: 13, lineHeight: 18, face: .body, weight: .regular,
                  textStyle: .caption1, tracking: 0, isUppercase: false,
                  maximumScale: nil, isTabular: false)
         case .monoXL:
@@ -124,12 +153,12 @@ extension TypeStyle {
                  textStyle: .title1, tracking: 0, isUppercase: false,
                  maximumScale: nil, isTabular: true)
         case .monoM:
-            Spec(size: 17, lineHeight: 22, face: .mono, weight: .medium,
+            Spec(size: 15, lineHeight: 20, face: .mono, weight: .medium,
                  textStyle: .body, tracking: 0, isUppercase: false,
                  maximumScale: nil, isTabular: true)
         case .monoS:
-            Spec(size: 13, lineHeight: 16, face: .mono, weight: .regular,
-                 textStyle: .footnote, tracking: 0, isUppercase: false,
+            Spec(size: 12, lineHeight: 16, face: .mono, weight: .regular,
+                 textStyle: .footnote, tracking: 0.2, isUppercase: false,
                  maximumScale: nil, isTabular: true)
         }
     }
@@ -148,8 +177,11 @@ enum CountdownForm: Sendable {
     case coarse
 
     var typeStyle: TypeStyle {
+        // The precise form is set in the display face, not the monospaced one. Its digits are
+        // already pinned to one advance by `isTabular`, and the countdown is the second-largest
+        // thing on the screens that carry it — at that size the display face is the point.
         switch self {
-        case .precise: .monoXL
+        case .precise: .displayXL
         case .coarse: .bodyLStrong
         }
     }
@@ -176,8 +208,25 @@ enum Typography {
     /// rather than absorbed.
     static let displayWidth: CGFloat = 100
 
-    /// `wght 600` — semibold. Inside the face's 200…800 range, so it is set exactly.
-    static let displayWeight: CGFloat = 600
+    /// The default `wght`, for a display style that names no weight of its own. Inside the
+    /// face's 200…800 range, so it is set exactly.
+    static let displayWeight: CGFloat = 700
+
+    /// A `UIFont.Weight` as a `wght` axis value.
+    ///
+    /// The axis is a number and `UIFont.Weight` is a number, but they are not the *same* number:
+    /// `.bold` is `0.4` on Apple's scale and `700` on the variable-font one. The mapping is
+    /// written down here so a spec can say `.heavy` and get the face's heaviest cut rather than
+    /// a fraction of a point.
+    static func axisWeight(_ weight: UIFont.Weight) -> CGFloat {
+        switch weight {
+        case .heavy, .black: 800
+        case .bold: 700
+        case .semibold: 600
+        case .medium: 500
+        default: displayWeight
+        }
+    }
 
     /// The display face's scale ceiling (`docs/12` §1).
     static let displayMaximumScale: CGFloat = 1.6
@@ -311,7 +360,7 @@ enum Typography {
 
         let probe = UIFont(descriptor: descriptor, size: pointSize)
         let variations: [Int: CGFloat] = [
-            Axis.weight: clamped(displayWeight, to: Axis.weight, of: probe),
+            Axis.weight: clamped(axisWeight(spec.weight), to: Axis.weight, of: probe),
             // The widest cut the face has, whatever that is — `docs/07` §3's rule, read off
             // the font rather than transcribed from it.
             Axis.width: widest(Axis.width, of: probe) ?? displayWidth,

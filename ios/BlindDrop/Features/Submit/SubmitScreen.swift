@@ -1,116 +1,86 @@
 import SwiftUI
 
-/// `docs/08` §2 — `open`, nothing dropped. Accent **amber**.
+/// The open round, before the caller has dropped anything: **the search screen itself**.
 ///
-/// ```
-/// │  Monday 10 August           │   label, inkDim
-/// │  ────────────────────────   │
-/// │   Drop one song.            │   displayM, ink
-/// │   Nobody sees it until      │   bodyL, inkDim  ← the entire tutorial
-/// │   8:00 PM.                  │
-/// │         09:47:12            │   monoXL, amberText, tabular
-/// │         until reveal        │   caption, inkFaint
-/// │  ┌───────────────────────┐  │
-/// │  │     Drop a song       │  │   PrimaryButton, amber fill, ink label
-/// │  └───────────────────────┘  │
-/// ```
+/// There is no lobby in front of it. A screen whose only content is a headline and a button
+/// that opens the real screen is a tap charged for nothing, and the round is on a clock — the
+/// field is up and focused the moment this appears, so the first thing somebody can do is the
+/// thing they came to do.
 ///
-/// > **This screen leaks nothing.** No submission count, no "3 of 8 in", no avatars, no activity
-/// > indicator, no "waiting on Sam".
+/// The clock lives in the header badge (`RoundHeader`) rather than in the column, because it is
+/// the only thing here that changes while nobody is touching the screen, and a ticking hero
+/// countdown over a search field is a countdown competing with the typing.
 ///
-/// That is not a thing this file remembers to do. There is nothing here to leak *with*: the only
-/// value it is given is a `RoundContext`, and an `open` round has no shape that can hold a fact
-/// about anybody else (`RoundDTO.Phase.open`). A reviewer can read this screen against
-/// `GET /rounds/current`'s `open` payload and see that neither could possibly express how many
-/// people have dropped — and `SubmitLeakTests` asserts the accessibility side of it too, because
-/// `docs/12` §2 says the blind window applies to VoiceOver as well.
+/// Nothing on this screen counts anybody. No submitted total, no *waiting on*, no avatars — the
+/// only shared fact is the clock, which everybody already has (`CLAUDE.md` §2.1).
 struct SubmitScreen: View {
     let context: RoundContext
+    let store: SubmitStore
+    let player: PreviewPlayer
     let timer: CountdownTimer
     /// What the countdown counts to — the reveal, or the next opening during the dark hours.
     /// Chosen by `RoundContext.deadline(now:)` against the **server's** clock, never here.
     let deadline: Date
     /// Whether the round has opened yet (`docs/08` §2, the dark-hours state).
     let isBeforeOpen: Bool
-    let drop: () -> Void
+    /// A chosen song goes to the confirm step, which the round presents.
+    let choose: (TrackDTO) -> Void
 
     /// Amber, decided once at the top of the screen and handed down (`CLAUDE.md` §2.5).
     private let accent = PhaseAccent.sealed
 
-    @Environment(\.displayScale) private var displayScale
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.blockGap) {
-            dateLine
-            headline
-            countdown
-            action
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        column
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .onAppear { if !isBeforeOpen { isFieldFocused = true } }
+            .onDisappear { player.stop() }
     }
 
-    /// *"Monday 10 August"* and the rule under it (`docs/08` §2).
-    ///
-    /// The day is the **group's**, formatted from the round's `local_date` on the group's calendar
-    /// (`docs/13` §5 rule 6) — a member reading this in Lisbon sees the group's Monday, which is
-    /// the day the round belongs to. Absent rather than guessed if the date will not parse.
-    @ViewBuilder private var dateLine: some View {
-        VStack(alignment: .leading, spacing: Layout.itemGap) {
-            if let day = context.dateHeadline {
-                Text(verbatim: day)
-                    .typeStyle(.label)
-                    .foregroundStyle(Palette.inkDim)
-            }
-            Rectangle()
-                .fill(Palette.edgeStrong)
-                .frame(height: Stroke.hairline(atScale: displayScale))
+    /// The screen's column, which the snapshots render directly.
+    var snapshotContent: some View { column }
+
+    @ViewBuilder private var column: some View {
+        if isBeforeOpen {
+            closed
+        } else {
+            SongSearch(
+                store: store,
+                player: player,
+                accent: accent,
+                isFieldFocused: $isFieldFocused,
+                choose: choose,
+                header: { prompt },
+                footer: { footer }
+            )
         }
     }
 
-    private var headline: some View {
+    // MARK: - Open
+
+    /// *"Today's song."* and the one line of rules under it.
+    private var prompt: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
-            Text(isBeforeOpen ? "submit.closed.headline" : "submit.headline")
-                .typeStyle(.displayM)
+            Text("submit.headline")
+                .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
-
-            // The subhead is the whole tutorial in one line, and in the dark hours it is the one
-            // fact that matters instead: when this opens again. `%@` is the group's opening hour
-            // in the group's own clock (`docs/13` §5 rule 6).
-            Text(verbatim: isBeforeOpen
-                 ? Copy.format("submit.closed.subhead", context.opensTime)
-                 : Copy.string("submit.subhead"))
+            Text("submit.subhead")
                 .typeStyle(.bodyL)
                 .foregroundStyle(Palette.inkDim)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    /// The countdown and its label, centred as `docs/08` §2 draws them.
-    private var countdown: some View {
-        VStack(spacing: Space.xs) {
-            CountdownView(
-                timer: timer,
-                deadline: deadline,
-                accent: accent,
-                announces: .reveal
-            )
-            Text(isBeforeOpen ? "submit.closed.countdown.label" : "submit.countdown.label")
-                .typeStyle(.caption)
-                .foregroundStyle(Palette.inkFaint)
-        }
-        .frame(maxWidth: .infinity)
-        // The countdown announces itself in full (`a11y.countdown`); the label under it is part of
-        // that sentence rather than a second stop.
-        .accessibilityElement(children: .combine)
-    }
-
-    private var action: some View {
+    /// What sits under the field while nothing has been searched for: the nudge if the reveal is
+    /// close, and the fact that makes the whole game work.
+    private var footer: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
-            // `docs/08` §2: under two hours the nudge appears above the button, in `amberText`,
-            // and **nothing else changes**. It is an in-interface nudge and it is deliberately not
-            // the push — the push is `docs/05` §3's, goes only to non-submitters, and says the
-            // same thing because there is only one true thing to say.
+            // `docs/08` §2: under two hours the nudge appears, in `amberText`, and **nothing
+            // else changes**. It is an in-interface nudge and deliberately not the push — the
+            // push is `docs/05` §3's, goes only to non-droppers, and says the same thing because
+            // there is only one true thing to say.
             if showsNudge {
                 Text("submit.nudge")
                     .typeStyle(.bodyM)
@@ -118,8 +88,49 @@ struct SubmitScreen: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .transition(.opacity)
             }
-            PrimaryButton("submit.action", accent: accent, isEnabled: !isBeforeOpen, action: drop)
+            Text("submit.blind")
+                .typeStyle(.bodyS)
+                .foregroundStyle(Palette.inkDim)
+                .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    // MARK: - The dark hours
+
+    /// Between the answers and tomorrow's opening there is nothing to search for, so the screen
+    /// says what it is waiting for and counts to it.
+    private var closed: some View {
+        VStack(alignment: .leading, spacing: Layout.blockGap) {
+            Spacer(minLength: Space.none)
+            VStack(alignment: .leading, spacing: Layout.itemGap) {
+                Text("submit.closed.headline")
+                    .typeStyle(.displayL)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: Copy.format("submit.closed.subhead", context.opensTime))
+                    .typeStyle(.bodyL)
+                    .foregroundStyle(Palette.inkDim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            countdown
+            Spacer(minLength: Space.none)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var countdown: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            SectionLabel("submit.closed.countdown.label")
+            CountdownView(
+                timer: timer,
+                deadline: deadline,
+                accent: accent,
+                announces: .reveal
+            )
+        }
+        // The countdown announces itself in full (`a11y.countdown`); the label above it is part
+        // of that sentence rather than a second stop.
+        .accessibilityElement(children: .combine)
     }
 
     /// Under two hours to the reveal (`docs/08` §2).
@@ -127,8 +138,7 @@ struct SubmitScreen: View {
     /// Read off the **countdown that is already ticking** rather than from a second clock. Two
     /// things fall out of that: the line appears the second the visible countdown crosses two
     /// hours rather than at the next refetch, and there is no `Date()` anywhere near it
-    /// (`docs/13` §5 rule 1). In the dark hours there is no nudge — the countdown is to the
-    /// opening, and *"two hours left to drop"* would be false.
+    /// (`docs/13` §5 rule 1).
     private var showsNudge: Bool {
         guard !isBeforeOpen, let remaining = timer.display.secondsRemaining else { return false }
         return remaining < Self.nudgeThreshold

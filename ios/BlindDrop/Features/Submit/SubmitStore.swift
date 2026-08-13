@@ -42,6 +42,20 @@ final class SubmitStore {
     /// detached task, never a timer that outlives the screen).
     private var searchTask: Task<Void, Never>?
 
+    /// The deliberate client-side wait, exposed to the UI-test accessibility tree. AC-10 stubs
+    /// server waits; staging request p95 belongs to E14-03. Keeping this value derived from the
+    /// production token means the UI test catches a debounce drift without measuring XCTest host
+    /// contention as if it were product latency.
+    var debugSearchDelayMilliseconds: Int? {
+        #if DEBUG
+        let parts = Self.debounce.components
+        return Int(parts.seconds * 1_000)
+            + Int(parts.attoseconds / 1_000_000_000_000_000)
+        #else
+        return nil
+        #endif
+    }
+
     /// `docs/08` §3.1: debounce 250ms, minimum two characters. The debounce is the reason
     /// `GET /tracks/search` stays inside AC-10's 400ms budget — the server caches on
     /// `(storefront, query)` for ten minutes (`docs/06` §4) and a per-keystroke request would miss
@@ -72,11 +86,9 @@ final class SubmitStore {
             let found = try await api.send(.search(term))
             guard !Task.isCancelled else { return }
             results = .loaded(found.results)
-        } catch let error as APIError {
+        } catch let error {
             guard !Task.isCancelled else { return }
             results = .failed(error)
-        } catch {
-            results = .failed(.unreadable)
         }
     }
 
@@ -111,10 +123,8 @@ final class SubmitStore {
             // Parseable, and the catalog does not have it. *"That song isn't in the Apple catalog.
             // Search for it instead."*
             pasteErrorKey = "resolve.error.notfound"
-        } catch let error as APIError {
+        } catch let error {
             pasteErrorKey = error == .offline ? "search.error.offline" : error.copyKey
-        } catch {
-            pasteErrorKey = APIError.unreadable.copyKey
         }
         return nil
     }
@@ -142,12 +152,10 @@ final class SubmitStore {
             return try await api.send(.seal(.appleMusicID(track.appleMusicID)))
         } catch APIError.offline {
             sealErrorKey = "search.error.offline"
-        } catch let error as APIError {
+        } catch let error {
             // *"That didn't seal. Try again."* — one line, in `alert`, and nothing is sealed. A
             // phase error gets its own words, because trying again will not help at 20:01.
             sealErrorKey = error == .wrongPhase(state: .revealed) ? error.copyKey : "confirm.error"
-        } catch {
-            sealErrorKey = "confirm.error"
         }
         return nil
     }

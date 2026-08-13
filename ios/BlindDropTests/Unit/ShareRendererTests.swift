@@ -10,7 +10,11 @@ import UIKit
 /// The pixels are `ShareCardSnapshots`' business. What is asserted here is everything around
 /// them — the wait, the timeout, where the file goes, and when it stops existing.
 @MainActor
-@Suite struct ShareRendererTests {
+// These tests all PNG-encode full-resolution share cards. Running the suite's cases against one
+// another turns the performance guard into a measurement of concurrent test contention rather
+// than one render, and makes every cleanup assertion harder to reason about. Other suites still
+// run in parallel; the renderer's own lifecycle is intentionally exercised serially.
+@Suite(.serialized) struct ShareRendererTests {
 
     // MARK: - The artwork (docs/10 §4)
 

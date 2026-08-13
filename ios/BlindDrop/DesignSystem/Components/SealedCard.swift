@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The caller's own song, sealed (`docs/07` §5).
 ///
-/// `amberWash` fill, `amberDeep` border, the artwork covered by the seal cover, the stamp at the
+/// `amberWash` fill, `amber` border, the artwork covered by the seal cover, the stamp at the
 /// cover's lower-right. **This is the landed state.** `docs/09` §2 owns how it arrives, and
 /// `SealAnimation` animates into exactly this — which is the point of drawing the end state here:
 /// the animation has something to be a transition *to*, rather than being the only place the
@@ -39,23 +39,18 @@ struct SealedCard: View {
             // by more than being adjacent.
             VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(verbatim: track.title)
-                    .typeStyle(.bodyM)
+                    .typeStyle(.displayS)
                     .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(verbatim: track.artist)
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
             }
         }
-        .padding(Space.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .fill(Palette.amberWash)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Palette.amberDeep, lineWidth: Stroke.border)
-        )
+        // White, with the amber only in the border and in what is stamped on the cover. A card
+        // washed amber edge to edge would make the whole screen amber, and the accent is meant
+        // to be the *signal* on the screen rather than the screen itself.
+        .cardSurface(border: Palette.amberEdge)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             Copy.A11y.sealed(title: track.title, artist: track.artist, remaining: remaining)
@@ -97,7 +92,7 @@ struct SealedArtwork: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.artwork, style: .continuous))
     }
 
-    /// A solid `amberWash` panel with an `amberDeep` 1pt top edge (`docs/09` §2, phase B).
+    /// A solid `amberWash` panel with an `amber` 1pt top edge (`docs/09` §2, phase B).
     ///
     /// Its shadow belongs to `SealEffect`, not here: it exists **only while the cover is moving**
     /// and resolves to zero on land, which is the app's one exception to *"never a drop shadow"*
@@ -106,7 +101,7 @@ struct SealedArtwork: View {
         Palette.amberWash
             .overlay(alignment: .top) {
                 Rectangle()
-                    .fill(Palette.amberDeep)
+                    .fill(Palette.amber)
                     .frame(height: Stroke.border)
             }
     }
@@ -116,7 +111,7 @@ struct SealedArtwork: View {
         SealStamp(initial: groupInitial)
             .background {
                 Circle()
-                    .stroke(Palette.amberDeep, lineWidth: Stroke.mark)
+                    .stroke(Palette.amber, lineWidth: Stroke.mark)
                     .seal(phase, as: .ring, reducedMotion: reducedMotion)
             }
             .seal(phase, as: .stamp, reducedMotion: reducedMotion)
@@ -124,7 +119,7 @@ struct SealedArtwork: View {
     }
 }
 
-/// The seal mark (`docs/09` §2, phase D): a 56pt circular `amberDeep` outline at `Stroke.mark`
+/// The seal mark (`docs/09` §2, phase D): a 56pt circular `amber` outline at `Stroke.mark`
 /// enclosing the group's initial in the display face, with a hairline inner ring 4pt inside it.
 ///
 /// **It lands off-axis by 4°.** A stamp that lands square reads as a UI element; one slightly
@@ -136,18 +131,23 @@ struct SealStamp: View {
     /// The stamp does not scale with Dynamic Type. It is a mark, not text — the letter inside it
     /// is a graphic, and growing the whole thing to 90pt at `.accessibility5` would cover the
     /// artwork it is stamped on. Its meaning is carried by the card's accessibility label.
-    private let diameter: CGFloat = 56
+    var diameter: CGFloat = SealStamp.diameter
+
+    /// The stamp on a full-width cover.
+    static let diameter: CGFloat = 56
+    /// The stamp on a list thumbnail, where the full-size mark would be the whole thumbnail.
+    static let compactDiameter: CGFloat = 30
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Palette.amberDeep, lineWidth: Stroke.mark)
+                .stroke(Palette.amber, lineWidth: Stroke.mark)
             Circle()
-                .stroke(Palette.amberDeep, lineWidth: 1)
+                .stroke(Palette.amber, lineWidth: Stroke.border)
                 .padding(Space.xs)
             Text(verbatim: initial.prefix(1).uppercased())
-                .font(Font(Typography.uiFont(.displayM, for: .large)))
-                .foregroundStyle(Palette.amberDeep)
+                .font(Font(Typography.fixed(.display, size: diameter * 0.46, weight: .bold)))
+                .foregroundStyle(Palette.amber)
         }
         .frame(width: diameter, height: diameter)
         .accessibilityHidden(true)

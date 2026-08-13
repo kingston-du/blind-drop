@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>countdown.coarse.hours</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>%#@hours@</string>
+        <key>hours</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>lld</string>
+            <key>one</key>
+            <string>%lld hour</string>
+            <key>other</key>
+            <string>%lld hours</string>
+        </dict>
+    </dict>
+    <key>countdown.coarse.minutes</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>%#@minutes@</string>
+        <key>minutes</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>lld</string>
+            <key>one</key>
+            <string>%lld minute</string>
+            <key>other</key>
+            <string>%lld minutes</string>
+        </dict>
+    </dict>
+    <key>record.export.partial</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>%#@missing@</string>
+        <key>missing</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>lld</string>
+            <key>one</key>
+            <string>%lld song isn't on %2$@. The rest are in.</string>
+            <key>other</key>
+            <string>%lld songs aren't on %2$@. The rest are in.</string>
+        </dict>
+    </dict>
+    <key>reveal.subtitle</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>%#@songs@</string>
+        <key>songs</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>lld</string>
+            <key>one</key>
+            <string>%lld song</string>
+            <key>other</key>
+            <string>%lld songs</string>
+        </dict>
+    </dict>
+    <key>share.headline.fallback</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>%#@songs@, %#@guesses@</string>
+        <key>songs</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>lld</string>
+            <key>one</key>
+            <string>%lld song</string>
+            <key>other</key>
+            <string>%lld songs</string>
+        </dict>
+        <key>guesses</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>lld</string>
+            <key>one</key>
+            <string>%lld guess</string>
+            <key>other</key>
+            <string>%lld guesses</string>
+        </dict>
+    </dict>
+</dict>
+</plist>

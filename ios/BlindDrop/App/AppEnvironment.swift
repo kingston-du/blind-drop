@@ -68,6 +68,13 @@ final class AppEnvironment {
         self.router = Router()
         self.haptics = haptics
         let flags = LocalFlags(defaults: defaults)
+        #if DEBUG
+        // The notification pre-prompt is not part of AC-10's round loop. Marking it handled in
+        // the isolated UI-test install keeps that unrelated sheet from changing the tap budget.
+        if configuration.usesFixtureSession {
+            flags.hasAskedAboutNotifications = true
+        }
+        #endif
         self.flags = flags
         self.push = PushRegistrar(
             api: api,

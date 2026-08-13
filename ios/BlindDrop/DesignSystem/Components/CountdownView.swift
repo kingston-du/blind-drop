@@ -42,11 +42,19 @@ struct CountdownView: View {
     /// coarse — an inline countdown that kept eight monospaced digits at `.accessibility5` would
     /// break the status line exactly the way the hero one breaks the screen.
     enum Prominence: Sendable, Equatable {
-        /// Submit, Sealed, Voided: `monoXL`, the screen's second subject.
+        /// Sealed, Voided: the screen's second subject, set in the display face.
         case hero
         /// Reveal's status line: `monoM`, beside the song count.
         case inline
+        /// The header's badge: the micro-label, inside the phase's wash. The clock is the only
+        /// thing on the search screen that changes without the caller touching anything, so it
+        /// lives in the corner where nothing has to move when it ticks.
+        case badge
     }
+
+    /// A copy-deck key whose `%@` takes the countdown — *"Seals in 04:12:33"*. `nil` prints the
+    /// digits alone, which is what the hero form does.
+    var format: String?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -55,7 +63,8 @@ struct CountdownView: View {
     /// The style the two decisions resolve to: the form picks the words, the prominence the size.
     private var typeStyle: TypeStyle {
         switch (form, prominence) {
-        case (.precise, .hero): .monoXL
+        case (_, .badge): .label
+        case (.precise, .hero): form.typeStyle
         case (.precise, .inline): .monoM
         case (.coarse, .hero): .bodyLStrong
         // The coarse form is words, not digits, so its inline size comes off the body ramp and
@@ -64,10 +73,15 @@ struct CountdownView: View {
         }
     }
 
+    /// The digits, or the sentence the digits are inside.
+    private var text: String {
+        let digits = Copy.countdown(timer.display)
+        guard let format else { return digits }
+        return Copy.format(format, digits)
+    }
+
     var body: some View {
-        Text(verbatim: Copy.countdown(timer.display))
-            .typeStyle(typeStyle)
-            .foregroundStyle(accent.text)
+        content
             .accessibilityLabel(Copy.A11y.countdown(timer.display, until: announces))
             // Recomputed on focus rather than announced on every tick (`docs/12` §2). Without
             // this, VoiceOver interrupts itself once a second and the screen becomes unusable.
@@ -76,5 +90,29 @@ struct CountdownView: View {
             .onChange(of: form) { timer.start(until: deadline, form: form) }
             .onChange(of: deadline) { timer.start(until: deadline, form: form) }
             .onDisappear { timer.stop() }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch prominence {
+        case .badge:
+            Text(verbatim: text)
+                .typeStyle(.label)
+                .foregroundStyle(accent.text)
+                .padding(.horizontal, Space.md)
+                .frame(minHeight: Layout.badgeHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.pill, style: .continuous)
+                        .fill(accent.wash)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.pill, style: .continuous)
+                        .stroke(accent.washEdge, lineWidth: Stroke.border)
+                )
+                .fixedSize()
+        case .hero, .inline:
+            Text(verbatim: text)
+                .typeStyle(typeStyle)
+                .foregroundStyle(accent.text)
+        }
     }
 }

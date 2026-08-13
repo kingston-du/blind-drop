@@ -16,7 +16,40 @@ struct TrackRow: View {
     /// The preview's state, or `nil` if this row does not offer one — which is also what a
     /// track with no `preview_url` gets (`docs/06` §7: no control, never a disabled one).
     var preview: Preview?
-    let action: () -> Void
+    var attribution: String?
+    /// How the row is drawn. See `Style`.
+    var style: Style = .plain
+    /// Whether this is the row the caller has picked. Only meaningful on `.surface`.
+    var isChosen = false
+    let action: (() -> Void)?
+
+    /// The two shapes a row takes, and they are about the list rather than the row.
+    ///
+    /// A search result is something you **pick**, so it is drawn as its own white surface with
+    /// an edge — a target. An archive entry is something you **read past**, so it is a line of
+    /// text with a hairline under it. Drawing the archive as three hundred little cards would
+    /// make a list nobody can scan, and drawing search results as bare lines would make a list
+    /// with no targets in it.
+    enum Style: Equatable, Sendable {
+        case plain
+        case surface
+    }
+
+    init(
+        track: TrackDTO,
+        preview: Preview? = nil,
+        attribution: String? = nil,
+        style: Style = .plain,
+        isChosen: Bool = false,
+        action: (() -> Void)? = nil
+    ) {
+        self.track = track
+        self.preview = preview
+        self.attribution = attribution
+        self.style = style
+        self.isChosen = isChosen
+        self.action = action
+    }
 
     /// A row's preview control, if it has one.
     struct Preview {
@@ -31,35 +64,132 @@ struct TrackRow: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    @ViewBuilder
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: Space.md) {
-                ArtworkView(track, size: artworkSize)
-                VStack(alignment: .leading, spacing: Space.xxs) {
-                    Text(verbatim: track.title)
-                        .typeStyle(.bodyLStrong)
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(lineLimit)
-                        .truncationMode(.tail)
-                    Text(verbatim: track.artist)
-                        .typeStyle(.bodyM)
-                        .foregroundStyle(Palette.inkDim)
-                        .lineLimit(lineLimit)
-                        .truncationMode(.tail)
+        if let action {
+            Button(action: action) { content }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Copy.A11y.track(title: track.title, artist: track.artist))
+                .accessibilityHint(Copy.A11y.trackHint)
+                .accessibilityAddTraits(.isButton)
+        } else {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    attribution.map {
+                        Copy.A11y.recordTrack(
+                            title: track.title,
+                            artist: track.artist,
+                            member: $0
+                        )
+                    } ?? Copy.A11y.track(title: track.title, artist: track.artist)
+                )
+                .accessibilityAddTraits(.isStaticText)
+                .accessibilityActions {
+                    if let preview {
+                        Button(action: preview.toggle) {
+                            Text(verbatim: Copy.A11y.preview(isPlaying: preview.isPlaying))
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityChildren {
+                    if let preview {
+                        PreviewControl(
+                            isPlaying: preview.isPlaying,
+                            accent: .revealed,
+                            action: preview.toggle
+                        )
+                    }
+                }
+        }
+    }
 
-                if let preview {
-                    PreviewControl(isPlaying: preview.isPlaying, accent: .revealed, action: preview.toggle)
+    private var content: some View {
+        Group {
+            if dynamicTypeSize >= .accessibility1 {
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    HStack(alignment: .top, spacing: Space.md) {
+                        ArtworkView(track, size: artworkSize)
+                        Spacer(minLength: Space.none)
+                        if let preview {
+                            PreviewControl(
+                                isPlaying: preview.isPlaying,
+                                accent: .revealed,
+                                action: preview.toggle
+                            )
+                        }
+                    }
+                    metadata
+                }
+            } else {
+                HStack(spacing: Space.md) {
+                    ArtworkView(track, size: artworkSize)
+                    metadata
+                    // Whose song it was sits at the end of the row rather than under the artist.
+                    // The archive reads as two columns — what the song was, and who is
+                    // answerable for it — and a name tucked under the artist joins the wrong one.
+                    if let attribution {
+                        Text(verbatim: attribution)
+                            .typeStyle(.bodyM)
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                    if let preview {
+                        PreviewControl(
+                            isPlaying: preview.isPlaying,
+                            accent: .revealed,
+                            action: preview.toggle
+                        )
+                    }
                 }
             }
-            .padding(.vertical, Space.sm)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Copy.A11y.track(title: track.title, artist: track.artist))
-        .accessibilityHint(Copy.A11y.trackHint)
-        .accessibilityAddTraits(.isButton)
+        .modifier(RowChrome(style: style, isChosen: isChosen))
+    }
+
+    /// The row's surface, or its absence.
+    private struct RowChrome: ViewModifier {
+        let style: Style
+        let isChosen: Bool
+
+        func body(content: Content) -> some View {
+            switch style {
+            case .plain:
+                content
+                    .padding(.vertical, Space.md)
+                    .contentShape(Rectangle())
+            case .surface:
+                content
+                    .rowSurface(border: isChosen ? Palette.ink : Palette.edge)
+                    .contentShape(
+                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                    )
+            }
+        }
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            Text(verbatim: track.title)
+                .typeStyle(.bodyLStrong)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(lineLimit)
+                .truncationMode(.tail)
+            Text(verbatim: track.artist)
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.inkDim)
+                .lineLimit(lineLimit)
+                .truncationMode(.tail)
+            // At the accessibility sizes the row has already stacked, so the name comes back
+            // under the artist where there is room for it to wrap.
+            if let attribution, dynamicTypeSize >= .accessibility1 {
+                Text(verbatim: attribution)
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.ink)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The artwork grows with the text, capped so that at `.accessibility5` the thumbnail does

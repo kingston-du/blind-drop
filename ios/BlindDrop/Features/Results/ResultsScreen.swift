@@ -72,7 +72,9 @@ struct ResultsScreen: View {
     /// `ShareRendererTests` scans `Features/` to keep it that way.
     var share: ShareEntry?
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
 
     @State private var isSharing = false
 
@@ -129,25 +131,29 @@ struct ResultsScreen: View {
     // MARK: - §7.1 Answers, card by card
 
     private var answers: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
             Text("results.title")
-                .typeStyle(.displayM)
+                .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
+                .padding(.bottom, Space.xs)
 
             ForEach(state.cards) { card in
-                FlightCard(
-                    number: card.cardNumber,
-                    track: card.track,
-                    accent: accent,
-                    // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
-                    // (`docs/12` §2). Nothing on a results card is a control.
-                    assignment: .resolved(card.resolution),
-                    resolve: ResolvePresentation(
-                        hasName: state.namedCards.contains(card.cardNumber),
-                        hasMark: state.markedCards.contains(card.cardNumber),
-                        reducedMotion: reduceMotion
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    FlightCard(
+                        number: card.cardNumber,
+                        track: card.track,
+                        accent: accent,
+                        // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
+                        // (`docs/12` §2). Nothing on a results card is a control.
+                        assignment: .resolved(card.resolution),
+                        resolve: ResolvePresentation(
+                            hasName: state.namedCards.contains(card.cardNumber),
+                            hasMark: state.markedCards.contains(card.cardNumber),
+                            reducedMotion: reduceMotion
+                        )
                     )
-                )
+                    TrackLinkButtons(track: card.track)
+                }
             }
         }
     }
@@ -207,120 +213,91 @@ struct PersonalStats: View {
             Text("results.you.title")
                 .typeStyle(.displayM)
                 .foregroundStyle(Palette.ink)
-
             if isStacked {
-                VStack(alignment: .leading, spacing: Layout.blockGap) {
+                VStack(alignment: .leading, spacing: Layout.itemGap) {
                     readability
                     ear
                 }
             } else {
-                HStack(alignment: .top, spacing: Layout.blockGap) {
+                // Equal columns, aligned at the top. The two numbers are the same kind of thing
+                // said about two different people — how well the room read you, and how well you
+                // read the room — and side by side is the only arrangement that says so.
+                HStack(alignment: .top, spacing: Layout.itemGap) {
                     readability
                     ear
                 }
+            }
+            if let rate = me.readability {
+                spectrum(rate)
             }
         }
     }
 
     private var readability: some View {
-        StatBlock(
-            kind: .readability,
+        StatTile(
+            title: "results.readability.label",
             rate: me.readability,
-            correct: me.readabilityCorrect,
-            possible: me.readabilityPossible
+            detail: detail(
+                key: "results.readability.detail",
+                absent: "results.readability.none",
+                rate: me.readability,
+                correct: me.readabilityCorrect,
+                possible: me.readabilityPossible
+            )
         )
     }
 
     private var ear: some View {
-        StatBlock(kind: .ear, rate: me.ear, correct: me.earCorrect, possible: me.earPossible)
-    }
-}
-
-/// One of the two numbers, and the sentence under it.
-private struct StatBlock: View {
-
-    /// Which number this is. An enum rather than four parameters, so the pairing of a label with
-    /// its detail format and its absent line is made once and cannot be mismatched at a call
-    /// site — *"You sat this one out."* under **Readability** would be a lie about a person who
-    /// dropped a song and was simply not recognised.
-    enum Kind {
-        case readability
-        case ear
-
-        var title: LocalizedStringKey {
-            switch self {
-            case .readability: "results.readability.label"
-            case .ear: "results.ear.label"
-            }
-        }
-
-        /// *"6 of 7 read you"* / *"5 of 7 correct"*.
-        var detailKey: String {
-            switch self {
-            case .readability: "results.readability.detail"
-            case .ear: "results.ear.detail"
-            }
-        }
-
-        /// The line that replaces the detail when the rate does not apply. The two are
-        /// different sentences because they are different situations: one person did not drop,
-        /// the other dropped and never opened the sheet.
-        var absent: LocalizedStringKey {
-            switch self {
-            case .readability: "results.readability.none"
-            case .ear: "results.ear.none"
-            }
-        }
-
-        /// Only readability sits on a spectrum. An ear is a score and a score has no band.
-        var hasMeter: Bool { self == .readability }
+        StatTile(
+            title: "results.ear.label",
+            rate: me.ear,
+            detail: detail(
+                key: "results.ear.detail",
+                absent: "results.ear.none",
+                rate: me.ear,
+                correct: me.earCorrect,
+                possible: me.earPossible
+            ),
+            // The accent goes on the number that is about *the caller's own judgement*. Only
+            // one of the two ever wears it — two accented numbers side by side is a scoreboard,
+            // and `docs/16` rules the app out of having one.
+            isAccented: true
+        )
     }
 
-    let kind: Kind
-    let rate: Double?
-    let correct: Int?
-    let possible: Int?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            VStack(alignment: .leading, spacing: Space.xs) {
-                Text(kind.title)
-                    .typeStyle(.label)
-                    .foregroundStyle(Palette.inkDim)
-
-                // **`nil` renders as an em dash, never as `0%`** (`docs/04` §4). `ScoringFormat`
-                // is where that is decided; this view cannot get it wrong because it never sees
-                // the optional as a number.
-                Text(verbatim: ScoringFormat.percent(rate))
-                    .typeStyle(.monoXL)
-                    .foregroundStyle(Palette.ink)
-
-                detail
-            }
-            // One stop for the label, the number and its sentence — they are one fact, and
-            // three swipes to hear it is two too many (`docs/12` §2). The meter below stays its
-            // own element, because it announces the band and that is a second fact.
-            .accessibilityElement(children: .combine)
-
-            if kind.hasMeter, let rate {
-                StatMeter(value: rate, band: ReadabilityBand(readability: rate))
-            }
+    /// Where tonight put the caller on the scale, and the sentence for it.
+    ///
+    /// The scale runs from unreadable to easy to read with **no better end** (`docs/08` §7.2).
+    /// The marker is a position, not a rank, which is why the panel names both ends and why
+    /// nothing on it is sorted against anybody else.
+    private func spectrum(_ rate: Double) -> some View {
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
+            StatMeter(
+                value: rate,
+                band: ReadabilityBand(readability: rate),
+                showsBand: false,
+                showsEnds: true
+            )
+            Text(verbatim: Copy.band(ReadabilityBand(readability: rate)))
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.ink)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface(radius: Radius.panel)
     }
 
-    @ViewBuilder private var detail: some View {
-        if let correct, let possible, rate != nil {
-            Text(verbatim: Copy.format(kind.detailKey, correct, possible))
-                .typeStyle(.caption)
-                .foregroundStyle(Palette.inkDim)
-        } else {
-            Text(kind.absent)
-                .typeStyle(.caption)
-                .foregroundStyle(Palette.inkDim)
-                // The sentence is the whole point of the dash above it; it must arrive whole
-                // rather than truncate into "You sat this one…".
-                .fixedSize(horizontal: false, vertical: true)
-        }
+    /// The sentence under a number: the counts it came from, or the reason there are none.
+    ///
+    /// **`nil` is not zero** (`docs/04` §4) — the two possibilities are different situations and
+    /// they get different sentences, which is why the choice is made here rather than by a
+    /// formatter that would have to guess.
+    private func detail(
+        key: String,
+        absent: LocalizedStringKey,
+        rate: Double?,
+        correct: Int?,
+        possible: Int?
+    ) -> StatTile.DetailText {
+        guard rate != nil, let correct, let possible else { return .absent(absent) }
+        return .counts(Copy.format(key, correct, possible))
     }
 }

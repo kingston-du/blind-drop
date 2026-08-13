@@ -73,43 +73,45 @@ import Testing
     }
 
     /// Verbatim from the `docs/07` §2 table, in its order. Ten rows, and that is the list — the
-    /// six tokens with no row (`paperSunk`, `edge`, `edgeStrong`, `amberWash`,
-    /// `ultramarineDeep`, `ultramarineWash`) are washes and borders that carry no text, and
-    /// inventing thresholds for them would be inventing spec.
+    /// remaining tokens (`paperSunk`, `edge`, `edgeStrong`, `hairline`, `track`, the two washes,
+    /// the two wash edges, the row tint and the pressed fills) are surfaces and borders that
+    /// carry no text, and inventing thresholds for them would be inventing spec.
     static let rows: [Row] = [
         Row(pair: "ink on paper",
             foreground: Palette.Hex.ink, background: Palette.Hex.paper,
-            documented: 16.5, minimum: 4.5),
+            documented: 16.02, minimum: 4.5),
         Row(pair: "inkDim on paper",
             foreground: Palette.Hex.inkDim, background: Palette.Hex.paper,
-            documented: 5.70, minimum: 4.5),
-        // 3.0, not 4.5: large text (≥ 24pt) and UI only. Never body text.
+            documented: 7.77, minimum: 4.5),
+        // 3.0, not 4.5: large text (≥ 24pt) and UI only. Never body text, never a micro-label.
         Row(pair: "inkFaint on paper",
             foreground: Palette.Hex.inkFaint, background: Palette.Hex.paper,
-            documented: 3.49, minimum: 3.0),
+            documented: 3.71, minimum: 3.0),
         Row(pair: "amberText on paper",
             foreground: Palette.Hex.amberText, background: Palette.Hex.paper,
-            documented: 5.55, minimum: 4.5),
-        Row(pair: "ink on amber fill",
-            foreground: Palette.Hex.ink, background: Palette.Hex.amber,
-            documented: 6.73, minimum: 4.5),
-        // 3.0: non-text graphics — marks, borders, icons, the seal stamp.
-        Row(pair: "amberDeep on surface",
-            foreground: Palette.Hex.amberDeep, background: Palette.Hex.surface,
-            documented: 3.99, minimum: 3.0),
-        // No minimum. Fill only, never text, never a lone mark.
+            documented: 5.65, minimum: 4.5),
+        // The amber fill's label. 3.0, not 4.5: it is the 17pt semibold button label and nothing
+        // smaller, which is WCAG's large-text case. `theAmberFillOnlyEverCarriesLargeText` is
+        // what keeps that from quietly becoming a licence to set body copy on amber.
+        Row(pair: "white on amber fill",
+            foreground: Palette.Hex.surface, background: Palette.Hex.amber,
+            documented: 4.24, minimum: 3.0),
+        // 3.0: non-text graphics — marks, borders, icons, the seal stamp, a card number.
         Row(pair: "amber on surface",
             foreground: Palette.Hex.amber, background: Palette.Hex.surface,
-            documented: 2.68, minimum: nil),
+            documented: 4.24, minimum: 3.0),
+        Row(pair: "amberText on amberWash",
+            foreground: Palette.Hex.amberText, background: Palette.Hex.amberWash,
+            documented: 5.37, minimum: 4.5),
         Row(pair: "ultramarine on paper",
             foreground: Palette.Hex.ultramarine, background: Palette.Hex.paper,
-            documented: 6.61, minimum: 4.5),
+            documented: 7.94, minimum: 4.5),
         Row(pair: "white on ultramarine fill",
             foreground: Palette.Hex.surface, background: Palette.Hex.ultramarine,
-            documented: 7.26, minimum: 4.5),
+            documented: 8.98, minimum: 4.5),
         Row(pair: "alert on paper",
             foreground: Palette.Hex.alert, background: Palette.Hex.paper,
-            documented: 5.95, minimum: 4.5),
+            documented: 5.78, minimum: 4.5),
     ]
 
     @Test func theTableHasTenRows() {
@@ -152,15 +154,24 @@ import Testing
 
     // MARK: - The three amber tiers, asserted rather than described
 
-    /// `amber` is 2.68:1 on `surface`: below every threshold, on purpose. Asserting the *upper*
-    /// bound is the only way this stays a rule. If someone lightens `amber` until it passes
-    /// 3.0 they have not fixed an accessibility problem, they have changed what the token
-    /// means — it is a fill, and its job is to sit behind `ink`, not to be legible itself.
-    @Test func amberIsBelowEveryThresholdOnPurpose() {
-        let onSurface = contrastRatio(Palette.Hex.amber, Palette.Hex.surface)
-        #expect(onSurface < 3.0, "amber is \(onSurface) : 1 on surface — it is no longer fill-only")
-        // And the fill only works because what sits on it is `ink`.
-        #expect(contrastRatio(Palette.Hex.ink, Palette.Hex.amber) >= 4.5)
+    /// The amber fill carries a white label at 4.24:1, which is **large text only**.
+    ///
+    /// The row above gives it a 3.0 minimum, and a minimum on its own is the kind of rule that
+    /// erodes: somebody sets a 13pt caption in white on amber, the row still passes, and the
+    /// caption is illegible. So the pair is pinned from both sides — it must clear 3.0, and it
+    /// must *not* clear 4.5, because the day it does is the day this test should be deleted
+    /// along with the restriction it encodes rather than quietly outliving it.
+    @Test func theAmberFillOnlyEverCarriesLargeText() {
+        let onFill = contrastRatio(Palette.Hex.surface, Palette.Hex.amber)
+        #expect(onFill >= 3.0, "white on amber is \(onFill) : 1 — below the large-text bar")
+        #expect(
+            onFill < 4.5,
+            """
+            white on amber now clears the body bar at \(onFill) : 1. That is not a free \
+            improvement — `PhaseAccent.onFill` is documented as large-text-only and several \
+            views rely on that being enforced. Update docs/07 §2 and this test together.
+            """
+        )
     }
 
     /// `amber` fills, `amberDeep` draws, `amberText` writes — which is a statement about
@@ -168,12 +179,14 @@ import Testing
     /// into one token and the split would quietly stop meaning anything.
     @Test func theThreeAmberTiersStayInTheirOrder() {
         let fill = relativeLuminance(Palette.Hex.amber)
-        let draw = relativeLuminance(Palette.Hex.amberDeep)
+        let pressed = relativeLuminance(Palette.Hex.amberDeep)
         let write = relativeLuminance(Palette.Hex.amberText)
-        #expect(write < draw, "amberText must be darker than amberDeep — it carries body text")
-        #expect(draw < fill, "amberDeep must be darker than amber — it draws on light surfaces")
-        // The wash is a tinted surface, not a tier: it is lighter than all three.
-        #expect(relativeLuminance(Palette.Hex.amberWash) > fill)
+        #expect(write < pressed, "amberText must be darker than amberDeep — it carries body text")
+        #expect(pressed < fill, "amberDeep must be darker than amber — a press darkens")
+        // The wash and its edge are tinted surfaces, not tiers: both are lighter than all three,
+        // and the edge is the darker of the two or it would not be an edge.
+        #expect(relativeLuminance(Palette.Hex.amberEdge) > fill)
+        #expect(relativeLuminance(Palette.Hex.amberWash) > relativeLuminance(Palette.Hex.amberEdge))
     }
 
     // MARK: - Transcription
@@ -183,22 +196,39 @@ import Testing
     /// not a contrast check: the literals below are read off the doc, so a typo made while
     /// copying the palette across shows up here.
     @Test func everyTokenIsTheHexTheDocPrints() {
-        #expect(Palette.Hex.paper == 0xF3F4F7)
-        #expect(Palette.Hex.paperSunk == 0xE8EAEF)
+        #expect(Palette.Hex.paper == 0xEFF1F5)
+        #expect(Palette.Hex.paperSunk == 0xE7EAEF)
         #expect(Palette.Hex.surface == 0xFFFFFF)
-        #expect(Palette.Hex.edge == 0xDEE1E9)
-        #expect(Palette.Hex.edgeStrong == 0xC4C9D6)
-        #expect(Palette.Hex.ink == 0x14161C)
-        #expect(Palette.Hex.inkDim == 0x5A6072)
-        #expect(Palette.Hex.inkFaint == 0x7C8294)
-        #expect(Palette.Hex.amber == 0xE08A1E)
-        #expect(Palette.Hex.amberDeep == 0xB96D0C)
-        #expect(Palette.Hex.amberText == 0x8F5411)
-        #expect(Palette.Hex.amberWash == 0xFDF3E3)
-        #expect(Palette.Hex.ultramarine == 0x2C3FE0)
-        #expect(Palette.Hex.ultramarineDeep == 0x1E2CA8)
-        #expect(Palette.Hex.ultramarineWash == 0xEEF0FE)
+        #expect(Palette.Hex.edge == 0xDCE0E7)
+        #expect(Palette.Hex.edgeStrong == 0xD3D8E0)
+        #expect(Palette.Hex.hairline == 0xEAEDF1)
+        #expect(Palette.Hex.track == 0xEEF0F4)
+        #expect(Palette.Hex.ink == 0x14161A)
+        #expect(Palette.Hex.inkDim == 0x454B55)
+        #expect(Palette.Hex.inkFaint == 0x767C88)
+        #expect(Palette.Hex.inkQuiet == 0xB9BEC7)
+        #expect(Palette.Hex.amber == 0xB26A06)
+        #expect(Palette.Hex.amberDeep == 0x96590A)
+        #expect(Palette.Hex.amberText == 0x8A5205)
+        #expect(Palette.Hex.amberWash == 0xF6EAD6)
+        #expect(Palette.Hex.amberEdge == 0xE6CFA6)
+        #expect(Palette.Hex.ultramarine == 0x2233C4)
+        #expect(Palette.Hex.ultramarineDeep == 0x1B29A0)
+        #expect(Palette.Hex.ultramarineWash == 0xE3E6FA)
+        #expect(Palette.Hex.ultramarineEdge == 0xC3C9F2)
         #expect(Palette.Hex.alert == 0xB3261E)
+    }
+
+    /// The neutrals have to stay in their order, or the three of them stop being a scale and
+    /// start being three greys. Each is lighter than the one before it, and every one of them is
+    /// darker than the surface they are drawn on.
+    @Test func theNeutralTextTiersStayInTheirOrder() {
+        let tiers = [Palette.Hex.ink, Palette.Hex.inkDim, Palette.Hex.inkFaint,
+                     Palette.Hex.inkQuiet]
+        for (darker, lighter) in zip(tiers, tiers.dropFirst()) {
+            #expect(relativeLuminance(darker) < relativeLuminance(lighter))
+        }
+        #expect(relativeLuminance(Palette.Hex.inkQuiet) < relativeLuminance(Palette.Hex.paper))
     }
 
     /// Every `Color` on `Palette` is built from the matching `Hex`, so the two can never
@@ -210,16 +240,21 @@ import Testing
         #expect(Palette.surface == Color(hex: Palette.Hex.surface))
         #expect(Palette.edge == Color(hex: Palette.Hex.edge))
         #expect(Palette.edgeStrong == Color(hex: Palette.Hex.edgeStrong))
+        #expect(Palette.hairline == Color(hex: Palette.Hex.hairline))
+        #expect(Palette.track == Color(hex: Palette.Hex.track))
         #expect(Palette.ink == Color(hex: Palette.Hex.ink))
         #expect(Palette.inkDim == Color(hex: Palette.Hex.inkDim))
         #expect(Palette.inkFaint == Color(hex: Palette.Hex.inkFaint))
+        #expect(Palette.inkQuiet == Color(hex: Palette.Hex.inkQuiet))
         #expect(Palette.amber == Color(hex: Palette.Hex.amber))
         #expect(Palette.amberDeep == Color(hex: Palette.Hex.amberDeep))
         #expect(Palette.amberText == Color(hex: Palette.Hex.amberText))
         #expect(Palette.amberWash == Color(hex: Palette.Hex.amberWash))
+        #expect(Palette.amberEdge == Color(hex: Palette.Hex.amberEdge))
         #expect(Palette.ultramarine == Color(hex: Palette.Hex.ultramarine))
         #expect(Palette.ultramarineDeep == Color(hex: Palette.Hex.ultramarineDeep))
         #expect(Palette.ultramarineWash == Color(hex: Palette.Hex.ultramarineWash))
+        #expect(Palette.ultramarineEdge == Color(hex: Palette.Hex.ultramarineEdge))
         #expect(Palette.alert == Color(hex: Palette.Hex.alert))
     }
 

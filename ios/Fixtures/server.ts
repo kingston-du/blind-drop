@@ -38,6 +38,8 @@ if (!(PHASE in PHASES)) {
   console.error(`PHASE must be one of: ${Object.keys(PHASES).join(" | ")}`);
   Deno.exit(2);
 }
+const FIXTURE_CONTROL = Deno.env.get("FIXTURE_CONTROL") === "1";
+let activePhase: Phase = PHASE;
 
 // How far each phase sits from "now", so countdowns on screen are always live and sane.
 // [opens_at, reveals_at, scores_at] as minutes relative to server_now.
@@ -64,7 +66,7 @@ const rfc3339 = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 function reTime(round: Record<string, unknown>, now: Date): Record<string, unknown> {
   if (ANCHOR !== "now") return round;
-  const [o, r, s] = OFFSETS[PHASE];
+  const [o, r, s] = OFFSETS[activePhase];
   const at = (m: number) => rfc3339(new Date(now.getTime() + m * 60_000));
   return { ...round, opens_at: at(o), reveals_at: at(r), scores_at: at(s) };
 }
@@ -162,6 +164,18 @@ async function route(req: Request, url: URL): Promise<Response> {
   const p = url.pathname.replace(/^\/functions\/v1/, "").replace(/\/$/, "") || "/";
   const m = req.method;
 
+  // E14's UI loop advances the scripted server instead of waiting four real hours. This route
+  // exists only when explicitly enabled by the fixture process and is not an app endpoint.
+  if (m === "PUT" && p === "/__fixture/phase" && FIXTURE_CONTROL) {
+    const body = await req.json().catch(() => ({}));
+    const requested = String(body.phase ?? "") as Phase;
+    if (!(requested in PHASES)) {
+      return fail(400, "INVALID_INPUT", `phase must be one of ${Object.keys(PHASES).join(", ")}`);
+    }
+    activePhase = requested;
+    return ok({ phase: activePhase });
+  }
+
   // The catalog proxy is group-blind and available in every phase (docs/04 §6).
   if (m === "GET" && p === "/tracks/search") {
     const q = (url.searchParams.get("q") ?? "").trim();
@@ -219,11 +233,11 @@ async function route(req: Request, url: URL): Promise<Response> {
   }
 
   if (m === "GET" && p === "/rounds/current") {
-    const round = await payload(PHASES[PHASE]) as Record<string, unknown>;
+    const round = await payload(PHASES[activePhase]) as Record<string, unknown>;
     return ok(reTime(round, new Date()));
   }
   if (m === "PUT" && p === "/rounds/current/submission") {
-    if (PHASE !== "open" && PHASE !== "open_nosub") {
+    if (activePhase !== "open" && activePhase !== "open_nosub") {
       // A phase error returns the state and nothing else (docs/04 §1).
       return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
     }
@@ -235,13 +249,13 @@ async function route(req: Request, url: URL): Promise<Response> {
     return ok({ track: t, sealed_at: rfc3339(new Date()) });
   }
   if (m === "PUT" && p === "/rounds/current/guesses") {
-    if (!PHASE.startsWith("revealed")) {
+    if (!activePhase.startsWith("revealed")) {
       return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
     }
-    if (PHASE === "revealed_nosub") {
+    if (activePhase === "revealed_nosub") {
       return fail(403, "NOT_A_SUBMITTER", "You didn't drop a song tonight.");
     }
-    if (PHASE === "revealed_joinedlate") {
+    if (activePhase === "revealed_joinedlate") {
       return fail(403, "JOINED_LATE", "You joined after the reveal. You're in from tomorrow.");
     }
     const body = await req.json().catch(() => ({}));
@@ -253,24 +267,24 @@ async function route(req: Request, url: URL): Promise<Response> {
 
   const results = p.match(/^\/rounds\/([^/]+)\/results$/);
   if (m === "GET" && results) {
-    if (PHASE !== "scored") {
+    if (activePhase !== "scored") {
       return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
     }
     return ok(await payload("results"));
   }
 
   if (m === "GET" && p === "/__fixture") {
-    return ok({ phase: PHASE, latency_ms: LATENCY_MS, anchor: ANCHOR,
-                phases: Object.keys(PHASES) });
+    return ok({ phase: activePhase, latency_ms: LATENCY_MS, anchor: ANCHOR,
+                control: FIXTURE_CONTROL, phases: Object.keys(PHASES) });
   }
 
   return fail(404, "NOT_FOUND", "That's not available right now.");
 }
 
 function currentState(): string {
-  if (PHASE.startsWith("open")) return "open";
-  if (PHASE.startsWith("revealed")) return "revealed";
-  return PHASE;
+  if (activePhase.startsWith("open")) return "open";
+  if (activePhase.startsWith("revealed")) return "revealed";
+  return activePhase;
 }
 
 Deno.serve({ port: PORT, onListen: ({ port }) => {

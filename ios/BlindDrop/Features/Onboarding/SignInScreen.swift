@@ -14,6 +14,9 @@ struct SignInScreen: View {
 
     @State private var isSigningIn = false
     @State private var failure: AuthError?
+    @State private var showsReviewSignIn = false
+    @State private var reviewEmail = ""
+    @State private var reviewPassword = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
@@ -42,6 +45,39 @@ struct SignInScreen: View {
                 .disabled(isSigningIn)
                 .opacity(isSigningIn ? 0.6 : 1)
                 .accessibilityLabel(Text("onboarding.signin.apple"))
+
+            Button("onboarding.signin.review") {
+                withAnimation(.easeInOut(duration: 0.2)) { showsReviewSignIn.toggle() }
+            }
+            .buttonStyle(.plain)
+            .typeStyle(.bodyM)
+            .foregroundStyle(Palette.inkDim)
+
+            if showsReviewSignIn {
+                VStack(spacing: Layout.itemGap) {
+                    InsetField("onboarding.signin.email", text: $reviewEmail)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+
+                    SecureField("onboarding.signin.password", text: $reviewPassword)
+                        .textContentType(.password)
+                        .padding(.horizontal, Space.lg)
+                        .frame(minHeight: Layout.fieldHeight)
+                        .background(
+                            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                .fill(Palette.surface)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                .stroke(Palette.edge, lineWidth: Stroke.border)
+                        )
+
+                    PrimaryButton("onboarding.signin.continue", fill: .neutral, isEnabled: !isSigningIn) {
+                        signInForReview()
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Layout.screenInset)
@@ -62,6 +98,22 @@ struct SignInScreen: View {
             } catch let error as AuthError {
                 // `.cancelled` and `.busy` resolve to no copy key: the user closed a sheet they
                 // opened, and nothing should appear on screen because of it.
+                failure = error
+            } catch {
+                failure = .unreadable
+            }
+            isSigningIn = false
+        }
+    }
+
+    private func signInForReview() {
+        guard !isSigningIn else { return }
+        isSigningIn = true
+        failure = nil
+        Task {
+            do {
+                try await env.session.signIn(email: reviewEmail, password: reviewPassword)
+            } catch let error as AuthError {
                 failure = error
             } catch {
                 failure = .unreadable

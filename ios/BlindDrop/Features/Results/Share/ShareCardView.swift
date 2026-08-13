@@ -103,9 +103,22 @@ struct ShareCardView: View {
     /// somebody outside the group (`docs/10` §5).
     private var header: some View {
         VStack(alignment: .leading, spacing: ShareCard.rowGap) {
-            dateline
+            // The group and the night at opposite ends of one line: the card is an artifact,
+            // and an artifact has a masthead. Everything under it is the round. The app's own
+            // name stays at the bottom, where `docs/10` §2 puts it.
+            HStack(alignment: .firstTextBaseline, spacing: ShareCard.rowGap) {
+                Text(verbatim: content.groupName)
+                    .typeStyle(.displayS)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                Spacer(minLength: Space.sm)
+                dateline
+            }
+            // `displayM`, not `displayL`. The card is a fixed rectangle and the title is the
+            // one block on it whose height buys nothing: everything under it is the night, and
+            // a headline that takes another twelve points takes them from the wordmark.
             Text("reveal.title")
-                .typeStyle(.displayL)
+                .typeStyle(.displayM)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -120,14 +133,7 @@ struct ShareCardView: View {
                 .typeStyle(.label)
                 .foregroundStyle(Palette.inkDim)
         }
-        if variant.stacksHeadline {
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                label(content.groupName)
-                label(content.date)
-            }
-        } else {
-            label("\(content.groupName) · \(content.date)")
-        }
+        label(content.date)
     }
 
     // MARK: - The flight
@@ -149,21 +155,21 @@ struct ShareCardView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Palette.edge, lineWidth: Stroke.border)
+                    .strokeBorder(Palette.edge, lineWidth: Stroke.border)
             )
 
             if content.overflow > 0 {
                 Text(verbatim: Copy.format("share.overflow", content.overflow))
                     .typeStyle(.caption)
-                    .foregroundStyle(Palette.inkFaint)
+                    .foregroundStyle(Palette.inkDim)
             }
         }
     }
 
     private func row(_ card: ResultCardDTO) -> some View {
         HStack(spacing: ShareCard.rowGap) {
-            Text(verbatim: card.cardNumber.formatted(.number.grouping(.never)))
-                .font(Font(Typography.fixed(.display, size: variant.numberSize)))
+            Text(verbatim: String(format: "%02lld", card.cardNumber))
+                .font(Font(Typography.fixed(.display, size: variant.numberSize, weight: .heavy)))
                 .foregroundStyle(accent.mark)
                 .fixedSize()
 
@@ -224,7 +230,7 @@ struct ShareCardView: View {
     /// loses the wordmark, and both are worse than 15pt of mono.
     private var headline: some View {
         Text(verbatim: content.headline)
-            .typeStyle(.monoM)
+            .typeStyle(.displayS)
             .foregroundStyle(Palette.ink)
             .lineLimit(2)
             .minimumScaleFactor(0.8)
@@ -233,16 +239,25 @@ struct ShareCardView: View {
 
     @ViewBuilder private var bestEar: some View {
         if let leader = content.bestEar {
-            VStack(alignment: .leading, spacing: Space.xxs) {
+            // The rate set as large as the card's numbers get, with the name under it in the
+            // body face. The number is what somebody outside the group sees first and cannot
+            // interpret, which is the joke that makes them ask.
+            VStack(alignment: .trailing, spacing: Space.xxs) {
                 Text("share.bestear.label")
                     .typeStyle(.label)
                     .foregroundStyle(Palette.inkDim)
-                HStack(spacing: Space.sm) {
+                // The name and the rate on one baseline. The card is a **fixed rectangle** —
+                // a third line here does not push the wordmark down, it pushes it off the
+                // artifact — so the name sits beside the number rather than under it.
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
                     Text(verbatim: leader.name)
-                        .typeStyle(.monoM)
+                        .typeStyle(.bodyL)
                         .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
                     Text(verbatim: ScoringFormat.percent(leader.rate))
-                        .typeStyle(.monoM)
+                        .font(Font(Typography.fixed(
+                            .display, size: variant.numberSize, weight: .heavy
+                        )))
                         .foregroundStyle(accent.text)
                 }
             }
@@ -254,8 +269,6 @@ struct ShareCardView: View {
     /// *"The name at the bottom is the whole marketing"* (`docs/10` §2). No badge, no link, no
     /// QR code, and nothing else after it.
     private var wordmark: some View {
-        Text("share.wordmark")
-            .typeStyle(.caption)
-            .foregroundStyle(Palette.inkFaint)
+        SectionLabel("share.wordmark")
     }
 }

@@ -37,7 +37,8 @@ import Testing
     /// (`docs/14` §5). Appending would produce `…/functions/v1/auth/v1`, which is a 404 that
     /// would look exactly like a rejected sign-in.
     @Test func theAuthAddressIsASiblingOfTheFunctionsAddress() {
-        #expect(AppConfiguration.deriveAuthBaseURL(from: AppConfiguration.productionAPIBaseURL)
+        let functions = URL(string: "https://project.supabase.co/functions/v1")!
+        #expect(AppConfiguration.deriveAuthBaseURL(from: functions)
                 == URL(string: "https://project.supabase.co/auth/v1")!)
         // The fixture server has no `/functions/v1` prefix to replace, so the path is added.
         #expect(AppConfiguration.deriveAuthBaseURL(from: URL(string: "http://127.0.0.1:8787")!)

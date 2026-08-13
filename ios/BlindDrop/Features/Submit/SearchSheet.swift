@@ -1,23 +1,14 @@
 import SwiftUI
 
-/// `docs/08` §3.1 — the search sheet, presented from **Drop a song**.
+/// Searching again, after something has already been sealed.
 ///
-/// ```
-/// │  [ Search for a song            ]  │   InsetField, auto-focused
-/// │  ▓▓  Ribs / Lorde            ▶︎    │   TrackRow
-/// │  ▓▓  Nights / Frank Ocean    ▶︎    │
-/// │  ─────────────────────────────────  │
-/// │  Paste a Spotify or Apple Music link │  always present, below the results
-/// ```
+/// The first search is not this — it is `SubmitScreen`, which *is* the search screen. This is
+/// the second one: somebody has a sealed song and wants a different one, so the search arrives
+/// over the top of what they have rather than in place of it, and it closes back onto it.
 ///
-/// Three rules from that section shape everything here:
-///
-/// - **The empty query is a blank sheet.** No suggestions, no trending, no recents. *"This app
-///   does not have opinions about what you should drop."*
-/// - **The paste affordance is always present**, including under an error — an outage at Apple
-///   takes search away and leaves the link path, which is exactly what `search.error` says.
-/// - **A track with no preview gets no control at all**, not a disabled one (`docs/06` §7). That
-///   is `TrackRow`'s `preview` being `nil` rather than a flag it renders greyed.
+/// It shares `SongSearch` with the screen, so the field, the debounce, the rows and the paste
+/// fallback behave identically in both. What it adds is a title, a way out, and the header that
+/// says which of the two situations this is.
 struct SearchSheet: View {
     let store: SubmitStore
     let player: PreviewPlayer
@@ -30,114 +21,38 @@ struct SearchSheet: View {
     /// starts with the first keystroke, and a tap to focus is one of them.
     @FocusState private var isFieldFocused: Bool
 
+    private let accent = PhaseAccent.sealed
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.blockGap) {
-            field
-            results
-            Spacer(minLength: Space.none)
-            paste
-        }
+        SongSearch(
+            store: store,
+            player: player,
+            accent: accent,
+            isFieldFocused: $isFieldFocused,
+            choose: choose,
+            header: { header },
+            footer: { EmptyView() }
+        )
         .padding(.horizontal, Layout.screenInset)
         .padding(.vertical, Layout.blockGap)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Palette.paper)
         .onAppear { isFieldFocused = true }
-        // A preview that kept playing after the sheet closed would be a sound with no visible way
-        // to stop it (`docs/06` §4 — one at a time, and this one is over).
+        // A preview that kept playing after the sheet closed would be a sound with no visible
+        // way to stop it (`docs/06` §4 — one at a time, and this one is over).
         .onDisappear {
             player.stop()
             store.cancel()
         }
     }
 
-    @ViewBuilder private var field: some View {
-        @Bindable var store = store
-        HStack(spacing: Space.md) {
-            InsetField("search.placeholder", text: $store.query)
-                .focused($isFieldFocused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                // `docs/12` §5: the search field supports hardware keyboard return-to-select.
-                .submitLabel(.search)
+    private var header: some View {
+        HStack(alignment: .center, spacing: Space.md) {
+            Text("submit.headline")
+                .typeStyle(.displayM)
+                .foregroundStyle(Palette.ink)
+            Spacer(minLength: Space.sm)
             CloseButton(action: close)
-        }
-    }
-
-    /// The results, or the one line that replaces them.
-    ///
-    /// There is deliberately no spinner. `docs/08` §10: a refresh shows *nothing*; the sheet's job
-    /// while a 250ms-debounced search is in flight is to keep showing what it had, which is either
-    /// the previous results or an empty sheet.
-    @ViewBuilder private var results: some View {
-        switch store.results {
-        case .idle:
-            // The blank sheet. Not an `EmptyState` — an empty state is an invitation with a
-            // headline and a button, and this is a field waiting for a second character.
-            EmptyView()
-        case .loading, .loaded, .stale:
-            rows(store.results.value ?? [])
-        case .failed:
-            message(store.searchErrorKey)
-        }
-    }
-
-    @ViewBuilder private func rows(_ tracks: [TrackDTO]) -> some View {
-        if tracks.isEmpty {
-            message("search.empty")
-        } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: Space.none) {
-                    ForEach(tracks) { track in
-                        TrackRow(
-                            track: track,
-                            // No `preview_url` → no control (`docs/06` §7).
-                            preview: track.previewURL.map { _ in
-                                TrackRow.Preview(isPlaying: player.playing == track.trackKey) {
-                                    player.toggle(track)
-                                }
-                            },
-                            action: { choose(track) }
-                        )
-                    }
-                }
-            }
-            .scrollDismissesKeyboard(.interactively)
-        }
-    }
-
-    @ViewBuilder private func message(_ key: String?) -> some View {
-        if let key {
-            Text(verbatim: Copy.string(key))
-                .typeStyle(.bodyM)
-                .foregroundStyle(Palette.inkDim)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// **Paste a Spotify or Apple Music link** — always here, whatever the results did.
-    @ViewBuilder private var paste: some View {
-        @Bindable var store = store
-        VStack(alignment: .leading, spacing: Layout.itemGap) {
-            Text("search.paste")
-                .typeStyle(.bodyM)
-                .foregroundStyle(Palette.inkDim)
-            InsetField("search.paste.placeholder", text: $store.pasted)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .onSubmit { resolve() }
-            if let key = store.pasteErrorKey {
-                Text(verbatim: Copy.string(key))
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.alert)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func resolve() {
-        Task {
-            if let track = await store.resolve() { choose(track) }
         }
     }
 }

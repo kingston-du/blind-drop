@@ -40,6 +40,7 @@ struct DisplayNameScreen: View {
                 Text("onboarding.name.title")
                     .typeStyle(.displayM)
                     .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("onboarding.name.help")
                     .typeStyle(.bodyM)
@@ -48,7 +49,11 @@ struct DisplayNameScreen: View {
             }
 
             VStack(alignment: .leading, spacing: Space.sm) {
-                InsetField("onboarding.name.placeholder", text: $store.name)
+                InsetField(
+                    "onboarding.name.placeholder",
+                    text: $store.name,
+                    isFocused: isFieldFocused
+                )
                     .focused($isFieldFocused)
                     .textContentType(.givenName)
                     .textInputAutocapitalization(.words)

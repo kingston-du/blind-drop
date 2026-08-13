@@ -12,7 +12,7 @@ struct AuthTokens: Sendable, Equatable {
     let refreshToken: String
 }
 
-/// The three calls the app makes to Supabase Auth (`docs/14` §5).
+/// The calls the app makes to Supabase Auth (`docs/14` §5).
 ///
 /// Not `APIClient`: these are not our API. They live under `/auth/v1` rather than
 /// `/functions/v1`, they are not wrapped in `docs/04` §1's envelope, they carry no `server_now`
@@ -23,6 +23,8 @@ struct AuthTokens: Sendable, Equatable {
 protocol AuthService {
     /// Trades an Apple identity token for a Supabase session.
     func signIn(with identity: AppleIdentity) async throws -> AuthTokens
+    /// Review-only credential sign-in. There is no public sign-up UI.
+    func signIn(email: String, password: String) async throws -> AuthTokens
     /// Spends a refresh token for a new pair. Supabase rotates: the old one is dead afterwards.
     func refresh(_ refreshToken: String) async throws -> AuthTokens
     /// Revokes the session **server-side** (`docs/14` §5). Best effort by design — see below.
@@ -54,6 +56,10 @@ struct SupabaseAuthService: AuthService {
             grant: "id_token",
             body: IdTokenGrant(provider: "apple", idToken: identity.identityToken, nonce: identity.nonce)
         )
+    }
+
+    func signIn(email: String, password: String) async throws -> AuthTokens {
+        try await token(grant: "password", body: PasswordGrant(email: email, password: password))
     }
 
     func refresh(_ refreshToken: String) async throws -> AuthTokens {
@@ -135,6 +141,11 @@ private struct RefreshGrant: Encodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case refreshToken = "refresh_token"
     }
+}
+
+private struct PasswordGrant: Encodable, Sendable {
+    let email: String
+    let password: String
 }
 
 /// Supabase returns a good deal more than this — `expires_in`, `token_type`, the whole user

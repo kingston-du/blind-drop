@@ -35,6 +35,7 @@ enum RootDestination: Equatable, Sendable {
 struct RootView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.scenePhase) private var scenePhase
+    @State private var loadToken = 0
 
     var body: some View {
         @Bindable var router = env.router
@@ -43,7 +44,7 @@ struct RootView: View {
             Group {
                 switch RootDestination(session: env.session.state) {
                 case .waiting:
-                    Color.clear
+                    SessionLoadingView(error: env.session.loadFailure) { loadToken += 1 }
                 case .signIn:
                     SignInScreen()
                 // Both onboarding destinations are rendered by the one flow, deliberately. The
@@ -64,8 +65,19 @@ struct RootView: View {
                 }
             }
         }
-        .task {
+        .task(id: loadToken) {
+            #if DEBUG
+            if env.configuration.usesFixtureSession {
+                await env.session.startFixtureSession()
+                if env.configuration.opensRecordForUITests {
+                    env.router.path = [.record]
+                }
+            } else {
+                await env.session.load()
+            }
+            #else
             await env.session.load()
+            #endif
             // A `.join` link does not wait on a round — joining is a session-level concern.
             env.router.consume(session: env.session.state, roundIsLoaded: false)
         }
@@ -73,7 +85,33 @@ struct RootView: View {
             // docs/13 §5 rule 5: the monotonic anchor does not advance while the device is
             // asleep, so any background period leaves it stale. Invalidate on the way back in;
             // a countdown must never render from a stale anchor.
-            if phase == .active { env.clock.invalidate() }
+            if phase == .active {
+                env.clock.invalidate()
+                // A launch that failed offline is not a dead end. Returning to the app is a
+                // natural, bounded retry point and the button above remains available while the
+                // app stays foregrounded.
+                if env.session.loadFailure != nil { loadToken += 1 }
+            }
         }
+    }
+}
+
+private struct SessionLoadingView: View {
+    let error: APIError?
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Layout.blockGap) {
+            RoundSkeleton()
+            if let error {
+                Text(error == .offline ? "error.offline" : "error.generic")
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.inkDim)
+                PrimaryButton("error.retry", fill: .neutral, action: retry)
+            }
+        }
+        .padding(Layout.screenInset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .background(Palette.paper)
     }
 }

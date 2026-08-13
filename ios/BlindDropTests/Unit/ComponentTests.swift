@@ -78,11 +78,13 @@ import Testing
         // themselves are PaletteContrastTests' job; what is asserted here is that the component
         // library reaches for the right token, which is the part a refactor gets wrong.
         #expect(PhaseAccent.sealed.fill == Palette.amber)
-        #expect(PhaseAccent.sealed.onFill == Palette.ink)
+        #expect(PhaseAccent.sealed.onFill == Color.white)
         #expect(PhaseAccent.revealed.fill == Palette.ultramarine)
         #expect(PhaseAccent.revealed.onFill == Color.white)
-        // `amber` fills and never draws; `amberDeep` draws and never fills.
-        #expect(PhaseAccent.sealed.mark == Palette.amberDeep)
+        // `amber` both fills and draws — it clears 3.0:1 on `surface`, so the mark tier and the
+        // fill tier are the same token. `amberText` is still separate, because a *word* has to
+        // clear 4.5 and this does not.
+        #expect(PhaseAccent.sealed.mark == Palette.amber)
         #expect(PhaseAccent.sealed.text == Palette.amberText)
     }
 
@@ -184,6 +186,17 @@ import Testing
         #expect(Copy.countdown(CountdownDisplay(remaining: 10_800, form: .coarse)) == "3 hours")
         #expect(Copy.countdown(CountdownDisplay(remaining: 720, form: .coarse)) == "12 minutes")
         #expect(Copy.countdown(CountdownDisplay(remaining: 30, form: .coarse)) == "under a minute")
+    }
+
+    @Test func countCopyUsesThePluralDictionary() {
+        #expect(Copy.countdown(CountdownDisplay(remaining: 3_600, form: .coarse)) == "1 hour")
+        #expect(Copy.countdown(CountdownDisplay(remaining: 60, form: .coarse)) == "1 minute")
+        #expect(Copy.format("reveal.subtitle", 1) == "1 song")
+        #expect(Copy.format("reveal.subtitle", 8) == "8 songs")
+        #expect(Copy.format("record.export.partial", 1, "Spotify")
+                == "1 song isn't on Spotify. The rest are in.")
+        #expect(Copy.format("share.headline.fallback", 1, 1) == "1 song, 1 guess")
+        #expect(Copy.format("share.headline.fallback", 8, 42) == "8 songs, 42 guesses")
     }
 
     @Test func theReadabilityMeterAnnouncesAPercentageAndABand() {

@@ -128,6 +128,25 @@ extension View {
             )
             .contentShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
+
+    /// The **outlined** action: a white surface with an `edge` border and an `ink` label.
+    ///
+    /// It is the second action on a screen that has two — *Start a new group* under *Join the
+    /// group*, *Break the seal* under nothing at all. It is a full-width control like the
+    /// primary, and reads as one, which is the difference between it and `SecondaryButton`'s
+    /// text-only link.
+    func outlineButtonChrome(isEnabled: Bool = true) -> some View {
+        foregroundStyle(isEnabled ? Palette.ink : Palette.inkQuiet)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .fill(Palette.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .stroke(Palette.edge, lineWidth: Stroke.border)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+    }
 }
 
 /// The press behaviour of `docs/07` §5 and `docs/09` §1: fill darkens to the `Deep` variant,

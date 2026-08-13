@@ -23,6 +23,10 @@
 "onboarding.title" = "Blind Drop";
 "onboarding.subtitle" = "One song each, every day. Nobody sees anything until 8:00.";
 "onboarding.signin.apple" = "Sign in with Apple";
+"onboarding.signin.review" = "App Review sign in";
+"onboarding.signin.email" = "Review email";
+"onboarding.signin.password" = "Review password";
+"onboarding.signin.continue" = "Continue";
 "onboarding.name.title" = "What should we call you?";
 "onboarding.name.help" = "This is the name people guess with. Use the one your friends use.";
 "onboarding.name.placeholder" = "First name";
@@ -31,7 +35,9 @@
 "onboarding.continue" = "Continue";
 "onboarding.group.title" = "Find your group";
 "onboarding.group.join" = "Join a group";
+"onboarding.group.code.label" = "Group code";
 "onboarding.group.code.placeholder" = "6-character code";
+"onboarding.group.help" = "Six to twelve people. Nothing about a group is public.";
 "onboarding.group.code.error" = "No group with that code. Check it and try again.";
 "onboarding.group.create" = "Create a group instead";
 "onboarding.create.title" = "Start a group";
@@ -57,6 +63,7 @@
 "error.offline" = "You're offline.";
 "error.offline.stale" = "Showing what we had. This may be out of date.";
 "error.generic" = "That didn't work. Try again.";
+"error.retry" = "Try again";
 "error.unauthenticated" = "Sign in again to keep playing.";
 "error.noprofile" = "Pick a name first.";
 "error.nogroup" = "You're not in a group yet.";
@@ -77,7 +84,9 @@
 
 /* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
 
-"submit.headline" = "Drop one song.";
+"submit.headline" = "Today's song.";
+"submit.badge" = "Seals in %@";
+"submit.blind" = "Nobody can tell whether you've dropped. You can't tell either.";
 "submit.subhead" = "Nobody sees it until 8:00 PM.";
 "submit.countdown.label" = "until reveal";
 "submit.action" = "Drop a song";
@@ -89,6 +98,7 @@
 /* ── Search and confirm (docs/11 §Search and confirm) ──────────────────────── */
 
 "search.placeholder" = "Search for a song";
+"search.results" = "Results";
 "search.paste" = "Paste a Spotify or Apple Music link";
 "search.paste.placeholder" = "Paste a link";
 "search.close" = "Close";
@@ -97,6 +107,8 @@
 "search.error.offline" = "You're offline. Nothing can be dropped right now.";
 "resolve.error.notfound" = "That song isn't in the Apple catalog. Search for it instead.";
 "resolve.error.badlink" = "That's not a song link.";
+"confirm.title" = "Your song";
+"confirm.note" = "Once it's sealed you can't see it either, and after %@ nothing about it changes.";
 "confirm.action" = "Seal it";
 "confirm.another" = "Pick another";
 "confirm.error" = "That didn't seal. Try again.";
@@ -104,6 +116,9 @@
 /* ── Sealed (docs/11 §Sealed) ──────────────────────────────────────────────── */
 
 "sealed.status" = "Sealed until %@.";
+"sealed.badge" = "Sealed";
+"sealed.opens.label" = "Opens in";
+"sealed.company" = "Everyone else is somewhere in this too. You'll never know where.";
 "sealed.countdown.label" = "until reveal";
 "sealed.replace" = "Replace song";
 "sealed.replaced" = "Sealed again.";
@@ -129,6 +144,25 @@
 /* Their screens are E13-01 and a later pass; the menu that reaches them is E10-01's. */
 
 "record.title" = "The Record";
+"record.filter.all" = "Everyone";
+"record.filter.member" = "%@";
+"record.filter.label" = "Filter The Record by member";
+"record.subtitle" = "Every song anyone has dropped, newest first.";
+"record.empty" = "Nothing in the record yet. It starts filling tonight.";
+"record.empty.filtered" = "%@ hasn't dropped anything yet.";
+"record.open.spotify" = "Open in Spotify";
+"record.open.apple" = "Open in Apple Music";
+"record.results" = "See that night's results";
+"record.actions" = "Song actions";
+"record.export.spotify" = "Export to Spotify";
+"record.export.apple" = "Export to Apple Music";
+"record.export.working" = "Building the playlist";
+"record.export.done" = "Playlist made.";
+"record.export.open" = "Open it";
+"record.export.partial" = "%lld songs aren't on %@. The rest are in.";
+"record.export.nosub" = "Apple Music export needs a subscription. Spotify export still works.";
+"record.export.denied" = "Apple Music access was turned down. You can still export to Spotify.";
+"record.export.failed" = "The playlist didn't get made. Try again.";
 "settings.title" = "Group";
 
 /* ── Reveal (docs/11 §Reveal and guess) ────────────────────────────────────── */
@@ -139,8 +173,11 @@
 "reveal.subtitle" = "%lld songs";
 "reveal.countdown.label" = "until answers";
 "reveal.card.prompt" = "Who dropped this?";
+"reveal.card.prompt.short" = "Name them";
 "reveal.card.mine" = "Yours";
 "reveal.progress" = "%lld of %lld assigned";
+"reveal.locked.title" = "Locked in.";
+"reveal.callsheet" = "Your call sheet";
 "reveal.blocked.notsubmitter" = "You didn't drop tonight, so you're sitting this one out.";
 "reveal.blocked.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "reveal.blocked.canview" = "You can still look.";
@@ -154,6 +191,12 @@
 "results.card.correct" = "%lld of %lld got it";
 "results.card.nobody" = "Nobody got it";
 "results.card.everybody" = "Everybody got it";
+"results.card.tally" = "%lld/%lld";
+"results.card.by" = "Dropped by";
+"results.card.yousaid" = "You said";
+"results.card.hit" = "Hit";
+"results.card.miss" = "Miss";
+"results.card.room" = "How the room did";
 "results.you.title" = "You";
 "results.readability.label" = "Readability";
 "results.readability.detail" = "%lld of %lld read you";
@@ -161,7 +204,11 @@
 "results.ear.label" = "Ear";
 "results.ear.detail" = "%lld of %lld correct";
 "results.ear.none" = "You sat this one out.";
+"results.spectrum.low" = "Unreadable";
+"results.spectrum.high" = "Easy to read";
 "results.standings.title" = "All time";
+"results.standings.rounds" = "%lld rounds";
+"results.standings.row" = "Ear %lld · Read %lld";
 "results.standings.ear" = "Best ear";
 "results.standings.ear.detail" = "%lld correct";
 "results.standings.readability" = "How readable";
@@ -215,6 +262,7 @@
 "a11y.preview.play" = "Play preview";
 "a11y.preview.stop" = "Stop preview";
 "a11y.track" = "%@ by %@";
+"a11y.record.track" = "%@ by %@. Dropped by %@.";
 "a11y.track.hint" = "Double-tap to choose this song";
 "a11y.readability" = "Readability %lld percent. %@.";
 "a11y.invite.code" = "Your invite code is %@.";

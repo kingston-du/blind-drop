@@ -216,7 +216,15 @@ final class StubSession: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         recorded.append(request)
         let path = request.url?.path() ?? ""
-        if let routed = routes.first(where: { path.contains($0.key) })?.value { return routed }
+        // Prefer the most specific path. Dictionary iteration is intentionally unordered, and
+        // `/groups/current` also matches `/groups/current/record`; taking the first match made
+        // concurrent store tests depend on hash order.
+        if let routed = routes
+            .filter({ path.contains($0.key) })
+            .max(by: { $0.key.count < $1.key.count })?
+            .value {
+            return routed
+        }
         return queue.isEmpty ? last : queue.removeFirst()
     }
 }

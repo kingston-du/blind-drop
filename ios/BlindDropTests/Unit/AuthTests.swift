@@ -44,11 +44,17 @@ final class FakeAuth: AuthService {
     var nextRefresh: Result<AuthTokens, AuthError> = .success(.init(accessToken: "access-2", refreshToken: "refresh-2"))
 
     private(set) var signInCalls: [AppleIdentity] = []
+    private(set) var passwordSignInCalls: [(email: String, password: String)] = []
     private(set) var refreshCalls: [String] = []
     private(set) var revokedTokens: [String] = []
 
     func signIn(with identity: AppleIdentity) async throws -> AuthTokens {
         signInCalls.append(identity)
+        return try nextSignIn.get()
+    }
+
+    func signIn(email: String, password: String) async throws -> AuthTokens {
+        passwordSignInCalls.append((email, password))
         return try nextSignIn.get()
     }
 
@@ -86,6 +92,7 @@ final class AuthStub: URLProtocol, @unchecked Sendable {
     struct Reply: Sendable {
         var status: Int = 200
         var body: Data = Data()
+        var networkError: URLError.Code?
     }
 
     nonisolated(unsafe) private static var queue: [Reply] = []
@@ -121,6 +128,10 @@ final class AuthStub: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         AuthStub.record(request)
         let reply = AuthStub.next()
+        if let networkError = reply.networkError {
+            client?.urlProtocol(self, didFailWithError: URLError(networkError))
+            return
+        }
         let http = HTTPURLResponse(
             url: request.url!, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: nil
         )!
@@ -348,6 +359,24 @@ struct AuthHarness {
         #expect(h.session.state == .ready)
         #expect(h.session.accessToken == "access-2")
         #expect(h.secrets.stored[Keychain.Account.refreshToken] == "refresh-2", "rotation is stored")
+    }
+
+    @Test func anOfflineLaunchKeepsIdentityUnknownAndCanRetry() async throws {
+        let h = AuthHarness()
+        h.secrets.preload("refresh-0", to: Keychain.Account.refreshToken)
+        AuthStub.arm([.init(networkError: .notConnectedToInternet)])
+
+        await h.session.load()
+
+        #expect(h.session.state == .unknown)
+        #expect(h.session.loadFailure == .offline)
+        #expect(h.secrets.stored[Keychain.Account.refreshToken] == "refresh-0")
+
+        AuthStub.arm([Self.unauthorized, Self.ok(Self.me)])
+        await h.session.load()
+
+        #expect(h.session.state == .ready)
+        #expect(h.session.loadFailure == nil)
     }
 
     // MARK: - The 401

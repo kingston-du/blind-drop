@@ -38,8 +38,13 @@ struct RoundScreen: View {
     /// `Route`: it is presented from this screen and its confirm step is pushed inside it, so it
     /// never enters the app's own navigation path.
     @State private var isSearching = false
-    /// The track being confirmed — the sheet's second page.
+    /// The track being confirmed **inside the replacement sheet** — its second page.
     @State private var confirming: TrackDTO?
+    /// The track being confirmed from the screen itself, on the round's first drop. A second
+    /// piece of state rather than a shared one: the two are presented by different containers,
+    /// and one value driving both would try to push inside the sheet and present over the screen
+    /// at the same moment.
+    @State private var confirmingDirect: TrackDTO?
     /// Whether the song on screen replaced an earlier one **this session** (`docs/08` §4).
     @State private var didReplace = false
     /// Bumped when the countdown elapses and when the app returns to the foreground. One
@@ -99,7 +104,13 @@ struct RoundScreen: View {
         // it that way by cross-checking the flag against which screens write the token.
         return VStack(alignment: .leading, spacing: Layout.blockGap) {
             VStack(alignment: .leading, spacing: Layout.blockGap) {
-                RoundHeader(groupName: headerName(store), path: $router.path)
+                RoundHeader(
+                    groupName: headerName(store),
+                    dateHeadline: store.state.value?.dateHeadline,
+                    path: $router.path
+                ) {
+                    badge(store: store, timer: timer)
+                }
                 if let error = store.state.error {
                     OfflineBanner(error: error)
                 }
@@ -120,6 +131,11 @@ struct RoundScreen: View {
         }
         .sheet(isPresented: $isSearching) {
             searchSheet(store: store, submit: submit, seal: seal)
+        }
+        // The confirm step, reached from the screen itself. The replacement flow reaches its own
+        // copy inside the sheet, because a sheet cannot push onto the screen behind it.
+        .sheet(item: $confirmingDirect) { track in
+            confirmScreen(track: track, store: store, submit: submit, seal: seal)
         }
         // The pre-prompt for notifications, after the first successful seal (`docs/05` §4).
         .sheet(isPresented: pushPromptBinding) {
@@ -150,12 +166,21 @@ struct RoundScreen: View {
                     // registrar decides whether there is anything to ask.
                     .task { await env.push.promptAfterFirstSeal() }
                 } else {
+                    // **The search screen is the screen** — there is no lobby in front of it.
+                    // Choosing a song pushes the confirm step, which is the same destination the
+                    // replacement sheet pushes, so the seal happens in exactly one place.
                     SubmitScreen(
                         context: context,
+                        store: submit,
+                        player: player,
                         timer: timer,
                         deadline: context.deadline(now: env.clock.now),
                         isBeforeOpen: context.isBeforeOpen(now: env.clock.now),
-                        drop: { startSearching(replacing: false, seal: seal) }
+                        choose: { track in
+                            seal.reset()
+                            didReplace = false
+                            confirmingDirect = track
+                        }
                     )
                 }
 
@@ -241,6 +266,31 @@ struct RoundScreen: View {
         .presentationDragIndicator(.visible)
     }
 
+    /// The confirm step as its own sheet, for the first drop of the round.
+    private func confirmScreen(
+        track: TrackDTO,
+        store: RoundStore,
+        submit: SubmitStore,
+        seal: SealAnimation
+    ) -> some View {
+        ConfirmScreen(
+            track: track,
+            store: submit,
+            player: player,
+            animation: seal,
+            groupInitial: store.state.value?.groupInitial ?? "",
+            revealTime: store.state.value?.revealTime ?? "",
+            sealed: { submission in
+                store.adopt(submission)
+                confirmingDirect = nil
+            },
+            back: { confirmingDirect = nil },
+            close: { confirmingDirect = nil }
+        )
+        .presentationCornerRadius(Radius.sheet)
+        .presentationDragIndicator(.visible)
+    }
+
     private func startSearching(replacing: Bool, seal: SealAnimation) {
         // A replacement re-runs the seal, so the confirm layout must start unsealed — `docs/08`
         // §4: *"After replacing, the seal animation runs again."*
@@ -266,6 +316,33 @@ struct RoundScreen: View {
         return switch context.round.phase {
         case .open, .voided: context.group.name
         case .revealed, .scored: nil
+        }
+    }
+
+    /// The status badge in the corner: what the round is doing, and when it stops doing it.
+    ///
+    /// Only the two amber phases carry one. The reveal and the results draw their own headers
+    /// with their own countdowns, and a second clock in the corner would be the same number
+    /// twice — the header would be arguing with the screen underneath it.
+    @ViewBuilder private func badge(store: RoundStore, timer: CountdownTimer) -> some View {
+        if let context = store.state.value {
+            switch context.round.phase {
+            case let .open(mySubmission):
+                if mySubmission != nil {
+                    StatusBadge("sealed.badge", accent: .sealed)
+                } else if !context.isBeforeOpen(now: env.clock.now) {
+                    CountdownView(
+                        timer: timer,
+                        deadline: context.deadline(now: env.clock.now),
+                        accent: .sealed,
+                        announces: .reveal,
+                        prominence: .badge,
+                        format: "submit.badge"
+                    )
+                }
+            case .voided, .revealed, .scored:
+                EmptyView()
+            }
         }
     }
 
@@ -376,7 +453,9 @@ extension RoundDTO.Phase {
 /// have to catch; keeping it is simply the correct thing to do.
 private struct ResultsHost: View {
     @Environment(AppEnvironment.self) private var env
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
     /// The same loader every card on the screen already reads from, so the share render finds
     /// most of its artwork in the cache the flight above it filled.
     @Environment(\.artworkLoader) private var artworkLoader
@@ -463,18 +542,46 @@ private struct ResultsHost: View {
 /// The menu is the only way to The Record and to Group settings, and it is on **every** phase —
 /// `docs/08` §8: *"reachable from the header menu in every phase."* There is no tab bar and there
 /// will not be one (`docs/13` §9).
-struct RoundHeader: View {
+struct RoundHeader<Badge: View>: View {
     let groupName: String?
+    let dateHeadline: String?
     @Binding var path: [Route]
+    /// What the round is doing, in the corner. Empty on the phases that draw their own.
+    @ViewBuilder let badge: Badge
+
+    init(
+        groupName: String?,
+        dateHeadline: String? = nil,
+        path: Binding<[Route]>,
+        @ViewBuilder badge: () -> Badge = { EmptyView() }
+    ) {
+        self.groupName = groupName
+        self.dateHeadline = dateHeadline
+        self._path = path
+        self.badge = badge()
+    }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            if let groupName {
-                Text(verbatim: groupName)
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.inkDim)
+        HStack(alignment: .center, spacing: Space.sm) {
+            if groupName != nil || dateHeadline != nil {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    if let groupName {
+                        Text(verbatim: groupName)
+                            .typeStyle(.bodyLStrong)
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    if let dateHeadline {
+                        Text(verbatim: dateHeadline)
+                            .typeStyle(.caption)
+                            .foregroundStyle(Palette.inkDim)
+                            .accessibilityIdentifier("round.dateHeadline")
+                    }
+                }
             }
-            Spacer(minLength: Space.none)
+            Spacer(minLength: Space.sm)
+            badge
             Menu {
                 Button("record.title") { path.append(.record) }
                 Button("settings.title") { path.append(.groupSettings) }

@@ -41,6 +41,8 @@ struct Keychain: SecretStore {
     enum Account {
         /// The Supabase refresh token (`docs/14` §5).
         static let refreshToken = "supabase.refresh_token"
+        static let spotifyAccessToken = "spotify.access_token"
+        static let spotifyRefreshToken = "spotify.refresh_token"
     }
 
     /// The `kSecAttrService` every item is filed under. A parameter so a test can use its own

@@ -27,7 +27,7 @@ struct VoidedScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
             Text("voided.headline")
-                .typeStyle(.displayM)
+                .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -55,21 +55,13 @@ struct VoidedScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(Space.lg)
-            .background(
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(Palette.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Palette.edge, lineWidth: Stroke.border)
-            )
+            .cardSurface()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Copy.A11y.track(title: submission.track.title,
                                                 artist: submission.track.artist))
 
             Text("voided.returned")
-                .typeStyle(.bodyL)
+                .typeStyle(.bodyM)
                 .foregroundStyle(accent.text)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -77,17 +69,14 @@ struct VoidedScreen: View {
 
     /// The countdown to **tomorrow's** open, and the hour it will be (`docs/08` §5).
     private var countdown: some View {
-        VStack(spacing: Space.xs) {
+        VStack(spacing: Space.sm) {
+            SectionLabel(verbatim: Copy.format("voided.next", context.opensTime))
             CountdownView(
                 timer: timer,
                 deadline: deadline,
                 accent: accent,
                 announces: .reveal
             )
-            Text(verbatim: Copy.format("voided.next", context.opensTime))
-                .typeStyle(.caption)
-                .foregroundStyle(Palette.inkFaint)
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

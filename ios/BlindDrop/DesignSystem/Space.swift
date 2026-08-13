@@ -31,8 +31,14 @@ enum Space {
 enum Radius {
     /// Album art. The one radius that is about a photograph rather than about a control.
     static let artwork: CGFloat = 8
-    static let card:    CGFloat = 16
-    static let control: CGFloat = 12
+    /// The big subject card: a confirm screen's song, a results answer.
+    static let card:    CGFloat = 20
+    /// A panel of supporting information — a stat tile, a spectrum, a standings table.
+    static let panel:   CGFloat = 16
+    /// One row of a list, drawn as its own surface.
+    static let row:     CGFloat = 14
+    /// A button, a field, a small container.
+    static let control: CGFloat = 14
     static let sheet:   CGFloat = 24
     /// A capsule, expressed as a number so `RoundedRectangle` can take it.
     static let pill:    CGFloat = 999
@@ -57,11 +63,15 @@ enum Stroke {
 /// **single column, one primary action per screen, generous vertical rhythm.**
 enum Layout {
     /// Horizontal inset on every screen.
-    static let screenInset = Space.xl
+    static let screenInset = Space.xxl
     /// Vertical gap between distinct blocks.
     static let blockGap = Space.x3
     /// Vertical gap within a block.
     static let itemGap = Space.md
+    /// The padding inside a card or a panel.
+    static let cardInset = Space.xl
+    /// The padding inside one row of a list.
+    static let rowInset = Space.md
 
     /// The minimum hit region for anything interactive (`docs/12` §5).
     ///
@@ -72,11 +82,18 @@ enum Layout {
     static let minimumTouchTarget: CGFloat = 44
 
     /// `PrimaryButton`'s height (`docs/07` §5).
-    static let buttonHeight: CGFloat = 52
+    static let buttonHeight: CGFloat = 56
+    /// A field's height. One point shy of the button so a stacked pair reads as a field and then
+    /// an action rather than as two halves of the same control.
+    static let fieldHeight: CGFloat = 54
     /// The preview control's drawn size; its hit region is `minimumTouchTarget`.
     static let previewControl: CGFloat = 28
     /// A name chip's drawn height; its hit region is `minimumTouchTarget`.
-    static let chipHeight: CGFloat = 36
+    static let chipHeight: CGFloat = 38
+    /// The grab bar on a pinned panel. A mark that the panel is its own surface, not a control.
+    static let grabber = (width: CGFloat(38), height: CGFloat(4))
+    /// A status badge's drawn height. It is a label, never a control, so it has no hit region.
+    static let badgeHeight: CGFloat = 28
 
     /// The trailing gradient that says a normal-size name pool keeps scrolling. It is an
     /// affordance, not decoration: without it a row ending at the screen edge reads as though
@@ -118,8 +135,13 @@ enum Layout {
 
     /// Artwork at the four sizes `docs/06` §2.1 names.
     enum Artwork {
-        static let searchRow: CGFloat = 56
-        static let flightCard: CGFloat = 88
+        static let searchRow: CGFloat = 52
+        /// The archive's thumbnail. Smaller than a search row's, because the archive is a list
+        /// somebody scrolls and the search is a list somebody chooses from.
+        static let recordRow: CGFloat = 44
+        static let flightCard: CGFloat = 48
+        /// The answer card's thumbnail, which sits beside a 44pt number rather than a 26pt one.
+        static let resultCard: CGFloat = 76
         /// `docs/08` §3.2 draws the confirm screen's artwork at **280pt**, and `docs/06` §2.1
         /// fetches that spot at 600×600 — which 280 at 2× very nearly is and 240 was not. The
         /// sealed card fetches at this size too and draws at its container's width, so the number

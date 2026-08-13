@@ -20,13 +20,23 @@ struct InsetField: View {
         _ placeholder: LocalizedStringKey,
         text: Binding<String>,
         style: TypeStyle = .bodyL,
-        alignment: TextAlignment = .leading
+        alignment: TextAlignment = .leading,
+        isFocused: Bool = false
     ) {
         self.placeholder = placeholder
         self._text = text
         self.style = style
         self.alignment = alignment
+        self.isFocused = isFocused
     }
+
+    /// Whether the field is the one being typed into.
+    ///
+    /// Passed in rather than read from a `FocusState` here, because focus belongs to the screen
+    /// that owns the keyboard order. What the field does with it is draw its border in `ink`
+    /// instead of `edge` — a border, not a glow and not a fill change, so the control does not
+    /// move or change weight when it takes focus.
+    private let isFocused: Bool
 
     var body: some View {
         TextField(placeholder, text: $text)
@@ -37,10 +47,18 @@ struct InsetField: View {
             .padding(.horizontal, Space.lg)
             // The height is a minimum for the same reason `PrimaryButton`'s is: at
             // `.accessibility5` the field has to grow rather than clip what is typed in it.
-            .frame(minHeight: Layout.buttonHeight)
+            .frame(minHeight: Layout.fieldHeight)
             .background(
                 RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                    .fill(Palette.paperSunk)
+                    .fill(Palette.surface)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .stroke(isFocused ? Palette.ink : Palette.edge, lineWidth: Stroke.border)
+                    .animation(.easeOut(duration: 0.15), value: isFocused)
+            )
+            // Placeholder text is visually sufficient but is not consistently promoted to the
+            // field's VoiceOver label across OS versions (caught by E14's live tree walk).
+            .accessibilityLabel(Text(placeholder))
     }
 }

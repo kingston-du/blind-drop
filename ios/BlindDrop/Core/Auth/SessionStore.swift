@@ -43,6 +43,11 @@ final class SessionStore {
 
     private(set) var state: SessionState = .unknown
 
+    /// Why identity is still unknown after a launch attempt. This is deliberately separate from
+    /// `state`: a network failure is not evidence that the person is signed out, but it is enough
+    /// information for the root to offer an honest retry instead of showing a permanent blank.
+    private(set) var loadFailure: APIError?
+
     /// The bearer token on every request, or `nil` when there is no session.
     private(set) var accessToken: String?
 
@@ -83,6 +88,7 @@ final class SessionStore {
     /// Refreshing pre-emptively at launch would spend a good refresh token on a question the
     /// next request answers for free.
     func load() async {
+        loadFailure = nil
         refreshToken = try? secrets.read(Keychain.Account.refreshToken)
         guard refreshToken != nil else {
             state = .signedOut
@@ -93,10 +99,22 @@ final class SessionStore {
         await loadIdentity()
     }
 
+    #if DEBUG
+    /// Starts the app side of a fixture-backed UI test after Apple's system sheet has been
+    /// deliberately removed from scope. The real `APIClient`, identity route, DTO decoding,
+    /// session routing, and every subsequent bearer request are still exercised. This method is
+    /// absent from Release/TestFlight binaries.
+    func startFixtureSession() async {
+        accessToken = "fixture-ui-access-token"
+        await loadIdentity()
+    }
+    #endif
+
     /// `GET /me` → the state (`docs/13` §4). The only place `.noProfile`, `.noGroup` and
     /// `.ready` are assigned, and every one of them is a thing the server said.
     func loadIdentity() async {
         guard let api else { return }
+        loadFailure = nil
         do {
             let me = try await api.send(.me)
             user = me
@@ -110,9 +128,10 @@ final class SessionStore {
             // `APIClient` has already ended the session by the time this lands; assigning
             // `.signedOut` again is idempotent and keeps the branch honest rather than silent.
             endSession()
-        } catch {
+        } catch let error {
             // Offline, or the server is unwell. Neither is evidence about who the caller is,
-            // and `.unknown` renders nothing rather than a sign-in wall (`docs/13` §5 rule 3).
+            // so identity stays unknown while the root exposes this failure and a retry.
+            loadFailure = error
         }
     }
 
@@ -154,6 +173,14 @@ final class SessionStore {
     func signIn(with provider: some AppleIdentityProviding) async throws {
         let identity = try await provider.requestIdentity()
         let tokens = try await auth.signIn(with: identity)
+        try adopt(tokens)
+        await loadIdentity()
+    }
+
+    /// App Review fallback. The app exposes sign-in, never account creation; the durable demo
+    /// account is provisioned by the owner in Supabase and kept separate from pilot identities.
+    func signIn(email: String, password: String) async throws {
+        let tokens = try await auth.signIn(email: email, password: password)
         try adopt(tokens)
         await loadIdentity()
     }
@@ -210,6 +237,7 @@ final class SessionStore {
         accessToken = nil
         refreshToken = nil
         user = nil
+        loadFailure = nil
         try? secrets.delete(Keychain.Account.refreshToken)
         state = .signedOut
     }

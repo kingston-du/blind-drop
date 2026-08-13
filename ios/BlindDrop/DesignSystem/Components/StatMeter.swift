@@ -29,14 +29,22 @@ struct StatMeter: View {
     /// exists to not be.
     var showsBand = true
 
+    /// Whether the meter names the two ends of the scale above its track.
+    ///
+    /// The scale runs from *unreadable* to *easy to read* and **neither end is the good one**
+    /// (`docs/11`). Naming both is what stops the marker reading as a score: a lone marker on an
+    /// unlabelled bar is a rank, and this is not one.
+    var showsEnds = false
+
     private var position: Double { min(1, max(0, value)) }
 
-    private let trackHeight: CGFloat = 4
+    private let trackHeight: CGFloat = 10
     private let markerWidth: CGFloat = 3
-    private let markerHeight: CGFloat = 16
+    private let markerHeight: CGFloat = 20
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
+            if showsEnds { ends }
             track
             if showsBand { bandLabels }
         }
@@ -47,12 +55,32 @@ struct StatMeter: View {
         .accessibilityAddTraits(.isStaticText)
     }
 
+    /// The two ends, in the micro-label. They are the scale, not a legend for it.
+    private var ends: some View {
+        HStack(spacing: Space.sm) {
+            SectionLabel("results.spectrum.low")
+            Spacer(minLength: Space.sm)
+            SectionLabel("results.spectrum.high")
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// A shallow gradient rather than a flat fill: the left end is where the marker means
+    /// *nobody recognised you* and the right end where it means *everybody did*, and the
+    /// gradient is the only thing on the bar that says the two ends are different places. It
+    /// runs between two neutrals, so it never reads as good-to-bad.
     private var track: some View {
         GeometryReader { proxy in
             let usable = max(0, proxy.size.width - markerWidth)
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Palette.paperSunk)
+                    .fill(
+                        LinearGradient(
+                            colors: [Palette.track, Palette.edgeStrong],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
                     .frame(height: trackHeight)
                     .frame(maxHeight: .infinity, alignment: .center)
                 Capsule()
@@ -68,7 +96,7 @@ struct StatMeter: View {
     /// on small phones at every Dynamic Type size and matches the results-screen specification.
     private var bandLabels: some View {
         Text(verbatim: Copy.band(band))
-            .typeStyle(.caption)
+            .typeStyle(.bodyS)
             .foregroundStyle(Palette.ink)
     }
 }

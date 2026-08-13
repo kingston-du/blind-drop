@@ -118,10 +118,10 @@ struct UnsealingArtwork: View {
     private func cover(height: CGFloat) -> some View {
         Palette.amberWash
             .overlay(alignment: .top) {
-                Rectangle().fill(Palette.amberDeep).frame(height: Stroke.border)
+                Rectangle().fill(Palette.amber).frame(height: Stroke.border)
             }
             .overlay(alignment: .bottomTrailing) {
-                SealStamp(initial: presentation.groupInitial)
+                SealStamp(initial: presentation.groupInitial, diameter: SealStamp.compactDiameter)
                     .scaleEffect(revealed && !presentation.reducedMotion ? 1.06 : 1)
                     .opacity(revealed ? 0 : 1)
                     .animation(
@@ -130,7 +130,7 @@ struct UnsealingArtwork: View {
                             : Motion.Unseal.stamp.animation,
                         value: presentation.phase
                     )
-                    .padding(Space.md)
+                    .padding(Space.sm)
             }
             .shadow(
                 color: Palette.ink.opacity(revealed || presentation.reducedMotion ? 0 : 0.08),

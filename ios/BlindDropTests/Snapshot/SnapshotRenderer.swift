@@ -1,6 +1,8 @@
+import ImageIO
 import SwiftUI
 import Testing
 import UIKit
+import UniformTypeIdentifiers
 @testable import BlindDrop
 
 /// Draws a view at a given size and Dynamic Type size, and diffs it against a golden PNG.
@@ -379,9 +381,36 @@ enum SnapshotRenderer {
         .deletingLastPathComponent()   // …/BlindDropTests
         .appending(path: "__Snapshots__")
 
+    /// PNG bytes for a render, encoded straight off the `CGImage`.
+    ///
+    /// **Not `UIImage.pngData()`.** That path allocates a second full-size buffer, and the tall
+    /// goldens in this suite are tall enough for that to matter: a screen at `.accessibility5`
+    /// on the wide device is over eleven million pixels, and `pngData()` fails on it with a zlib
+    /// error and a nil return — which reads as "the image is broken" when the image is fine and
+    /// only the encoder ran out of room. `CGImageDestination` writes from the image it is given.
+    private static func pngData(_ image: UIImage) -> Data? {
+        guard let cgImage = image.cgImage else { return nil }
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            data, UTType.png.identifier as CFString, 1, nil
+        ) else { return nil }
+        CGImageDestinationAddImage(destination, cgImage, nil)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
+    }
+
     private static func write(_ image: UIImage, to url: URL, sourceLocation: SourceLocation) {
-        guard let data = image.pngData() else {
-            Issue.record("Could not encode \(url.lastPathComponent)", sourceLocation: sourceLocation)
+        guard let data = pngData(image) else {
+            // The dimensions are part of the message because the only way this fails in practice
+            // is a render that got enormous, and "could not encode" on its own sends you looking
+            // at the encoder instead of at the screen that grew.
+            Issue.record(
+                """
+                Could not encode \(url.lastPathComponent) at \
+                \(image.cgImage?.width ?? 0)×\(image.cgImage?.height ?? 0)px
+                """,
+                sourceLocation: sourceLocation
+            )
             return
         }
         // swift-testing runs these in parallel, so several snapshots reach a missing

@@ -65,45 +65,83 @@ struct GuessSheet: View {
     }
 
     /// The sheet, over whichever presentation of the pool it is handed.
+    ///
+    /// It is a panel pinned under a scrolling flight, not a presented sheet, so it has to say so
+    /// itself: a white surface where the flight is `paper`, rounded at the top two corners only,
+    /// a grab bar, and a hairline at the join. `docs/07` §2 rules out a shadow, and the hairline
+    /// is what stops `paper` showing through a seam that is meant to be an edge.
     private func sheet(@ViewBuilder pool: () -> some View) -> some View {
         VStack(spacing: Layout.itemGap) {
+            grabber
+            heading
             pool()
             if let blocked = store.blockedReason {
                 blockedLine(blocked)
             } else {
-                if store.isLocked {
-                    PrimaryButton("reveal.action.locked", accent: accent, isEnabled: false) {}
-                        .padding(.horizontal, Layout.screenInset)
-                    SecondaryButton("reveal.edit") { store.changeAGuess() }
-                } else {
-                    PrimaryButton("reveal.action", accent: accent, isEnabled: store.assignedCount > 0) {
-                        store.lockIn()
-                        lockIn?()
-                    }
-                    .padding(.horizontal, Layout.screenInset)
-                }
-                if let errorKey = store.saveErrorKey {
-                    Text(LocalizedStringKey(errorKey))
-                        .typeStyle(.caption)
-                        .foregroundStyle(Palette.alert)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, Layout.screenInset)
-                        .accessibilityAddTraits(.isStaticText)
-                }
-                Text(verbatim: store.progress)
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.inkDim)
+                action
             }
         }
         .padding(.vertical, Layout.itemGap)
-        .background(Palette.paper)
+        .background(Palette.surface)
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: Radius.sheet,
+                topTrailingRadius: Radius.sheet,
+                style: .continuous
+            )
+        )
         .overlay(alignment: .top) {
-            // The sheet is pinned over a scrolling flight, so it needs an edge. A hairline rather
-            // than a shadow — there is no shadow anywhere in this app (`docs/07` §2).
             Rectangle()
                 .fill(Palette.edge)
                 .frame(height: Stroke.border)
         }
+    }
+
+    /// The bar that says this panel is a surface of its own. Decorative, and hidden from
+    /// VoiceOver — it is not a control and the panel is not draggable.
+    private var grabber: some View {
+        Capsule()
+            .fill(Palette.edgeStrong)
+            .frame(width: Layout.grabber.width, height: Layout.grabber.height)
+            .accessibilityHidden(true)
+    }
+
+    /// What the pool is for, and how far through it the caller is.
+    ///
+    /// The count is on the same line as the label rather than under the button, because it is
+    /// the answer to *how much is left* and that question is asked before the button is reached,
+    /// not after.
+    private var heading: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+            SectionLabel("reveal.callsheet")
+            Spacer(minLength: Space.sm)
+            if store.blockedReason == nil {
+                SectionLabel(verbatim: store.progress, color: Palette.inkDim)
+            }
+        }
+        .padding(.horizontal, Layout.screenInset)
+    }
+
+    @ViewBuilder private var action: some View {
+        VStack(spacing: Space.sm) {
+            if store.isLocked {
+                PrimaryButton("reveal.action.locked", accent: accent, isEnabled: false) {}
+                SecondaryButton("reveal.edit") { store.changeAGuess() }
+            } else {
+                PrimaryButton("reveal.action", accent: accent, isEnabled: store.assignedCount > 0) {
+                    store.lockIn()
+                    lockIn?()
+                }
+            }
+            if let errorKey = store.saveErrorKey {
+                Text(LocalizedStringKey(errorKey))
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.alert)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isStaticText)
+            }
+        }
+        .padding(.horizontal, Layout.screenInset)
     }
 
     /// **The button's replacement, not an error.** `docs/08` §6: the guess apparatus stays

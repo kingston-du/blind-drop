@@ -6,7 +6,7 @@
 
 	<!-- Alert-only pushes, at most three a day (docs/05). No silent push. -->
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>$(APS_ENVIRONMENT)</string>
 
 	<key>com.apple.developer.applesignin</key>
 	<array>
@@ -20,11 +20,8 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:blinddrop.app</string>
+		<string>webcredentials:blinddrop.app</string>
 	</array>
 
-	<!-- MusicKit is used for exactly one thing: Apple Music playlist export (docs/06 §6).
-	     Search and previews go through the server proxy and need nothing from the user. -->
-	<key>com.apple.developer.musickit</key>
-	<true/>
 </dict>
 </plist>

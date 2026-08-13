@@ -141,33 +141,27 @@ struct FlightCard: View {
             .accessibilityIdentifier("flightCard.\(number)")
     }
 
+    /// Two densities, and the card picks its own.
+    ///
+    /// A reveal card is a **row** in a list of eight that has to be scannable in one screen: a
+    /// 26pt number, a thumbnail, two lines, and the guess chip on the same line. An answer card
+    /// is the **subject** of the moment: a 44pt number, a large thumbnail, and two blocks of
+    /// resolution under a rule. It is keyed off the assignment rather than passed in, because
+    /// `.resolved` is the *definition* of an answer card — a call site that could disagree is a
+    /// call site that eventually would.
+    private var isAnswer: Bool {
+        if case .resolved = assignment { return true }
+        return false
+    }
+
     private var card: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            if isStacked {
-                // `docs/12` §1: the number moves above the artwork row. The artwork comes with
-                // it, because leaving an 88pt thumbnail beside the text at `.accessibility5`
-                // leaves the title a column narrower than the word "Sickness" — and a column
-                // narrower than a word does not wrap, it breaks mid-word.
-                cardNumber
-                artwork
-                metadata
-                assignmentChip
+        Group {
+            if isAnswer {
+                answerCard
             } else {
-                HStack(alignment: .top, spacing: Space.lg) {
-                    cardNumber
-                    artwork
-                    metadata
-                }
-                // Indented to the artwork's left edge and running to the card's right, which is
-                // where `docs/08` §6 draws it. Inside the metadata column it would have about
-                // 137pt on an SE — narrower than *"Who dropped this?"*, and a prompt that
-                // truncates is a prompt that has stopped asking anything.
-                assignmentChip
-                    .padding(.leading, numberColumnWidth + Space.lg)
+                flightRow
             }
         }
-        .padding(Space.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(cardFill)
@@ -188,11 +182,68 @@ struct FlightCard: View {
         .onTapGesture { chooseGuess?() }
     }
 
-    /// The number: `displayXL`, in the accent, capped at 1.6× by `Typography` so it stays the
-    /// largest thing on the card without eating it (`docs/12` §1).
+    /// One line of tonight's flight.
+    private var flightRow: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            if isStacked {
+                // `docs/12` §1: the text comes off the line and the chip with it. The number and
+                // the artwork **stay** on a line together — neither grows with the type size, so
+                // stacking them would add height and buy nothing. What has to move is the title,
+                // because at `.accessibility5` a title and a name cannot share a 375pt row.
+                HStack(alignment: .center, spacing: Space.md) {
+                    cardNumber
+                    artwork
+                }
+                metadata
+                assignmentChip
+            } else {
+                HStack(alignment: .center, spacing: Space.md) {
+                    cardNumber
+                    artwork
+                    metadata
+                    // The chip takes its natural width and the title gives way, which is the
+                    // right way round: a truncated title is still a title, and a truncated name
+                    // is a different person.
+                    assignmentChip
+                        .fixedSize()
+                        .layoutPriority(1)
+                }
+            }
+        }
+        .padding(Layout.rowInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Tonight's answer for one song.
+    private var answerCard: some View {
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
+            if isStacked {
+                HStack(alignment: .center, spacing: Space.lg) {
+                    cardNumber
+                    artwork
+                }
+                metadata
+            } else {
+                HStack(alignment: .center, spacing: Space.lg) {
+                    cardNumber
+                    artwork
+                    metadata
+                }
+            }
+            assignmentChip
+        }
+        .padding(Layout.cardInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The number, in the accent, capped at 1.6× by `Typography` so it stays the largest thing
+    /// on the card without eating it (`docs/12` §1).
     private var cardNumber: some View {
-        Text(verbatim: number.formatted(.number.grouping(.never)))
-            .typeStyle(.displayXL)
+        // Zero-padded to two digits, so *01* and *11* are the same width and the column of
+        // numbers down the flight is a column. It is a number format rather than copy, which
+        // is why it is written here and not in the deck.
+        Text(verbatim: String(format: "%02lld", number))
+            .typeStyle(isAnswer ? .numberL : .numberM)
             // No `.monospacedDigit()` here: `Typography` already sets tabular figures on every
             // display style through the font descriptor, and the modifier would replace the
             // resolved Bricolage face — its axes and its 1.6× ceiling with it — with a system one.
@@ -217,7 +268,8 @@ struct FlightCard: View {
     /// Type ramp, or to the face itself — a hardcoded 62 would go subtly wrong at the next one
     /// and show up as a list whose artwork no longer lines up.
     private var numberColumnWidth: CGFloat {
-        let font = Typography.uiFont(.displayXL, for: UIContentSizeCategory(dynamicTypeSize))
+        let style: TypeStyle = isAnswer ? .numberL : .numberM
+        let font = Typography.uiFont(style, for: UIContentSizeCategory(dynamicTypeSize))
         return ("88" as NSString).size(withAttributes: [.font: font]).width
     }
 
@@ -225,7 +277,7 @@ struct FlightCard: View {
         if let unseal {
             UnsealingArtwork(track: track, presentation: unseal)
         } else {
-            ArtworkView(track, size: Layout.Artwork.flightCard)
+            ArtworkView(track, size: isAnswer ? Layout.Artwork.resultCard : Layout.Artwork.flightCard)
         }
     }
 
@@ -234,11 +286,11 @@ struct FlightCard: View {
     }
 
     private var cardBorder: Color {
-        unseal?.phase == .sealed ? Palette.amberDeep : Palette.edge
+        unseal?.phase == .sealed ? Palette.amberEdge : Palette.edge
     }
 
     private var numberColor: Color {
-        unseal?.phase == .sealed ? Palette.amberDeep : accent.mark
+        unseal?.phase == .sealed ? Palette.amber : accent.mark
     }
 
     private var metadata: some View {
@@ -251,12 +303,16 @@ struct FlightCard: View {
             Text(verbatim: track.title)
                 .typeStyle(.bodyLStrong)
                 .foregroundStyle(Palette.ink)
+                .lineLimit(isStacked ? nil : 1)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
                 Text(verbatim: track.artist)
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
+                    .lineLimit(isStacked ? nil : 1)
+                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if let preview {
                     PreviewControl(isPlaying: preview.isPlaying, accent: accent, action: preview.toggle)
@@ -273,7 +329,10 @@ struct FlightCard: View {
     @ViewBuilder private var assignmentChip: some View {
         switch assignment {
         case .unguessed:
-            chip(Text("reveal.card.prompt"), isFilled: false)
+            // The chip shares the row with a title and an artist, so the prompt on it is two
+            // words rather than four. The long form is still what VoiceOver hears, through the
+            // card's own label.
+            chip(Text(isStacked ? "reveal.card.prompt" : "reveal.card.prompt.short"), isFilled: false)
         case let .guessed(name):
             chip(Text(verbatim: name), isFilled: true, onClear: clearGuess)
         case .mine:
@@ -283,6 +342,7 @@ struct FlightCard: View {
             Text("reveal.card.mine")
                 .typeStyle(.bodyM)
                 .foregroundStyle(Palette.amberText)
+                .fixedSize()
         case .unavailable:
             EmptyView()
         case let .resolved(resolution):
@@ -301,17 +361,27 @@ struct FlightCard: View {
         let presentation: ResolvePresentation
 
         var body: some View {
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                VStack(alignment: .leading, spacing: Space.xxs) {
+            VStack(alignment: .leading, spacing: Layout.itemGap) {
+                Rule()
+                resolution_
+                Rule()
+                room
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        /// Whose song it was, on the left, and what the caller said about it, on the right.
+        ///
+        /// Two columns rather than two lines, because they are two answers to the same question
+        /// and reading them side by side is the whole moment the screen exists for.
+        private var resolution_: some View {
+            HStack(alignment: .top, spacing: Space.lg) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    SectionLabel("results.card.by")
                     Text(verbatim: Copy.format("results.card.owner", resolution.owner))
-                        .typeStyle(.bodyLStrong)
+                        .typeStyle(.displayS)
                         .foregroundStyle(Palette.ink)
-                    Text(verbatim: Copy.resultCount(
-                        correct: resolution.correctCount,
-                        eligible: resolution.eligibleCount
-                    ))
-                        .typeStyle(.monoS)
-                        .foregroundStyle(Palette.inkDim)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .opacity(presentation.hasName ? 1 : 0)
                 // *"a 220ms crossfade plus `y: 4 → 0`"* (`docs/09` §4). The rise is dropped
@@ -322,18 +392,43 @@ struct FlightCard: View {
                         : Motion.Resolve.rise)
                 .animation(presentation.reducedMotion ? Motion.Resolve.reduced : Motion.Resolve.name,
                            value: presentation.hasName)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let guess = resolution.myGuess {
-                    mark(guess)
-                        .opacity(presentation.hasMark ? 1 : 0)
-                        .animation(presentation.reducedMotion
-                                   ? Motion.Resolve.reduced
-                                   : Motion.Resolve.mark,
-                                   value: presentation.hasMark)
-                        .padding(.top, Space.xs)
+                    VStack(alignment: .trailing, spacing: Space.xs) {
+                        SectionLabel("results.card.yousaid")
+                        mark(guess)
+                    }
+                    // Its own half of the row, right-aligned. Sized by the layout rather than by
+                    // its content: a name that took its ideal width would push its own column
+                    // off the card the moment somebody in the group is called Konstantinos.
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .opacity(presentation.hasMark ? 1 : 0)
+                    .animation(presentation.reducedMotion
+                               ? Motion.Resolve.reduced
+                               : Motion.Resolve.mark,
+                               value: presentation.hasMark)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        /// How the room did on this one: a bar and the count that made it.
+        private var room: some View {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                SectionLabel("results.card.room")
+                ProportionBar(
+                    part: resolution.correctCount,
+                    whole: resolution.eligibleCount,
+                    accent: .revealed,
+                    announcement: Copy.resultCount(
+                        correct: resolution.correctCount,
+                        eligible: resolution.eligibleCount
+                    )
+                )
+            }
+            .opacity(presentation.hasName ? 1 : 0)
+            .animation(presentation.reducedMotion ? Motion.Resolve.reduced : Motion.Resolve.name,
+                       value: presentation.hasName)
         }
 
         /// The caller's own guess. **`ultramarine` check or `inkFaint` strike — never red and
@@ -344,39 +439,46 @@ struct FlightCard: View {
         /// `inkFaint` out for body text at 3.49:1, and it is the **strike** that the design
         /// system assigns that token to.
         @ViewBuilder private func mark(_ guess: CardResolution.MyGuess) -> some View {
-            HStack(spacing: Space.sm) {
-                if guess.isCorrect {
-                    // `.typeStyle` rather than a resolved `UIFont`: the glyph has to ride the
-                    // same Dynamic Type ramp the name beside it does, and a font resolved at the
-                    // device's default category leaves a 15pt check next to 40pt text at
-                    // `.accessibility5` (`docs/12` §1).
-                    Image(systemName: "checkmark")
-                        .typeStyle(.bodyM)
-                        .foregroundStyle(Palette.ultramarine)
-                }
+            VStack(alignment: .trailing, spacing: Space.xs) {
                 Text(verbatim: guess.name)
-                    .typeStyle(.bodyM)
+                    .typeStyle(.bodyL)
                     .foregroundStyle(guess.isCorrect ? Palette.ultramarine : Palette.inkDim)
-                    .strikethrough(!guess.isCorrect, color: Palette.inkFaint)
+                    .strikethrough(!guess.isCorrect, color: Palette.inkQuiet)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                // **The word as well as the colour** (`docs/12` §3). *Hit* and *Miss* are set in
+                // the micro-label, which is the same apparatus voice the rest of the card uses,
+                // and there is no red anywhere near either of them.
+                SectionLabel(
+                    guess.isCorrect ? "results.card.hit" : "results.card.miss",
+                    color: guess.isCorrect ? Palette.ultramarine : Palette.amberText
+                )
             }
         }
+
     }
 
     private func chip(_ label: Text, isFilled: Bool, onClear: (() -> Void)? = nil) -> some View {
-        HStack(spacing: Space.sm) {
+        HStack(spacing: Space.xs) {
             label
                 .typeStyle(.bodyM)
                 .foregroundStyle(isFilled ? accent.onFill : Palette.inkDim)
-                // Wraps rather than truncating: an `HStack` proposes a single line to a `Text`
-                // that has a sibling, and the prompt is the one string on this card that has to
-                // arrive whole.
+                // One line while the chip shares a row with a title; wrapping once the layout has
+                // stacked and the chip has the width to itself.
+                .lineLimit(isStacked ? nil : 1)
                 .fixedSize(horizontal: false, vertical: true)
             if let onClear {
                 Button(action: onClear) {
                     Image(systemName: "xmark")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(accent.onFill)
-                        .minimumTouchTarget()
+                        // Padded out to a 44pt region and then negatively padded back
+                        // (`docs/12` §5). A `minimumTouchTarget()` frame here would make the
+                        // glyph 44pt *wide* in the layout too, which on an SE costs the title
+                        // beside it about a third of its column for a mark that is 11pt.
+                        .padding(Space.md)
+                        .contentShape(Rectangle())
+                        .padding(-Space.md)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHidden(true)  // reachable as the card's "Clear guess" action
@@ -389,7 +491,17 @@ struct FlightCard: View {
             // three-line label inside `Radius.pill` is a blob with text spilling out of its
             // curve, so the shape steps down to a control radius where the layout stacks.
             RoundedRectangle(cornerRadius: isStacked ? Radius.control : Radius.pill, style: .continuous)
-                .fill(isFilled ? accent.fill : Palette.paperSunk)
+                .fill(isFilled ? accent.fill : Color.clear)
+        )
+        .overlay(
+            // An empty chip is an outline, and a dashed one: it is the only control on the card
+            // that is asking for something rather than reporting it, and a dashed edge is how a
+            // form says *this is a blank* without printing the word.
+            RoundedRectangle(cornerRadius: isStacked ? Radius.control : Radius.pill, style: .continuous)
+                .strokeBorder(
+                    isFilled ? Color.clear : Palette.edgeStrong,
+                    style: StrokeStyle(lineWidth: Stroke.border, dash: [4, 3])
+                )
         )
         .accessibilityHidden(true)  // the card's own label already carries the guess
     }

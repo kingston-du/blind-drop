@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The sixteen colour tokens of `docs/07` §2, transcribed exactly.
+/// The colour tokens of `docs/07` §2, transcribed exactly.
 ///
 /// Two accents carry meaning and appear nowhere decoratively (`CLAUDE.md` §2.5):
 ///
@@ -24,26 +24,33 @@ enum Palette {
     /// token moves the computed contrast ratio and the test fails with the row that broke.
     enum Hex {
         // Neutrals — cool, never warm. No cream, no oat, no beige.
-        static let paper: UInt32       = 0xF3F4F7
-        static let paperSunk: UInt32   = 0xE8EAEF
+        static let paper: UInt32       = 0xEFF1F5
+        static let paperSunk: UInt32   = 0xE7EAEF
         static let surface: UInt32     = 0xFFFFFF
-        static let edge: UInt32        = 0xDEE1E9
-        static let edgeStrong: UInt32  = 0xC4C9D6
+        static let edge: UInt32        = 0xDCE0E7
+        static let edgeStrong: UInt32  = 0xD3D8E0
+        /// The rule *inside* a card, a step lighter than the rule around it.
+        static let hairline: UInt32    = 0xEAEDF1
+        /// The unfilled part of a meter, a bar, a spectrum.
+        static let track: UInt32       = 0xEEF0F4
 
-        static let ink: UInt32         = 0x14161C
-        static let inkDim: UInt32      = 0x5A6072
-        static let inkFaint: UInt32    = 0x7C8294
+        static let ink: UInt32         = 0x14161A
+        static let inkDim: UInt32      = 0x454B55
+        static let inkFaint: UInt32    = 0x767C88
+        static let inkQuiet: UInt32    = 0xB9BEC7
 
-        // Amber — three tiers, each with a job. Do not interchange them.
-        static let amber: UInt32       = 0xE08A1E
-        static let amberDeep: UInt32   = 0xB96D0C
-        static let amberText: UInt32   = 0x8F5411
-        static let amberWash: UInt32   = 0xFDF3E3
+        // Amber — four tiers, each with a job. Do not interchange them.
+        static let amber: UInt32       = 0xB26A06
+        static let amberDeep: UInt32   = 0x96590A
+        static let amberText: UInt32   = 0x8A5205
+        static let amberWash: UInt32   = 0xF6EAD6
+        static let amberEdge: UInt32   = 0xE6CFA6
 
         // Ultramarine — one token does text, fill, and graphics.
-        static let ultramarine: UInt32     = 0x2C3FE0
-        static let ultramarineDeep: UInt32 = 0x1E2CA8
-        static let ultramarineWash: UInt32 = 0xEEF0FE
+        static let ultramarine: UInt32     = 0x2233C4
+        static let ultramarineDeep: UInt32 = 0x1B29A0
+        static let ultramarineWash: UInt32 = 0xE3E6FA
+        static let ultramarineEdge: UInt32 = 0xC3C9F2
 
         static let alert: UInt32       = 0xB3261E
     }
@@ -62,49 +69,62 @@ enum Palette {
     static let edge        = Color(hex: Hex.edge)
     /// Emphasised borders, dividers.
     static let edgeStrong  = Color(hex: Hex.edgeStrong)
+    /// The rule between two rows of the same card. Lighter than `edge`, which draws the card.
+    static let hairline    = Color(hex: Hex.hairline)
+    /// The empty part of a meter, a blame bar, a spectrum.
+    static let track       = Color(hex: Hex.track)
 
-    /// Primary text. 16.44:1 on `paper`.
+    /// Primary text. 16.02:1 on `paper`.
     static let ink         = Color(hex: Hex.ink)
-    /// Secondary text, labels. 5.70:1 on `paper` — still clears the 4.5 body bar.
+    /// Secondary text, labels. 7.77:1 on `paper` — comfortably over the 4.5 body bar.
     static let inkDim      = Color(hex: Hex.inkDim)
-    /// Tertiary, disabled, and the incorrect-answer strike. 3.49:1 on `paper`, which clears
-    /// the 3.0 bar for large text (≥ 24pt) and UI only — **never body text**.
+    /// The quietest tier that still carries a word. 3.71:1 on `paper`, which clears the 3.0 bar
+    /// for large text (≥ 24pt) and UI — **never body text, and never a micro-label**. A label is
+    /// small text however quiet it is meant to look, so labels take `inkDim`.
     static let inkFaint    = Color(hex: Hex.inkFaint)
+    /// Disabled labels, a spent chip, the incorrect-answer strike. 1.65:1, which is why it is
+    /// only ever a *mark* on something else and never carries meaning alone.
+    static let inkQuiet    = Color(hex: Hex.inkQuiet)
 
     // MARK: - Amber — sealed
     //
-    // Three tiers, each with a job. Do not interchange them. `docs/07` §2: a single warm amber
+    // Four tiers, each with a job. Do not interchange them. `docs/07` §2: a single warm amber
     // cannot be both a satisfying fill and an accessible label, so the one colour is split by
-    // what it is being asked to do.
+    // what it is being asked to do — and the wash needs an edge of its own, which is the fourth.
 
-    /// **`amber` fills.** Fill only, with `ink` text on top (6.74:1). Never text, never a lone
-    /// graphical mark: it is 2.68:1 on `surface`, below every threshold, deliberately. That is
-    /// why it only ever sits *behind* something. `amber` alone on white carries no meaning.
+    /// **`amber` fills and draws.** The button fill under a white label (4.24:1, which clears
+    /// the 3.0 bar for the 17pt semibold label it carries and nothing smaller), and the mark
+    /// tier: borders, the seal stamp, a card number. 4.24:1 on `surface`, over the 3.0 bar for
+    /// non-text graphics. It is never set as body copy — that is what `amberText` is for.
     static let amber       = Color(hex: Hex.amber)
-    /// **`amberDeep` draws.** Marks, borders, icons, the seal stamp. 4.00:1 on `surface`,
-    /// clearing the 3.0 bar for non-text graphics.
+    /// The pressed fill (`docs/07` §5).
     static let amberDeep   = Color(hex: Hex.amberDeep)
-    /// **`amberText` writes.** Text and labels on `paper` or `surface`. 5.54:1 on `paper`,
-    /// clearing the 4.5 body bar. Reach for this whenever the amber is a word.
+    /// **`amberText` writes.** Text and labels on `paper`, `surface`, or `amberWash`. 5.65:1 on
+    /// `paper`, clearing the 4.5 body bar. Reach for this whenever the amber is a word.
     static let amberText   = Color(hex: Hex.amberText)
     /// Tinted surface behind sealed content. A wash, not a fill — nothing is read off it.
     static let amberWash   = Color(hex: Hex.amberWash)
+    /// The border that closes the wash. A wash with no edge floats; a wash edged in `amber`
+    /// shouts. This is the step between.
+    static let amberEdge   = Color(hex: Hex.amberEdge)
 
     // MARK: - Ultramarine — revealed
     //
     // One token does text, fill, and graphics; it is dark enough for all three.
 
-    /// Text (6.60:1 on `paper`), fill (7.26:1 under a `white` label), and graphics.
+    /// Text (7.94:1 on `paper`), fill (8.98:1 under a `white` label), and graphics.
     static let ultramarine     = Color(hex: Hex.ultramarine)
-    /// Pressed state.
+    /// Pressed state, and the deeper cut for words set on `ultramarineWash`.
     static let ultramarineDeep = Color(hex: Hex.ultramarineDeep)
     /// Tinted surface.
     static let ultramarineWash = Color(hex: Hex.ultramarineWash)
+    /// The border that closes the wash.
+    static let ultramarineEdge = Color(hex: Hex.ultramarineEdge)
 
     // MARK: - Alert
 
     /// **Errors ONLY. Never a game state.** `docs/07` §2: correct/incorrect is ultramarine
-    /// against neutral, not green against red — the incorrect-answer mark is an `inkFaint`
+    /// against neutral, not green against red — the incorrect-answer mark is an `inkQuiet`
     /// strike, never red. Red is reserved so that when it appears it means something is
     /// broken. A wrong guess is not broken.
     static let alert       = Color(hex: Hex.alert)

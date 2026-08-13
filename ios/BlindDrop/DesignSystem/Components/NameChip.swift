@@ -48,8 +48,12 @@ struct NameChip: View {
     var body: some View {
         Button(action: action) {
             Text(verbatim: name)
-                .typeStyle(.bodyM)
+                .typeStyle(.bodyL)
                 .foregroundStyle(labelColor)
+                // A name already spent on another card is struck through as well as dimmed.
+                // **Colour is never the only signal** (`docs/12` §3), and "used" is exactly the
+                // kind of state that would otherwise be a shade of grey and nothing else.
+                .strikethrough(state.assignedCardNumber != nil, color: Palette.inkQuiet)
                 .lineLimit(allowsWrapping ? nil : 1)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Space.md)
@@ -91,16 +95,14 @@ struct NameChip: View {
 
     private var fill: Color {
         switch state {
-        case .unused: Palette.surface
-        case .consumed: Palette.paperSunk
+        case .unused, .consumed: Palette.surface
         case .selected: Palette.ultramarine
         }
     }
 
     private var border: Color {
         switch state {
-        case .unused: Palette.edge
-        case .consumed: Palette.paperSunk
+        case .unused, .consumed: Palette.edge
         case .selected: Palette.ultramarine
         }
     }
@@ -108,7 +110,7 @@ struct NameChip: View {
     private var labelColor: Color {
         switch state {
         case .unused: Palette.ink
-        case .consumed: Palette.inkFaint
+        case .consumed: Palette.inkQuiet
         case .selected: Color.white
         }
     }

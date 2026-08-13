@@ -14,7 +14,14 @@ import Testing
         store.tapName("u1")
         store.tapName("u2")
 
-        try? await Task.sleep(for: .milliseconds(850))
+        // The debounce is 600ms, but a fixed 850ms sleep is not a reliable assertion when the
+        // full Swift Testing target is running hundreds of tests in parallel: the main actor can
+        // be ready to perform the save without having been scheduled yet. Wait for the observed
+        // effect, with a real upper bound, so this still fails loudly if the debounce stalls.
+        let deadline = ContinuousClock.now + .seconds(3)
+        while await spy.requests.isEmpty, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
         let requests = await spy.requests
 
         #expect(requests.count == 1)

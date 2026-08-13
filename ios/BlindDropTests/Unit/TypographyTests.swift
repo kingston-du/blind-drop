@@ -89,7 +89,7 @@ import UIKit
         #expect(Typography.displayWidth == width.maximum,
                 "the face's width axis moved — docs/07 §3 records this number")
 
-        #expect(try setting("wght") == Typography.displayWeight)
+        #expect(try setting("wght") == Typography.axisWeight(TypeStyle.displayXL.spec.weight))
         #expect(Typography.displayWeight >= weight.minimum)
         #expect(Typography.displayWeight <= weight.maximum)
 
@@ -115,9 +115,11 @@ import UIKit
     /// the test that notices somebody nudging 17pt to 16pt because a screen was tight.
     @Test func theScaleMatchesTheDocumentedSizes() {
         let documented: [TypeStyle: CGFloat] = [
-            .displayXL: 56, .displayL: 40, .displayM: 28,
-            .bodyL: 17, .bodyLStrong: 17, .bodyM: 15, .label: 13, .caption: 12,
-            .monoXL: 34, .monoM: 17, .monoS: 13,
+            .displayXL: 56, .displayL: 44, .displayM: 32, .displayS: 24,
+            .numberL: 44, .numberM: 26,
+            .bodyL: 17, .bodyLStrong: 17, .bodyM: 15, .bodyS: 13,
+            .label: 11, .caption: 13,
+            .monoXL: 34, .monoM: 15, .monoS: 12,
         ]
         #expect(documented.count == TypeStyle.allCases.count, "docs/07 §3 has eleven styles")
         for (style, size) in documented {
@@ -135,10 +137,10 @@ import UIKit
             #expect(biggest <= base * Typography.displayMaximumScale + 0.5, "\(style) is uncapped")
             #expect(biggest > base, "\(style) is capped so hard it stopped scaling")
         }
-        // 56pt × 1.6 = 89.6pt, and it is still the largest thing on the card: the mono
-        // countdown beside it at the same size is smaller.
+        // 56pt × 1.6 = 89.6pt, and it is still the largest thing on the card: the results
+        // card's number beside it at the same size is smaller.
         let number = Typography.uiFont(.displayXL, for: largest).pointSize
-        #expect(number > Typography.uiFont(.monoXL, for: largest).pointSize)
+        #expect(number > Typography.uiFont(.numberL, for: largest).pointSize)
     }
 
     /// Nothing else is capped. A ceiling on body text is a truncated screen for the people who
@@ -186,7 +188,7 @@ import UIKit
         for size in DynamicTypeSize.allCases where size > .accessibility2 {
             #expect(Typography.countdownForm(for: size) == .coarse, "\(size)")
         }
-        #expect(CountdownForm.precise.typeStyle == .monoXL)
+        #expect(CountdownForm.precise.typeStyle == .displayXL)
         #expect(CountdownForm.coarse.typeStyle == .bodyLStrong)
     }
 

@@ -26,8 +26,8 @@ private let sizes = SnapshotRenderer.typeSizes
     @Test(arguments: devices, sizes)
     func submit(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         try verify(named: "Submit", device, size) { context, timer in
-            SubmitScreen(context: context, timer: timer, deadline: context.round.revealsAt,
-                         isBeforeOpen: false, drop: {})
+            Self.submitScreen(context: context, timer: timer,
+                              deadline: context.round.revealsAt, isBeforeOpen: false)
         }
     }
 
@@ -38,8 +38,8 @@ private let sizes = SnapshotRenderer.typeSizes
     @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
     func submitNudging(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         try verify(named: "Submit-nudge", device, size, remaining: 90 * 60) { context, timer in
-            SubmitScreen(context: context, timer: timer, deadline: context.round.revealsAt,
-                         isBeforeOpen: false, drop: {})
+            Self.submitScreen(context: context, timer: timer,
+                              deadline: context.round.revealsAt, isBeforeOpen: false)
         }
     }
 
@@ -48,8 +48,8 @@ private let sizes = SnapshotRenderer.typeSizes
     @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
     func submitBeforeOpen(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         try verify(named: "Submit-closed", device, size, remaining: 9 * 3600, opensIn: 4 * 3600 + 30 * 60) { context, timer in
-            SubmitScreen(context: context, timer: timer, deadline: context.round.opensAt,
-                         isBeforeOpen: true, drop: {})
+            Self.submitScreen(context: context, timer: timer,
+                              deadline: context.round.opensAt, isBeforeOpen: true)
         }
     }
 
@@ -152,6 +152,39 @@ private let sizes = SnapshotRenderer.typeSizes
             fillsWidth: false
         )
     }
+
+    /// The search screen, with an idle store behind it.
+    ///
+    /// Idle is the state worth a golden: it is what somebody lands on, and it is the only one
+    /// whose layout is the screen's own rather than a list's. `ImageRenderer` never runs
+    /// `.onAppear`, so the field is drawn unfocused here — which is also what makes the border
+    /// state in the picture the resting one.
+    private static func submitScreen(
+        context: RoundContext,
+        timer: CountdownTimer,
+        deadline: Date,
+        isBeforeOpen: Bool
+    ) -> some View {
+        return SubmitScreen(
+            context: context,
+            store: SubmitStore(api: Self.offlineClient),
+            player: PreviewPlayer(),
+            timer: timer,
+            deadline: deadline,
+            isBeforeOpen: isBeforeOpen,
+            choose: { _ in }
+        ).snapshotContent
+    }
+
+    /// A client pointed at nothing.
+    ///
+    /// The screens in these goldens never issue a request — the query is empty and
+    /// `ImageRenderer` runs no task — so all that matters is that a store can be built without a
+    /// server behind it. The environment is the app's own, with its base URL replaced, which is
+    /// less machinery than assembling a client by hand and cannot drift from what ships.
+    private static let offlineClient = AppEnvironment(
+        configuration: AppConfiguration(apiBaseURL: URL(string: "https://snapshot.invalid")!)
+    ).api
 
     private static func submission() throws -> SubmissionDTO {
         SubmissionDTO(track: .ribs, sealedAt: CountdownFixture.serverNow)

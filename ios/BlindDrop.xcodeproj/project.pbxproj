@@ -6,39 +6,29 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		AA000020 /* Exceptions for "BlindDrop" folder in "BlindDrop" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Info.plist",
-				"BlindDrop.entitlements",
-				"Core/Audio/.gitkeep",
-				"Core/Auth/.gitkeep",
-				"Core/Networking/DTO/.gitkeep",
-				"Core/Persistence/.gitkeep",
-				"Core/Push/.gitkeep",
-				"Core/Time/.gitkeep",
-				"DesignSystem/Components/.gitkeep",
-				"DesignSystem/Motion/.gitkeep",
-				"Features/Onboarding/.gitkeep",
-				"Features/Record/Export/.gitkeep",
-				"Features/Results/Share/.gitkeep",
-				"Features/Reveal/.gitkeep",
-				"Features/Round/.gitkeep",
-				"Features/Settings/.gitkeep",
-				"Features/Submit/.gitkeep",
-				"Resources/Fonts/.gitkeep",
-			);
-			target = AA000400 /* BlindDrop */;
+/* Begin PBXContainerItemProxy section */
+		AA000803 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA000900 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA000400;
+			remoteInfo = BlindDrop;
 		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		AA000010 /* BlindDrop */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA000020 /* Exceptions for "BlindDrop" folder in "BlindDrop" target */, ); explicitFileTypes = {}; explicitFolders = (); path = BlindDrop; sourceTree = "<group>"; };
-		AA000011 /* Unit */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = BlindDropTests/Unit; sourceTree = "<group>"; };
-		AA000012 /* Snapshot */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = BlindDropTests/Snapshot; sourceTree = "<group>"; };
-		AA000013 /* UI */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = BlindDropTests/UI; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
+		AA000804 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA000900 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA000400;
+			remoteInfo = BlindDrop;
+		};
+		AA000805 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA000900 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA000400;
+			remoteInfo = BlindDrop;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		AA000001 /* BlindDrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlindDrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -47,35 +37,97 @@
 		AA000004 /* BlindDropUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BlindDropUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AA000020 /* Exceptions for "BlindDrop" folder in "BlindDrop" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/Audio/.gitkeep,
+				Core/Auth/.gitkeep,
+				Core/Networking/DTO/.gitkeep,
+				Core/Persistence/.gitkeep,
+				Core/Push/.gitkeep,
+				Core/Time/.gitkeep,
+				DesignSystem/Components/.gitkeep,
+				DesignSystem/Motion/.gitkeep,
+				Features/Onboarding/.gitkeep,
+				Features/Record/Export/.gitkeep,
+				Features/Results/Share/.gitkeep,
+				Features/Reveal/.gitkeep,
+				Features/Round/.gitkeep,
+				Features/Settings/.gitkeep,
+				Features/Submit/.gitkeep,
+				Info.plist,
+				Resources/Fonts/.gitkeep,
+			);
+			target = AA000400 /* BlindDrop */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AA000010 /* BlindDrop */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA000020 /* Exceptions for "BlindDrop" folder in "BlindDrop" target */,
+			);
+			path = BlindDrop;
+			sourceTree = "<group>";
+		};
+		AA000011 /* BlindDropTests/Unit */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BlindDropTests/Unit;
+			sourceTree = "<group>";
+		};
+		AA000012 /* BlindDropTests/Snapshot */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BlindDropTests/Snapshot;
+			sourceTree = "<group>";
+		};
+		AA000013 /* BlindDropTests/UI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BlindDropTests/UI;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
-		AA000100 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000101 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000102 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000103 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA000100 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000101 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000102 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000103 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		AA000200 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000201 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000202 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000203 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-/* End PBXSourcesBuildPhase section */
-
-/* Begin PBXResourcesBuildPhase section */
-		AA000300 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000301 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000302 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		AA000303 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXGroup section */
 		AA000000 = {
 			isa = PBXGroup;
 			children = (
 				AA000010 /* BlindDrop */,
-				AA000011 /* Unit */,
-				AA000012 /* Snapshot */,
-				AA000013 /* UI */,
+				AA000011 /* BlindDropTests/Unit */,
+				AA000012 /* BlindDropTests/Snapshot */,
+				AA000013 /* BlindDropTests/UI */,
 				AA000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -93,72 +145,90 @@
 		};
 /* End PBXGroup section */
 
-/* Begin PBXTargetDependency section */
-		AA000700 = {isa = PBXTargetDependency; target = AA000401 /* BlindDropUnitTests */; targetProxy = AA000800; };
-		AA000701 = {isa = PBXTargetDependency; target = AA000402 /* BlindDropSnapshotTests */; targetProxy = AA000801; };
-		AA000702 = {isa = PBXTargetDependency; target = AA000403 /* BlindDropUITests */; targetProxy = AA000802; };
-		AA000703 = {isa = PBXTargetDependency; target = AA000400 /* BlindDrop */; targetProxy = AA000803; };
-		AA000704 = {isa = PBXTargetDependency; target = AA000400 /* BlindDrop */; targetProxy = AA000804; };
-		AA000705 = {isa = PBXTargetDependency; target = AA000400 /* BlindDrop */; targetProxy = AA000805; };
-/* End PBXTargetDependency section */
-
-/* Begin PBXContainerItemProxy section */
-		AA000800 = {isa = PBXContainerItemProxy; containerPortal = AA000900; proxyType = 1; remoteGlobalIDString = AA000401; remoteInfo = BlindDropUnitTests; };
-		AA000801 = {isa = PBXContainerItemProxy; containerPortal = AA000900; proxyType = 1; remoteGlobalIDString = AA000402; remoteInfo = BlindDropSnapshotTests; };
-		AA000802 = {isa = PBXContainerItemProxy; containerPortal = AA000900; proxyType = 1; remoteGlobalIDString = AA000403; remoteInfo = BlindDropUITests; };
-		AA000803 = {isa = PBXContainerItemProxy; containerPortal = AA000900; proxyType = 1; remoteGlobalIDString = AA000400; remoteInfo = BlindDrop; };
-		AA000804 = {isa = PBXContainerItemProxy; containerPortal = AA000900; proxyType = 1; remoteGlobalIDString = AA000400; remoteInfo = BlindDrop; };
-		AA000805 = {isa = PBXContainerItemProxy; containerPortal = AA000900; proxyType = 1; remoteGlobalIDString = AA000400; remoteInfo = BlindDrop; };
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXNativeTarget section */
 		AA000400 /* BlindDrop */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA000500;
-			buildPhases = (AA000200, AA000100, AA000300);
-			buildRules = ();
-			dependencies = ();
-			fileSystemSynchronizedGroups = (AA000010);
+			buildConfigurationList = AA000500 /* Build configuration list for PBXNativeTarget "BlindDrop" */;
+			buildPhases = (
+				AA000200 /* Sources */,
+				AA000100 /* Frameworks */,
+				AA000300 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA000010 /* BlindDrop */,
+			);
 			name = BlindDrop;
-			packageProductDependencies = ();
+			packageProductDependencies = (
+			);
 			productName = BlindDrop;
-			productReference = AA000001;
+			productReference = AA000001 /* BlindDrop.app */;
 			productType = "com.apple.product-type.application";
 		};
 		AA000401 /* BlindDropUnitTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA000501;
-			buildPhases = (AA000201, AA000101, AA000301);
-			buildRules = ();
-			dependencies = (AA000703);
-			fileSystemSynchronizedGroups = (AA000011);
+			buildConfigurationList = AA000501 /* Build configuration list for PBXNativeTarget "BlindDropUnitTests" */;
+			buildPhases = (
+				AA000201 /* Sources */,
+				AA000101 /* Frameworks */,
+				AA000301 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA000703 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA000011 /* BlindDropTests/Unit */,
+			);
 			name = BlindDropUnitTests;
 			productName = BlindDropUnitTests;
-			productReference = AA000002;
+			productReference = AA000002 /* BlindDropUnitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		AA000402 /* BlindDropSnapshotTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA000502;
-			buildPhases = (AA000202, AA000102, AA000302);
-			buildRules = ();
-			dependencies = (AA000704);
-			fileSystemSynchronizedGroups = (AA000012);
+			buildConfigurationList = AA000502 /* Build configuration list for PBXNativeTarget "BlindDropSnapshotTests" */;
+			buildPhases = (
+				AA000202 /* Sources */,
+				AA000102 /* Frameworks */,
+				AA000302 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA000704 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA000012 /* BlindDropTests/Snapshot */,
+			);
 			name = BlindDropSnapshotTests;
 			productName = BlindDropSnapshotTests;
-			productReference = AA000003;
+			productReference = AA000003 /* BlindDropSnapshotTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		AA000403 /* BlindDropUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA000503;
-			buildPhases = (AA000203, AA000103, AA000303);
-			buildRules = ();
-			dependencies = (AA000705);
-			fileSystemSynchronizedGroups = (AA000013);
+			buildConfigurationList = AA000503 /* Build configuration list for PBXNativeTarget "BlindDropUITests" */;
+			buildPhases = (
+				AA000203 /* Sources */,
+				AA000103 /* Frameworks */,
+				AA000303 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA000705 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA000013 /* BlindDropTests/UI */,
+			);
 			name = BlindDropUITests;
 			productName = BlindDropUITests;
-			productReference = AA000004;
+			productReference = AA000004 /* BlindDropUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -174,35 +244,144 @@
 					AA000400 = {
 						CreatedOnToolsVersion = 26.5;
 						SystemCapabilities = {
-							com.apple.BackgroundModes = {enabled = 0; };
-							com.apple.Push = {enabled = 1; };
-							com.apple.SafariKeychain = {enabled = 0; };
-							com.apple.SigningInWithApple = {enabled = 1; };
-							com.apple.developer.associated-domains = {enabled = 1; };
-							com.apple.developer.musickit = {enabled = 1; };
+							com.apple.BackgroundModes = {
+								enabled = 0;
+							};
+							com.apple.Push = {
+								enabled = 1;
+							};
+							com.apple.SafariKeychain = {
+								enabled = 0;
+							};
+							com.apple.SigningInWithApple = {
+								enabled = 1;
+							};
+							"com.apple.developer.associated-domains" = {
+								enabled = 1;
+							};
+							com.apple.developer.musickit = {
+								enabled = 1;
+							};
 						};
 					};
-					AA000401 = {CreatedOnToolsVersion = 26.5; TestTargetID = AA000400; };
-					AA000402 = {CreatedOnToolsVersion = 26.5; TestTargetID = AA000400; };
-					AA000403 = {CreatedOnToolsVersion = 26.5; TestTargetID = AA000400; };
+					AA000401 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = AA000400;
+					};
+					AA000402 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = AA000400;
+					};
+					AA000403 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = AA000400;
+					};
 				};
 			};
-			buildConfigurationList = AA000504;
+			buildConfigurationList = AA000504 /* Build configuration list for PBXProject "BlindDrop" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base);
+			knownRegions = (
+				en,
+				Base,
+			);
 			mainGroup = AA000000;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = AA000005;
+			productRefGroup = AA000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (AA000400, AA000401, AA000402, AA000403);
+			targets = (
+				AA000400 /* BlindDrop */,
+				AA000401 /* BlindDropUnitTests */,
+				AA000402 /* BlindDropSnapshotTests */,
+				AA000403 /* BlindDropUITests */,
+			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		AA000300 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000301 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000302 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000303 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA000200 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000201 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000202 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000203 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA000703 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA000400 /* BlindDrop */;
+			targetProxy = AA000803 /* PBXContainerItemProxy */;
+		};
+		AA000704 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA000400 /* BlindDrop */;
+			targetProxy = AA000804 /* PBXContainerItemProxy */;
+		};
+		AA000705 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA000400 /* BlindDrop */;
+			targetProxy = AA000805 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
-		AA000600 /* Project Debug */ = {
+		AA000600 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -213,8 +392,11 @@
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)");
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -227,7 +409,7 @@
 			};
 			name = Debug;
 		};
-		AA000601 /* Project Release */ = {
+		AA000601 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -237,7 +419,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -249,18 +431,19 @@
 			};
 			name = Release;
 		};
-		AA000610 /* App Debug */ = {
+		AA000610 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = BlindDrop/BlindDrop.entitlements;
-				CODE_SIGN_IDENTITY = "";
-				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_ALLOWED = YES;
 				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
-				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = BlindDrop/BlindDrop.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NNQ4DT9Z7Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BlindDrop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Blind Drop";
@@ -274,24 +457,27 @@
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blinddrop.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SPOTIFY_CLIENT_ID = "";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SPOTIFY_CLIENT_ID = 16f89e42ae744004a20f4ba0e63bff3f;
+				SUPABASE_ANON_KEY = "sb_publishable_QFTSi76Jcu-Whn3Qha9__g_vYKXIm_u";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
-		AA000611 /* App Release */ = {
+		AA000611 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = BlindDrop/BlindDrop.entitlements;
-				CODE_SIGN_IDENTITY = "";
-				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_ALLOWED = YES;
 				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
-				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = BlindDrop/BlindDrop.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NNQ4DT9Z7Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BlindDrop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Blind Drop";
@@ -305,13 +491,15 @@
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.blinddrop.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SPOTIFY_CLIENT_ID = "";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SPOTIFY_CLIENT_ID = 16f89e42ae744004a20f4ba0e63bff3f;
+				SUPABASE_ANON_KEY = "sb_publishable_QFTSi76Jcu-Whn3Qha9__g_vYKXIm_u";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
-		AA000620 /* Unit Debug */ = {
+		AA000620 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -326,7 +514,7 @@
 			};
 			name = Debug;
 		};
-		AA000621 /* Unit Release */ = {
+		AA000621 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -341,7 +529,7 @@
 			};
 			name = Release;
 		};
-		AA000630 /* Snapshot Debug */ = {
+		AA000630 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -356,7 +544,7 @@
 			};
 			name = Debug;
 		};
-		AA000631 /* Snapshot Release */ = {
+		AA000631 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -371,7 +559,7 @@
 			};
 			name = Release;
 		};
-		AA000640 /* UI Debug */ = {
+		AA000640 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
@@ -385,7 +573,7 @@
 			};
 			name = Debug;
 		};
-		AA000641 /* UI Release */ = {
+		AA000641 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGNING_ALLOWED = NO;
@@ -402,11 +590,51 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AA000504 = {isa = XCConfigurationList; buildConfigurations = (AA000600, AA000601); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		AA000500 = {isa = XCConfigurationList; buildConfigurations = (AA000610, AA000611); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		AA000501 = {isa = XCConfigurationList; buildConfigurations = (AA000620, AA000621); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		AA000502 = {isa = XCConfigurationList; buildConfigurations = (AA000630, AA000631); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		AA000503 = {isa = XCConfigurationList; buildConfigurations = (AA000640, AA000641); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA000500 /* Build configuration list for PBXNativeTarget "BlindDrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000610 /* Debug */,
+				AA000611 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA000501 /* Build configuration list for PBXNativeTarget "BlindDropUnitTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000620 /* Debug */,
+				AA000621 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA000502 /* Build configuration list for PBXNativeTarget "BlindDropSnapshotTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000630 /* Debug */,
+				AA000631 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA000503 /* Build configuration list for PBXNativeTarget "BlindDropUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000640 /* Debug */,
+				AA000641 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA000504 /* Build configuration list for PBXProject "BlindDrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000600 /* Debug */,
+				AA000601 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 	};
 	rootObject = AA000900 /* Project object */;

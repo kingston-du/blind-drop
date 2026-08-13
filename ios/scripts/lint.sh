@@ -22,21 +22,23 @@ RED=$'\033[31m'; GREEN=$'\033[32m'; DIM=$'\033[2m'; OFF=$'\033[0m'
 # Print every match of $2 in the files listed on stdin, minus comment text.
 # $1 = rule label, $2 = extended regex, $3 = doc reference
 scan() {
-  local label="$1" pattern="$2" doc="$3" file line n hit=0
+  local label="$1" pattern="$2" doc="$3" file line n hit=0 matches
+  matches="$(mktemp)"
   while IFS= read -r file; do
     [ -f "$file" ] || continue
-    n=0
-    while IFS= read -r line; do
-      n=$((n + 1))
-      # strip // comments and /* */ openings before matching
-      local code="${line%%//*}"
-      case "$code" in *'/*'*) code="${code%%/\**}";; esac
-      if printf '%s' "$code" | grep -Eq "$pattern"; then
-        printf '%s%s:%d%s  %s\n' "$RED" "${file#"$ROOT"/}" "$n" "$OFF" "$(printf '%s' "$line" | sed 's/^[[:space:]]*//')"
+    : > "$matches"
+    # Match one whole file at a time. The former line-by-line loop spawned grep and sed for
+    # every source line, turning this small linter into a multi-minute CI step.
+    sed -E -e 's,//.*$,,' -e 's,/\*.*$,,' "$file" | grep -nE "$pattern" > "$matches" || true
+    while IFS=: read -r n _; do
+      [ -n "$n" ] || continue
+      line="$(sed -n "${n}p" "$file")"
+      printf '%s%s:%d%s  %s\n' "$RED" "${file#"$ROOT"/}" "$n" "$OFF" \
+        "$(printf '%s' "$line" | sed 's/^[[:space:]]*//')"
         hit=1
-      fi
-    done < "$file"
+    done < "$matches"
   done
+  rm -f "$matches"
   if [ "$hit" = 1 ]; then
     printf '  %s%s — %s%s\n\n' "$DIM" "$label" "$doc" "$OFF"
     printf '%s\n' "$label" >> "$FAIL_FILE"

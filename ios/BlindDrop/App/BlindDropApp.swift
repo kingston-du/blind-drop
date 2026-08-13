@@ -1,5 +1,18 @@
 import SwiftUI
 
+private struct ForcedReduceMotionKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// Test-only override layered on top of the real system accessibility preference. The
+    /// default is false, so production behavior continues to be driven entirely by iOS.
+    var blindDropForcesReducedMotion: Bool {
+        get { self[ForcedReduceMotionKey.self] }
+        set { self[ForcedReduceMotionKey.self] = newValue }
+    }
+}
+
 /// docs/07: **light mode only**. There is no dark mode in v1, no `colorScheme` branching,
 /// and no `Color(light:dark:)` constructors. This is the one place the appearance is set.
 ///
@@ -21,14 +34,21 @@ struct BlindDropApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            configuredRoot
                 .environment(env)
                 .preferredColorScheme(.light)
-                .task {
+                .task(id: env.session.state) {
                     pushDelegate.attach(env)
-                    // `docs/05` §4: `POST /devices` on every launch, a cheap upsert that refreshes
-                    // `last_seen_at`. It **never prompts** — a launch that asked for notification
-                    // permission is the thing that section exists to forbid.
+                    // APNs may return a token immediately. Do not ask for one until `GET /me`
+                    // has established an authenticated, profiled session: a token sent while the
+                    // Keychain session is still loading would receive a 401 and could end that
+                    // otherwise-valid session. The state change reruns this task after launch and
+                    // after sign-in.
+                    guard env.session.state == .noGroup || env.session.state == .ready else {
+                        return
+                    }
+                    // `docs/05` §4: `POST /devices` on every authenticated launch, a cheap upsert
+                    // that refreshes `last_seen_at`. It **never prompts**.
                     await env.push.registerIfAuthorized()
                 }
                 // docs/05 §5: a deep link is a navigation hint, not an authorization. It is
@@ -42,5 +62,17 @@ struct BlindDropApp: App {
                     env.router.receive(DeepLink(url))
                 }
         }
+    }
+
+    @ViewBuilder private var configuredRoot: some View {
+        #if DEBUG
+        if env.configuration.forcesReducedMotionForUITests {
+            RootView().environment(\.blindDropForcesReducedMotion, true)
+        } else {
+            RootView()
+        }
+        #else
+        RootView()
+        #endif
     }
 }
