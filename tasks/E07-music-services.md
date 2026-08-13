@@ -17,7 +17,7 @@ lands.
 | Apple still carries `previews[].url`, `artwork.url` as a `{w}x{h}` template, `artwork.bgColor`, `durationInMillis` | **holds** — all four documented on `Songs.Attributes` / `Artwork` |
 | Spotify `GET /v1/search?q=isrc:{ISRC}&type=track` | **holds** — `isrc` is a documented track filter, alongside `track`, `artist`, `album`, `year`, `genre` |
 | The 2024 `preview_url` restriction is irrelevant to us | **holds, by construction** — no code path in this repo reads a Spotify `preview_url`; previews come from Apple only (`_shared/music/appleMusic.ts`). Nothing to break. |
-| Development mode caps a new Spotify app at 25 users | unchanged; the quota-mode page is unversioned so this is re-checked before `E13`, not here — the pilot is under 25 either way |
+| Development-mode user cap | re-checked in E13 on 2026-08-12: now 5 allowlisted authenticated users with a Premium app owner; a 6–12 person pilot needs extended quota or five Spotify export testers |
 
 ---
 

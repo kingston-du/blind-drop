@@ -8,7 +8,8 @@ Runs against the fixture server (`E00-05`), so it does not wait on the backend.
 
 > **Resolved — owner, 2026-08-12:** routine CI uses one centrally configured destination,
 > presently `platform=iOS Simulator,OS=latest,name=iPhone 17`, on a pinned Xcode image. The
-> deployment target remains iOS 17.0, and the release pass also runs against an iOS 17 runtime.
+> E13 raised the deployment target to iOS 17.4 for Apple's HTTPS authentication-session
+> callback matcher, and the release pass also runs against an iOS 17.4 runtime.
 
 > **Resolved — owner, 2026-08-12:** `StatMeter` shows one active, one-word band label only.
 > The five labels do not fit on a small phone at accessible text sizes, and multi-word labels

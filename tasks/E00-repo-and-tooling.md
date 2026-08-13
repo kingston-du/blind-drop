@@ -69,7 +69,7 @@ PostgREST (`docs/01` §2).
 Create the project with the settings in `docs/13` §8. Empty folders per the tree in §1. Three
 test targets (Unit, Snapshot, UI) wired into one scheme.
 
-- [x] iOS 17.0, Swift 6 language mode, strict concurrency
+- [x] iOS 17.4, Swift 6 language mode, strict concurrency
 - [x] Portrait only, iPhone only
 - [x] Capabilities: Push, Sign in with Apple, MusicKit, Associated Domains
 - [x] `blinddrop` URL scheme registered
@@ -79,9 +79,9 @@ test targets (Unit, Snapshot, UI) wired into one scheme.
 
 > **Resolved — owner, 2026-08-12:** routine CI uses a centrally configured, pinned Xcode and
 > current simulator destination, presently `OS=latest,name=iPhone 17`; commands do not name a
-> simulator independently. The deployment target remains iOS 17.0. Before release, the full
-> suite also runs once on an iOS 17 runtime so the minimum supported version is real, not only
-> a build setting.
+> simulator independently. E13 raised the deployment target to iOS 17.4 for Apple's HTTPS
+> authentication-session callback matcher. Before release, the full suite also runs once on
+> an iOS 17.4 runtime so the minimum supported version is real, not only a build setting.
 
 > **Note:** the project uses Xcode 16+ file-system-synchronized groups, so `Features/…`,
 > `DesignSystem/…` and the rest sync from disk and no future task has to edit

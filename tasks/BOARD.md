@@ -2,7 +2,8 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E13-01`. `E00`–`E12` are done.
+**Start here:** `E14-03`. `E00`–`E13` are done, as are `E14-01`, `E14-02`, and `E14-04`. The two
+that remain both need a physical iPhone; neither can be closed from the simulator.
 
 ---
 
@@ -162,21 +163,21 @@ E04..E07 + E13  ─ E14 QA & release
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E13-01 `RecordScreen`, pagination, filter | todo | E08-04, E07-06 | — |
-| E13-02 Per-track Spotify and Apple links | todo | E13-01 | — |
-| E13-03 Spotify PKCE auth | todo | E13-01 | — |
-| E13-04 Spotify playlist export | todo | E13-03 | — |
-| E13-05 Apple Music playlist export | todo | E13-01 | — |
+| E13-01 `RecordScreen`, pagination, filter | done | E08-04, E07-06 | — |
+| E13-02 Per-track Spotify and Apple links | done | E13-01 | — |
+| E13-03 Spotify PKCE auth | done | E13-01 | — |
+| E13-04 Spotify playlist export | done | E13-03 | — |
+| E13-05 Apple Music playlist export | done | E13-01 | — |
 
 ## E14 — QA and release · [file](E14-qa-and-release.md)
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E14-01 Leak audit, full pass | todo | E04-04, E05-02 | AC-1 |
-| E14-02 Accessibility pass | todo | E12-03, E13-01 | AC-2 gates |
-| E14-03 Animation performance pass | todo | E10-04, E11-04 | AC-11 |
-| E14-04 Full-loop UI test | todo | E12-05 | AC-10 |
-| E14-05 Release checklist | todo | E14-01..04 | all |
+| E14-01 Leak audit, full pass | done | E04-04, E05-02 | AC-1 |
+| E14-02 Accessibility pass | done | E12-03, E13-01 | AC-2 gates |
+| E14-03 Animation performance pass | wip | E10-04, E11-04 | AC-11 |
+| E14-04 Full-loop UI test | done | E12-05 | AC-10 |
+| E14-05 Release checklist | wip | E14-01..04 | all |
 
 ---
 
@@ -197,6 +198,6 @@ E04..E07 + E13  ─ E14 QA & release
 | E10 | 7 / 7 |
 | E11 | 6 / 6 |
 | E12 | 5 / 5 |
-| E13 | 0 / 5 |
-| E14 | 0 / 5 |
-| **Total** | **70 / 80** |
+| E13 | 5 / 5 |
+| E14 | 3 / 5 |
+| **Total** | **78 / 80** |
