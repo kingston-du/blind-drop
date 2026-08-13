@@ -146,7 +146,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E11-03 Name pool and the 12-member layout | done | E11-02 | — |
 | E11-04 **The unseal animation** | done | E11-01 | AC-11 |
 | E11-05 Non-submitter and joined-late states | done | E11-02 | AC-6 |
-| E11-06 Debounced guess save | todo | E11-02, E05-02 | — |
+| E11-06 Debounced guess save | wip | E11-02, E05-02 | — |
 
 ## E12 — Results and share · [file](E12-results-and-share.md)
 

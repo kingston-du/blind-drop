@@ -161,7 +161,7 @@ This is the participation-pressure mechanic. The user must **see** exactly what 
 
 ### E11-06 — Debounced guess save
 
-**Status:** todo · **Deps:** E11-02, E05-02 · **Reads:** `docs/08` §6, `docs/13` §6
+**Status:** wip · **Deps:** E11-02, E05-02 · **Reads:** `docs/08` §6, `docs/13` §6
 **Touches:** `Features/Reveal/RevealStore.swift`
 **Verify:** unit test on debounce and cancellation
 
