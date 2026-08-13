@@ -652,4 +652,3 @@ struct OnboardingHarness {
         #expect(h.session.state == .unknown)
     }
 }
-
