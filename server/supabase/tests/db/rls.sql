@@ -1,11 +1,11 @@
 -- rls.sql — tasks/E01-02, AC-1. docs/03 §3, docs/01 §2, docs/14 §4.
 --
--- Deny-by-default on all ten tables and *no policies*. The HTTP half of this (an
+-- Deny-by-default on every table and *no policies*. The HTTP half of this (an
 -- authenticated PostgREST call to each table returning no row) is
 -- tests/functions/postgrest_locked.test.ts; what is provable in SQL is proved here.
 begin;
 set search_path = public, extensions, tests;
-select plan(48);
+select plan(52);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -21,8 +21,8 @@ order by c.relname;
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'),
-  10,
-  'exactly ten tables in public — nothing has been added without a doc change');
+  11,
+  'exactly eleven tables in public — nothing has been added without a doc change');
 
 -- ─── zero policies. Not "the right policies". Zero. ──────────────────────────
 select is_empty($$
@@ -75,7 +75,8 @@ select throws_ok(
          format('permission denied for table %s', t),
          format('authenticated cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
-                  'devices','notification_outbox','track_links','rate_limit_events']) as t,
+                  'devices','notification_outbox','track_links','rate_limit_events',
+                  'pilot_cohorts']) as t,
      lateral (select set_config('role', 'authenticated', true)) as _;
 reset role;
 
@@ -85,7 +86,8 @@ select throws_ok(
          format('permission denied for table %s', t),
          format('anon cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
-                  'devices','notification_outbox','track_links','rate_limit_events']) as t,
+                  'devices','notification_outbox','track_links','rate_limit_events',
+                  'pilot_cohorts']) as t,
      lateral (select set_config('role', 'anon', true)) as _;
 reset role;
 

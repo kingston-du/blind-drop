@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Blind Drop \u2014 Supabase project: migrations, Edge Functions, tests.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "db:start": "supabase start",

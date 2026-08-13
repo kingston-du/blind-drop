@@ -1,7 +1,7 @@
 -- cron.sql — tasks/E03-05, docs/05 §1.
 begin;
 set search_path = public, extensions, tests;
-select plan(25);
+select plan(26);
 
 select has_function('public', 'set_blind_drop_jobs_active', array['boolean'],
                     'the scoped scheduler toggle exists');
@@ -18,25 +18,28 @@ select ok(not has_function_privilege('service_role',
           'the Edge Function service role cannot toggle scheduling');
 
 select is((select count(*)::int from cron.job
-            where jobname in ('tick', 'push', 'links') and schedule = '0 0 31 2 *'),
-          3, 'the local seed parks every job on an impossible date');
+            where jobname in ('tick', 'push', 'links', 'rate-limit-retention')
+              and schedule = '0 0 31 2 *'),
+          4, 'the local seed parks every job on an impossible date');
 select lives_ok('select public.set_blind_drop_jobs_active(true)',
-                'an administrator can enable all three named jobs atomically');
+                'an administrator can enable all four named jobs atomically');
 
 select set_eq(
-  $$ select jobname from cron.job where jobname in ('tick', 'push', 'links') $$,
-  $$ values ('tick'::text), ('push'::text), ('links'::text) $$,
-  'exactly the three named Blind Drop jobs are registered');
+  $$ select jobname from cron.job
+      where jobname in ('tick', 'push', 'links', 'rate-limit-retention') $$,
+  $$ values ('tick'::text), ('push'::text), ('links'::text), ('rate-limit-retention'::text) $$,
+  'exactly the four named Blind Drop jobs are registered');
 select is((select count(*)::int from cron.job
-            where jobname in ('tick', 'push', 'links') and schedule = '* * * * *'),
-          3, 'all three jobs run every minute');
+            where jobname in ('tick', 'push', 'links', 'rate-limit-retention')
+              and schedule = '* * * * *'),
+          4, 'all four jobs run every minute');
 select is((select count(*)::int from cron.job
-            where jobname in ('tick', 'push', 'links') and active),
-          3, 'every registered job row remains active after restoring the minute schedule');
+            where jobname in ('tick', 'push', 'links', 'rate-limit-retention') and active),
+          4, 'every registered job row remains active after restoring the minute schedule');
 select is((select count(*)::int from cron.job
-            where jobname in ('tick', 'push', 'links')
+            where jobname in ('tick', 'push', 'links', 'rate-limit-retention')
               and database = current_database() and username = current_user),
-          3, 'all three jobs run in this database as the migration owner');
+          4, 'all four jobs run in this database as the migration owner');
 
 select ok((select command like '%select public.tick_rounds();%'
              from cron.job where jobname = 'tick'),
@@ -83,6 +86,10 @@ select ok((select command not like '%http%://%' and command not like '%eyJ%'
 select ok((select command not like '%tick_rounds%'
              from cron.job where jobname = 'links'),
           'the backfill cannot advance a round — a slow Spotify must never delay a reveal');
+
+select ok((select command like '%delete from public.rate_limit_events%expires_at <= public.now_()%'
+             from cron.job where jobname = 'rate-limit-retention'),
+          'expired limiter rows are deleted even when their address never returns');
 
 select * from finish();
 rollback;

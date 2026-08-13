@@ -16,6 +16,9 @@ deno.lock
 server/supabase/.temp/
 server/supabase/.branches/
 server/.supabase/
+# The CLI writes .temp/linked-project.json next to wherever it was invoked. Run from the repo
+# root by mistake and it lands here, outside the paths above — scratch, never project content.
+/supabase/
 
 # ── Xcode ────────────────────────────────────────────────────────────────────
 build/

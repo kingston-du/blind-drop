@@ -56,6 +56,13 @@ serveFunction("me", {
       .single();
     if (error) throw dbFailure("me.put", error);
 
+    // TestFlight cohorts can opt into code-free onboarding. This is a no-op when the user is
+    // already in a group or every enabled cohort is full; in that case the normal join/create
+    // screen remains available. Cohort order and capacity live in the database, so adding a
+    // second pilot group does not require a client release.
+    const { error: cohortError } = await ctx.db.rpc("assign_pilot_cohort", { p_user: ctx.userId });
+    if (cohortError) throw dbFailure("me.assignPilotCohort", cohortError);
+
     return ok(meDTO(data, await hasGroup(ctx)));
   },
 

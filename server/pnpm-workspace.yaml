@@ -1,0 +1,2 @@
+allowBuilds:
+  deno: set this to true or false
