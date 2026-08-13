@@ -96,6 +96,71 @@ import UIKit
         }
     }
 
+    /// **Two asks for the same variant at once produce one file, not two.**
+    ///
+    /// This is the picker's ordinary sequence, not a contrived one: it starts the preselected
+    /// variant rendering the moment it appears and the button asks for the same one as soon as a
+    /// thumb lands, well inside the time a render takes. Two renders would mean two files and
+    /// one of them orphaned — a card of real names left in the temporary directory with nothing
+    /// holding its name.
+    @Test func twoSimultaneousAsksForOneVariantRenderOnce() async throws {
+        let renderer = ShareRenderer(loader: CountingArtworkLoader(delay: .milliseconds(20)))
+
+        async let first = renderer.png(for: ShareFixture.tonight, variant: .squareTall)
+        async let second = renderer.png(for: ShareFixture.tonight, variant: .squareTall)
+        let urls = try #require(await [first, second] as? [URL])
+
+        #expect(urls[0] == urls[1])
+        renderer.discard()
+        #expect(!FileManager.default.fileExists(atPath: urls[0].path))
+    }
+
+    /// And whatever *did* reach disk is deleted, however it got there. `discard()` works from
+    /// the list of files written rather than from the by-variant cache, so a second render that
+    /// replaced a cache entry cannot leave the first file behind.
+    @Test func everyFileEverWrittenIsDeleted() async throws {
+        let renderer = ShareRenderer(loader: CountingArtworkLoader())
+        var urls: [URL] = []
+        for _ in 0..<2 {
+            urls.append(try #require(await renderer.png(for: ShareFixture.tonight, variant: .story)))
+            // Clearing the cache without clearing the files is exactly the shape of the bug:
+            // the next render writes a second file and the first has nowhere to be found.
+            renderer.forgetCachedRendersForTesting()
+        }
+        #expect(Set(urls).count == 2, "the cache really was cleared between renders")
+
+        renderer.discard()
+
+        for url in urls {
+            #expect(!FileManager.default.fileExists(atPath: url.path))
+        }
+    }
+
+    /// **A render still in flight when the sheet closes cleans up after itself.**
+    ///
+    /// `discard()` sweeps the files it knows about, and a render that has not written yet is not
+    /// one of them — so without a generation check the sweep runs, the render finishes, and a
+    /// card of real display names is left in the temporary directory with nothing holding its
+    /// name. Dismissing the picker the moment it opens is all it takes.
+    @Test func aRenderThatFinishesAfterDiscardCleansUpAfterItself() async throws {
+        let renderer = ShareRenderer(loader: CountingArtworkLoader(delay: .milliseconds(500)))
+
+        async let pending = renderer.png(for: ShareFixture.tonight, variant: .squareTall)
+        // Yield until the render has actually started rather than sleeping a guessed interval:
+        // under a full parallel suite a fixed sleep can resume after the render has finished,
+        // and a test that only sometimes exercises the race is worse than no test.
+        while !renderer.isRendering { await Task.yield() }
+        renderer.discard()
+        let url = await pending
+
+        #expect(url == nil, "a render the sheet no longer wants is not offered")
+        // Asserted on the renderer's own ledger rather than on the temporary directory: suites
+        // run in parallel, so a listing of `blind-drop-*` files is somebody else's business as
+        // much as this test's. Without the generation check `written` holds one URL here — the
+        // file appended *after* `discard()` swept — and the file it names is still on disk.
+        #expect(renderer.written.isEmpty, "and nothing of it is left behind")
+    }
+
     /// A second ask for the same variant re-uses the file rather than rendering again — which is
     /// also what keeps `discard()` able to name everything it wrote.
     @Test func aSecondRenderOfTheSameVariantIsTheSameFile() async throws {

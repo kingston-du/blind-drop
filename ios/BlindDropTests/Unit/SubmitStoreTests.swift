@@ -45,7 +45,7 @@ import Testing
     /// after a delete — leaving the last results under an emptied field would be the app having an
     /// opinion about a query nobody made.
     @Test func clearingTheFieldReturnsToABlankSheet() async throws {
-        let (store, stub) = makeStore([try RoundFixture.envelope("tracks_search")])
+        let (store, _) = makeStore([try RoundFixture.envelope("tracks_search")])
 
         store.query = "ribs"
         try await Task.sleep(for: .milliseconds(500))
@@ -59,7 +59,7 @@ import Testing
     /// An outage takes search away and **leaves the paste path**, which is exactly what the copy
     /// says (`docs/06` §7, `docs/11` `search.error`).
     @Test func anUpstreamOutageOffersThePastePath() async throws {
-        let (store, stub) = makeStore([RoundFixture.failure(502, "UPSTREAM_UNAVAILABLE")])
+        let (store, _) = makeStore([RoundFixture.failure(502, "UPSTREAM_UNAVAILABLE")])
 
         store.query = "ribs"
         try await Task.sleep(for: .milliseconds(500))
@@ -114,7 +114,7 @@ import Testing
     /// A link the catalog does not carry is the *other* paste error — *"That song isn't in the
     /// Apple catalog. Search for it instead."*
     @Test func alinkTheCatalogDoesNotCarrySaysSo() async throws {
-        let (store, stub) = makeStore([RoundFixture.failure(400, "INVALID_INPUT")])
+        let (store, _) = makeStore([RoundFixture.failure(400, "INVALID_INPUT")])
 
         store.pasted = "https://open.spotify.com/track/2QjOHCTQ1JF3zJyfWY7EMU"
         let track = await store.resolve()
@@ -127,7 +127,7 @@ import Testing
 
     /// The happy path: the server seals it and hands back the submission the client adopts.
     @Test func sealingReturnsWhatTheServerSealed() async throws {
-        let (store, stub) = makeStore([RoundFixture.envelope(sealed())])
+        let (store, _) = makeStore([RoundFixture.envelope(sealed())])
         let track = try RoundFixture.track()
 
         let submission = await store.seal(track)
@@ -140,7 +140,7 @@ import Testing
     /// **A failure seals nothing** and says one line in `alert`. The screen runs no animation on
     /// this path — that is `ConfirmScreen`'s half, and it is a `guard let` over this return value.
     @Test func afailedSealSealsNothing() async throws {
-        let (store, stub) = makeStore([RoundFixture.failure(500, "INTERNAL")])
+        let (store, _) = makeStore([RoundFixture.failure(500, "INTERNAL")])
 
         let submission = await store.seal(try RoundFixture.track())
 
@@ -152,7 +152,7 @@ import Testing
     /// reconnect" could land at 20:01 and be silently rejected, or worse, silently accepted into
     /// tomorrow (`docs/13` §7).
     @Test func sealingOfflineFailsRatherThanQueueing() async throws {
-        let (store, stub) = makeStore([RoundStub.Response(failure: URLError(.notConnectedToInternet))])
+        let (store, _) = makeStore([RoundStub.Response(failure: URLError(.notConnectedToInternet))])
 
         let submission = await store.seal(try RoundFixture.track())
 

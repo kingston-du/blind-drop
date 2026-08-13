@@ -84,15 +84,32 @@ struct RoundScreen: View {
     ) -> some View {
         @Bindable var router = env.router
 
+        // **The screen inset belongs to the chrome and to each phase, not to the column.**
+        //
+        // It used to sit on this `VStack`, which was wrong for the two phases that scroll:
+        // `RevealScreen` applies its own inset *inside* its scroll view — it has to, because the
+        // guess sheet is pinned edge to edge beneath it and draws a hairline at the join — so
+        // the reveal shipped indented forty points instead of twenty. That is a bug no golden in
+        // the suite could catch, because every golden renders a screen's content without its
+        // container.
+        //
+        // So: the header and the offline banner inset themselves, and `phase(…)` is inset only
+        // for the phases whose screens do not (`Phase.bleedsToScreenEdge`). `Layout.screenInset`
+        // is applied exactly once on any path from here to a pixel, and `RoundInsetTests` keeps
+        // it that way by cross-checking the flag against which screens write the token.
         return VStack(alignment: .leading, spacing: Layout.blockGap) {
-            RoundHeader(groupName: headerName(store), path: $router.path)
-            if let error = store.state.error {
-                OfflineBanner(error: error)
+            VStack(alignment: .leading, spacing: Layout.blockGap) {
+                RoundHeader(groupName: headerName(store), path: $router.path)
+                if let error = store.state.error {
+                    OfflineBanner(error: error)
+                }
             }
+            .padding(.horizontal, Layout.screenInset)
+
             phase(store: store, timer: timer, submit: submit, seal: seal)
+                .padding(.horizontal, phaseInset(store))
             Spacer(minLength: Space.none)
         }
-        .padding(.horizontal, Layout.screenInset)
         .padding(.top, Layout.blockGap)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Every tick: has the thing being counted to passed? The **store** answers, from the
@@ -150,6 +167,9 @@ struct RoundScreen: View {
                     deadline: context.deadline(now: env.clock.now)
                 )
 
+            // The two that scroll bleed to the edge and inset themselves: a scroll indicator
+            // belongs at the screen's edge, and the reveal's guess sheet is pinned across the
+            // full width with a hairline at the join (`docs/08` §6).
             case let .revealed(_, payload):
                 RevealHost(
                     roundID: context.round.id,
@@ -172,6 +192,13 @@ struct RoundScreen: View {
         } else if store.state.isLoading {
             RoundSkeleton()
         }
+    }
+
+    /// The inset for the phase currently on screen, or the ordinary one while there is no phase
+    /// yet — the skeleton is a column like any other.
+    private func phaseInset(_ store: RoundStore) -> CGFloat {
+        guard let phase = store.state.value?.round.phase else { return Layout.screenInset }
+        return phase.bleedsToScreenEdge ? Space.none : Layout.screenInset
     }
 
     // MARK: - The sheet
@@ -313,6 +340,29 @@ private struct RevealHost: View {
                 haptics: env.haptics
             )
             store = built
+        }
+    }
+}
+
+extension RoundDTO.Phase {
+    /// Whether this phase's screen draws to the **screen's** edges and applies `screenInset`
+    /// itself, rather than being placed inside one by `RoundScreen`.
+    ///
+    /// The two that do are the two that scroll, and each has a reason that is about the edge
+    /// rather than about taste: a scroll indicator belongs at the screen's edge where a thumb
+    /// expects it, and the reveal's guess sheet is pinned across the full width with a hairline
+    /// at the join (`docs/08` §6) — a sheet inset by twenty points would show `paper` through a
+    /// seam that is supposed to be an edge.
+    ///
+    /// A property rather than four `.padding` calls at the call sites, because the failure it
+    /// prevents is silent: a screen that insets itself *and* is inset by its container is
+    /// indented forty points, and every golden in the suite renders a screen's content without
+    /// its container, so no picture in the repository would show it. `RoundInsetTests` asserts
+    /// this flag against the screens' own source for exactly that reason.
+    var bleedsToScreenEdge: Bool {
+        switch self {
+        case .revealed, .scored: true
+        case .open, .voided: false
         }
     }
 }

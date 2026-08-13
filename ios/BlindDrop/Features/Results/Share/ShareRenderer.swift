@@ -26,12 +26,34 @@ final class ShareRenderer {
     static let artworkTimeout = Duration.seconds(3)
 
     /// The renders this instance has on disk, by variant, so switching thumbnails twice does not
-    /// render twice — and so **every** file it has written can be deleted when the sheet closes.
+    /// render twice.
     private(set) var rendered: [ShareCard.Variant: URL] = [:]
 
     /// Whether a render is in flight. The picker draws a `paperSunk` skeleton meanwhile
     /// (`docs/10` §4).
-    private(set) var isRendering = false
+    var isRendering: Bool { !inFlight.isEmpty }
+
+    /// **Every file this instance has ever written**, which is not the same set as `rendered`.
+    ///
+    /// It has to be tracked separately or `docs/10` §5's *"the temporary file is deleted"*
+    /// quietly becomes *"the last temporary file is deleted"*: if two renders of one variant
+    /// ever both complete, the second overwrites the first's entry in `rendered` and the first
+    /// file is left on disk with nothing holding its name. The in-flight table below makes that
+    /// race very unlikely; this makes it harmless.
+    private(set) var written: [URL] = []
+
+    /// Renders in progress, so a second ask for a variant **joins** the first rather than
+    /// starting a second render of the same card.
+    ///
+    /// The picker starts the preselected variant rendering as soon as it appears, and the button
+    /// asks for the same one the moment a thumb lands on it — well inside the time a render
+    /// takes. Without this those are two renders, two files, and one of them orphaned.
+    private var inFlight: [ShareCard.Variant: Task<URL?, Never>] = [:]
+
+    /// Bumped by `discard()`. A render that was already in flight when the sheet closed finishes
+    /// into a generation nobody is waiting for, and cleans up after itself rather than leaving a
+    /// card of real names in the temporary directory (`docs/10` §5).
+    private var generation = 0
 
     private let loader: any ArtworkLoading
     private let log = Logger(subsystem: "app.blinddrop", category: "share")
@@ -47,9 +69,34 @@ final class ShareRenderer {
     ///   nothing.
     func png(for content: ShareCardContent, variant: ShareCard.Variant) async -> URL? {
         if let existing = rendered[variant] { return existing }
-        isRendering = true
-        defer { isRendering = false }
+        if let running = inFlight[variant] { return await running.value }
 
+        // Captured **here**, before the task exists, and deliberately not inside `produce`.
+        // The task body does not start until the main actor next yields, so a `discard()` in
+        // between would be invisible to a generation read from inside it — the render would
+        // sample the new value, compare it to itself, and keep a file the sweep had already
+        // decided nobody wanted. Found by the full suite under load, where the gap is wide.
+        let generation = generation
+        let task = Task { [weak self] in await self?.produce(content, variant: variant) ?? nil }
+        inFlight[variant] = task
+        let url = await task.value
+        if inFlight[variant] == task { inFlight[variant] = nil }
+
+        guard generation == self.generation else {
+            // `discard()` ran while this was rendering. Anything written after the sweep is this
+            // call's to remove — a card of real display names is not left in the temporary
+            // directory because the sheet closed early (`docs/10` §5).
+            if let url {
+                try? FileManager.default.removeItem(at: url)
+                written.removeAll { $0 == url }
+            }
+            return nil
+        }
+        if let url { rendered[variant] = url }
+        return url
+    }
+
+    private func produce(_ content: ShareCardContent, variant: ShareCard.Variant) async -> URL? {
         // Rule 2, before anything is drawn.
         if !Typography.registerDisplayFace() {
             log.error("share card rendering without the display face — numerals will be SF Pro")
@@ -58,24 +105,40 @@ final class ShareRenderer {
         // tracks: switching to the story thumbnail never re-downloads anything.
         await loadArtwork(for: content)
 
+        // The cheap half of the same rule: a render nobody is waiting for should not reach the
+        // disk at all. `png`'s generation check is what makes it *correct*; this is what makes
+        // it usually unnecessary.
+        guard !Task.isCancelled else { return nil }
+
         guard let image = render(content, variant: variant) else {
             log.error("ImageRenderer produced no share card")
             return nil
         }
-        guard let url = await write(image, variant: variant) else { return nil }
-        rendered[variant] = url
-        return url
+        return await write(image, variant: variant)
+    }
+
+    /// Drops the by-variant cache **without** touching the files, so a test can force the second
+    /// render that would orphan one. Nothing in the app calls it: the whole point of `written`
+    /// is that these two sets can come apart, and a test that could not separate them would be
+    /// asserting the bug away rather than against it.
+    func forgetCachedRendersForTesting() {
+        rendered = [:]
     }
 
     /// Deletes every file this renderer wrote.
     ///
-    /// Called from the share sheet's completion handler and from the picker's dismissal — both,
-    /// because a user who backs out of the picker without sharing has still had a card written
-    /// for them, and `docs/10` §5 does not make the deletion conditional on the share happening.
+    /// Called from the share sheet's completion handler, from the picker's dismissal, and from
+    /// leaving the results — all three, because a user who backs out without sharing has still
+    /// had a card written for them, and `docs/10` §5 does not make the deletion conditional on
+    /// the share having happened.
     func discard() {
-        for url in rendered.values {
+        generation += 1
+        for task in inFlight.values { task.cancel() }
+        inFlight = [:]
+        for url in written {
             try? FileManager.default.removeItem(at: url)
         }
+        written = []
         rendered = [:]
     }
 
@@ -186,6 +249,9 @@ final class ShareRenderer {
             // atomic write is what stops the share sheet reading a half-written file on a slow
             // device.
             try encoded.write(to: url, options: .atomic)
+            // Recorded the instant it exists, so nothing can be written without `discard()`
+            // knowing its name.
+            written.append(url)
             return url
         } catch {
             log.error("share card could not be written: \(error.localizedDescription, privacy: .public)")

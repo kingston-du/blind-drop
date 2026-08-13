@@ -80,7 +80,12 @@ struct ResultsScreen: View {
 
     var body: some View {
         ScrollView {
+            // The inset belongs to the scroll container's *content*, not to the container
+            // (`docs/07` §4) — which is what puts the scroll indicator at the screen's edge
+            // where a thumb expects it. `RoundScreen` therefore does not inset this phase; the
+            // two together are the one application of `Layout.screenInset` on this path.
             content
+                .padding(.horizontal, Layout.screenInset)
         }
         // **"Any scroll gesture completes the entire sequence immediately"** (`docs/09` §4).
         //

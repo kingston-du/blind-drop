@@ -40,9 +40,15 @@ struct ShareCardContent: Equatable, Sendable {
         // **Tonight's** leader, not the all-time one: the card is about one night, and
         // `docs/10` §2's own example prints *"Cal 100%"* — Cal's ear for the `docs/02` §4.4
         // round, where his all-time is 79%.
-        bestEar = results.people
+        //
+        // Ties go to the **first** person the server sent, not the last. `max(by:)` returns the
+        // last of equal elements, which would let two people on 100% swap places between the
+        // picker's thumbnail and the file it renders — the same card naming a different person
+        // twice in one sitting.
+        let leaders = results.people
             .compactMap { person in person.ear.map { Leader(name: person.displayName, rate: $0) } }
-            .max { $0.rate < $1.rate }
+        bestEar = leaders.max { $0.rate < $1.rate }
+            .flatMap { best in leaders.first { $0.rate == best.rate } }
     }
 }
 

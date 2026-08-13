@@ -103,6 +103,19 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// The longest names the product allows, in both lists.
+    ///
+    /// `DisplayName.maximumLength` is 24 characters, and at `.large` that is most of an SE's
+    /// width — enough to wrap a name onto a second line and leave its percentage floating beside
+    /// the third. Both rows hold their names to one truncating line while they are rows, which is
+    /// a claim only a picture of a long name can check.
+    @Test(arguments: devices)
+    func standingsWithTheLongestNames(_ device: SnapshotRenderer.Device) {
+        verify(named: "Results-standings-longnames", device, .large) {
+            StandingsView(standings: ResultsSnapshotFixture.standingsWithLongNames)
+        }
+    }
+
     private func verify(
         named name: String,
         _ device: SnapshotRenderer.Device,
@@ -178,6 +191,27 @@ enum ResultsSnapshotFixture {
     /// The group's all-time lists — seven in Best Ear and eight in readability, because Ivy has
     /// dropped nothing yet and so appears in neither ranking she has no numbers for.
     static let standings: StandingsDTO = decoded("standings")
+
+    /// The same standings with every name at `DisplayName.maximumLength`.
+    ///
+    /// Built by editing the payload and decoding it again — the DTOs' initialiser is the decoder
+    /// on purpose (`docs/13` §2), so a fixture is JSON.
+    static let standingsWithLongNames: StandingsDTO = {
+        let name = String("Bartholomew Winterborneiii".prefix(DisplayName.maximumLength))
+        #expect(name.count == DisplayName.maximumLength)
+
+        var json = payload("standings")
+        for list in ["best_ear", "readability"] {
+            json[list] = (json[list] as? [[String: Any]] ?? []).map { row in
+                var row = row
+                row["display_name"] = name
+                return row
+            }
+        }
+        return try! JSONDecoder.api.decode(
+            StandingsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)
+        )
+    }()
 
     private static func decoded<T: Decodable>(_ name: String) -> T {
         try! JSONDecoder.api.decode(T.self, from: data(name))

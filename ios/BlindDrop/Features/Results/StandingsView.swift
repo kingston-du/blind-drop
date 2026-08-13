@@ -105,10 +105,18 @@ private struct EarRow: View {
             .foregroundStyle(Palette.inkDim)
     }
 
+    /// One truncating line while the row is a row, wrapping once it has stacked.
+    ///
+    /// The same trade `TrackRow` makes and for the same reason (`docs/07` §5 against `docs/12`
+    /// §1): a display name runs to 24 characters, which at `.large` is most of an SE's width, so
+    /// an unbounded name would wrap and leave the percentage floating beside its third line.
+    /// Above `.accessibility1` the row is already two lines and the whole name fits on the first.
     private var name: some View {
         Text(verbatim: standing.displayName)
             .typeStyle(.bodyM)
             .foregroundStyle(Palette.ink)
+            .lineLimit(isStacked ? nil : 1)
+            .truncationMode(.tail)
             .frame(maxWidth: isStacked ? .infinity : nil, alignment: .leading)
     }
 
@@ -177,10 +185,14 @@ private struct ReadabilityRow: View {
         }
     }
 
+    /// One truncating line in the fixed column, wrapping once the row has stacked and the
+    /// column has stopped existing — the same rule the Best Ear row follows.
     private var name: some View {
         Text(verbatim: standing.displayName)
             .typeStyle(.bodyM)
             .foregroundStyle(Palette.ink)
+            .lineLimit(isStacked ? nil : 1)
+            .truncationMode(.tail)
             .frame(
                 maxWidth: isStacked ? .infinity : Layout.standingsNameColumn,
                 alignment: .leading
@@ -203,6 +215,7 @@ private struct ReadabilityRow: View {
         Text(verbatim: Copy.band(standing.band))
             .typeStyle(.caption)
             .foregroundStyle(Palette.ink)
+            .lineLimit(isStacked ? nil : 1)
             .frame(
                 maxWidth: isStacked ? .infinity : Layout.standingsBandColumn,
                 alignment: .leading
