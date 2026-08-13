@@ -196,8 +196,11 @@ import Testing
         await store.load()
 
         #expect(store.cards.map(\.cardNumber) == Array(1...8))
-        let path = try #require(session.requests.first?.url?.path())
-        #expect(path.hasSuffix("/rounds/c0000000-0000-4000-8000-000000000001/results"))
+        // *Some* request, not the first one: `load()` issues the answers and the standings
+        // concurrently (`E12-03`), so which of the two wins the race is a coin flip and a test
+        // that asserted on `.first` would pass or fail on it.
+        let paths = session.requests.compactMap { $0.url?.path() }
+        #expect(paths.contains { $0.hasSuffix("/rounds/c0000000-0000-4000-8000-000000000001/results") })
     }
 
     /// A failed refresh keeps the answers on screen (`LoadState.stale`). Results do not change
