@@ -7,26 +7,26 @@ not cleanup tasks at the end of the epic — they are the point of it.
 
 ### E12-01 — Answer reveal
 
-**Status:** wip · **Deps:** E11-04, E05-04 · **Reads:** `docs/08` §7.1, `docs/09` §4, `docs/11` (results)
+**Status:** done · **Deps:** E11-04, E05-04 · **Reads:** `docs/08` §7.1, `docs/09` §4, `docs/11` (results)
 **Touches:** `Features/Results/{ResultsScreen,ResultsStore}.swift`
 **Verify:** snapshot matrix; `PHASE=scored` fixture run
 
-- [ ] Each card resolves to its owner's name in `bodyLStrong`, with "%lld of %lld got it"
-- [ ] Your guess marked with an `ultramarine` check or an `inkFaint` strike — **never red,
+- [x] Each card resolves to its owner's name in `bodyLStrong`, with "%lld of %lld got it"
+- [x] Your guess marked with an `ultramarine` check or an `inkFaint` strike — **never red,
       never a cross** (`docs/07` §2)
-- [ ] Correct/incorrect distinguished by **shape as well as colour** (`docs/12` §3)
-- [ ] Progressive reveal top-to-bottom, 120ms apart, 220ms crossfade, the mark 80ms after its
+- [x] Correct/incorrect distinguished by **shape as well as colour** (`docs/12` §3)
+- [x] Progressive reveal top-to-bottom, 120ms apart, 220ms crossfade, the mark 80ms after its
       name
-- [ ] **Any scroll gesture completes the whole sequence immediately** — never make a user who
+- [x] **Any scroll gesture completes the whole sequence immediately** — never make a user who
       already knows what they want wait for an animation
-- [ ] Runs once per round, persisted flag
-- [ ] Special copy for "Nobody got it" / "Everybody got it"
+- [x] Runs once per round, persisted flag
+- [x] Special copy for "Nobody got it" / "Everybody got it"
 
 ---
 
 ### E12-02 — Personal stats and `StatMeter`
 
-**Status:** todo · **Deps:** E12-01 · **Reads:** `docs/08` §7.2, `docs/02` §4.5, `docs/11`
+**Status:** wip · **Deps:** E12-01 · **Reads:** `docs/08` §7.2, `docs/02` §4.5, `docs/11`
 **Touches:** `Features/Results/ResultsScreen.swift`, `DesignSystem/Components/StatMeter.swift`
 **Verify:** `ScoringFormatTests`; snapshot at three type sizes
 

@@ -1,5 +1,29 @@
 import SwiftUI
 
+/// A card once the answers are out (`docs/08` §7.1).
+///
+/// The card's own numbers, resolved: whose song it was, how many of the room had it, and — only
+/// if the caller guessed — what they said. `myGuess` is `nil` for the caller's own card, for a
+/// card they left blank, and for a round they could not guess in at all; the three are the same
+/// fact from the card's point of view, which is that there is no mark to draw.
+///
+/// `eligibleCount` is the server's `eligible_guesser_count` and is `S − 1` on every card
+/// (`docs/02` §4.1). It is carried rather than derived because a denominator the client worked
+/// out from what it could see would quietly become a count of the people who bothered.
+struct CardResolution: Equatable, Sendable {
+    let owner: String
+    let correctCount: Int
+    let eligibleCount: Int
+    let myGuess: MyGuess?
+
+    /// What the caller said, and whether it was right. The name, not the id — by this point the
+    /// screen is printing a person rather than identifying one.
+    struct MyGuess: Equatable, Sendable {
+        let name: String
+        let isCorrect: Bool
+    }
+}
+
 /// The reveal card. Reads like a tasting-flight sheet (`docs/07` §5).
 ///
 /// ```
@@ -39,6 +63,9 @@ struct FlightCard: View {
     var clearGuess: (() -> Void)?
     /// Present only while the reveal's once-per-round unseal is being coordinated.
     var unseal: UnsealPresentation? = nil
+    /// Present only while the results' once-per-round name-resolve is being coordinated
+    /// (`docs/09` §4). Absent means settled — which is what a re-opened round renders.
+    var resolve: ResolvePresentation? = nil
 
     /// The state of the caller's guess for this card.
     enum Assignment: Equatable {
@@ -51,6 +78,9 @@ struct FlightCard: View {
         /// The caller cannot guess in this round at all (`docs/04` §4). The chip is absent
         /// rather than disabled-looking: there is nothing to enable.
         case unavailable
+        /// The answers are out (`docs/08` §7.1). The chip's place is taken by whose song it
+        /// was, how the room did on it, and the mark on the caller's own guess.
+        case resolved(CardResolution)
 
         var accessibilityGuess: Copy.A11y.Guess {
             switch self {
@@ -58,6 +88,7 @@ struct FlightCard: View {
             case let .guessed(name): .assigned(name: name)
             case .mine: .mine
             case .unavailable: .unavailable
+            case let .resolved(resolution): .resolved(resolution)
             }
         }
     }
@@ -79,7 +110,10 @@ struct FlightCard: View {
                     guess: assignment.accessibilityGuess
                 )
             )
-            .accessibilityAddTraits(chooseGuess == nil ? AccessibilityTraits() : .isButton)
+            // `docs/12` §2's table: a reveal card is a `.button`, a results card is
+            // `.staticText`. A card with nothing to choose is the second — the caller's own
+            // song, a round they cannot guess in, and every card once the answers are out.
+            .accessibilityAddTraits(chooseGuess == nil ? .isStaticText : .isButton)
             .accessibilityHint(chooseGuess == nil ? "" : Copy.A11y.cardHint)
             .accessibilityAction {
                 chooseGuess?()
@@ -251,6 +285,80 @@ struct FlightCard: View {
                 .foregroundStyle(Palette.amberText)
         case .unavailable:
             EmptyView()
+        case let .resolved(resolution):
+            ResolvedAnswer(resolution: resolution, presentation: resolve ?? .settled)
+        }
+    }
+
+    /// Whose song it was, how the room did, and how the caller did (`docs/08` §7.1).
+    ///
+    /// A view of its own rather than three lines inline, because it is the only part of the card
+    /// that animates on the results screen and the animation has to leave the geometry alone:
+    /// everything here is drawn whatever the presentation says and moved by `opacity` and
+    /// `offset`, so a card is exactly as tall while its name is arriving as after it has.
+    private struct ResolvedAnswer: View {
+        let resolution: CardResolution
+        let presentation: ResolvePresentation
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    Text(verbatim: Copy.format("results.card.owner", resolution.owner))
+                        .typeStyle(.bodyLStrong)
+                        .foregroundStyle(Palette.ink)
+                    Text(verbatim: Copy.resultCount(
+                        correct: resolution.correctCount,
+                        eligible: resolution.eligibleCount
+                    ))
+                        .typeStyle(.monoS)
+                        .foregroundStyle(Palette.inkDim)
+                }
+                .opacity(presentation.hasName ? 1 : 0)
+                // *"a 220ms crossfade plus `y: 4 → 0`"* (`docs/09` §4). The rise is dropped
+                // under reduced motion, because the rise **is** the movement — the crossfade
+                // stays, because the arrival is information.
+                .offset(y: presentation.hasName || presentation.reducedMotion
+                        ? 0
+                        : Motion.Resolve.rise)
+                .animation(presentation.reducedMotion ? Motion.Resolve.reduced : Motion.Resolve.name,
+                           value: presentation.hasName)
+
+                if let guess = resolution.myGuess {
+                    mark(guess)
+                        .opacity(presentation.hasMark ? 1 : 0)
+                        .animation(presentation.reducedMotion
+                                   ? Motion.Resolve.reduced
+                                   : Motion.Resolve.mark,
+                                   value: presentation.hasMark)
+                        .padding(.top, Space.xs)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        /// The caller's own guess. **`ultramarine` check or `inkFaint` strike — never red and
+        /// never a cross** (`docs/07` §2), and the two differ by *shape* as well as by colour
+        /// (`docs/12` §3): one carries a glyph the other does not, and one is struck through.
+        ///
+        /// The struck name itself is `inkDim` rather than `inkFaint`: `docs/12` §3 rules
+        /// `inkFaint` out for body text at 3.49:1, and it is the **strike** that the design
+        /// system assigns that token to.
+        @ViewBuilder private func mark(_ guess: CardResolution.MyGuess) -> some View {
+            HStack(spacing: Space.sm) {
+                if guess.isCorrect {
+                    // `.typeStyle` rather than a resolved `UIFont`: the glyph has to ride the
+                    // same Dynamic Type ramp the name beside it does, and a font resolved at the
+                    // device's default category leaves a 15pt check next to 40pt text at
+                    // `.accessibility5` (`docs/12` §1).
+                    Image(systemName: "checkmark")
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.ultramarine)
+                }
+                Text(verbatim: guess.name)
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(guess.isCorrect ? Palette.ultramarine : Palette.inkDim)
+                    .strikethrough(!guess.isCorrect, color: Palette.inkFaint)
+            }
         }
     }
 

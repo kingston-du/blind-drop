@@ -69,6 +69,20 @@ enum Copy {
         string("band.\(band.rawValue)")
     }
 
+    // MARK: - Results
+
+    /// *"4 of 7 got it"*, and the two ends of that range which get their own sentence
+    /// (`docs/11` — `results.card.*`).
+    ///
+    /// The special cases are copy rather than arithmetic on screen: *"0 of 7 got it"* and
+    /// *"7 of 7 got it"* are both true and both read like a spreadsheet, and the two nights this
+    /// game is remembered for are the one nobody got and the one everybody did.
+    static func resultCount(correct: Int, eligible: Int) -> String {
+        if correct <= 0 { return string("results.card.nobody") }
+        if correct >= eligible { return string("results.card.everybody") }
+        return format("results.card.correct", correct, eligible)
+    }
+
     // MARK: - VoiceOver
 
     /// The label formats of `docs/12` §2, assembled.
@@ -93,7 +107,31 @@ enum Copy {
                 // A round the caller cannot guess in (`docs/04` §4). The card still announces
                 // its three facts; there is no fourth because there is no sheet to fill in.
                 format("a11y.card", number, title, artist)
+            case let .resolved(resolution):
+                result(number: number, title: title, artist: artist, resolution: resolution)
             }
+        }
+
+        /// A results card: the three facts, then the answer, then — only if the caller guessed
+        /// — what they said and how it went (`docs/12` §2, `a11y.card.result` + `.result.mine`).
+        ///
+        /// Two sentences joined rather than one format with optional pieces, because *"Your
+        /// guess was Cal. Wrong."* is a sentence about the reader and the one before it is a
+        /// sentence about the room. A VoiceOver user who did not guess hears only the second,
+        /// which is exactly what a sighted one sees.
+        private static func result(
+            number: Int,
+            title: String,
+            artist: String,
+            resolution: CardResolution
+        ) -> String {
+            let answer = format(
+                "a11y.card.result", number, title, artist,
+                resolution.owner, resolution.correctCount, resolution.eligibleCount
+            )
+            guard let guess = resolution.myGuess else { return answer }
+            let verdict = string(guess.isCorrect ? "a11y.guess.correct" : "a11y.guess.incorrect")
+            return "\(answer) \(format("a11y.card.result.mine", guess.name, verdict))"
         }
 
         /// What a card's fourth fact is.
@@ -106,6 +144,8 @@ enum Copy {
             case mine
             /// The caller cannot guess at all: they did not submit, or they joined late.
             case unavailable
+            /// The answers are out: the card names its owner, its count, and the caller's mark.
+            case resolved(CardResolution)
         }
 
         static let cardHint = string("a11y.card.hint")

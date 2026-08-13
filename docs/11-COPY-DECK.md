@@ -342,6 +342,8 @@ Not visible copy, but user-facing. See `12-ACCESSIBILITY.md` for where each is a
 | `a11y.namechip.assigned` | Assigned to No. %lld |
 | `a11y.guess.assigned` | No. %lld assigned to %@. | posted as an `.announcement` |
 | `a11y.guess.clear` | Clear guess | the `✕` on an inline chip, as a named action |
+| `a11y.guess.correct` | Correct | fills `a11y.card.result.mine`'s second placeholder |
+| `a11y.guess.incorrect` | Wrong | the same slot, and the mark is a strike — never a cross |
 | `a11y.rotor.songs` | Songs | the custom rotor over the reveal's cards (`docs/12` §2) |
 | `a11y.rotor.song` | No. %lld | one entry in that rotor — the number is what it is jumped to by |
 | `a11y.preview.play` | Play preview |
@@ -352,6 +354,10 @@ Not visible copy, but user-facing. See `12-ACCESSIBILITY.md` for where each is a
 | `a11y.invite.code` | Your invite code is %@. | the code spelled out, one character at a time |
 | `a11y.seal.done` | Sealed. |
 | `a11y.unseal.done` | Songs revealed. |
+
+`a11y.guess.correct` / `.incorrect` are the two words that fill `a11y.card.result.mine`. They
+exist only for VoiceOver: on screen the same fact is a check or a strike (`docs/07` §2), and a
+sighted reader is never handed the word *"Wrong"* about a song they guessed.
 
 Seven of these rows were written down at `E08-04` rather than invented at a call site
 (`CLAUDE.md` §6). `12-ACCESSIBILITY.md` §2 already specified every one of them in prose — the

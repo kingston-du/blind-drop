@@ -145,6 +145,16 @@
 "reveal.blocked.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "reveal.blocked.canview" = "You can still look.";
 
+/* ── Results (docs/11 §Results) ────────────────────────────────────────────── */
+/* E12-01 brings the answers. The "You" block is E12-02, the standings E12-03 and the
+ * share card E12-04. */
+
+"results.title" = "Answers";
+"results.card.owner" = "%@";
+"results.card.correct" = "%lld of %lld got it";
+"results.card.nobody" = "Nobody got it";
+"results.card.everybody" = "Everybody got it";
+
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
 /* No band is framed as good or bad. */
 
@@ -171,6 +181,8 @@
 "a11y.namechip.assigned" = "Assigned to No. %lld";
 "a11y.guess.assigned" = "No. %lld assigned to %@.";
 "a11y.guess.clear" = "Clear guess";
+"a11y.guess.correct" = "Correct";
+"a11y.guess.incorrect" = "Wrong";
 "a11y.rotor.songs" = "Songs";
 "a11y.rotor.song" = "No. %lld";
 "a11y.preview.play" = "Play preview";

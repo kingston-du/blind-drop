@@ -91,6 +91,14 @@ enum Layout {
     /// which to measure the fraction. Production always receives the measured screen height.
     static let namePoolSnapshotMaximumHeight: CGFloat = 320
 
+    /// How far a finger travels before it counts as *scrolling past* rather than as a tap
+    /// (`docs/09` §4: *"any scroll gesture completes the entire sequence immediately"*).
+    ///
+    /// Small on purpose — the rule is about intent, not about distance — but not zero, because
+    /// a zero-distance drag fires on every tap and would end the results animation on a touch
+    /// that never moved.
+    static let scrollSkipDistance: CGFloat = Space.xs
+
     /// Artwork at the four sizes `docs/06` §2.1 names.
     enum Artwork {
         static let searchRow: CGFloat = 56

@@ -148,6 +148,40 @@ struct FixtureRoundTests {
         #expect(sheet.assignableCount == 7)
     }
 
+    /// **`E12-01`'s `PHASE=scored` fixture run.**
+    ///
+    /// The two halves of `docs/04` §4's split, in the order the app performs them: the round
+    /// says `scored` and carries the base keys only, and the answers come from the round's own
+    /// route. Run through the real `APIClient` and the real decoding, so a field the contract
+    /// does not send — or a `null` the client turns into a zero — fails here rather than in a
+    /// golden PNG.
+    @Test func theAnswersLoadAgainstTheScoredFixture() async throws {
+        guard try await servedFixturePhase() == "scored" else { return }
+        let env = try environment()
+        let round = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+
+        await round.load()
+        let context = try #require(round.state.value)
+        #expect(context.round.state == .scored)
+
+        let results = ResultsStore(api: env.api, roundID: context.round.id)
+        await results.load()
+
+        // The server's order, kept: `card_no` is the shuffle every member sees (`E03-04`).
+        #expect(results.cards.map(\.cardNumber) == Array(1...8))
+        let first = try #require(results.cards.first)
+        #expect(first.resolution.owner == "Dee")
+        #expect(first.resolution.eligibleCount == 7)
+
+        // **`null` means *not applicable*, never *zero*** (`docs/04` §4). Eli submitted and
+        // guessed nothing; a client that decoded that as `0` would turn "you sat out" into "you
+        // scored nothing", which is the one judgement this product refuses to make.
+        let people = try #require(results.state.value?.people)
+        let eli = try #require(people.first { $0.displayName == "Eli" })
+        #expect(eli.ear == nil)
+        #expect(eli.readability != nil)
+    }
+
     private func resolvedTrack(_ store: SubmitStore) async -> TrackDTO? {
         store.pasted = "https://open.spotify.com/track/2QjOHCTQ1JF3zJyfWY7EMU"
         return await store.resolve()

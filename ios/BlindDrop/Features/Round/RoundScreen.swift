@@ -162,11 +162,12 @@ struct RoundScreen: View {
                 )
 
             case .scored:
-                // `E12-01` lands `ResultsScreen` here. Until then the round is over and this says
-                // only what it can stand behind: `docs/04` §4's `scored` payload carries the base
-                // keys and nothing else, and a results view built from guesses about the rest
-                // would be worse than a quiet screen.
-                Color.clear
+                // The `scored` payload carries the base keys and nothing else (`docs/04` §4);
+                // the answers are their own route, which is what `ResultsHost` goes and gets.
+                // `loadToken` reaches it so a foreground refresh — or a countdown elapsing —
+                // retries the answers too. Results do not change once they land, but a first
+                // load that failed offline has to have a second chance that is not a relaunch.
+                ResultsHost(roundID: context.round.id, loadToken: loadToken)
             }
         } else if store.state.isLoading {
             RoundSkeleton()
@@ -312,6 +313,59 @@ private struct RevealHost: View {
                 haptics: env.haptics
             )
             store = built
+        }
+    }
+}
+
+/// The results, and the second route they live behind.
+///
+/// Its own view for the same reason `RevealHost` is: `ResultsStore` and `ResolveAnimation` are
+/// `@State` here, so the countdown ticking underneath — or a foreground refetch of the round —
+/// re-evaluates `RoundScreen`'s body without rebuilding either. Rebuilding the animation would
+/// replay a sequence `docs/09` §4 says runs once per round, which the persisted flag would then
+/// have to catch; keeping it is simply the correct thing to do.
+private struct ResultsHost: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let roundID: String
+    let loadToken: Int
+
+    @State private var store: ResultsStore?
+    @State private var resolve: ResolveAnimation?
+
+    var body: some View {
+        Group {
+            if let store {
+                ResultsScreen(
+                    state: store.viewState(resolve: resolve),
+                    // Withdrawn once the sequence has landed, so a scroll through settled
+                    // answers is a plain scroll and not a gesture with a handler on it.
+                    skipResolve: resolve?.isRunning == true ? { resolve?.skip() } : nil
+                )
+            } else {
+                // One runloop, before the store exists. `docs/08` §10 gives loading a skeleton
+                // and no spinner; `RoundScreen` has already drawn one for the round itself.
+                Color.clear
+            }
+        }
+        .task(id: "\(roundID)#\(loadToken)") {
+            let built = store ?? ResultsStore(api: env.api, roundID: roundID)
+            store = built
+            await built.load()
+            // Armed only once the cards are known: the sequence is defined by them, and one
+            // built over an empty list would spend the round's single run on nothing.
+            guard resolve == nil, !built.cards.isEmpty else { return }
+            let animation = ResolveAnimation(
+                roundID: roundID,
+                cardNumbers: built.cards.map(\.cardNumber),
+                flags: env.flags
+            )
+            resolve = animation
+            // Awaited inside the same `.task`, so the sequence's sleeps belong to the screen's
+            // lifetime: leaving the results cancels them instead of leaving timers running
+            // behind a screen nobody is looking at.
+            await animation.run(reducedMotion: reduceMotion)
         }
     }
 }

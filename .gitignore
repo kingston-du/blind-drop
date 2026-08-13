@@ -43,3 +43,8 @@ ios/BlindDropTests/__Snapshots__/__Failures__/
 # was compared against, and a diff with the differing pixels in red. Evidence for the person
 # looking at the failure, not a file to commit — the goldens beside it are the committed half.
 ios/BlindDropTests/__Snapshots__/__Failures__/
+
+# ── Agent scratch ────────────────────────────────────────────────────────────
+# Local agent state and git worktrees. Not part of the project, and a worktree added here by
+# `git add -A` lands in the history as a gitlink nobody can resolve.
+.claude/

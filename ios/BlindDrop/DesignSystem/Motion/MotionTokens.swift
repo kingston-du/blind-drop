@@ -181,6 +181,34 @@ enum Motion {
         }
     }
 
+    /// The results name-resolve (`docs/09` §4).
+    ///
+    /// > *"Card owners' names arrive top-to-bottom, 120ms apart, each a 220ms crossfade plus
+    /// > `y: 4 → 0`. The correct/incorrect mark on your guess arrives 80ms after its name."*
+    ///
+    /// Three numbers and no curve table, because this moment is one crossfade repeated rather
+    /// than six overlapping phases: what makes it read is the **cadence**, which is why the
+    /// stagger and the mark's offset are the values a test pins.
+    enum Resolve {
+        /// Between one card's name and the next's.
+        static let stagger = 120
+        /// The name's crossfade.
+        static let duration = 0.220
+        /// How far the name travels up as it arrives. Four points — a settle, not an entrance.
+        static let rise: CGFloat = 4
+        /// The mark lands **after** its own name, not after the sequence. A user reading the
+        /// third card is told whose song it was and then, a beat later, whether they had it.
+        static let markDelay = 80
+
+        static let name = Animation.easeOut(duration: duration)
+        static let mark = Animation.easeOut(duration: duration)
+
+        /// *"Results resolve: all names appear at once, no stagger"* (`docs/09` §5). The
+        /// crossfade is kept — reduced motion removes movement, not the arrival — and the rise
+        /// is dropped, because the rise **is** the movement.
+        static let reduced = Animation.easeInOut(duration: duration)
+    }
+
     /// Button press: 120ms, scale 0.985 (`docs/09` §1). Under reduced motion, opacity only
     /// (`docs/09` §5) — which is `PrimaryButton`'s to apply, not this table's to decide.
     static let buttonPress = Animation.easeOut(duration: 0.120)

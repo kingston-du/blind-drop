@@ -57,9 +57,28 @@ final class LocalFlags {
         defaults.stringArray(forKey: Key.seenUnsealRounds)?.contains(roundID) == true
     }
 
+    // MARK: - Results (`docs/09` §4)
+
+    /// Whether this install has already run the results name-resolve for a round.
+    ///
+    /// The same shape as `beginUnseal(roundID:)` and for the same reason: *"runs once per
+    /// round"* has to survive a relaunch, and a check separate from its write would let two
+    /// appearances in the same second both decide they were first.
+    func beginResolve(roundID: String) -> Bool {
+        var seen = Set(defaults.stringArray(forKey: Key.seenResolveRounds) ?? [])
+        guard seen.insert(roundID).inserted else { return false }
+        defaults.set(seen.sorted(), forKey: Key.seenResolveRounds)
+        return true
+    }
+
+    func hasSeenResolve(roundID: String) -> Bool {
+        defaults.stringArray(forKey: Key.seenResolveRounds)?.contains(roundID) == true
+    }
+
     private enum Key {
         static let askedAboutNotifications = "flags.notifications.asked"
         static let declinedNotifications = "flags.notifications.declined"
         static let seenUnsealRounds = "flags.reveal.seen-unseal-rounds"
+        static let seenResolveRounds = "flags.results.seen-resolve-rounds"
     }
 }
