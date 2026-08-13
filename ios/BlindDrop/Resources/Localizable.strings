@@ -161,6 +161,10 @@
 "results.ear.label" = "Ear";
 "results.ear.detail" = "%lld of %lld correct";
 "results.ear.none" = "You sat this one out.";
+"results.standings.title" = "All time";
+"results.standings.ear" = "Best ear";
+"results.standings.ear.detail" = "%lld correct";
+"results.standings.readability" = "How readable";
 
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
 /* No band is framed as good or bad. */

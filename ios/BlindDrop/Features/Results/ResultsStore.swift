@@ -17,6 +17,12 @@ final class ResultsStore {
 
     private(set) var state: LoadState<ResultsDTO> = .idle
 
+    /// The group's all-time lists (`docs/08` §7.3). Its own `LoadState` rather than a field on
+    /// the round's, because the two are different routes with different lifetimes: the answers
+    /// are one night and never change again, the standings are the whole group and move every
+    /// night. A failure in one must not blank the other.
+    private(set) var standings: LoadState<StandingsDTO> = .idle
+
     /// The round these answers belong to. Also the key the once-per-round name-resolve is
     /// remembered under (`docs/09` §4).
     let roundID: String
@@ -34,14 +40,26 @@ final class ResultsStore {
     /// more here than on most screens: results do not change after they land, so yesterday's
     /// render of *this* round is not stale in any sense the user cares about, and blanking it
     /// because a foreground refetch timed out would be the app throwing away a correct screen.
+    /// Both routes concurrently, because they are independent GETs and the screen needs both:
+    /// two serial round trips at ten at night on cellular is a spinner nobody asked for.
     func load() async {
         if state.value == nil { state = .loading }
-        // `APIClient.send` throws `APIError` and nothing else — a typed `throws`, so there is
-        // no second `catch` here for an error that cannot arrive.
+        if standings.value == nil { standings = .loading }
+
+        async let answers = result(of: .results(roundID: roundID))
+        async let allTime = result(of: Endpoint<StandingsDTO>.standings)
+
+        state.apply(await answers)
+        standings.apply(await allTime)
+    }
+
+    /// `APIClient.send` throws `APIError` and nothing else — a typed `throws`, so there is no
+    /// second `catch` here for an error that cannot arrive.
+    private func result<R: Decodable & Sendable>(of endpoint: Endpoint<R>) async -> Result<R, APIError> {
         do {
-            state.apply(.success(try await api.send(.results(roundID: roundID))))
+            return .success(try await api.send(endpoint))
         } catch {
-            state.apply(.failure(error))
+            return .failure(error)
         }
     }
 
@@ -59,6 +77,7 @@ final class ResultsStore {
         ResultsViewState(
             cards: cards,
             me: state.value?.me,
+            standings: standings.value,
             namedCards: resolve?.namedCards,
             markedCards: resolve?.markedCards
         )

@@ -21,6 +21,11 @@ struct ResultsViewState: Equatable, Sendable {
     /// optionals that have to agree are safer as one value that already does.
     let me: PersonalScoreDTO?
 
+    /// The group's all-time lists, or `nil` while they are on their way — or if only that route
+    /// failed. The answers are the screen; the standings are a section of it, and a section that
+    /// did not load is a section that is not drawn rather than a screen that is not.
+    let standings: StandingsDTO?
+
     /// The cards whose owner has arrived.
     let namedCards: Set<Int>
     /// The cards whose mark has arrived.
@@ -29,11 +34,13 @@ struct ResultsViewState: Equatable, Sendable {
     init(
         cards: [ResultCardDTO],
         me: PersonalScoreDTO? = nil,
+        standings: StandingsDTO? = nil,
         namedCards: Set<Int>? = nil,
         markedCards: Set<Int>? = nil
     ) {
         self.cards = cards
         self.me = me
+        self.standings = standings
         // `nil` is "settled" — a round re-opened after its one run, and the state every golden
         // but one is a picture of.
         let all = Set(cards.map(\.cardNumber))
@@ -95,6 +102,9 @@ struct ResultsScreen: View {
             answers
             if let me = state.me {
                 PersonalStats(me: me)
+            }
+            if let standings = state.standings {
+                StandingsView(standings: standings)
             }
         }
         .padding(.bottom, Layout.blockGap)

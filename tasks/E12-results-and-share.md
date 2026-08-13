@@ -48,22 +48,22 @@ The one place a formatting bug becomes a product bug.
 
 ### E12-03 — Standings
 
-**Status:** wip · **Deps:** E12-02, E05-05 · **Reads:** `docs/08` §7.3, `docs/02` §4.5
+**Status:** done · **Deps:** E12-02, E05-05 · **Reads:** `docs/08` §7.3, `docs/02` §4.5
 **Touches:** `Features/Results/StandingsView.swift`
 **Verify:** snapshot; unit test asserting no rank on readability
 
-- [ ] **Best Ear** ranked 1..N, `monoM` percentage, raw correct count in `monoS` `inkDim`
-- [ ] **Readability** sorted but **unranked** — no numbers in front of names, each row a
+- [x] **Best Ear** ranked 1..N, `monoM` percentage, raw correct count in `monoS` `inkDim`
+- [x] **Readability** sorted but **unranked** — no numbers in front of names, each row a
       compact `StatMeter` and a band label
-- [ ] Test: the readability list renders no rank position. This is a spec violation
+- [x] Test: the readability list renders no rank position. This is a spec violation
       (`docs/02` §4.5), so it gets a test, not a comment.
-- [ ] Ties in Best Ear share a rank; the next rank skips
+- [x] Ties in Best Ear share a rank; the next rank skips
 
 ---
 
 ### E12-04 — Share card views
 
-**Status:** todo · **Deps:** E12-03 · **Reads:** `docs/10` §1–3, `docs/11` (share)
+**Status:** wip · **Deps:** E12-03 · **Reads:** `docs/10` §1–3, `docs/11` (share)
 **Touches:** `Features/Results/Share/{ShareCardView,ShareHeadline}.swift`
 **Verify:** `ShareCardSnapshotTests` against goldens at both sizes
 

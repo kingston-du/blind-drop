@@ -20,6 +20,14 @@ struct StatMeter: View {
     /// marker drawn off the end of its track.
     let value: Double
     let band: ReadabilityBand
+    /// Whether the meter prints its own band label beneath the track.
+    ///
+    /// `false` is the standings row (`docs/08` §7.3: *"each row a compact `StatMeter` and a band
+    /// label"*), where the label sits beside the track instead of under it and the row owns both
+    /// the layout and the announcement. The band is never *dropped* — a marker with no word next
+    /// to it would be a position on a scale nobody named, which is the rank this component
+    /// exists to not be.
+    var showsBand = true
 
     private var position: Double { min(1, max(0, value)) }
 
@@ -30,7 +38,7 @@ struct StatMeter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             track
-            bandLabels
+            if showsBand { bandLabels }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(

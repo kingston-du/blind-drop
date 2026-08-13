@@ -91,6 +91,16 @@ enum Layout {
     /// which to measure the fraction. Production always receives the measured screen height.
     static let namePoolSnapshotMaximumHeight: CGFloat = 320
 
+    /// The readability list's two fixed columns (`docs/08` §7.3).
+    ///
+    /// Fixed so that the meters line up down the list: a meter that started wherever its
+    /// neighbour's name happened to end would give the column a ragged left edge and — worse —
+    /// make two markers at the same position sit at different x, which is the one thing a
+    /// spectrum must not do. Only below `.accessibility1`; above it the row stacks and the
+    /// columns stop existing.
+    static let standingsNameColumn: CGFloat = Space.x6
+    static let standingsBandColumn: CGFloat = Space.x5 + Space.lg
+
     /// How far a finger travels before it counts as *scrolling past* rather than as a tap
     /// (`docs/09` §4: *"any scroll gesture completes the entire sequence immediately"*).
     ///

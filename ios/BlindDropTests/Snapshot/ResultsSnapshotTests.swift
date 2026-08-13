@@ -86,6 +86,23 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    // MARK: - §7.3 Standings (E12-03)
+
+    /// The two lists, and the asymmetry between them: **Best Ear** ranked 1..N down the left,
+    /// **Readability** with no number in front of any name (`docs/02` §4.5). The golden is what
+    /// makes that difference something a reviewer sees rather than something a comment claims.
+    ///
+    /// `.large` and `.accessibility1` — the latter is where both rows stack and the readability
+    /// row's two fixed columns stop existing. `.accessibility5` is left off deliberately: at
+    /// fifteen stacked rows it is well past the height `UIImage.pngData()` will encode, and
+    /// `A11yReachabilityTests` is where that size is actually checked.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility1])
+    func standings(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-standings", device, size) {
+            StandingsView(standings: ResultsSnapshotFixture.standings)
+        }
+    }
+
     private func verify(
         named name: String,
         _ device: SnapshotRenderer.Device,
@@ -156,16 +173,22 @@ enum ResultsSnapshotFixture {
     /// Read from `ios/Fixtures/payloads` directly, because `BlindDropTests/Unit` and
     /// `BlindDropTests/Snapshot` are separate targets and share no code — the same reason
     /// `SubmitSnapshots` carries its own loader.
-    static let results: ResultsDTO = {
+    static let results: ResultsDTO = decoded("results")
+
+    /// The group's all-time lists — seven in Best Ear and eight in readability, because Ivy has
+    /// dropped nothing yet and so appears in neither ranking she has no numbers for.
+    static let standings: StandingsDTO = decoded("standings")
+
+    private static func decoded<T: Decodable>(_ name: String) -> T {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // Snapshot
             .deletingLastPathComponent()   // BlindDropTests
             .deletingLastPathComponent()   // ios
         return try! JSONDecoder.api.decode(
-            ResultsDTO.self,
-            from: try! Data(contentsOf: root.appending(path: "Fixtures/payloads/results.json"))
+            T.self,
+            from: try! Data(contentsOf: root.appending(path: "Fixtures/payloads/\(name).json"))
         )
-    }()
+    }
 }
 
 extension PersonalScoreDTO {
