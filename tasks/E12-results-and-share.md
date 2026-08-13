@@ -26,29 +26,29 @@ not cleanup tasks at the end of the epic — they are the point of it.
 
 ### E12-02 — Personal stats and `StatMeter`
 
-**Status:** wip · **Deps:** E12-01 · **Reads:** `docs/08` §7.2, `docs/02` §4.5, `docs/11`
+**Status:** done · **Deps:** E12-01 · **Reads:** `docs/08` §7.2, `docs/02` §4.5, `docs/11`
 **Touches:** `Features/Results/ResultsScreen.swift`, `DesignSystem/Components/StatMeter.swift`
 **Verify:** `ScoringFormatTests`; snapshot at three type sizes
 
 The one place a formatting bug becomes a product bug.
 
-- [ ] Readability and Ear as `monoXL` percentages, tabular
-- [ ] **`null` ear renders as "—" with *"You sat this one out."* — never `0%`.** Getting this
+- [x] Readability and Ear as `monoXL` percentages, tabular
+- [x] **`null` ear renders as "—" with *"You sat this one out."* — never `0%`.** Getting this
       wrong turns "you sat out" into "you scored nothing", which is the one judgement the
       product refuses to make.
-- [ ] Readability absent (not zero) for a non-submitter
-- [ ] `StatMeter`: marker only, **no fill from the left**, with its active one-word band label
+- [x] Readability absent (not zero) for a non-submitter
+- [x] `StatMeter`: marker only, **no fill from the left**, with its active one-word band label
       only in `ink`
-- [ ] Band names from `docs/02` §4.5, presented without judgement — no arrow, no rank, no
+- [x] Band names from `docs/02` §4.5, presented without judgement — no arrow, no rank, no
       comparison to yesterday
-- [ ] Above `.accessibility1` the pair stacks (`docs/12` §1)
-- [ ] VoiceOver announces the percentage **and** the band name
+- [x] Above `.accessibility1` the pair stacks (`docs/12` §1)
+- [x] VoiceOver announces the percentage **and** the band name
 
 ---
 
 ### E12-03 — Standings
 
-**Status:** todo · **Deps:** E12-02, E05-05 · **Reads:** `docs/08` §7.3, `docs/02` §4.5
+**Status:** wip · **Deps:** E12-02, E05-05 · **Reads:** `docs/08` §7.3, `docs/02` §4.5
 **Touches:** `Features/Results/StandingsView.swift`
 **Verify:** snapshot; unit test asserting no rank on readability
 

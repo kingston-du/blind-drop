@@ -58,6 +58,7 @@ final class ResultsStore {
     func viewState(resolve: ResolveAnimation?) -> ResultsViewState {
         ResultsViewState(
             cards: cards,
+            me: state.value?.me,
             namedCards: resolve?.namedCards,
             markedCards: resolve?.markedCards
         )

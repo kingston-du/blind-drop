@@ -2,7 +2,7 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E12-02`. `E00`–`E11` and `E12-01` are done.
+**Start here:** `E12-03`. `E00`–`E11` and `E12-01`–`E12-02` are done.
 
 ---
 
@@ -153,8 +153,8 @@ E04..E07 + E13  ─ E14 QA & release
 | Task | Status | Deps | Proves |
 |---|---|---|---|
 | E12-01 Answer reveal | done | E11-04, E05-04 | AC-8 |
-| E12-02 Personal stats and `StatMeter` | wip | E12-01 | AC-8 |
-| E12-03 Standings | todo | E12-02, E05-05 | AC-8 |
+| E12-02 Personal stats and `StatMeter` | done | E12-01 | AC-8 |
+| E12-03 Standings | wip | E12-02, E05-05 | AC-8 |
 | E12-04 Share card views | todo | E12-03 | AC-9 |
 | E12-05 Share renderer and share sheet | todo | E12-04 | AC-9 |
 
@@ -196,7 +196,7 @@ E04..E07 + E13  ─ E14 QA & release
 | E09 | 4 / 4 |
 | E10 | 7 / 7 |
 | E11 | 6 / 6 |
-| E12 | 1 / 5 |
+| E12 | 2 / 5 |
 | E13 | 0 / 5 |
 | E14 | 0 / 5 |
-| **Total** | **66 / 80** |
+| **Total** | **67 / 80** |

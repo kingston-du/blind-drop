@@ -7,11 +7,11 @@ import Testing
 private let devices = SnapshotRenderer.Device.matrix
 private let sizes = SnapshotRenderer.typeSizes
 
-/// `E12-01`'s verify line: the snapshot matrix over the answers.
+/// The results screen's goldens — `E12-01`'s answers and `E12-02`'s **You** pair.
 ///
-/// Three lengths, for the reason `RevealSnapshots` splits the same way — `UIImage.pngData()`
-/// returns `nil` somewhere above eight thousand pixels of height, and a results card is taller
-/// than a reveal card, so the long flights carry only `.large`.
+/// The flights come in three lengths, for the reason `RevealSnapshots` splits the same way:
+/// `UIImage.pngData()` returns `nil` somewhere above eight thousand pixels of height, and a
+/// results card is taller than a reveal card, so the long flights carry only `.large`.
 ///
 /// - **Three cards, the full 2 × 3 matrix.** Nos. 3, 4 and 5 — a guess the caller got, a card
 ///   they never guessed, and a guess they got wrong — so every mark state is in one image. At
@@ -51,6 +51,38 @@ private let sizes = SnapshotRenderer.typeSizes
                 named: [3, 4],
                 marked: [3]
             )
+        }
+    }
+
+    // MARK: - §7.2 You (E12-02)
+
+    /// The pair, at the three type sizes `E12-02` asks for. `.accessibility1` is where
+    /// `docs/12` §1 requires it to have stacked, and `.accessibility5` is where the two
+    /// sentences under the numbers either still fit or visibly do not.
+    @Test(arguments: devices, sizes)
+    func personalStats(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-you", device, size) {
+            ResultsSnapshotFixture.stats(ResultsSnapshotFixture.results.me)
+        }
+    }
+
+    /// **The `null` ear.** Eli's night: they dropped a song and never opened the sheet, so the
+    /// ear is `nil` and renders as *"—"* over *"You sat this one out."* — **never `0%`**
+    /// (`docs/04` §4). The golden exists so that a regression to a zero is a picture somebody
+    /// can look at.
+    @Test(arguments: devices)
+    func personalStatsWithNoEar(_ device: SnapshotRenderer.Device) {
+        verify(named: "Results-you-noear", device, .large) {
+            ResultsSnapshotFixture.stats(PersonalScoreDTO.satOutTheGuessing)
+        }
+    }
+
+    /// The non-submitter's night: **readability absent, not zero**, and no meter under it —
+    /// there is no position on the spectrum for somebody who was not in the room.
+    @Test(arguments: devices)
+    func personalStatsForANonSubmitter(_ device: SnapshotRenderer.Device) {
+        verify(named: "Results-you-nodrop", device, .large) {
+            ResultsSnapshotFixture.stats(PersonalScoreDTO.didNotDrop)
         }
     }
 
@@ -111,6 +143,12 @@ enum ResultsSnapshotFixture {
     /// The whole night, in the order the server sent it.
     static var allCards: [ResultCardDTO] { results.cards }
 
+    /// The **You** pair on its own, so the two absent-rate goldens are pictures of the pair
+    /// rather than of a whole screen with an empty flight above it.
+    static func stats(_ me: PersonalScoreDTO) -> some View {
+        PersonalStats(me: me)
+    }
+
     /// Force-unwrapped on purpose: a fixture payload that does not decode is a broken
     /// repository, and one loud failure here reads better than every golden failing for a
     /// reason none of them names.
@@ -128,4 +166,30 @@ enum ResultsSnapshotFixture {
             from: try! Data(contentsOf: root.appending(path: "Fixtures/payloads/results.json"))
         )
     }()
+}
+
+extension PersonalScoreDTO {
+
+    /// Eli's night in `docs/02` §4.4: dropped a song, opened nothing. **`ear` is `nil`, not
+    /// `0`** — and the counts beside it go `nil` with it, because "of how many" is meaningless
+    /// for a sheet nobody filled in.
+    static let satOutTheGuessing = PersonalScoreDTO(
+        readability: 0.143,
+        readabilityCorrect: 1,
+        readabilityPossible: 7,
+        ear: nil,
+        earCorrect: nil,
+        earPossible: nil
+    )
+
+    /// Ivy's night: no drop, so **no readability at all**. Not a zero — no card of hers was in
+    /// the room for anybody to read (`docs/04` §4).
+    static let didNotDrop = PersonalScoreDTO(
+        readability: nil,
+        readabilityCorrect: nil,
+        readabilityPossible: nil,
+        ear: nil,
+        earCorrect: nil,
+        earPossible: nil
+    )
 }

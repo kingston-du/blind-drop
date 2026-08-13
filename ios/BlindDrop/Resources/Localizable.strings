@@ -154,6 +154,13 @@
 "results.card.correct" = "%lld of %lld got it";
 "results.card.nobody" = "Nobody got it";
 "results.card.everybody" = "Everybody got it";
+"results.you.title" = "You";
+"results.readability.label" = "Readability";
+"results.readability.detail" = "%lld of %lld read you";
+"results.readability.none" = "You didn't drop tonight.";
+"results.ear.label" = "Ear";
+"results.ear.detail" = "%lld of %lld correct";
+"results.ear.none" = "You sat this one out.";
 
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
 /* No band is framed as good or bad. */
