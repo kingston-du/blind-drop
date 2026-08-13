@@ -81,16 +81,17 @@ One view, a `variant` parameter, two artifacts — so a copy change lands in bot
 - [x] Long titles: middle ellipsis on the title, tail on the owner; owner never truncates
       before the title
 
-> **Open question:** `docs/10` §2's headline rule 4 is *"lowest readability of the night"* and
-> its string is *"%@ was unreadable"*. On a night where the lowest readability is 71% that
-> sentence is false, and §2 also says *"never a superlative that requires a comparison the
-> viewer can't see on the card"* — which "lowest of the night" is exactly. Interpretation taken:
-> **rule 4 fires only when the lowest readability is actually in the `unreadable` band**
-> (`docs/02` §4.5), and otherwise falls through to rule 5. That keeps the one sentence on the
-> card true on its own terms, which is the reading most protective of the people named on it —
-> a card that leaves a private group calling somebody "unreadable" when they were merely least
-> readable is the same class of mistake as printing a rank on the readability list.
-> `ShareHeadlineTests` covers both sides of the boundary.
+> **Resolved question:** `docs/10` §2's headline rule 4 is *"lowest readability of the night"*
+> and its string is *"%@ was unreadable"*. On a night where the lowest readability is 71% those
+> are not the same claim, and §2 separately rules out *"a superlative that requires a comparison
+> the viewer can't see on the card"*. The implementation first narrowed the rule to people
+> actually in the `unreadable` band (`docs/02` §4.5), falling through to rule 5 otherwise.
+>
+> **The owner's decision is the literal reading: lowest readability of the night, whatever it
+> is.** Rule 4 now fires on the minimum, and only returns nothing when nobody has a readability
+> at all. `ShareHeadlineTests` covers both sides of what used to be the boundary — a 71% low
+> now produces *"Ben was unreadable"* — and a test names the decision so it cannot be quietly
+> re-narrowed.
 
 ---
 

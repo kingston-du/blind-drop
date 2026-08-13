@@ -56,9 +56,11 @@ import Testing
         let night = try ShareHeadlineFixture.fortyFour()
         // The §4.4 night matches rule 3 — Cal's ear is 1.0 — so the fallback is checked on a
         // night stripped of every earlier match.
+        // Rule 4 fires on any readability at all, so the fallback is only reachable on a night
+        // where nobody has one — a round of people who all joined after the reveal.
         let ordinary = ShareHeadlineFixture.night(
             cards: (1...8).map { ($0, 3) },
-            people: [("Ana", readability: 0.9, ear: 0.5), ("Ben", readability: 0.7, ear: 0.4)]
+            people: [("Ana", readability: nil, ear: 0.5), ("Ben", readability: nil, ear: 0.4)]
         )
 
         #expect(ShareHeadline.line(for: ordinary) == "8 songs, 56 guesses")
@@ -94,23 +96,23 @@ import Testing
 
     // MARK: - The sentence has to be true
 
-    /// **Rule 4 does not fire on a merely-lowest readability.**
+    /// **Rule 4 fires on the lowest readability, whatever it is** — the owner's decision on the
+    /// question `tasks/E12-results-and-share.md` records.
     ///
-    /// `docs/10` §2 also says *"never a superlative that requires a comparison the viewer can't
-    /// see on the card"*, and nothing on the card shows anybody else's readability. Calling
-    /// somebody with 71% *"unreadable"* in front of their group would be false on its face, so
-    /// the night falls through to the fallback instead. See the open question in
-    /// `tasks/E12-results-and-share.md`.
-    @Test func aLeastReadablePersonWhoIsNotUnreadableFallsThrough() {
+    /// The alternative reading narrowed it to people actually in the `unreadable` band, so this
+    /// is the test that names the choice: a night whose least readable person is on 71% still
+    /// gets rule 4, and does **not** fall through to the fallback.
+    @Test func theLowestReadabilityWinsEvenWhenItIsNotLow() {
         let night = ShareHeadlineFixture.night(
             cards: [(1, 4), (2, 3)],
             people: [("Ana", readability: 0.9, ear: 0.5), ("Ben", readability: 0.71, ear: 0.4)]
         )
-        #expect(ShareHeadline.line(for: night) == "2 songs, 14 guesses")
+        #expect(ShareHeadline.line(for: night) == "Ben was unreadable")
     }
 
-    /// The boundary itself: 0.20 is `hardToPlace` and 0.199 is `unreadable` (`docs/02` §4.5).
-    @Test func theUnreadableBandBoundaryDecidesRuleFour() {
+    /// The band boundary is not a boundary for this rule. 0.199 and 0.20 sit either side of
+    /// `unreadable` (`docs/02` §4.5) and both produce the same headline.
+    @Test func theBandBoundaryDoesNotDecideRuleFour() {
         let just = ShareHeadlineFixture.night(
             cards: [(1, 4)], people: [("Gus", readability: 0.199, ear: 0.4)]
         )
@@ -119,7 +121,16 @@ import Testing
         )
 
         #expect(ShareHeadline.line(for: just) == "Gus was unreadable")
-        #expect(ShareHeadline.line(for: notQuite) == "1 songs, 7 guesses")
+        #expect(ShareHeadline.line(for: notQuite) == "Gus was unreadable")
+    }
+
+    /// Ties go to the server's order, so the thumbnail and the file name the same person.
+    @Test func aTieOnTheLowestReadabilityTakesTheFirstOneSent() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 4)],
+            people: [("Gus", readability: 0.14, ear: 0.4), ("Eli", readability: 0.14, ear: 0.3)]
+        )
+        #expect(ShareHeadline.line(for: night) == "Gus was unreadable")
     }
 
     /// A night nobody has a readability for — everybody joined late — reaches the fallback
@@ -129,6 +140,16 @@ import Testing
             cards: [(1, 4), (2, 3)], people: [("Ana", readability: nil, ear: 0.5)]
         )
         #expect(ShareHeadline.line(for: night) == "2 songs, 14 guesses")
+    }
+
+    /// And the fallback is genuinely last: a night with one readability, however ordinary,
+    /// reaches rule 4 rather than the numbers.
+    @Test func theFallbackIsOnlyReachedWhenEveryEarlierRuleIsSilent() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 4), (2, 3)],
+            people: [("Ana", readability: 0.86, ear: 0.5)]
+        )
+        #expect(ShareHeadline.line(for: night) == "Ana was unreadable")
     }
 }
 

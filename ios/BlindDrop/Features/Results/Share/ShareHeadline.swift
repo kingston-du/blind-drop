@@ -44,27 +44,28 @@ enum ShareHeadline {
         }
     }
 
-    /// Rule 4, with its sentence held to being true.
+    /// Rule 4: **the lowest readability of the night**, whatever it is.
     ///
-    /// `docs/10` §2 names it *"lowest readability of the night"* and gives it the words *"%@ was
-    /// unreadable"*. On a night whose lowest readability is 71% those two are not the same
-    /// claim, and §2's own guard — *"never a superlative that requires a comparison the viewer
-    /// can't see"* — rules out the first reading anyway: nothing on the card shows anybody
-    /// else's readability, so "lowest" is unverifiable and "unreadable" is simply wrong.
+    /// Read literally, and that is the owner's call rather than an inference — an earlier pass
+    /// narrowed it to people actually in the `unreadable` band, on the grounds that *"%@ was
+    /// unreadable"* is false of somebody on 71%. The decision came back the other way, and it is
+    /// recorded in `tasks/E12-results-and-share.md`.
     ///
-    /// So the rule fires only when the least readable person is genuinely in the `unreadable`
-    /// band (`docs/02` §4.5). Otherwise the night falls through to the fallback, which states
-    /// two numbers and judges nobody. See the open question in `tasks/E12-results-and-share.md`.
+    /// So the rule stands as `docs/10` §2 writes it. Two things about it are worth knowing when
+    /// reading the card: on a night where everybody is legible the headline still names the
+    /// least legible person, and it only ever gets that far — rules 1 through 3 take almost
+    /// every interesting night before it.
+    ///
+    /// `nil` only when nobody has a readability at all, which is a round of people who all
+    /// joined after the reveal.
     ///
     /// Ties go to the server's order, which is the order `people` arrived in — arbitrary, but
-    /// the *same* arbitrary on every render.
+    /// the *same* arbitrary on every render, so two people on 0.14 do not swap places between
+    /// the thumbnail and the file.
     private static func leastReadable(_ people: [PersonScoreDTO]) -> PersonScoreDTO? {
         let readable = people.compactMap { person in person.readability.map { (person, $0) } }
-        guard let lowest = readable.map(\.1).min(),
-              ReadabilityBand(readability: lowest) == .unreadable,
-              let match = readable.first(where: { $0.1 == lowest })
-        else { return nil }
-        return match.0
+        guard let lowest = readable.map(\.1).min() else { return nil }
+        return readable.first(where: { $0.1 == lowest })?.0
     }
 
     /// *"56 guesses"* — every guess the night scored, which for the `docs/02` §4.4 round is
