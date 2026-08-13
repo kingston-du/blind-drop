@@ -128,6 +128,13 @@ jobs:
           curl -sf http://127.0.0.1:8787/__fixture
       - name: UI tests
         working-directory: ios
+        # TEST_RUNNER_CI reaches the UI-test runner on the simulator; a plain CI= does not, since
+        # the runner is a separate process there. Without it FullLoopUITests *skips* when the
+        # fixture server is missing and the run still reports success — AC-10 green having proved
+        # nothing. With it, a missing fixture fails the job. Locally, absent the variable, the
+        # skip remains, so a developer without the fixture is not blocked.
+        env:
+          TEST_RUNNER_CI: "1"
         run: |
           xcodebuild test \
             -scheme BlindDrop \

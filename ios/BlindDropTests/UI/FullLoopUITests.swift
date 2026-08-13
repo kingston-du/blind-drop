@@ -152,6 +152,32 @@ final class FullLoopUITests: XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout: timeout), message(), file: file, line: line)
     }
 
+    /// Absent on a developer's machine, the fixture is a missing convenience and these tests
+    /// skip. In CI it is always started before the suite, so absence means something is broken
+    /// — and a skip there would report AC-10 as passing while proving nothing. Fail instead.
+    ///
+    /// Read as `CI`, but the workflow must export it as `TEST_RUNNER_CI`. UI test code runs
+    /// inside the runner app on the simulator — a different process from the one `xcodebuild`
+    /// was launched in — and only `TEST_RUNNER_`-prefixed variables are forwarded into it, with
+    /// the prefix stripped on the way. So a workflow that exports a bare `CI` leaves this nil,
+    /// the suite skips, and the run still reports success: the exact failure this guard exists
+    /// to prevent. See the UI test step in `.github/workflows/ci.yml`.
+    private static let isCI = ProcessInfo.processInfo.environment["CI"] != nil
+
+    private func unavailableFixture(_ reason: String) -> Error {
+        if Self.isCI {
+            return FixtureUnavailable(reason: reason)
+        }
+        return XCTSkip(reason)
+    }
+
+    private struct FixtureUnavailable: Error, CustomStringConvertible {
+        let reason: String
+        var description: String {
+            "AC-10 cannot be proved without the fixture server: \(reason)"
+        }
+    }
+
     private func requireControllableFixture() async throws {
         let data: Data
         let response: URLResponse
@@ -160,13 +186,14 @@ final class FullLoopUITests: XCTestCase {
                 from: fixture.appending(path: "__fixture")
             )
         } catch {
-            throw XCTSkip("fixture server is not running on \(fixture.absoluteString)")
+            throw unavailableFixture("fixture server is not running on \(fixture.absoluteString)")
         }
         let http = try XCTUnwrap(response as? HTTPURLResponse)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let body = try XCTUnwrap(json["data"] as? [String: Any])
-        try XCTSkipIf(http.statusCode != 200 || body["control"] as? Bool != true,
-                      "start ios/Fixtures/server.ts with FIXTURE_CONTROL=1")
+        if http.statusCode != 200 || body["control"] as? Bool != true {
+            throw unavailableFixture("start ios/Fixtures/server.ts with FIXTURE_CONTROL=1")
+        }
     }
 
     /// A compact VoiceOver walk at each phase boundary. XCTest only exposes accessibility-tree
