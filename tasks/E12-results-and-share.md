@@ -96,19 +96,19 @@ One view, a `variant` parameter, two artifacts — so a copy change lands in bot
 
 ### E12-05 — Share renderer and share sheet
 
-**Status:** wip · **Deps:** E12-04 · **Reads:** `docs/10` §4–6
+**Status:** done · **Deps:** E12-04 · **Reads:** `docs/10` §4–6
 **Touches:** `Features/Results/Share/ShareRenderer.swift`
 **Verify:** `ShareRendererTests`; AC-9
 
-- [ ] `ImageRenderer` at scale 3, PNG, off the main thread, target < 250ms
-- [ ] **Fonts registered before rendering** — `ImageRenderer` silently falls back to the
+- [x] `ImageRenderer` at scale 3, PNG, off the main thread, target < 250ms
+- [x] **Fonts registered before rendering** — `ImageRenderer` silently falls back to the
       system face otherwise. Snapshot test asserts the numerals aren't SF Pro.
-- [ ] **All artwork fully loaded before rendering**, 3s timeout, then `artwork_bg_color`
+- [x] **All artwork fully loaded before rendering**, 3s timeout, then `artwork_bg_color`
       blocks and a log. A share image of placeholders is worthless.
-- [ ] Variant picker with two thumbnails, square-tall preselected (iMessage is where this
+- [x] Variant picker with two thumbnails, square-tall preselected (iMessage is where this
       actually gets pasted)
-- [ ] Skeleton in `paperSunk` if the render isn't ready
-- [ ] Written only to the app's temporary directory and **deleted after the share sheet
+- [x] Skeleton in `paperSunk` if the render isn't ready
+- [x] Written only to the app's temporary directory and **deleted after the share sheet
       dismisses** (`docs/10` §5)
-- [ ] Entry point exists in **no phase but `scored`**
-- [ ] Test: temp file absent after the completion handler
+- [x] Entry point exists in **no phase but `scored`**
+- [x] Test: temp file absent after the completion handler

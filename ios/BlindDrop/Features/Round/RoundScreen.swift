@@ -167,7 +167,7 @@ struct RoundScreen: View {
                 // `loadToken` reaches it so a foreground refresh — or a countdown elapsing —
                 // retries the answers too. Results do not change once they land, but a first
                 // load that failed offline has to have a second chance that is not a relaunch.
-                ResultsHost(roundID: context.round.id, loadToken: loadToken)
+                ResultsHost(context: context, loadToken: loadToken)
             }
         } else if store.state.isLoading {
             RoundSkeleton()
@@ -327,12 +327,20 @@ private struct RevealHost: View {
 private struct ResultsHost: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The same loader every card on the screen already reads from, so the share render finds
+    /// most of its artwork in the cache the flight above it filled.
+    @Environment(\.artworkLoader) private var artworkLoader
 
-    let roundID: String
+    let context: RoundContext
     let loadToken: Int
 
     @State private var store: ResultsStore?
     @State private var resolve: ResolveAnimation?
+    /// One renderer for the whole visit, so every temporary file it writes is one thing to
+    /// delete (`docs/10` §5) and switching thumbnails does not re-render what is already on disk.
+    @State private var renderer: ShareRenderer?
+
+    private var roundID: String { context.round.id }
 
     var body: some View {
         Group {
@@ -341,7 +349,8 @@ private struct ResultsHost: View {
                     state: store.viewState(resolve: resolve),
                     // Withdrawn once the sequence has landed, so a scroll through settled
                     // answers is a plain scroll and not a gesture with a handler on it.
-                    skipResolve: resolve?.isRunning == true ? { resolve?.skip() } : nil
+                    skipResolve: resolve?.isRunning == true ? { resolve?.skip() } : nil,
+                    share: shareEntry(store)
                 )
             } else {
                 // One runloop, before the store exists. `docs/08` §10 gives loading a skeleton
@@ -352,6 +361,10 @@ private struct ResultsHost: View {
         .task(id: "\(roundID)#\(loadToken)") {
             let built = store ?? ResultsStore(api: env.api, roundID: roundID)
             store = built
+            // Made here rather than lazily in `body`: `@State` is not a thing a view mutates
+            // while it is being evaluated, and the renderer has to be the *same* one across
+            // every evaluation or the files it wrote stop being anybody's to delete.
+            if renderer == nil { renderer = ShareRenderer(loader: artworkLoader) }
             await built.load()
             // Armed only once the cards are known: the sequence is defined by them, and one
             // built over an empty list would spend the round's single run on nothing.
@@ -367,6 +380,31 @@ private struct ResultsHost: View {
             // behind a screen nobody is looking at.
             await animation.run(reducedMotion: reduceMotion)
         }
+        .onDisappear {
+            // Leaving the results takes the temporary files with it, whether or not a share
+            // sheet ever opened (`docs/10` §5).
+            renderer?.discard()
+        }
+    }
+
+    /// The share card's ingredients, once the answers have landed.
+    ///
+    /// `nil` until then, which is also what makes the button appear with the content rather than
+    /// ahead of it — there is no moment where **Share tonight** offers a card of nothing.
+    private func shareEntry(_ store: ResultsStore) -> ShareEntry? {
+        guard let results = store.state.value,
+              let date = context.calendar.shareDate(localDate: results.localDate)
+        else { return nil }
+
+        guard let renderer else { return nil }
+        return ShareEntry(
+            content: ShareCardContent(
+                results: results,
+                groupName: context.group.name,
+                date: date
+            ),
+            renderer: renderer
+        )
     }
 }
 

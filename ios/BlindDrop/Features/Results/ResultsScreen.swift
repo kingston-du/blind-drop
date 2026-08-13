@@ -63,8 +63,18 @@ struct ResultsScreen: View {
     /// Any scroll gesture completes the name-resolve (`docs/09` §4). `nil` once there is nothing
     /// left to skip, which is also what a golden passes.
     var skipResolve: (() -> Void)?
+    /// The share card and the thing that renders it, or `nil` when there is nothing to share.
+    ///
+    /// **`docs/10` §5: *"nothing about a round that is not `scored` is ever renderable — the
+    /// share entry point does not exist in any other phase."*** This screen is the only place
+    /// the entry point is built and this screen only exists under `.scored`, so the rule is a
+    /// property of where the code lives rather than a condition somebody has to keep true.
+    /// `ShareRendererTests` scans `Features/` to keep it that way.
+    var share: ShareEntry?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var isSharing = false
 
     private let accent = PhaseAccent.revealed
 
@@ -106,6 +116,7 @@ struct ResultsScreen: View {
             if let standings = state.standings {
                 StandingsView(standings: standings)
             }
+            shareAction
         }
         .padding(.bottom, Layout.blockGap)
     }
@@ -133,6 +144,33 @@ struct ResultsScreen: View {
                     )
                 )
             }
+        }
+    }
+}
+
+// MARK: - §7.4 Share
+
+/// What the results need in order to offer a share (`docs/10` §4).
+///
+/// The two halves arrive together or not at all: a button with content and no renderer would be
+/// a control that cannot do its one thing, and a renderer with no content has nothing to draw.
+struct ShareEntry {
+    let content: ShareCardContent
+    /// Owned by the host rather than made here, so the files it has written survive a body
+    /// re-evaluation and can all be deleted when the sheet closes (`docs/10` §5).
+    let renderer: ShareRenderer
+}
+
+extension ResultsScreen {
+    /// *"One `PrimaryButton`: **Share tonight**. This is the app's distribution mechanism and one
+    /// of its best-looking surfaces. It is not an afterthought and it is not buried in a menu."*
+    /// (`docs/08` §7.4)
+    @ViewBuilder fileprivate var shareAction: some View {
+        if let share {
+            PrimaryButton("results.share", accent: .revealed) { isSharing = true }
+                .sheet(isPresented: $isSharing) {
+                    ShareSheet(content: share.content, renderer: share.renderer)
+                }
         }
     }
 }

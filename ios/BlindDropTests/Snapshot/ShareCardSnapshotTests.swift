@@ -83,6 +83,25 @@ private let variants = ShareCard.Variant.allCases
         #expect(difference > 0, "the card's numerals are drawn in the display face")
     }
 
+    /// The variant picker (`docs/10` §4): **two thumbnails, square-tall preselected**, and the
+    /// live card drawn inside each — not the rendered PNG, which is not on disk yet when the
+    /// sheet opens.
+    ///
+    /// Across the device axis because the picker's whole job is a side-by-side comparison, and
+    /// two thumbnails that do not fit an SE side by side is the way that job fails.
+    @Test(arguments: SnapshotRenderer.Device.matrix)
+    func thePicker(_ device: SnapshotRenderer.Device) {
+        let sheet = ShareSheet(
+            content: ShareCardFixture.tonight,
+            renderer: ShareRenderer(loader: StubArtworkLoader.shared)
+        )
+        SnapshotRenderer.verify(
+            SnapshotRenderer.image(of: sheet.snapshotContent, device: device, typeSize: .large),
+            named: "Share-picker-\(device.name)",
+            in: "Share"
+        )
+    }
+
     private func verify(
         _ image: UIImage,
         named name: String,
