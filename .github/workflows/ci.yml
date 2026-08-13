@@ -119,7 +119,7 @@ jobs:
       - name: Start the fixture server
         working-directory: ios/Fixtures
         run: |
-          PHASE=open ../../server/node_modules/.bin/deno run \
+          PHASE=open FIXTURE_CONTROL=1 ../../server/node_modules/.bin/deno run \
             --allow-net --allow-read --allow-env server.ts &
           for _ in $(seq 1 30); do
             curl -sf http://127.0.0.1:8787/__fixture >/dev/null && break

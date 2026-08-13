@@ -14,15 +14,17 @@ game with a music substrate. Check every implementation decision against that se
 ## Status
 
 The backend is complete through push delivery, music bridging, the Record, and export
-endpoints. The iOS foundation and component/snapshot system are complete; onboarding is in
-progress, with display-name setup next at `E09-02`.
+endpoints. The native iOS game loop is complete through The Record, per-track links, and
+Spotify/Apple Music playlist export. QA and release hardening is done apart from the two gates
+that need physical hardware: `E14-03` (Instruments on a real device) and `E14-05` (the release
+checklist, which waits on real-device push, Spotify PKCE, and a pilot group).
 
 | Area | State |
 |---|---|
 | Spec | Complete — `docs/` |
 | Task board | `tasks/BOARD.md` |
 | Backend | Auth, groups, lifecycle, submissions, reveal, guessing, scoring, push, music bridging, Record, and exports are covered by pgTAP and function tests. |
-| iOS client | Foundation, networking, server clock, design-system components, snapshots, and Sign in with Apple are complete. Display-name onboarding is next. |
+| iOS client | Foundation, onboarding, the full daily game loop, results/share, The Record, and both playlist export paths are implemented and covered by unit/snapshot tests. |
 
 ---
 
@@ -42,7 +44,7 @@ relevant to any single task.
 
 ## The one-paragraph architecture
 
-Native SwiftUI iOS app (iOS 17+) talking to a Supabase-hosted Postgres over hand-written
+Native SwiftUI iOS app (iOS 17.4+) talking to a Supabase-hosted Postgres over hand-written
 Edge Functions — **never** over auto-generated table endpoints. All phase state is
 server-authoritative; the client never decides what time it is. Song search runs through a
 server-side Apple Music API proxy (so no MusicKit permission prompt and the server always

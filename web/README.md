@@ -22,11 +22,9 @@ Serving requirements, all of which Apple enforces and none of which are negotiab
 | Redirects | none; Apple follows none |
 | TLS | valid certificate, no client certificate |
 
-`appIDs` is `<TEAM_ID>.com.blinddrop.app`. The prefix is written as `$APP_ID_PREFIX` because
-the team identifier is not assigned yet — the same state `SUPABASE_ANON_KEY` and
-`SPOTIFY_CLIENT_ID` are in, and **E14-05** is where all three are filled in. Substitute it at
-deploy time; a literal `$APP_ID_PREFIX` in a served file matches no app and silently disables
-every universal link.
+`appIDs` is `<APP_ID_PREFIX>.com.blinddrop.app`. This repository uses the current Kingston Du
+App ID Prefix, `NNQ4DT9Z7Q`; verify it against the production provisioning profile if the Apple
+account changes. A mismatched prefix silently disables every universal link.
 
 The path claim is `/j/*` and nothing else. The entitlement can only claim a whole domain, so
 this file is the only place the app's reach into `blinddrop.app` is actually narrowed —

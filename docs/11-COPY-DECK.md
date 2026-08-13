@@ -41,7 +41,9 @@ level up, don't miss out, hurry.*
 | `onboarding.continue` | Continue |
 | `onboarding.group.title` | Find your group |
 | `onboarding.group.join` | Join a group |
+| `onboarding.group.code.label` | Group code |
 | `onboarding.group.code.placeholder` | 6-character code |
+| `onboarding.group.help` | Six to twelve people. Nothing about a group is public. |
 | `onboarding.group.code.error` | No group with that code. Check it and try again. |
 | `onboarding.group.create` | Create a group instead |
 | `onboarding.create.title` | Start a group |
@@ -76,10 +78,12 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 
 | Key | String |
 |---|---|
-| `submit.headline` | Drop one song. |
+| `submit.headline` | Today's song. |
 | `submit.subhead` | Nobody sees it until 8:00 PM. |
 | `submit.countdown.label` | until reveal |
 | `submit.action` | Drop a song |
+| `submit.badge` | Seals in %@ |
+| `submit.blind` | Nobody can tell whether you've dropped. You can't tell either. |
 | `submit.nudge` | Two hours left to drop. |
 | `submit.closed.headline` | Tonight's round is done. |
 | `submit.closed.subhead` | The next one opens at %@. |
@@ -94,6 +98,7 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | Key | String |
 |---|---|
 | `search.placeholder` | Search for a song |
+| `search.results` | Results |
 | `search.paste` | Paste a Spotify or Apple Music link |
 | `search.paste.placeholder` | Paste a link |
 | `search.close` | Close |
@@ -102,6 +107,8 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `search.error.offline` | You're offline. Nothing can be dropped right now. |
 | `resolve.error.notfound` | That song isn't in the Apple catalog. Search for it instead. |
 | `resolve.error.badlink` | That's not a song link. |
+| `confirm.title` | Your song |
+| `confirm.note` | Once it's sealed you can't see it either, and after %@ nothing about it changes. |
 | `confirm.action` | Seal it |
 | `confirm.another` | Pick another |
 | `confirm.error` | That didn't seal. Try again. |
@@ -113,6 +120,9 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | Key | String |
 |---|---|
 | `sealed.status` | Sealed until %@. |
+| `sealed.badge` | Sealed |
+| `sealed.opens.label` | Opens in |
+| `sealed.company` | Everyone else is somewhere in this too. You'll never know where. |
 | `sealed.countdown.label` | until reveal |
 | `sealed.replace` | Replace song |
 | `sealed.replaced` | Sealed again. |
@@ -145,8 +155,11 @@ Never state how many people did drop.
 | `reveal.subtitle` | %lld songs |
 | `reveal.countdown.label` | until answers |
 | `reveal.card.prompt` | Who dropped this? |
+| `reveal.card.prompt.short` | Name them |
 | `reveal.card.mine` | Yours |
 | `reveal.progress` | %lld of %lld assigned |
+| `reveal.locked.title` | Locked in. |
+| `reveal.callsheet` | Your call sheet |
 | `reveal.action` | Lock in guesses |
 | `reveal.action.locked` | Locked in |
 | `reveal.edit` | Change a guess |
@@ -165,6 +178,12 @@ Never state how many people did drop.
 | `results.card.correct` | %lld of %lld got it |
 | `results.card.nobody` | Nobody got it |
 | `results.card.everybody` | Everybody got it |
+| `results.card.tally` | %lld/%lld |
+| `results.card.by` | Dropped by |
+| `results.card.yousaid` | You said |
+| `results.card.hit` | Hit |
+| `results.card.miss` | Miss |
+| `results.card.room` | How the room did |
 | `results.you.title` | You |
 | `results.readability.label` | Readability |
 | `results.readability.detail` | %lld of %lld read you |
@@ -172,7 +191,11 @@ Never state how many people did drop.
 | `results.ear.label` | Ear |
 | `results.ear.detail` | %lld of %lld correct |
 | `results.ear.none` | You sat this one out. |
+| `results.spectrum.low` | Unreadable |
+| `results.spectrum.high` | Easy to read |
 | `results.standings.title` | All time |
+| `results.standings.rounds` | %lld rounds |
+| `results.standings.row` | Ear %lld · Read %lld |
 | `results.standings.ear` | Best ear |
 | `results.standings.ear.detail` | %lld correct |
 | `results.standings.readability` | How readable |
@@ -220,11 +243,14 @@ either must be able to happen without the other.
 | `record.title` | The Record |
 | `record.filter.all` | Everyone |
 | `record.filter.member` | %@ |
+| `record.filter.label` | Filter The Record by member |
+| `record.subtitle` | Every song anyone has dropped, newest first. |
 | `record.empty` | Nothing in the record yet. It starts filling tonight. |
 | `record.empty.filtered` | %@ hasn't dropped anything yet. |
 | `record.open.spotify` | Open in Spotify |
 | `record.open.apple` | Open in Apple Music |
 | `record.results` | See that night's results |
+| `record.actions` | Song actions |
 | `record.export.spotify` | Export to Spotify |
 | `record.export.apple` | Export to Apple Music |
 | `record.export.working` | Building the playlist |
@@ -234,6 +260,8 @@ either must be able to happen without the other.
 | `record.export.nosub` | Apple Music export needs a subscription. Spotify export still works. |
 | `record.export.denied` | Apple Music access was turned down. You can still export to Spotify. |
 | `record.export.failed` | The playlist didn't get made. Try again. |
+| `NSAppleMusicUsageDescription` | Blind Drop uses Apple Music access only when you export The Record. |
+| `a11y.record.track` | %@ by %@. Dropped by %@. |
 
 ---
 

@@ -39,26 +39,31 @@ ultramarine.
 // DesignSystem/Palette.swift
 enum Palette {
     // Neutrals — cool, never warm. No cream, no oat, no beige.
-    static let paper       = Color(hex: 0xF3F4F7)  // base background
-    static let paperSunk   = Color(hex: 0xE8EAEF)  // inset fields, search bar
-    static let surface     = Color(hex: 0xFFFFFF)  // cards
-    static let edge        = Color(hex: 0xDEE1E9)  // hairline borders
-    static let edgeStrong  = Color(hex: 0xC4C9D6)  // emphasised borders, dividers
+    static let paper       = Color(hex: 0xEFF1F5)  // base background
+    static let paperSunk   = Color(hex: 0xE7EAEF)  // sticky strips, disabled fills, skeletons
+    static let surface     = Color(hex: 0xFFFFFF)  // cards, rows, fields
+    static let edge        = Color(hex: 0xDCE0E7)  // hairline borders
+    static let edgeStrong  = Color(hex: 0xD3D8E0)  // emphasised borders, dividers, grab bars
+    static let hairline    = Color(hex: 0xEAEDF1)  // the rule *inside* a card
+    static let track       = Color(hex: 0xEEF0F4)  // the empty part of a meter or a bar
 
-    static let ink         = Color(hex: 0x14161C)  // primary text
-    static let inkDim      = Color(hex: 0x5A6072)  // secondary text, labels
-    static let inkFaint    = Color(hex: 0x7C8294)  // tertiary, disabled, large text only
+    static let ink         = Color(hex: 0x14161A)  // primary text
+    static let inkDim      = Color(hex: 0x454B55)  // secondary text, every micro-label
+    static let inkFaint    = Color(hex: 0x767C88)  // large text ≥ 24pt and UI only
+    static let inkQuiet    = Color(hex: 0xB9BEC7)  // disabled labels, a spent chip, the strike
 
-    // Amber — three tiers, each with a job. Do not interchange them.
-    static let amber       = Color(hex: 0xE08A1E)  // FILL only (ink text on top)
-    static let amberDeep   = Color(hex: 0xB96D0C)  // marks, borders, icons, the seal stamp
-    static let amberText   = Color(hex: 0x8F5411)  // text and labels on paper/surface
-    static let amberWash   = Color(hex: 0xFDF3E3)  // tinted surface behind sealed content
+    // Amber — four tiers, each with a job. Do not interchange them.
+    static let amber       = Color(hex: 0xB26A06)  // fill (white label) and mark
+    static let amberDeep   = Color(hex: 0x96590A)  // pressed fill
+    static let amberText   = Color(hex: 0x8A5205)  // text and labels on paper/surface/wash
+    static let amberWash   = Color(hex: 0xF6EAD6)  // tinted surface behind sealed content
+    static let amberEdge   = Color(hex: 0xE6CFA6)  // the border that closes the wash
 
     // Ultramarine — one token does text, fill, and graphics.
-    static let ultramarine     = Color(hex: 0x2C3FE0)
-    static let ultramarineDeep = Color(hex: 0x1E2CA8)  // pressed state
-    static let ultramarineWash = Color(hex: 0xEEF0FE)  // tinted surface
+    static let ultramarine     = Color(hex: 0x2233C4)
+    static let ultramarineDeep = Color(hex: 0x1B29A0)  // pressed state
+    static let ultramarineWash = Color(hex: 0xE3E6FA)  // tinted surface
+    static let ultramarineEdge = Color(hex: 0xC3C9F2)  // the border that closes the wash
 
     static let alert       = Color(hex: 0xB3261E)  // errors ONLY. Never a game state.
 }
@@ -70,20 +75,28 @@ enum Palette {
 
 | Pair | Ratio | Requirement | Verdict |
 |---|---|---|---|
-| `ink` on `paper` | 16.5 : 1 | 4.5 (body) | pass |
-| `inkDim` on `paper` | 5.70 : 1 | 4.5 (body) | pass |
-| `inkFaint` on `paper` | 3.49 : 1 | 3.0 (large text ≥ 24pt / UI) | pass — **not for body text** |
-| `amberText` on `paper` | 5.55 : 1 | 4.5 (body) | pass |
-| `ink` on `amber` fill | 6.73 : 1 | 4.5 | pass |
-| `amberDeep` on `surface` | 3.99 : 1 | 3.0 (non-text graphics) | pass |
-| `amber` on `surface` | 2.68 : 1 | — | **fill only, never text, never a lone mark** |
-| `ultramarine` on `paper` | 6.61 : 1 | 4.5 | pass |
-| `white` on `ultramarine` fill | 7.26 : 1 | 4.5 | pass |
-| `alert` on `paper` | 5.95 : 1 | 4.5 | pass |
+| `ink` on `paper` | 16.02 : 1 | 4.5 (body) | pass |
+| `inkDim` on `paper` | 7.77 : 1 | 4.5 (body) | pass |
+| `inkFaint` on `paper` | 3.71 : 1 | 3.0 (large text ≥ 24pt / UI) | pass — **not for body text, not for a micro-label** |
+| `amberText` on `paper` | 5.65 : 1 | 4.5 (body) | pass |
+| `white` on `amber` fill | 4.24 : 1 | 3.0 (large text) | pass — **the 17pt semibold button label and nothing smaller** |
+| `amber` on `surface` | 4.24 : 1 | 3.0 (non-text graphics) | pass |
+| `amberText` on `amberWash` | 5.37 : 1 | 4.5 (body) | pass |
+| `ultramarine` on `paper` | 7.94 : 1 | 4.5 | pass |
+| `white` on `ultramarine` fill | 8.98 : 1 | 4.5 | pass |
+| `alert` on `paper` | 5.78 : 1 | 4.5 | pass |
 
-The three-tier amber exists because a single warm amber cannot be both a satisfying fill and
-an accessible label. Reach for `amberText` when writing words, `amberDeep` when drawing
-something, `amber` when filling an area. `amber` alone on white never carries meaning.
+The tiered amber exists because a single warm amber cannot be both a satisfying fill and an
+accessible label. Reach for `amberText` when writing words, `amber` when filling an area or
+drawing a mark, `amberDeep` when a fill is pressed, `amberEdge` when a wash needs closing.
+
+`white` on `amber` is the one pair in the table pinned from **both** sides: it must clear 3.0,
+and it must not clear 4.5. A minimum on its own erodes — somebody sets a 13pt caption on amber,
+the row still passes, and the caption is illegible. The day the fill is light enough to carry
+body text is the day this restriction should be removed deliberately rather than outlived.
+
+`inkFaint` is the same rule stated for a neutral: it is quiet enough to look like apparatus and
+too quiet to be text at apparatus sizes, so **micro-labels are set in `inkDim`**, not in it.
 
 ### Usage rules
 
@@ -144,17 +157,21 @@ Do not use the display face below 20pt; at small sizes its personality reads as 
 ```swift
 // DesignSystem/Typography.swift  — all sizes scale with Dynamic Type
 enum TypeStyle {
-    case displayXL   // 56/56  Bricolage 600 wdth max  — reveal card number, countdown
-    case displayL    // 40/44  Bricolage 600 wdth max  — results headline
-    case displayM    // 28/32  Bricolage 600 wdth max  — screen title (sparing)
+    case displayXL   // 56/56  Bricolage 800 wdth max — the hero countdown, a stat number
+    case displayL    // 44/42  Bricolage 700, -0.9    — the screen headline
+    case displayM    // 32/34  Bricolage 700, -0.5    — a screen title
+    case displayS    // 24/26  Bricolage 700, -0.2    — a card title, a name as a result
+    case numberL     // 44/44  Bricolage 800, tabular — the answer card's number
+    case numberM     // 26/26  Bricolage 800, tabular — the flight card's number
     case bodyL       // 17/24  SF Pro Text Regular    — default
     case bodyLStrong // 17/24  SF Pro Text Semibold   — track titles
     case bodyM       // 15/20  SF Pro Text Regular    — artist, supporting
-    case label       // 13/16  SF Pro Text Medium, tracking +0.6, UPPERCASE — section labels
-    case caption     // 12/16  SF Pro Text Regular    — helper text
-    case monoXL      // 34/36  SF Mono Medium         — countdown digits
-    case monoM       // 17/22  SF Mono Medium         — percentages, scores
-    case monoS       // 13/16  SF Mono Regular        — small counts
+    case bodyS       // 13/18  SF Pro Text Regular    — the line under a control
+    case label       // 11/14  SF Mono Medium, +1.3, UPPERCASE — every micro-label
+    case caption     // 13/18  SF Pro Text Regular    — helper text
+    case monoXL      // 34/36  SF Mono Medium         — a large monospaced figure
+    case monoM       // 15/20  SF Mono Medium         — percentages, scores
+    case monoS       // 12/16  SF Mono Regular        — small counts, a badge's digits
 }
 ```
 
@@ -163,8 +180,14 @@ numeral in a display style uses `.monospacedDigit()`. Nothing shifts horizontall
 ticks. This is not a nicety — a countdown that jitters is the most visible possible signal
 that the app is amateur.
 
-The display face is used in roughly six places in the entire app. If you find yourself
-reaching for it a seventh time, use `bodyLStrong`.
+**`label` is monospaced, and that is the app's second voice.** Everything that names a thing
+rather than saying it — `DROPPED BY`, `SEALS IN 04:12:33`, `EAR 78 · READ 62` — is set in the
+mono micro-label, uppercase and widely tracked. It is what makes a four-word caption read as
+apparatus instead of as a sentence somebody forgot to finish, and it is why the display face
+can stay rare: the texture of the app comes from the labels, not from more big type.
+
+The display face is used for headlines, card numbers and the countdown, and nowhere else. If
+you find yourself reaching for it somewhere that is none of those, use `bodyLStrong`.
 
 ---
 
@@ -178,11 +201,13 @@ enum Space {  // points
 }
 
 enum Radius {
-    static let artwork  =  8   // album art — softened, never a circle, never square
-    static let card     = 16
-    static let control  = 12
-    static let sheet    = 24
-    static let pill     = 999
+    static let artwork   =  8   // album art — softened, never a circle, never square
+    static let card      = 20   // the subject card
+    static let panel     = 16   // a panel of supporting information
+    static let row       = 14   // one row of a list, drawn as its own surface
+    static let control   = 14   // a button, a field
+    static let sheet     = 24
+    static let pill      = 999
 }
 
 enum Stroke {
@@ -193,8 +218,14 @@ enum Stroke {
 ```
 
 Layout law: **single column, one primary action per screen, generous vertical rhythm.**
-Screen horizontal inset is `Space.xl` (20). Vertical gap between distinct blocks is
-`Space.x3` (32); within a block, `Space.md` (12).
+Screen horizontal inset is `Space.xxl` (24). Vertical gap between distinct blocks is
+`Space.x3` (32); within a block, `Space.md` (12). A card is padded `Space.xl` (20) and a row
+`Space.md` (12) — the two paddings are what tell a subject from a list item before any of the
+type is read.
+
+Controls are 56pt tall and fields 54pt, which is the one place a single point of difference is
+deliberate: a field above a button reads as *a thing to fill in, then a thing to press* rather
+than as two halves of one control.
 
 Album artwork is the only imagery in the app. It is large, sharp, unmodified, and the visual
 anchor of every card. Nothing is layered over it — no gradient scrim, no play-button

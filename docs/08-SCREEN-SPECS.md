@@ -65,55 +65,72 @@ If they have a group but no profile (shouldn't happen), at 1.2.
 
 Accent: **amber**.
 
+**The search screen is the screen.** There is no lobby in front of it: a screen whose only
+content is a headline and a button that opens the real screen is a tap charged for nothing,
+and the round is on a clock. The field is up and focused on arrival, so the first thing
+somebody can do is the thing they came to do.
+
 ```
 ┌─────────────────────────────┐
-│  The Cove            [≡]    │   header: group name, bodyM inkDim; menu → Record, Settings
+│  The Cove   (SEALS IN 03:12:48)  [≡] │  group name bodyLStrong ink; countdown badge,
+│                             │        amber wash + amberEdge, label; menu → Record, Settings
 │                             │
-│  Monday 10 August           │   label, inkDim
-│                             │
-│  ────────────────────────   │
-│                             │
-│   Drop one song.            │   displayM, ink
+│                             │   ← the block sits mid-screen while there is nothing to show
+│   Today's song.             │   displayL, ink
 │   Nobody sees it until      │   bodyL, inkDim  ← this is the entire tutorial
 │   8:00 PM.                  │
 │                             │
-│         09:47:12            │   monoXL, amberText, tabular — time until reveal
-│         until reveal        │   caption, inkFaint
-│                             │
 │  ┌───────────────────────┐  │
-│  │     Drop a song       │  │   PrimaryButton, amber fill, ink label
+│  │  Search for a song    │  │   InsetField, surface + edge; ink border while focused
+│  └───────────────────────┘  │
+│                             │
+│                             │
+│  Nobody can tell whether    │   bodyS, inkDim
+│  you've dropped. You can't  │
+│  tell either.               │
+│                             │
+│  PASTE A SPOTIFY OR APPLE   │   label
+│  ┌───────────────────────┐  │
+│  │  Paste a link         │  │
 │  └───────────────────────┘  │
 └─────────────────────────────┘
 ```
 
+As soon as results exist they take the space under the field and the block rises to the top of
+the screen. Choosing a row pushes **Confirm** (§3.2). The paste box is always reachable: it is
+the answer both to search being down and to a song search simply cannot find.
+
 **This screen leaks nothing.** No submission count, no "3 of 8 in", no avatars, no activity
-indicator, no "waiting on Sam". A reviewer should be able to look at this screen and at
-`GET /rounds/current`'s `open` payload and see that neither could possibly express how many
-people have dropped.
+indicator, no "waiting on Sam". The only shared fact on it is the clock, which everybody
+already has. A reviewer should be able to look at this screen and at `GET /rounds/current`'s
+`open` payload and see that neither could possibly express how many people have dropped.
 
 ### States
 | State | Change |
 |---|---|
-| Default | as above |
-| < 2h to reveal | The nudge line appears above the button: *"Two hours left to drop."* in `amberText`. Nothing else changes. This is an in-interface nudge, distinct from the push. |
-| Before `opens_at` (dark hours) | Countdown reads to `opens_at`; button disabled; copy says the next drop opens at 10:00 AM. |
-| Offline | Inline banner above the button. Last known phase is shown, greyed. No optimistic submission — sealing offline is not supported and must fail honestly. |
+| Default | as above, field focused, nothing under it |
+| Searching | rows under the field, headline and field at the top of the screen |
+| < 2h to reveal | The nudge line appears above the blind line: *"Two hours left to drop."* in `amberText`. Nothing else changes. This is an in-interface nudge, distinct from the push. |
+| Before `opens_at` (dark hours) | No field. The headline says the round is done, and the countdown reads to `opens_at`. |
+| Offline | Inline banner under the header. Last known phase is shown, greyed. No optimistic submission — sealing offline is not supported and must fail honestly. |
 
 ---
 
 ## 3. Search and confirm *(modal over Submit)*
 
 ### 3.1 Search
-Sheet, `Radius.sheet`, presented from **Drop a song**. Search field auto-focused,
-`paperSunk`, keyboard up immediately.
+The same `SongSearch` the Submit screen is built from, presented as a sheet **only when
+somebody comes back to change a song they have already sealed**. The first search of a round
+is not a modal; it is §2. Search field auto-focused, `surface` with an `edge` border that goes
+`ink` while focused, keyboard up immediately.
 
-- Debounce 250ms, minimum 2 characters. Results are `TrackRow`s.
+- Debounce 250ms, minimum 2 characters. Results are `TrackRow`s in `.surface` style — each row is its own white card with an `edge` border, because a result is a target rather than a line to read past.
 - Each row's play control plays the 30-second preview inline. One at a time.
 - Below the results, always: **Paste a Spotify or Apple Music link** →
   `POST /tracks/resolve`.
 - Empty query: no results list, no suggestions, no trending. A blank sheet with the field
   focused. This app does not have opinions about what you should drop.
-- Zero results: one line, `inkDim`, plus the paste affordance.
+- Zero results: one line, `alert`, under the paste box, plus the paste affordance itself.
 - Search error: the copy from `11-COPY-DECK.md`, plus the paste affordance.
 
 ### 3.2 Confirm
@@ -205,36 +222,36 @@ Accent: **ultramarine**. This screen must work equally well at 6 cards and 12.
 
 ```
 ┌─────────────────────────────┐
-│  Tonight's drop      [≡]    │
-│  8 songs · 01:42:19         │   bodyM inkDim + monoM tabular
+│  Tonight's drop  (01:42:19) │   displayL ink + ultramarine countdown badge
+│  8 songs                    │   bodyM inkDim
 │                             │
 │  ┌───────────────────────┐  │
-│  │ 1  ▓▓▓  Redbone       │  │   FlightCard
-│  │    ▓▓▓  Childish…  ▶︎  │  │
-│  │    ┌────────────────┐ │  │
-│  │    │  Cal        ✕  │ │  │   assigned → NameChip inline
-│  │    └────────────────┘ │  │
+│  │ 01 ▓▓ Redbone    (Cal)│  │   FlightCard row: numberM, 56pt art,
+│  │       Childish…    ▶︎  │  │   title/artist, chip on the same line
 │  └───────────────────────┘  │
 │  ┌───────────────────────┐  │
-│  │ 2  ▓▓▓  Ribs          │  │
-│  │    ▓▓▓  Lorde      ▶︎  │  │
-│  │    ┌────────────────┐ │  │
-│  │    │ Who dropped…?  │ │  │   unassigned → empty chip
-│  │    └────────────────┘ │  │
+│  │ 02 ▓▓ Ribs   ⌐Name them│ │   unassigned → dashed outline chip
+│  │       Lorde        ▶︎  │  │
 │  └───────────────────────┘  │
 │  ┌───────────────────────┐  │
-│  │ 4  ▓▓▓  Motion Sick…  │  │   YOUR card: no chip,
-│  │    ▓▓▓  Phoebe B.  ▶︎  │  │   "Yours" label in amberText
+│  │ 04 ▓▓ Motion Sick…    │  │   YOUR card: no chip,
+│  │       Phoebe B.  Yours│  │   "Yours" label in amberText
 │  └───────────────────────┘  │   ← the ONE place amber appears here,
 │              ⋮              │     because your card is still your secret
 │                             │
-├─────────────────────────────┤
-│  Ana  Ben  Cal  Dee  Eli    │   name pool, pinned, horizontally scrollable
-│  ┌───────────────────────┐  │
+├─────────────────────────────┤   surface, rounded at the top two corners only
+│            ▁▁▁              │   grab bar
+│  YOUR CALL SHEET  6/7 ASSIGNED │  label, both ends
+│  Ana  Ben  C̶a̶l̶  Dee  Eli    │   name pool, pinned, horizontally scrollable;
+│  ┌───────────────────────┐  │   a spent name is struck through as well as dimmed
 │  │  Lock in guesses      │  │   PrimaryButton, ultramarine
-│  └───────────────────────┘  │   subtitle: "6 of 7 assigned"
+│  └───────────────────────┘  │
 └─────────────────────────────┘
 ```
+
+Once the sheet is locked in, a `ultramarineWash` panel appears under the header reading
+*"Locked in."* The countdown is **not** repeated in it — it is already in the header badge, and
+two copies of one number is two things to keep in sync.
 
 ### Interaction
 Two directions, both supported, because 16-year-olds will try both:
@@ -242,8 +259,8 @@ Two directions, both supported, because 16-year-olds will try both:
    assigns and advances focus to the next unassigned card.
 2. **Tap name → tap card.** The name chip becomes selected; the next card tap assigns it.
 
-Assigned names appear **consumed** in the pool (`paperSunk`, `inkFaint`, 0.6 opacity) but
-remain tappable — tapping a consumed name moves it, clearing its previous card. Double
+Assigned names appear **consumed** in the pool — struck through in `inkQuiet` at 0.6 opacity,
+so the state is carried by shape as well as by colour (`docs/12` §3) — but they remain tappable — tapping a consumed name moves it, clearing its previous card. Double
 assignment is permitted by the API; the UI discourages it by making the move the default
 behaviour rather than blocking it.
 
@@ -294,27 +311,45 @@ sequence immediately. Runs once per round.
 ### 7.2 You
 
 ```
-   Readability                     Ear
-   ┌──────────────────────┐        ┌──────────────────────┐
-   │        86%           │        │        71%           │   monoXL, tabular
-   │  6 of 7 read you     │        │  5 of 7 correct      │   caption, inkDim
-   │  ──────────●─────    │        │                      │   StatMeter
-   │  clear               │        │                      │   band label
-   └──────────────────────┘        └──────────────────────┘
+   ┌───────────────────┐ ┌───────────────────┐
+   │ READABILITY       │ │ EAR               │   label
+   │ 86%               │ │ 71%               │   displayXL; Ear in ultramarine
+   │ 6 of 7 read you   │ │ 5 of 7 correct    │   bodyS, inkDim
+   └───────────────────┘ └───────────────────┘
+   ┌───────────────────────────────────────┐
+   │ UNREADABLE              EASY TO READ  │   label, both ends
+   │ ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁●▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ │   StatMeter, marker only
+   │ Clear                                 │   the band, in words
+   └───────────────────────────────────────┘
 ```
 
-- Readability uses `StatMeter` with a marker, **no fill from the left**, and its active
-  one-word band label only.
+- Two tiles, equal width, side by side. **Only one of them wears the accent** — Ear, because it
+  is the number about the caller's own judgement. Two accented numbers side by side is a
+  scoreboard, and `docs/16` rules the app out of having one.
+- Readability's spectrum is its own panel under the pair, with a marker, **no fill from the
+  left**, both ends named, and the active one-word band under it. There is no better end.
   No rank, no arrow, no comparison to yesterday.
 - Ear with no guesses renders as **—** with the line *"You sat this one out."* Never `0%`.
-- Readability for a non-submitter is absent, not zero.
+- Readability for a non-submitter is absent, not zero, and the spectrum panel is absent with it.
 
 ### 7.3 Standings
-Two lists.
-- **Best Ear** — ranked 1..N, `monoM` percentage, raw correct count in `monoS` `inkDim`.
-- **Readability** — sorted but **unranked**, no numbers in front of names, each row a compact
-  `StatMeter` and a band label. Rendering a rank position here is a spec violation
-  (`02-DOMAIN-RULES.md` §4.5).
+**One table, sorted on ear only**, on a single `surface` with `hairline` rules between rows.
+
+```
+   ALL TIME                             41 ROUNDS
+   ┌───────────────────────────────────────────┐
+   │ 1   sam            EAR 78 · READ 62       │
+   │ 2   ivy            EAR 74 · READ 55       │
+   │ 3   mara           EAR 71 · READ 19       │
+   └───────────────────────────────────────────┘
+```
+
+Readability **rides along in the row** as a trait rather than being ranked in a list of its
+own: there is no better end of the readability scale, so a list ordered by it would be a
+leaderboard for something that is not a competition. Rendering a readability rank position is
+a spec violation (`02-DOMAIN-RULES.md` §4.5). Both numbers are set in the mono micro-label so
+neither reads as *the* score, and the raw correct count stays in the row's VoiceOver label —
+a 100% off two rounds must not pass for a 100% off fourteen.
 
 ### 7.4 Share
 One `PrimaryButton`: **Share tonight**. See `10-SHARE-CARD-SPEC.md`. This is the app's

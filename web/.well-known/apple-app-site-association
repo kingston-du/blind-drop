@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["$APP_ID_PREFIX.com.blinddrop.app"],
+        "appIDs": ["NNQ4DT9Z7Q.com.blinddrop.app"],
         "components": [
           {
             "/": "/j/*",
@@ -11,5 +11,8 @@
         ]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": ["NNQ4DT9Z7Q.com.blinddrop.app"]
   }
 }

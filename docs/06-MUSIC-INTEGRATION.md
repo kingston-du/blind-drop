@@ -216,7 +216,8 @@ playlist in the user's own account, from the client, with the user's own credent
 Nothing about this touches our server.
 
 1. `ASWebAuthenticationSession` → `https://accounts.spotify.com/authorize` with
-   `response_type=code`, `code_challenge_method=S256`, `redirect_uri=blinddrop://spotify-auth`,
+   `response_type=code`, `code_challenge_method=S256`,
+   `redirect_uri=https://blinddrop.app/spotify-auth`,
    `scope=playlist-modify-private playlist-modify-public`.
 2. Exchange the code at `/api/token` with the verifier. **No client secret** — PKCE public
    client. The secret stays server-side and is used only for the client-credentials lookup in
@@ -224,15 +225,23 @@ Nothing about this touches our server.
 3. Store `access_token` + `refresh_token` in the **Keychain**, accessibility
    `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. Never in `UserDefaults`. Never sent to
    our server.
-4. `POST /v1/users/{me}/playlists` → `POST /v1/playlists/{id}/tracks` in batches of 100 URIs.
+4. `POST /v1/me/playlists` → `POST /v1/playlists/{id}/items` in batches of 100 URIs. Spotify
+   removed the older user-id and `/tracks` forms in February 2026.
 5. On success, offer to open the playlist. On 401, refresh once, then re-auth.
 
-**Pilot constraint.** A Spotify app registered today starts in *development mode*: up to 25
-users, each added by email in the Spotify dashboard. A 6–12 person pilot fits. Document the
-tester emails in `server/.env.example` comments. Extended quota is only needed before public
-release. We do **not** use Spotify preview URLs at all, so the 2024 restriction on
-`preview_url` for new apps does not affect this build — verify that assumption still holds
-before starting `E13` and note the result in the epic.
+The exact redirect URL must also be registered in the Spotify dashboard. `blinddrop.app` must
+serve an `apple-app-site-association` file whose `webcredentials.apps` contains the production
+`<TEAM_ID>.<BUNDLE_ID>`; the iOS target carries the matching `webcredentials:blinddrop.app`
+entitlement. Without those two release-time registrations, iOS correctly refuses to hand the
+HTTPS callback to the app.
+
+**Pilot constraint (re-checked 2026-08-12).** A Spotify app registered today starts in
+*development mode*: up to **5** authenticated users, each added by email in the Spotify
+dashboard, and the app owner must have Premium. A 6–12 person pilot therefore needs extended
+quota or must limit Spotify export testing to five allowlisted accounts. Document those tester
+emails in `server/.env.example` comments. We do **not** use Spotify preview URLs at all, so
+preview availability does not affect this build. Authorization Code with PKCE remains Spotify's
+recommended mobile/public-client flow.
 
 ### Apple Music export — MusicKit
 

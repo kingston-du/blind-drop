@@ -221,9 +221,11 @@ The tenth table, and the only one that holds no game data. The limits in
 create table public.rate_limit_events (
   id      bigserial primary key,
   bucket  text        not null,     -- 'route:<key>:u:<user>' | 'join:ip:<sha256 prefix>'
-  at      timestamptz not null default public.now_()
+  at      timestamptz not null default public.now_(),
+  expires_at timestamptz not null
 );
 create index rate_limit_events_bucket_at on public.rate_limit_events (bucket, at desc);
+create index rate_limit_events_expires_at on public.rate_limit_events (expires_at);
 ```
 
 `consume_rate_limit(bucket, limit, window)` returns `0` when the request is allowed, else the
@@ -232,8 +234,9 @@ seconds to wait, which the handler returns as `Retry-After`.
 - **A bucket key is a user id or a hashed IP. Never a group id.** A group-scoped counter would
   let one member detect another's activity by watching for throttling
   (`14-SECURITY-AND-THREAT-MODEL.md` §3).
-- Rows are deleted by the next call on the same bucket once they age out of the window, so a
-  hashed IP is retained for at most one window. That is what keeps IP addresses off the
+- Rows carry their own expiry and the minute scheduler deletes expired rows across all buckets,
+  so a hashed IP does not linger indefinitely when that address never returns. That is what keeps
+  IP addresses off the
   collected-data list in `14-SECURITY-AND-THREAT-MODEL.md` §9.
 
 ---

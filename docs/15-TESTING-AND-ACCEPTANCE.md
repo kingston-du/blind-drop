@@ -200,14 +200,14 @@ hand-rolled against golden PNGs in `BlindDropTests/__Snapshots__/` — no third-
 library (`13-IOS-APP-ARCHITECTURE.md`: zero dependencies).
 
 UI tests run against a **fixture server**: a Deno script serving canned responses for each
-phase, launched by the test scheme. The app points at it via a launch argument. This makes
-phase testing instant and deterministic.
+phase, launched by the test harness before the scheme. The app points at it via a launch
+argument. This makes phase testing instant and deterministic.
 
 ### CI
 
 On every push: lints → `npm run test` → iOS unit + snapshot against the pinned current
 Xcode/simulator destination. The destination is configured centrally rather than repeated in
-scripts. Before release, run the same suite once on the minimum supported iOS 17 runtime and
+scripts. Before release, run the same suite once on the minimum supported iOS 17.4 runtime and
 once on the current runtime.
 On PR to main: the above plus UI tests.
 Before release: the above plus `audit:leak`, the Instruments performance run, and the §10

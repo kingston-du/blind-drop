@@ -1,6 +1,6 @@
 # 13 — iOS app architecture
 
-Swift 6, strict concurrency, iOS 17.0 minimum. SwiftUI only. **Zero third-party
+Swift 6, strict concurrency, iOS 17.4 minimum. SwiftUI only. **Zero third-party
 dependencies** except the bundled Bricolage Grotesque font file.
 
 ---
@@ -303,12 +303,12 @@ countdown; a stale anchor after background returns `nil` until resync; drift ove
 
 | Setting | Value |
 |---|---|
-| Deployment target | iOS 17.0 |
+| Deployment target | iOS 17.4 (`ASWebAuthenticationSession.Callback.https`) |
 | Swift language mode | 6 |
 | Supported orientations | Portrait only |
 | Supported devices | iPhone only (no iPad layout — `16-OUT-OF-SCOPE.md`) |
 | Appearance | `.light` forced at the root |
-| Capabilities | Push Notifications, Sign in with Apple, MusicKit (export only), Associated Domains (invite links) |
+| Capabilities | Push Notifications, Sign in with Apple, MusicKit (export only), Associated Domains (invite links + Spotify HTTPS callback) |
 | URL schemes | `blinddrop` |
 | `Info.plist` | `SPOTIFY_CLIENT_ID` (public), `NSAppleMusicUsageDescription` |
 | Background modes | **none** — remote notifications are alert-only, no silent pushes |

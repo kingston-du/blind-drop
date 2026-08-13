@@ -6,7 +6,7 @@
 
 | Layer | Choice | Version |
 |---|---|---|
-| Client | Native SwiftUI | iOS 17.0 minimum, Swift 6 strict concurrency |
+| Client | Native SwiftUI | iOS 17.4 minimum, Swift 6 strict concurrency |
 | Auth | Supabase Auth — Sign in with Apple (primary), phone OTP (flagged) | — |
 | API | Supabase Edge Functions (Deno / TypeScript) | hand-written handlers only |
 | Database | Postgres 17 (Supabase) | RLS deny-by-default |
@@ -205,10 +205,10 @@ names: `APPLE_MUSIC_KEY_ID`, `APPLE_MUSIC_TEAM_ID`, `APPLE_MUSIC_PRIVATE_KEY`,
 `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_TOPIC`, `SPOTIFY_CLIENT_ID`,
 `SPOTIFY_CLIENT_SECRET`.
 
-> **Note for the pilot.** Spotify apps created today start in *development mode*, capped at
-> 25 manually-added users. A 6–12 person pilot fits inside that cap. Extended-quota approval
-> is only needed before public release, and Spotify preview URLs are **not** used at all
-> (previews come from Apple), so the 2024 preview-endpoint restriction does not affect us.
+> **Note for the pilot (re-checked 2026-08-12).** Spotify apps created today start in
+> *development mode*, capped at 5 allowlisted authenticated users, with a Premium app owner.
+> A 6–12 person pilot therefore needs extended quota or must limit Spotify export testing to
+> five accounts. Spotify preview URLs are **not** used at all (previews come from Apple).
 > See `06-MUSIC-INTEGRATION.md` §6.
 
 ---

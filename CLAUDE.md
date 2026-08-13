@@ -104,7 +104,8 @@ directory owns a concern, so you can scope `grep`/`glob` instead of scanning the
 ## 4. Conventions
 
 ### Swift
-- Swift 6 language mode, strict concurrency. iOS 17.0 deployment target.
+- Swift 6 language mode, strict concurrency. iOS 17.4 deployment target (Spotify's required
+  HTTPS OAuth callback uses `ASWebAuthenticationSession.Callback.https`, introduced in 17.4).
 - SwiftUI only. No UIKit view controllers except `ASWebAuthenticationSession` hosting.
 - State: `@Observable` model objects owned by a feature-scoped `…Store`. No singletons
   except `AppEnvironment`, injected through `.environment(…)`.
