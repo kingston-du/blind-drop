@@ -85,7 +85,7 @@ Both directions, because teenagers will try both.
 
 ### E11-03 — Name pool and the 12-member layout
 
-**Status:** todo · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/12` §6
+**Status:** wip · **Deps:** E11-02 · **Reads:** `docs/08` §6, `docs/12` §6
 **Touches:** `Features/Reveal/GuessSheet.swift`
 **Verify:** `A11yReachabilityTests` at SE × 12 members × `.accessibility5`
 
