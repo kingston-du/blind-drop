@@ -110,22 +110,14 @@ The PRD calls this case out specifically, so it gets its own task.
 
 ### E11-04 — The unseal animation
 
-**Status:** blocked · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
+**Status:** wip · **Deps:** E11-01 · **Reads:** `docs/09` §3, §5
 **Touches:** `DesignSystem/Motion/UnsealAnimation.swift`, `Core/Persistence/LocalFlags.swift`
 **Verify:** Instruments at 12 cards on iPhone 12, zero hitches
 
-> **Blocked on hardware, not on code.** Its dependency (`E11-01`) is `done` and the animation
-> itself is writable today. What cannot happen on this machine is the **Verify** line: it names a
-> physical iPhone 12, and `docs/09` §6 and `E14-03` both say so for the same reason — simulator
-> frame timings are meaningless for hitch detection, because the simulator does not have the
-> device's GPU, its thermal behaviour, or its display pipeline.
->
-> So this is deliberately not `todo`: an agent picking the top-most `todo` task off the board
-> would implement it, find no way to satisfy the verify, and be one step from marking it `done`
-> on a simulator run that proves nothing. `CLAUDE.md` §1 says mark it `blocked` and write why.
->
-> **To unblock:** a physical iPhone 12 (or the owner's decision to accept a different device and
-> amend the verify line). `E14-03` carries the same dependency and will be blocked the same way.
+> **Hardware verification waived by the owner.** No physical iPhone 12 is available, so the
+> implementation is verified with deterministic timeline/unit tests and simulator rendering.
+> That does not make simulator frame timing an Instruments result; the physical zero-hitch pass
+> remains explicitly deferred to `E14-03` if matching hardware becomes available.
 
 The counterpart to the seal. Amber gives way to ultramarine — **the only moment both accents
 exist on one screen**, and exactly what the transition is for.
