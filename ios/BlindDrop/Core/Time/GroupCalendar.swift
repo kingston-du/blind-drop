@@ -41,6 +41,20 @@ extension GroupCalendar {
         )
     }
 
+    /// `"2026-08-10"` → *"10 August"* (`docs/10` §2).
+    ///
+    /// The share card's date, which is the same day the header names with the weekday dropped.
+    /// A card that has left the group is read days or weeks later, and *"Monday"* is the part of
+    /// that sentence that stops being useful first — the date is what says which night this was.
+    func shareDate(localDate: String, locale: Locale = .current) -> String? {
+        guard let day = instant(atNoonOn: localDate) else { return nil }
+        return day.formatted(
+            Date.FormatStyle(locale: locale, calendar: calendar, timeZone: timeZone)
+                .day(.defaultDigits)
+                .month(.wide)
+        )
+    }
+
     /// Midday on a `YYYY-MM-DD` day, in the group's zone.
     ///
     /// Built from components rather than parsed by a formatter, and taken at **noon** rather than

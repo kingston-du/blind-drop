@@ -180,14 +180,21 @@ enum ResultsSnapshotFixture {
     static let standings: StandingsDTO = decoded("standings")
 
     private static func decoded<T: Decodable>(_ name: String) -> T {
+        try! JSONDecoder.api.decode(T.self, from: data(name))
+    }
+
+    /// A payload as loose JSON, for a fixture that needs to **edit** the contract before
+    /// decoding it — the long-title share card is the only one (`docs/10` §6).
+    static func payload(_ name: String) -> [String: Any] {
+        try! JSONSerialization.jsonObject(with: data(name)) as? [String: Any] ?? [:]
+    }
+
+    private static func data(_ name: String) -> Data {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // Snapshot
             .deletingLastPathComponent()   // BlindDropTests
             .deletingLastPathComponent()   // ios
-        return try! JSONDecoder.api.decode(
-            T.self,
-            from: try! Data(contentsOf: root.appending(path: "Fixtures/payloads/\(name).json"))
-        )
+        return try! Data(contentsOf: root.appending(path: "Fixtures/payloads/\(name).json"))
     }
 }
 

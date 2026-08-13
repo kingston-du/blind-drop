@@ -165,6 +165,22 @@
 "results.standings.ear" = "Best ear";
 "results.standings.ear.detail" = "%lld correct";
 "results.standings.readability" = "How readable";
+"results.share" = "Share tonight";
+"results.share.square" = "For a group chat";
+"results.share.story" = "For a story";
+
+/* ── The share card (docs/11 §Share card headlines, docs/10 §2) ────────────── */
+/* One headline, chosen by precedence. Never more than one, and never a superlative that */
+/* needs a comparison the viewer cannot see on the card. */
+
+"share.headline.nobody" = "Nobody got No. %lld";
+"share.headline.everybody" = "Everybody got No. %lld";
+"share.headline.perfect" = "%@ read the whole room";
+"share.headline.unreadable" = "%@ was unreadable";
+"share.headline.fallback" = "%lld songs, %lld guesses";
+"share.overflow" = "+ %lld more";
+"share.bestear.label" = "Best ear";
+"share.wordmark" = "Blind Drop";
 
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */
 /* No band is framed as good or bad. */

@@ -220,6 +220,66 @@ enum Typography {
         return displayFont(pointSize: scaled.pointSize, spec: spec)
     }
 
+    /// Makes sure the display face is loaded, registering it from the bundle if it is not.
+    ///
+    /// > *"Fonts must be registered before rendering. `ImageRenderer` silently falls back to the
+    /// > system face if Bricolage is not loaded."* (`docs/10` §4)
+    ///
+    /// `UIAppFonts` in `Info.plist` loads it at launch and normally this finds it already there
+    /// and does nothing. It exists for the one case where that is not enough — a render started
+    /// from a code path whose bundle is not the app's, which is exactly what a test target is —
+    /// because the failure mode is not a crash or a blank card. It is a card that looks *fine*
+    /// and is in the wrong typeface, shared to a group chat, permanently.
+    ///
+    /// - Returns: whether the face is available. `false` means the card will be drawn in the
+    ///   system face, which the caller logs rather than hides.
+    @discardableResult
+    static func registerDisplayFace() -> Bool {
+        if isDisplayFaceAvailable { return true }
+        guard let url = Copy.bundle.url(forResource: "BricolageGrotesque", withExtension: "ttf")
+        else { return false }
+        // `.process` rather than `.persistent`: the face belongs to this process for as long as
+        // it runs, and nothing about a share card should outlive it on the system.
+        CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        return isDisplayFaceAvailable
+    }
+
+    /// Whether the bundled family resolves. Asked of the font system rather than of a flag, so a
+    /// registration that silently failed is visible here rather than assumed away.
+    static var isDisplayFaceAvailable: Bool {
+        let descriptor = UIFontDescriptor(fontAttributes: [.family: displayFamily])
+        return UIFont(descriptor: descriptor, size: 12).familyName == displayFamily
+    }
+
+    /// A font at a **literal** point size, for content rendered into an image rather than onto
+    /// a screen.
+    ///
+    /// The share card is the only caller and `docs/10` §3 is the only reason this exists: the
+    /// card's numerals are specified as 96pt and 112pt in the artifact's own space, and there is
+    /// no token for either. It is safe to hand a raw size here — and unsafe anywhere else —
+    /// because a PNG has no Dynamic Type: the reader's text-size setting is about their screen,
+    /// and the artifact has already left it. Everything else on the card is a `TypeStyle` at a
+    /// pinned `.large`, so this is one line of the design and not a way around the scale.
+    ///
+    /// The display face keeps its axes, including the optical size set at the drawn size, which
+    /// is the whole reason a variable font is bundled (`docs/07` §3).
+    static func fixed(
+        _ face: TypeStyle.Face,
+        size: CGFloat,
+        weight: UIFont.Weight = .semibold,
+        isTabular: Bool = true
+    ) -> UIFont {
+        let spec = TypeStyle.Spec(
+            size: size, lineHeight: size, face: face, weight: weight,
+            textStyle: .body, tracking: 0, isUppercase: false,
+            maximumScale: nil, isTabular: isTabular
+        )
+        return switch face {
+        case .display: displayFont(pointSize: size, spec: spec)
+        case .body, .mono: baseFont(spec)
+        }
+    }
+
     /// The unscaled font for a style — the `.large` category's size, before Dynamic Type.
     private static func baseFont(_ spec: TypeStyle.Spec) -> UIFont {
         switch spec.face {

@@ -101,6 +101,13 @@ enum Layout {
     static let standingsNameColumn: CGFloat = Space.x6
     static let standingsBandColumn: CGFloat = Space.x5 + Space.lg
 
+    /// One thumbnail in the share picker (`docs/10` §4).
+    ///
+    /// Two of them plus the screen inset and the gap between fit inside an SE's 375 points,
+    /// which is what decides the number: the picker's whole job is letting somebody compare the
+    /// two shapes at a glance, and a picker that scrolls is one they compare in two glances.
+    static let shareThumbnailWidth: CGFloat = Space.x6 + Space.x4
+
     /// How far a finger travels before it counts as *scrolling past* rather than as a tap
     /// (`docs/09` §4: *"any scroll gesture completes the entire sequence immediately"*).
     ///

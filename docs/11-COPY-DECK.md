@@ -202,7 +202,14 @@ readability or commiserates a low one.
 | `share.headline.perfect` | %@ read the whole room |
 | `share.headline.unreadable` | %@ was unreadable |
 | `share.headline.fallback` | %lld songs, %lld guesses |
+| `share.overflow` | + %lld more | the cards that did not fit in the four rows (`docs/10` §2) |
 | `share.bestear.label` | Best ear |
+| `share.wordmark` | Blind Drop |
+
+`share.wordmark` is *"the name at the bottom is the whole marketing"* (`docs/10` §2). It is its
+own row rather than a reuse of `onboarding.title` because the two are different jobs: one is a
+screen's headline and the other is a signature on an artifact leaving the app, and a change to
+either must be able to happen without the other.
 
 ---
 

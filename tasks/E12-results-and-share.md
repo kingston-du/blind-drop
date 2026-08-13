@@ -63,29 +63,40 @@ The one place a formatting bug becomes a product bug.
 
 ### E12-04 — Share card views
 
-**Status:** wip · **Deps:** E12-03 · **Reads:** `docs/10` §1–3, `docs/11` (share)
+**Status:** done · **Deps:** E12-03 · **Reads:** `docs/10` §1–3, `docs/11` (share)
 **Touches:** `Features/Results/Share/{ShareCardView,ShareHeadline}.swift`
 **Verify:** `ShareCardSnapshotTests` against goldens at both sizes
 
 One view, a `variant` parameter, two artifacts — so a copy change lands in both.
 
-- [ ] Square-tall 1080×1350 and Story 1080×1920, both at scale 3
-- [ ] Content per `docs/10` §2: group name, date, up to 4 flight rows **by `card_no`** (not
+- [x] Square-tall 1080×1350 and Story 1080×1920, both at scale 3
+- [x] Content per `docs/10` §2: group name, date, up to 4 flight rows **by `card_no`** (not
       resorted by interest), overflow count, one headline, Best Ear leader, wordmark
-- [ ] Headline precedence, five rules, first match wins — with a unit test per rule
-- [ ] **Ultramarine only. Amber must not appear** — nothing on this card is sealed.
-- [ ] No QR code, no install link, no store badge, no avatars. The card works because it looks
+- [x] Headline precedence, five rules, first match wins — with a unit test per rule
+- [x] **Ultramarine only. Amber must not appear** — nothing on this card is sealed.
+- [x] No QR code, no install link, no store badge, no avatars. The card works because it looks
       like something the group made, not like an ad.
-- [ ] Story variant stacks the headline pair and adds 240pt bottom safe space so the Instagram
+- [x] Story variant stacks the headline pair and adds 240pt bottom safe space so the Instagram
       UI doesn't cover the wordmark
-- [ ] Long titles: middle ellipsis on the title, tail on the owner; owner never truncates
+- [x] Long titles: middle ellipsis on the title, tail on the owner; owner never truncates
       before the title
+
+> **Open question:** `docs/10` §2's headline rule 4 is *"lowest readability of the night"* and
+> its string is *"%@ was unreadable"*. On a night where the lowest readability is 71% that
+> sentence is false, and §2 also says *"never a superlative that requires a comparison the
+> viewer can't see on the card"* — which "lowest of the night" is exactly. Interpretation taken:
+> **rule 4 fires only when the lowest readability is actually in the `unreadable` band**
+> (`docs/02` §4.5), and otherwise falls through to rule 5. That keeps the one sentence on the
+> card true on its own terms, which is the reading most protective of the people named on it —
+> a card that leaves a private group calling somebody "unreadable" when they were merely least
+> readable is the same class of mistake as printing a rank on the readability list.
+> `ShareHeadlineTests` covers both sides of the boundary.
 
 ---
 
 ### E12-05 — Share renderer and share sheet
 
-**Status:** todo · **Deps:** E12-04 · **Reads:** `docs/10` §4–6
+**Status:** wip · **Deps:** E12-04 · **Reads:** `docs/10` §4–6
 **Touches:** `Features/Results/Share/ShareRenderer.swift`
 **Verify:** `ShareRendererTests`; AC-9
 

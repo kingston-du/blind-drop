@@ -148,12 +148,12 @@ final class RoundStore {
     }
 
     private func result<R: Decodable & Sendable>(of endpoint: Endpoint<R>) async -> Result<R, APIError> {
+        // `APIClient.send` throws `APIError` and nothing else — a typed `throws`, so there is no
+        // second `catch` here for an error that cannot arrive.
         do {
             return .success(try await api.send(endpoint))
-        } catch let error as APIError {
-            return .failure(error)
         } catch {
-            return .failure(.unreadable)
+            return .failure(error)
         }
     }
 }
