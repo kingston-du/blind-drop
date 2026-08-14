@@ -29,6 +29,7 @@ import {
   SUBMIT_BUDGET_MS,
 } from "../../functions/_shared/music/spotify.ts";
 import { isAllowedUpstream, upstreamJson } from "../../functions/_shared/music/upstream.ts";
+import { fixturesEnabled } from "../../functions/_shared/music/fixtures.ts";
 import { UpstreamError } from "../../functions/_shared/music/errors.ts";
 import { ApiError } from "../../functions/_shared/http.ts";
 import { trackFields } from "../../functions/_shared/dto.ts";
@@ -310,6 +311,37 @@ Deno.test("a blocked URL never reaches the network", async () => {
     UpstreamError,
   );
   assertEquals((err as InstanceType<typeof UpstreamError>).reason, "blocked");
+});
+
+// ─── the fixture flag is local-only ──────────────────────────────────────────
+// The flag reaching a deployed project is not hypothetical: `supabase secrets set --env-file`
+// carried it up once, and search then answered every query from the eight songs below while
+// looking perfectly healthy. Fake data served to real users is worse than an outage, because
+// nothing about it looks wrong.
+
+Deno.test("MUSIC_FIXTURES is ignored on a deployed stack, however it got there", () => {
+  const local = Deno.env.get("SUPABASE_URL");
+  try {
+    Deno.env.set("SUPABASE_URL", "https://ojzwgaffeegssfscoaiv.supabase.co");
+    assert(!fixturesEnabled(), "a deployed project must reach the real Apple or fail loudly");
+
+    // An absent or unparseable `SUPABASE_URL` counts as deployed: the safe default for a
+    // switch whose failure mode is silently serving a stand-in.
+    Deno.env.delete("SUPABASE_URL");
+    assert(!fixturesEnabled());
+    Deno.env.set("SUPABASE_URL", "not a url");
+    assert(!fixturesEnabled());
+
+    // …and the local stack, in both the shapes it appears in: the edge runtime container's
+    // view of the gateway, and what `supabase status` prints for this test process.
+    Deno.env.set("SUPABASE_URL", "http://kong:8000");
+    assert(fixturesEnabled());
+    Deno.env.set("SUPABASE_URL", "http://127.0.0.1:54421");
+    assert(fixturesEnabled());
+  } finally {
+    if (local === undefined) Deno.env.delete("SUPABASE_URL");
+    else Deno.env.set("SUPABASE_URL", local);
+  }
 });
 
 Deno.test("targetFromInput requires exactly one of the three fields", () => {

@@ -502,6 +502,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // read side and no body to shape, so a caller learns nothing from registering — including
     // whether the row already existed (tasks/E06-03).
     "devices POST /": null,
+    // 204, same as registration: whether the token existed, belonged to this user, or matched
+    // nothing at all, the caller learns nothing about the row it just asked to be gone
+    // (tasks/E14, "add group and account settings").
+    "devices DELETE /": null,
     "tracks GET /search": "tracks_search",
     "tracks POST /resolve": "tracks_resolve",
   };

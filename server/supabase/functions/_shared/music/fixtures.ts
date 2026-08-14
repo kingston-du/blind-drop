@@ -5,10 +5,12 @@
 // URL allowlist, the ISRC rules and the 700ms budget all still execute for real when the suite
 // runs. A fixture that returned Track DTOs would be testing the fixture.
 //
-// It is reachable only when `MUSIC_FIXTURES` is set, which happens in exactly one place —
-// `supabase/config.toml`, the local stack. A deployed function has no such variable, so a
-// missing Apple credential in production is a loud failure and never a quiet fall back to
-// eight songs somebody picked in 2026.
+// It is reachable only when `MUSIC_FIXTURES` is set **and the stack is local** — see
+// `_shared/localStack.ts`. The flag is set in exactly one place, `supabase/config.toml`, but a
+// deploy that carries a local env file up with `supabase secrets set --env-file` can set it in
+// production too, and that is not a theoretical worry: it happened, and search answered from
+// eight songs somebody picked in 2026 while looking entirely healthy. So a missing Apple
+// credential in production is a loud failure, and a *present* fixture flag is ignored.
 //
 // The catalogue is the same eight songs as `supabase/seed.sql` and `ios/Fixtures/payloads`,
 // so the three fixture worlds agree and a track resolved through this file is byte-identical
@@ -17,10 +19,11 @@
 
 import { UpstreamError } from "./errors.ts";
 import type { UpstreamOptions } from "./upstream.ts";
+import { fixtureFlagEnabled } from "../localStack.ts";
 
 /** Read lazily, never cached: a test may set it after this module is first imported. */
 export function fixturesEnabled(): boolean {
-  return (Deno.env.get("MUSIC_FIXTURES") ?? "").toLowerCase() === "on";
+  return fixtureFlagEnabled("MUSIC_FIXTURES");
 }
 
 // ─── the catalogue, in Apple's shape ─────────────────────────────────────────

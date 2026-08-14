@@ -8,6 +8,7 @@
 
 import { apnsToken, notificationAlert, type NotificationKind } from "../_shared/apns.ts";
 import { type Db, dbFailure } from "../_shared/db.ts";
+import { fixtureFlagEnabled } from "../_shared/localStack.ts";
 
 export const PUSH_CONCURRENCY = 16;
 const OUTBOX_BATCH = 20;
@@ -277,8 +278,11 @@ const fixtureFetch: ApnsFetch = async (_request) => ({
   text: async () => "",
 });
 
+/** The fixture is the local stack's APNs. On a deployed project the flag is ignored however it
+ *  got there (`_shared/localStack.ts`) — a swallowed push looks exactly like a delivered one, so
+ *  this switch failing open would be silent and permanent. */
 function configuredFetch(): ApnsFetch {
-  return Deno.env.get("APNS_FIXTURES") === "on" ? fixtureFetch : productionFetch;
+  return fixtureFlagEnabled("APNS_FIXTURES") ? fixtureFetch : productionFetch;
 }
 
 /** Claims a bounded batch, sends every device at concurrency 16, then marks each row. */

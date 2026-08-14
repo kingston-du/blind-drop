@@ -423,8 +423,14 @@ deno_version = 2
 # `MUSIC_FIXTURES` is what makes that work. With it on, `_shared/music/upstream.ts` answers
 # from `_shared/music/fixtures.ts` instead of reaching the network — it substitutes the *hop*,
 # not the code, so token signing, DTO mapping, the URL allowlist and the timeout budget all
-# still run for real. It is opt-in and never set in a deployed environment; a missing Apple
-# key in production is a loud failure, not a silent fall back to fixture songs.
+# still run for real. A missing Apple key in production is a loud failure, not a silent fall
+# back to fixture songs.
+#
+# `MUSIC_FIXTURES` and `APNS_FIXTURES` are honoured **only on a local stack**, enforced in
+# `_shared/localStack.ts` rather than assumed here. Deploying with `supabase secrets set
+# --env-file` will happily carry a fixture flag up to a real project, and a deployed function
+# that quietly answers from an eight-song catalogue looks like the product working badly rather
+# than like an outage. The deployed runtime now logs the flag and ignores it.
 #
 # The private key below is a throwaway P-256 key generated for this repo. It signs tokens that
 # only ever go to the in-process fixture upstream. It is not an Apple credential, it grants
