@@ -5,7 +5,7 @@
 -- tests/functions/postgrest_locked.test.ts; what is provable in SQL is proved here.
 begin;
 set search_path = public, extensions, tests;
-select plan(52);
+select plan(56);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -66,6 +66,70 @@ select is_empty($$
     and d.defaclrole = 'postgres'::regrole
     and array_to_string(d.defaclacl, ',') ~ '\m(anon|authenticated)='
 $$, 'default privileges set by postgres grant nothing to anon or authenticated');
+
+-- The service role is powerful, but not a database owner. Hosted projects must preserve the
+-- verb-by-verb allowlist from 0010 instead of inheriting legacy blanket auto-grants.
+select set_eq(
+  $$ select table_name, privilege_type
+       from information_schema.role_table_grants
+      where table_schema = 'public' and grantee = 'service_role' $$,
+  $$ values
+       ('profiles', 'SELECT'), ('profiles', 'INSERT'), ('profiles', 'UPDATE'),
+       ('groups', 'SELECT'), ('groups', 'INSERT'), ('groups', 'UPDATE'),
+       ('memberships', 'SELECT'), ('memberships', 'INSERT'), ('memberships', 'UPDATE'),
+       ('rounds', 'SELECT'),
+       ('submissions', 'SELECT'), ('submissions', 'INSERT'), ('submissions', 'UPDATE'),
+       ('guesses', 'SELECT'), ('guesses', 'INSERT'), ('guesses', 'UPDATE'),
+       ('guesses', 'DELETE'),
+       ('devices', 'SELECT'), ('devices', 'INSERT'), ('devices', 'UPDATE'),
+       ('notification_outbox', 'SELECT'), ('notification_outbox', 'UPDATE'),
+       ('track_links', 'SELECT'), ('track_links', 'INSERT'), ('track_links', 'UPDATE'),
+       ('rate_limit_events', 'SELECT'), ('rate_limit_events', 'INSERT'),
+       ('rate_limit_events', 'DELETE'),
+       ('pilot_cohorts', 'SELECT'), ('pilot_cohorts', 'INSERT'),
+       ('pilot_cohorts', 'UPDATE'), ('pilot_cohorts', 'DELETE'),
+       ('round_submitter_counts', 'SELECT'), ('guess_results', 'SELECT'),
+       ('round_scores', 'SELECT'), ('standings', 'SELECT') $$,
+  'service_role has exactly the table and view verbs used by Edge Functions');
+
+select set_eq(
+  $$ select object_name, privilege_type
+       from information_schema.role_usage_grants
+      where object_schema = 'public' and grantee = 'service_role' $$,
+  $$ values ('rate_limit_events_id_seq'::information_schema.sql_identifier,
+             'USAGE'::information_schema.character_data) $$,
+  'service_role can use only the rate-limit sequence');
+
+select set_eq(
+  $$ select routine_name
+       from information_schema.role_routine_grants
+      where routine_schema = 'public' and grantee = 'service_role'
+        -- These two helpers are created by seed.sql after every migration. They never exist on
+        -- a hosted database and are covered by the fixture tests that use them.
+        and routine_name not in ('tick_rounds_at', 'set_membership_joined_at') $$,
+  $$ values
+       ('now_'::information_schema.sql_identifier),
+       ('ensure_rounds'::information_schema.sql_identifier),
+       ('tick_rounds'::information_schema.sql_identifier),
+       ('timezone_is_valid'::information_schema.sql_identifier),
+       ('create_group'::information_schema.sql_identifier),
+       ('consume_rate_limit'::information_schema.sql_identifier),
+       ('delete_account'::information_schema.sql_identifier),
+       ('patch_track_meta_spotify'::information_schema.sql_identifier),
+       ('upsert_submission'::information_schema.sql_identifier),
+       ('claim_notification_outbox'::information_schema.sql_identifier),
+       ('finish_notification_outbox'::information_schema.sql_identifier),
+       ('release_notification_outbox'::information_schema.sql_identifier),
+       ('assign_pilot_cohort'::information_schema.sql_identifier) $$,
+  'service_role can execute exactly the RPC allowlist');
+
+select is_empty($$
+  select defaclobjtype::text || ' -> ' || defaclacl::text
+  from pg_default_acl d join pg_namespace n on n.oid = d.defaclnamespace
+  where n.nspname = 'public'
+    and d.defaclrole = 'postgres'::regrole
+    and array_to_string(d.defaclacl, ',') ~ '\mservice_role='
+$$, 'future public objects are not auto-granted to service_role');
 
 -- ─── and the lock actually holds ─────────────────────────────────────────────
 -- Read each table as `authenticated`. Every one must fail closed.
