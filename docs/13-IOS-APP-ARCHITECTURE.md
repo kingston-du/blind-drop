@@ -102,7 +102,9 @@ ios/
 │   │   │       ├── SpotifyExporter.swift
 │   │   │       └── AppleMusicExporter.swift
 │   │   └── Settings/
-│   │       ├── GroupSettingsScreen.swift
+│   │       ├── GroupScreen.swift
+│   │       ├── GroupStore.swift
+│   │       ├── SettingsScreen.swift
 │   │       └── SettingsStore.swift
 │   │
 │   └── Resources/

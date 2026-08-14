@@ -76,7 +76,11 @@ final class FakeAuth: AuthService {
 @MainActor
 final class FakeApple: AppleIdentityProviding {
     var result: Result<AppleIdentity, AuthError> = .success(
-        .init(identityToken: "apple.identity.token", nonce: "raw-nonce")
+        .init(
+            identityToken: "apple.identity.token",
+            nonce: "raw-nonce",
+            authorizationCode: "apple.authorization.code"
+        )
     )
     private(set) var requests = 0
 
@@ -448,6 +452,8 @@ struct AuthHarness {
         let h = AuthHarness()
         AuthStub.arm([Self.ok(Self.me)])
         try await h.session.signIn(with: h.apple)
+        h.secrets.preload("spotify-access", to: Keychain.Account.spotifyAccessToken)
+        h.secrets.preload("spotify-refresh", to: Keychain.Account.spotifyRefreshToken)
 
         await h.session.signOut()
 
@@ -456,6 +462,40 @@ struct AuthHarness {
         #expect(h.session.accessToken == nil)
         #expect(h.session.user == nil)
         #expect(h.secrets.stored.isEmpty)
+        #expect(h.secrets.deletions.contains(Keychain.Account.spotifyAccessToken))
+        #expect(h.secrets.deletions.contains(Keychain.Account.spotifyRefreshToken))
+    }
+
+    /// Apple accounts make deletion a two-request flow: the first response asks for fresh
+    /// proof, the second carries Apple's single-use code, and a successful delete ends the
+    /// local session immediately.
+    @Test func deletingAnAppleAccountReauthenticatesAndEndsTheSession() async throws {
+        let h = AuthHarness()
+        AuthStub.arm([Self.ok(Self.me)])
+        try await h.session.signIn(with: h.apple)
+
+        AuthStub.arm([
+            .init(status: 409, body: Self.failure("REAUTHENTICATION_REQUIRED")),
+            .init(status: 204),
+        ])
+        let center = FakeNotificationAuthority(status: .authorized, grants: true)
+        let push = PushRegistrar(
+            api: h.api,
+            flags: LocalFlags(defaults: RoundFixture.scratchDefaults()),
+            center: center
+        )
+        let router = Router()
+        router.path = [.settings]
+        let store = SettingsStore(api: h.api, session: h.session, router: router, push: push)
+
+        await store.deleteAccount(using: h.apple)
+
+        #expect(h.apple.requests == 2, "one sign-in and one fresh deletion authorization")
+        #expect(h.session.state == .signedOut)
+        #expect(router.path.isEmpty)
+        #expect(center.didClearDeliveredNotifications)
+        let requests = AuthStub.taken
+        #expect(requests.map(\.httpMethod) == ["DELETE", "DELETE"])
     }
 
     /// The other ending. `APIClient` calls it when a 401 survives its one refresh, and there is

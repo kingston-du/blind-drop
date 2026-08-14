@@ -191,14 +191,63 @@ Deno.test("POST /devices validates the token, the environment, and the key set",
   assertEquals((await rowsFor(token)).length, 0, "no rejected body may have stored a row");
 });
 
+Deno.test("DELETE /devices removes only the caller's matching token", async () => {
+  const owner = await newNamedUser("Signing Out");
+  const other = await newNamedUser("Staying In");
+  const ownerToken = newToken();
+  const otherToken = newToken();
+
+  assertEquals((await devices({
+    method: "POST",
+    token: owner.token,
+    body: { apns_token: ownerToken, environment: "production" },
+  })).status, 204);
+  assertEquals((await devices({
+    method: "POST",
+    token: other.token,
+    body: { apns_token: otherToken, environment: "production" },
+  })).status, 204);
+
+  // A valid token belonging to somebody else is deliberately indistinguishable from an
+  // already-removed token: both are a quiet 204 and neither reveals ownership.
+  assertEquals((await devices({
+    method: "DELETE",
+    token: owner.token,
+    body: { apns_token: otherToken },
+  })).status, 204);
+  assertEquals((await rowsFor(otherToken))[0].user_id, other.id);
+
+  assertEquals((await devices({
+    method: "DELETE",
+    token: owner.token,
+    body: { apns_token: ownerToken.toUpperCase() },
+  })).status, 204);
+  assertEquals((await rowsFor(ownerToken)).length, 0);
+  assertEquals((await rowsFor(otherToken)).length, 1);
+});
+
+Deno.test("DELETE /devices authenticates and validates its exact body", async () => {
+  const token = newToken();
+  const anonymous = await devices({ method: "DELETE", body: { apns_token: token } });
+  assertEquals(anonymous.status, 401);
+  assertEquals(anonymous.body.error.code, "UNAUTHENTICATED");
+
+  const user = await newNamedUser("Strict Signout");
+  for (const body of [{}, { apns_token: "short" }, { apns_token: token, enabled: false }]) {
+    const res = await devices({ method: "DELETE", token: user.token, body });
+    assertEquals(res.status, 400, JSON.stringify(body));
+    assertEquals(res.body.error.code, "INVALID_INPUT");
+  }
+});
+
 Deno.test("/devices has no read side and no other route", async () => {
   const user = await newNamedUser("Nosy");
   for (
     const [method, path] of [
       ["GET", "/"],
-      ["DELETE", "/"],
       ["PUT", "/"],
       ["POST", "/current"],
+      ["DELETE", "/current"],
     ]
   ) {
     const res = await call("devices", path, { method, token: user.token });

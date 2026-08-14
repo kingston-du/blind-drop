@@ -123,7 +123,11 @@ helper enforces steps 5–6 in both its read and write paths:
   returns 401 `UNAUTHENTICATED`.
 - Access tokens are short-lived; refresh tokens live in the **Keychain** with
   `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. Never `UserDefaults`, never a file.
-- Sign out revokes the refresh token server-side, not just locally.
+- Sign out unregisters the current APNs token, clears delivered notifications and local
+  Spotify credentials, then revokes the Supabase refresh token server-side.
+- Deleting an Apple-authenticated account requires a fresh Sign in with Apple code. The server
+  verifies its subject against the current Supabase Apple identity, revokes Apple's resulting
+  refresh token, and only then deletes the account. The code and token are never persisted.
 - **Ex-member with a live token:** every handler resolves membership per request. A user
   whose `left_at` is set gets `NO_GROUP` on the next call, within the access-token lifetime
   at worst. Do not cache membership in the JWT.
@@ -138,6 +142,7 @@ helper enforces steps 5–6 in both its read and write paths:
 |---|---|---|
 | Apple Music `.p8` private key | Supabase function secret | In the app bundle, in the repo |
 | APNs `.p8` private key | Supabase function secret | In the app bundle, in the repo |
+| Sign in with Apple `.p8` private key | Supabase function secret | In the app bundle, in the repo |
 | Supabase service role key | Function environment only | In the app, in any client response |
 | `SPOTIFY_CLIENT_SECRET` | Supabase function secret | In the app bundle — PKCE exists so it never has to be |
 | `SPOTIFY_CLIENT_ID` | `Info.plist` (public by design) | — |
@@ -193,6 +198,8 @@ the binary.
 - Account deletion is implemented as a real function (`03-DATA-MODEL.md` §6): the profile is
   anonymised to "Former member", auth is unlinked, and historical rows survive so other
   members' scores stay correct. Say this plainly in the settings copy before confirming.
+- The public policy lives at `https://kingston-du.github.io/blind-drop-pages/privacy/`; Settings
+  links to it and the same URL is supplied to App Store Connect.
 - App Privacy nutrition label: *Data Linked to You* — Contact Info (name), User Content
   (songs), Identifiers. No tracking.
 

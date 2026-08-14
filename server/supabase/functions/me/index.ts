@@ -6,11 +6,20 @@
 //   PUT /me   set or change my display name
 //   DELETE /me anonymise game history and delete authentication
 
-import { ApiError, noContent, ok, parseBody, serveFunction, str } from "../_shared/http.ts";
+import {
+  ApiError,
+  noContent,
+  ok,
+  optional,
+  parseBody,
+  serveFunction,
+  str,
+} from "../_shared/http.ts";
 import { requireProfile, requireUser, type UserCtx } from "../_shared/auth.ts";
 import { dbFailure } from "../_shared/db.ts";
 import { meDTO } from "../_shared/dto.ts";
 import { charLength, cleanDisplayName } from "../_shared/text.ts";
+import { revokeAppleAuthorization } from "../_shared/appleSignIn.ts";
 
 /** Whether the caller has an active membership. Not *which* group — that is `/groups/current`
  *  — and never anything about who else is in it. */
@@ -68,9 +77,20 @@ serveFunction("me", {
 
   "DELETE /": async (req, route) => {
     const ctx = await requireUser(req, route);
-    // There are no deletion options. Rejecting keys keeps this route from acquiring a
-    // half-supported mode through a client typo or a future refactor.
-    await parseBody(req, {});
+    const { apple_authorization_code: authorizationCode } = await parseBody(req, {
+      apple_authorization_code: optional(str({ min: 1, max: 4096 })),
+    });
+
+    const { data: authData, error: authError } = await ctx.db.auth.admin.getUserById(ctx.userId);
+    if (authError || !authData.user) throw new ApiError("UNAUTHENTICATED");
+    const apple = authData.user.identities?.find((identity) => identity.provider === "apple");
+    if (apple) {
+      if (!authorizationCode) throw new ApiError("REAUTHENTICATION_REQUIRED");
+      const subject = typeof apple.identity_data?.sub === "string"
+        ? apple.identity_data.sub
+        : apple.id;
+      await revokeAppleAuthorization(authorizationCode, subject);
+    }
 
     const { error } = await ctx.db.rpc("delete_account", { p_user: ctx.userId });
     if (error) throw dbFailure("me.delete", error);

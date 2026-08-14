@@ -2,7 +2,7 @@ import Foundation
 
 /// Every failure the app can show a person, and nothing else.
 ///
-/// The fourteen server codes are `docs/04` §1 verbatim; the two below them are the client's
+/// The seventeen server codes are `docs/04` §1 verbatim; the two below them are the client's
 /// own, because "the request never left the phone" and "the server said no" are different
 /// facts and the copy deck gives them different words (`docs/11`).
 ///
@@ -41,6 +41,12 @@ enum APIError: Error, Equatable, Sendable {
     case rateLimited(retryAfter: TimeInterval?)
     /// 502. Apple Music or Spotify is not answering.
     case upstreamUnavailable
+    /// 409. Account deletion needs a fresh Sign in with Apple authorization code.
+    case reauthenticationRequired
+    /// 403. The fresh Apple credential does not belong to the signed-in account.
+    case reauthenticationFailed
+    /// 502. Apple's identity service could not complete deletion reauthentication.
+    case authProviderUnavailable
     /// 500. Carries no detail by design — the detail is in the server log.
     case server
 
@@ -73,6 +79,9 @@ extension APIError {
         case .notAdmin: "NOT_ADMIN"
         case .rateLimited: "RATE_LIMITED"
         case .upstreamUnavailable: "UPSTREAM_UNAVAILABLE"
+        case .reauthenticationRequired: "REAUTHENTICATION_REQUIRED"
+        case .reauthenticationFailed: "REAUTHENTICATION_FAILED"
+        case .authProviderUnavailable: "AUTH_PROVIDER_UNAVAILABLE"
         case .server: "INTERNAL"
         case .offline, .unreadable: nil
         }
@@ -95,6 +104,8 @@ extension APIError {
         case .notAdmin: "error.notadmin"
         case .rateLimited: "error.ratelimited"
         case .upstreamUnavailable: "error.upstream"
+        case .reauthenticationRequired, .reauthenticationFailed: "settings.delete.reauth"
+        case .authProviderUnavailable: "error.authprovider"
         case .server, .unreadable: "error.generic"
         case .offline: "error.offline"
         }
@@ -120,6 +131,9 @@ extension APIError {
         case "NOT_ADMIN": self = .notAdmin
         case "RATE_LIMITED": self = .rateLimited(retryAfter: retryAfter)
         case "UPSTREAM_UNAVAILABLE": self = .upstreamUnavailable
+        case "REAUTHENTICATION_REQUIRED": self = .reauthenticationRequired
+        case "REAUTHENTICATION_FAILED": self = .reauthenticationFailed
+        case "AUTH_PROVIDER_UNAVAILABLE": self = .authProviderUnavailable
         default: self = .server
         }
     }

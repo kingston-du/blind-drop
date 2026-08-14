@@ -103,6 +103,19 @@ final class PushRegistrar {
         await send(token)
     }
 
+    /// Detaches this physical device from the current account before its bearer is revoked.
+    /// Best effort: signing out must still finish when the device is offline.
+    func unregisterCurrentDevice() async {
+        if let deviceToken {
+            _ = try? await api.send(.unregisterDevice(token: deviceToken))
+        }
+        clearDeliveredNotifications()
+    }
+
+    func clearDeliveredNotifications() {
+        center.clearDeliveredNotifications()
+    }
+
     /// The APNs environment this build talks to (`docs/05` §4 — sandbox and production are
     /// different hosts and a token is only valid against one of them).
     ///
@@ -138,6 +151,7 @@ protocol NotificationAuthority: AnyObject {
     func requestAuthorization() async -> Bool
     /// Asks APNs for a token, which arrives at the app delegate.
     func registerForRemoteNotifications()
+    func clearDeliveredNotifications()
 }
 
 /// The real one.
@@ -167,5 +181,9 @@ final class SystemNotificationAuthority: NotificationAuthority {
 
     func registerForRemoteNotifications() {
         UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    func clearDeliveredNotifications() {
+        center.removeAllDeliveredNotifications()
     }
 }

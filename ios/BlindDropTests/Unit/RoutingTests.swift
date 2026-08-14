@@ -65,7 +65,7 @@ import Testing
     /// only true because consuming it pushes nothing and sets no phase.
     @Test func resultsPopsToTheRootAndPushesNothing() {
         let router = Router()
-        router.path = [.groupSettings]
+        router.path = [.settings]
         router.receive(.results)
         router.consume(session: .ready, roundIsLoaded: true)
         #expect(router.path.isEmpty)
@@ -126,10 +126,10 @@ import Testing
         #expect(router.path == [.record])
     }
 
-    /// `docs/08` intro and `docs/13` §4: two pushed destinations, and that is the list. The
+    /// `docs/08` intro and `docs/13` §4: three pushed destinations, and that is the list. The
     /// modal (Search) is presented from Submit and never enters the path.
-    @Test func thePathHasExactlyTwoDestinations() {
-        #expect(Route.allCases.count == 2)
-        #expect(Set(Route.allCases) == [.record, .groupSettings])
+    @Test func thePathHasExactlyThreeDestinations() {
+        #expect(Route.allCases.count == 3)
+        #expect(Set(Route.allCases) == [.record, .group, .settings])
     }
 }

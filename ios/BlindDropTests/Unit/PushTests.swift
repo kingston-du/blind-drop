@@ -110,9 +110,23 @@ import Testing
 
         await registrar.adopt(deviceToken: Data([0x0f, 0xa0, 0xff]))
 
-        let request = try? #require(stub.requests.last)
+        let request = stub.requests.last
         #expect(request?.url?.path().contains("/devices") == true)
         #expect(request?.httpMethod == "POST")
+    }
+
+    /// Sign out detaches the token before the session bearer disappears, and always clears old
+    /// notifications from Notification Center even if that best-effort request cannot land.
+    @Test func signOutUnregistersTheTokenAndClearsDeliveredNotifications() async {
+        let (registrar, center, _, stub) = makeRegistrar()
+        await registrar.adopt(deviceToken: Data(repeating: 0xab, count: 32))
+
+        await registrar.unregisterCurrentDevice()
+
+        let request = stub.requests.last
+        #expect(request?.url?.path().contains("/devices") == true)
+        #expect(request?.httpMethod == "DELETE")
+        #expect(center.didClearDeliveredNotifications)
     }
 
     // MARK: - Where a push lands (`docs/05` §5)
@@ -177,6 +191,7 @@ final class FakeNotificationAuthority: NotificationAuthority {
     private let grants: Bool
     private(set) var didRequestAuthorization = false
     private(set) var didRegister = false
+    private(set) var didClearDeliveredNotifications = false
 
     init(status: Status, grants: Bool) {
         self.status = status
@@ -193,5 +208,9 @@ final class FakeNotificationAuthority: NotificationAuthority {
 
     func registerForRemoteNotifications() {
         didRegister = true
+    }
+
+    func clearDeliveredNotifications() {
+        didClearDeliveredNotifications = true
     }
 }

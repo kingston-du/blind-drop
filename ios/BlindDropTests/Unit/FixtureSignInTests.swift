@@ -32,7 +32,8 @@ struct FixtureSignInTests {
         func requestIdentity() async throws -> AppleIdentity {
             AppleIdentity(
                 identityToken: "eyJhbGciOiJSUzI1NiJ9.fixture.signature",
-                nonce: AppleSignIn.makeNonce()
+                nonce: AppleSignIn.makeNonce(),
+                authorizationCode: "fixture.authorization.code"
             )
         }
     }

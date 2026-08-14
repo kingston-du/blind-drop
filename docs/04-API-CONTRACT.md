@@ -55,6 +55,9 @@ client switches on it. Never put a raw DB error in `message`.
 | `NOT_ADMIN` | 403 | Group settings change by a non-admin |
 | `RATE_LIMITED` | 429 | See §8 |
 | `UPSTREAM_UNAVAILABLE` | 502 | Apple Music / Spotify failure |
+| `REAUTHENTICATION_REQUIRED` | 409 | Account deletion needs a fresh Apple authorization code |
+| `REAUTHENTICATION_FAILED` | 403 | Fresh Apple credential does not match the current account |
+| `AUTH_PROVIDER_UNAVAILABLE` | 502 | Apple identity service could not complete reauthentication |
 | `INTERNAL` | 500 | Anything unhandled. Carries no detail — the detail is in the server log |
 
 **Phase errors must not leak.** `WRONG_PHASE` returns the round's `state` and nothing else —
@@ -90,10 +93,20 @@ by showing an initial suffix, see `08-SCREEN-SPECS.md` §4.
 
 ### `DELETE /me`
 
-No request body. Returns `204`. Deletes the authentication principal and device tokens,
-ends the active membership, and anonymises the stable historical profile to `Former member`.
-Submissions and guesses remain because other members' scores and The Record depend on them.
-The caller's current token is rejected on its next request.
+```jsonc
+// Apple-authenticated accounts, after REAUTHENTICATION_REQUIRED
+{ "apple_authorization_code": "fresh single-use code" }
+```
+
+Returns `204`. A non-Apple account may omit the optional body. An Apple-authenticated account
+first receives `REAUTHENTICATION_REQUIRED`; the app obtains a fresh Sign in with Apple code,
+the server verifies that code belongs to the same Apple subject, and revokes the resulting
+Apple refresh token before deletion. The server never stores that code or Apple token.
+
+Deletion removes the authentication principal and device tokens, ends the active membership,
+and anonymises the stable historical profile to `Former member`. Submissions and guesses
+remain because other members' scores and The Record depend on them. The caller's current
+token is rejected on its next request.
 
 ### `POST /devices`
 
@@ -103,6 +116,16 @@ The caller's current token is rejected on its next request.
 
 Upsert on `apns_token`, re-points to the current user, clears `disabled_at`, bumps
 `last_seen_at`. Returns `204`.
+
+### `DELETE /devices`
+
+```jsonc
+{ "apns_token": "…" }
+```
+
+Deletes the matching token only when it belongs to the caller. A missing token or a token
+owned by another user is the same quiet `204`; ownership is never disclosed. The app calls
+this best-effort immediately before sign out.
 
 ---
 

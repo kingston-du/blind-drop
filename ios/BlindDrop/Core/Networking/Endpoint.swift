@@ -71,6 +71,8 @@ private func json(_ value: some Encodable & Sendable) -> @Sendable () throws -> 
 
 private struct DisplayNameBody: Encodable, Sendable { let display_name: String }
 private struct DeviceBody: Encodable, Sendable { let apns_token: String; let environment: String }
+private struct DeviceDeleteBody: Encodable, Sendable { let apns_token: String }
+private struct DeleteAccountBody: Encodable, Sendable { let apple_authorization_code: String }
 private struct CreateGroupBody: Encodable, Sendable {
     let name: String
     let timezone: String
@@ -95,12 +97,21 @@ extension Endpoint {
     /// `DELETE /me` — 204. Deletes the principal and the device tokens, ends the membership,
     /// and anonymises the historical profile to *Former member*. Submissions and guesses stay,
     /// because other people's scores and The Record depend on them (`docs/04` §2).
-    static var deleteAccount: Endpoint<NoContent> { .init(.delete, "/me") }
+    static func deleteAccount(authorizationCode: String? = nil) -> Endpoint<NoContent> {
+        let body = authorizationCode.map {
+            json(DeleteAccountBody(apple_authorization_code: $0))
+        }
+        return .init(.delete, "/me", body: body)
+    }
 
     /// `POST /devices` — 204, always, whether the token was new, moved between users, or
     /// unchanged. There is no read side, so registering tells the caller nothing.
     static func registerDevice(token: String, environment: String) -> Endpoint<NoContent> {
         .init(.post, "/devices", body: json(DeviceBody(apns_token: token, environment: environment)))
+    }
+
+    static func unregisterDevice(token: String) -> Endpoint<NoContent> {
+        .init(.delete, "/devices", body: json(DeviceDeleteBody(apns_token: token)))
     }
 }
 

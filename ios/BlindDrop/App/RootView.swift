@@ -28,7 +28,7 @@ enum RootDestination: Equatable, Sendable {
 ///
 /// There is exactly one `NavigationStack` and zero `TabView` here. `docs/08` intro: *"There is
 /// no tab bar."* `docs/13` §9 lists a tab bar as an automatic review rejection. The Record and
-/// Group settings are reached from `RoundScreen`'s toolbar.
+/// The Group roster and Settings are reached from `RoundScreen`'s toolbar.
 ///
 /// Appearance is not touched anywhere in this tree — `.preferredColorScheme(.light)` is set
 /// once, in `BlindDropApp` (`docs/07` intro).
@@ -60,8 +60,9 @@ struct RootView: View {
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .record:        RecordScreen()
-                case .groupSettings: GroupSettingsScreen()
+                case .record:   RecordScreen()
+                case .group:    GroupScreen()
+                case .settings: SettingsScreen()
                 }
             }
         }

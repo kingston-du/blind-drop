@@ -25,6 +25,9 @@ export type ErrorCode =
   | "NOT_ADMIN"
   | "RATE_LIMITED"
   | "UPSTREAM_UNAVAILABLE"
+  | "REAUTHENTICATION_REQUIRED"
+  | "REAUTHENTICATION_FAILED"
+  | "AUTH_PROVIDER_UNAVAILABLE"
   | "INTERNAL";
 
 const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: string }> = {
@@ -76,6 +79,21 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
     status: 502,
     message: "The music catalog isn't answering. Try again in a minute.",
     copyKey: "error.upstream",
+  },
+  REAUTHENTICATION_REQUIRED: {
+    status: 409,
+    message: "Sign in with Apple again to finish deleting your account.",
+    copyKey: "settings.delete.reauth",
+  },
+  REAUTHENTICATION_FAILED: {
+    status: 403,
+    message: "Use the same Apple Account to finish deleting your account.",
+    copyKey: "settings.delete.reauth",
+  },
+  AUTH_PROVIDER_UNAVAILABLE: {
+    status: 502,
+    message: "Apple sign-in isn't answering. Try again.",
+    copyKey: "error.authprovider",
   },
   INTERNAL: { status: 500, message: "That didn't work. Try again.", copyKey: "error.generic" },
 };

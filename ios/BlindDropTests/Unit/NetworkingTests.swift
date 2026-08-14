@@ -316,6 +316,9 @@ import Testing
             ("ALREADY_IN_GROUP", 409, .alreadyInGroup, "error.alreadyingroup"),
             ("NOT_ADMIN", 403, .notAdmin, "error.notadmin"),
             ("UPSTREAM_UNAVAILABLE", 502, .upstreamUnavailable, "error.upstream"),
+            ("REAUTHENTICATION_REQUIRED", 409, .reauthenticationRequired, "settings.delete.reauth"),
+            ("REAUTHENTICATION_FAILED", 403, .reauthenticationFailed, "settings.delete.reauth"),
+            ("AUTH_PROVIDER_UNAVAILABLE", 502, .authProviderUnavailable, "error.authprovider"),
             ("INTERNAL", 500, .server, "error.generic"),
         ]
         for (code, status, expected, copyKey) in cases {
@@ -476,7 +479,8 @@ import Testing
 
         _ = try await client.send(.leaveGroup)
         _ = try await client.send(.registerDevice(token: "abc", environment: "sandbox"))
-        _ = try await client.send(.deleteAccount)
+        _ = try await client.send(.unregisterDevice(token: "abc"))
+        _ = try await client.send(.deleteAccount())
     }
 
     // MARK: - Requests going out
@@ -501,6 +505,12 @@ import Testing
         ]).body)
         #expect(sheet.contains(#""guessed_user_id":null"#), "clearing a card is explicit")
         #expect(sheet.contains(#""card_no":2"#))
+
+        #expect(try encoded(Endpoint<NoContent>.unregisterDevice(token: "a1b2").body)
+            == #"{"apns_token":"a1b2"}"#)
+        #expect(try encoded(Endpoint<NoContent>.deleteAccount(authorizationCode: "fresh-code").body)
+            == #"{"apple_authorization_code":"fresh-code"}"#)
+        #expect(Endpoint<NoContent>.deleteAccount().body == nil, "non-Apple deletion has no body")
     }
 
     /// Query parameters land on the URL, which is what makes `?member=` and the cursor work at

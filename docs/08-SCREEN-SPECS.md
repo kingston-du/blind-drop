@@ -4,7 +4,7 @@ Five flows. Every state that exists is listed. Strings come from `11-COPY-DECK.m
 write copy here or in code.
 
 Navigation model: a single root that renders the phase-appropriate screen for today's round,
-plus two pushed destinations (The Record, Group settings) and one modal (Search). **There is
+plus three pushed destinations (The Record, Group, Settings) and one modal (Search). **There is
 no tab bar.** One primary action per screen, always.
 
 ```
@@ -17,7 +17,8 @@ RootView
 │   ├─ RevealScreen          revealed
 │   └─ ResultsScreen         scored
 ├─ RecordScreen              pushed, always reachable
-└─ GroupSettingsScreen       pushed, admin fields conditional
+├─ GroupScreen               pushed, read-only active roster
+└─ SettingsScreen            pushed, profile and account actions
 ```
 
 ---
@@ -73,7 +74,7 @@ somebody can do is the thing they came to do.
 ```
 ┌─────────────────────────────┐
 │  The Cove   (SEALS IN 03:12:48)  [≡] │  group name bodyLStrong ink; countdown badge,
-│                             │        amber wash + amberEdge, label; menu → Record, Settings
+│                             │        amber wash + amberEdge, label; menu → Record, Group, Settings
 │                             │
 │                             │   ← the block sits mid-screen while there is nothing to show
 │   Today's song.             │   displayL, ink
@@ -391,19 +392,29 @@ Reachable from the header menu in every phase. An archive, not a feed.
 
 ---
 
-## 9. Group settings
+## 9. Group
 
-Pushed from the header menu. Group name · timezone (read-only after creation, with a line
-saying so) · reveal hour (admin only, with the `effective_from` date stated precisely) ·
-invite code with **Share invite** · member list · **Leave group** in `alert`, behind a
-confirmation.
+Pushed from the header menu. A read-only screen with the group name and a simple list of
+active members. It deliberately carries no submitted state, role, join date, invite code, or
+administrative controls. `GET /groups/current` is already safe in every round phase and is
+the only data source.
 
-No notification settings. No theme setting. Account settings are limited to display name,
-sign out, and **Delete account** behind the confirmation copy in `11-COPY-DECK.md`.
+## 10. Settings
+
+Pushed separately from Group. Profile contains the caller's display name and **Save name**.
+Account contains **Sign out** and **Delete account** behind the confirmation copy in
+`11-COPY-DECK.md`. About links to the public Privacy Policy.
+
+Sign out unregisters this device's APNs token before revoking the session, clears delivered
+notifications, and removes local Spotify credentials. Account deletion requires a fresh
+Sign in with Apple credential for Apple-authenticated users, revokes the Apple authorization,
+then anonymises history and deletes the authentication principal.
+
+No notification settings. No theme setting.
 
 ---
 
-## 10. Cross-cutting states
+## 11. Cross-cutting states
 
 | State | Treatment |
 |---|---|

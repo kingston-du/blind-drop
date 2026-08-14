@@ -17,6 +17,9 @@ struct AppleIdentity: Sendable, Equatable {
     /// itself, and refuses the exchange if the two do not match. That is what stops an identity
     /// token captured off one device being replayed from another.
     let nonce: String
+    /// Apple's short-lived, single-use code. Account deletion exchanges a fresh code
+    /// server-side and revokes the resulting Apple token without storing it long term.
+    let authorizationCode: String
 }
 
 /// The seam the store talks to. `AppleSignIn` is the one implementation; a test supplies its
@@ -112,12 +115,18 @@ extension AppleSignIn: ASAuthorizationControllerDelegate {
             let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
             let data = credential.identityToken,
             let token = String(data: data, encoding: .utf8),
+            let codeData = credential.authorizationCode,
+            let authorizationCode = String(data: codeData, encoding: .utf8),
             let nonce
         else {
             finish(.failure(AuthError.unreadable))
             return
         }
-        finish(.success(AppleIdentity(identityToken: token, nonce: nonce)))
+        finish(.success(AppleIdentity(
+            identityToken: token,
+            nonce: nonce,
+            authorizationCode: authorizationCode
+        )))
     }
 
     func authorizationController(

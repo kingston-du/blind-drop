@@ -81,6 +81,9 @@
 /* ── The round's header (docs/11 §The round's header) ──────────────────────── */
 
 "menu.title" = "Menu";
+"group.title" = "Group";
+"group.members" = "Members";
+"group.loading" = "Loading the group.";
 
 /* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
 
@@ -140,8 +143,7 @@
 "reveal.action.locked" = "Locked in";
 "reveal.edit" = "Change a guess";
 
-/* ── The Record and Group settings, as far as the header menu names them ───── */
-/* Their screens are E13-01 and a later pass; the menu that reaches them is E10-01's. */
+/* ── The Record, Group, and Settings ───────────────────────────────────────── */
 
 "record.title" = "The Record";
 "record.filter.all" = "Everyone";
@@ -163,7 +165,24 @@
 "record.export.nosub" = "Apple Music export needs a subscription. Spotify export still works.";
 "record.export.denied" = "Apple Music access was turned down. You can still export to Spotify.";
 "record.export.failed" = "The playlist didn't get made. Try again.";
-"settings.title" = "Group";
+"settings.title" = "Settings";
+"settings.profile" = "Profile";
+"settings.name" = "Display name";
+"settings.name.placeholder" = "Display name";
+"settings.name.help" = "This is the name people guess with.";
+"settings.save" = "Save name";
+"settings.saved" = "Saved.";
+"settings.account" = "Account";
+"settings.signout" = "Sign out";
+"settings.delete" = "Delete account";
+"settings.delete.confirm.title" = "Delete your account?";
+"settings.delete.confirm.body" = "Your sign-in will be deleted. Your songs and guesses stay in the record as Former member.";
+"settings.delete.confirm.action" = "Delete account";
+"settings.cancel" = "Cancel";
+"settings.delete.reauth" = "Sign in with the same Apple Account to finish deleting your account.";
+"settings.about" = "About";
+"settings.privacy" = "Privacy Policy";
+"error.authprovider" = "Apple sign-in isn't answering. Try again.";
 
 /* ── Reveal (docs/11 §Reveal and guess) ────────────────────────────────────── */
 /* E11-01 brings the status line and the cards. The guess apparatus — the pool, the progress

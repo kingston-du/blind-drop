@@ -239,6 +239,8 @@ final class SessionStore {
         user = nil
         loadFailure = nil
         try? secrets.delete(Keychain.Account.refreshToken)
+        try? secrets.delete(Keychain.Account.spotifyAccessToken)
+        try? secrets.delete(Keychain.Account.spotifyRefreshToken)
         state = .signedOut
     }
 

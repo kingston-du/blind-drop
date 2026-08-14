@@ -539,7 +539,7 @@ private struct ResultsHost: View {
 
 /// The group's name and the menu (`docs/08` §2, §6).
 ///
-/// The menu is the only way to The Record and to Group settings, and it is on **every** phase —
+/// The menu is the only way to The Record, Group, and Settings, and it is on **every** phase —
 /// `docs/08` §8: *"reachable from the header menu in every phase."* There is no tab bar and there
 /// will not be one (`docs/13` §9).
 struct RoundHeader<Badge: View>: View {
@@ -584,7 +584,8 @@ struct RoundHeader<Badge: View>: View {
             badge
             Menu {
                 Button("record.title") { path.append(.record) }
-                Button("settings.title") { path.append(.groupSettings) }
+                Button("group.title") { path.append(.group) }
+                Button("settings.title") { path.append(.settings) }
             } label: {
                 Image(systemName: "line.3.horizontal")
                     .font(Font(Typography.uiFont(.bodyLStrong)))

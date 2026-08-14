@@ -1,6 +1,7 @@
 // devices/index.ts — APNs registration. docs/04 §2, docs/05 §4. tasks/E06-03.
 //
-//   POST /   register (or re-register) this device's APNs token
+//   POST   /   register (or re-register) this device's APNs token
+//   DELETE /   detach this device before signing out
 //
 // The client calls this once after the user grants notification permission — which happens
 // after the first successful seal, never at launch — and again on every cold start, because
@@ -68,6 +69,20 @@ serveFunction("devices", {
       }, { onConflict: "apns_token" });
     if (error) throw dbFailure("devices.register", error);
 
+    return noContent();
+  },
+
+  "DELETE /": async (req, route) => {
+    const ctx = await requireUser(req, route);
+    const body = await parseBody(req, {
+      apns_token: str({ min: 64, max: 200, pattern: APNS_TOKEN }),
+    });
+    const { error } = await ctx.db
+      .from("devices")
+      .delete()
+      .eq("user_id", ctx.userId)
+      .eq("apns_token", body.apns_token.toLowerCase());
+    if (error) throw dbFailure("devices.unregister", error);
     return noContent();
   },
 });

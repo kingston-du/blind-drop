@@ -265,30 +265,31 @@ either must be able to happen without the other.
 
 ---
 
-## Group settings
+## Group and settings
 
 | Key | String |
 |---|---|
-| `settings.title` | Group |
-| `settings.name` | Group name |
-| `settings.timezone` | Timezone |
-| `settings.timezone.locked` | Set when the group was made. It can't change. |
-| `settings.hour` | Reveal at |
-| `settings.hour.effective` | Takes effect %@. |
-| `settings.invite` | Invite code |
-| `settings.invite.share` | Share invite |
-| `settings.members` | Members |
-| `settings.leave` | Leave group |
-| `settings.leave.confirm.title` | Leave the group? |
-| `settings.leave.confirm.body` | Your songs stay in the record. You won't be in tomorrow's round. |
-| `settings.leave.confirm.action` | Leave |
+| `group.title` | Group |
+| `group.members` | Members |
+| `group.loading` | Loading the group. |
+| `settings.title` | Settings |
+| `settings.profile` | Profile |
+| `settings.name` | Display name |
+| `settings.name.placeholder` | Display name |
+| `settings.name.help` | This is the name people guess with. |
+| `settings.save` | Save name |
+| `settings.saved` | Saved. |
+| `settings.account` | Account |
 | `settings.signout` | Sign out |
 | `settings.delete` | Delete account |
 | `settings.delete.confirm.title` | Delete your account? |
 | `settings.delete.confirm.body` | Your sign-in will be deleted. Your songs and guesses stay in the record as Former member. |
 | `settings.delete.confirm.action` | Delete account |
-
-`settings.hour.effective` takes a formatted date, e.g. "Takes effect 12 August."
+| `settings.cancel` | Cancel |
+| `settings.delete.reauth` | Sign in with the same Apple Account to finish deleting your account. |
+| `settings.about` | About |
+| `settings.privacy` | Privacy Policy |
+| `error.authprovider` | Apple sign-in isn't answering. Try again. |
 
 ---
 
