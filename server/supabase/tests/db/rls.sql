@@ -5,7 +5,7 @@
 -- tests/functions/postgrest_locked.test.ts; what is provable in SQL is proved here.
 begin;
 set search_path = public, extensions, tests;
-select plan(56);
+select plan(57);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -130,6 +130,14 @@ select is_empty($$
     and d.defaclrole = 'postgres'::regrole
     and array_to_string(d.defaclacl, ',') ~ '\mservice_role='
 $$, 'future public objects are not auto-granted to service_role');
+
+select is_empty($$
+  select p.proname
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and not coalesce(p.proconfig, '{}'::text[]) @> array['search_path=""']
+$$, 'every public function pins an empty search_path');
 
 -- ─── and the lock actually holds ─────────────────────────────────────────────
 -- Read each table as `authenticated`. Every one must fail closed.
