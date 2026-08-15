@@ -55,16 +55,35 @@ clock. It is a server change end to end: the client keeps rendering a countdown 
 
 ### E16-02 — Hosted activation
 
-**Status:** todo · **Deps:** E16-01 · **Reads:** `docs/RELEASE-2026-08-12.md`
-**Touches:** nothing in the repo
-**Verify:** a walked loop on the hosted project at a deliberately awkward hour
+**Status:** blocked · **Deps:** E16-01 · **Reads:** `docs/APP-REVIEW-NOTES.md`
+**Touches:** `migrations/20260815120000_backfill_demo_groups.sql`,
+`scripts/seed-app-review-demo.sql`, `scripts/status-app-review-demo.sql`,
+`docs/APP-REVIEW-NOTES.md`, `tests/db/demo_mode.sql`
+**Verify:** `scripts/status-app-review-demo.sql` against the linked project
 
-Needs the owner's Supabase credentials and a device; it cannot be closed from here.
+- [x] Both migrations pushed to `ojzwgaffeegssfscoaiv`, plus a third
+- [x] `rounds` Edge Function redeployed; anonymous smoke test returns `UNAUTHENTICATED` in our
+      envelope
+- [x] Provisioning run: **App Reviewer**, three companions, three nights in The Record, one
+      open round holding the companions' drops and not the reviewer's
+- [x] A real pilot group ("Family") is confirmed not a demo group and has no demo rounds
+- [x] The whole loop walked against the **hosted** database inside a transaction that then
+      threw, so nothing persisted: `open → +11s open → +13s revealed (4 cards) → +35s scored
+      (4 people) → +4m a fresh open round, archive of 4`
+- [x] Review note written to `docs/APP-REVIEW-NOTES.md`, ready to paste
+- [ ] **Blocked, needs the owner:** walk the loop in the app on a device, signed in as
+      `demo@blinddrop.dev`. Requires the account password, which is not in this repo and
+      should not be. Everything below the app is verified.
+- [ ] **Needs the owner:** paste §1 of `docs/APP-REVIEW-NOTES.md` into App Store Connect
 
-- [ ] Deploy both migrations and the `rounds` function to `ojzwgaffeegssfscoaiv`
-- [ ] Sign in once as the review account, then run `scripts/seed-app-review-demo.sql`
-- [ ] Walk the loop at 23:00 or later: The Record populated → search → pick → confirm → seal →
-      ~12s → reveal → guess → ~20s → results → share card → back → a fresh round is open
-- [ ] Confirm a real pilot account in the TestFlight cohort is on the normal schedule and
-      untouched
-- [ ] Put the accelerated-clock note in the App Store Connect review notes
+> **Deployment found a gap the migrations alone did not cover.** `assign_pilot_cohort()`
+> carries `pilot_cohorts.is_demo` onto the group it *creates*, but the App Review group had
+> existed since 2026-08-13 — so the flag would have reached no group at all. `20260815120000`
+> backfills it, the propagation trigger carries it down to the rounds already in the group,
+> and `tests/db/demo_mode.sql` now covers that path directly because it is the one production
+> was actually in.
+>
+> Provisioning also now clears the group's rounds first. It was carrying two rounds on
+> sentinel dates in January 2020 left by the previous script, a `voided` night from before the
+> companions existed, and a round materialised by a scheduler that no longer runs for it — so
+> The Record would have opened on "Wednesday 1 January 2020".

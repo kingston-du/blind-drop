@@ -3,8 +3,9 @@
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
 **Start here:** `E14-03`. `E00`–`E13` and `E16-01` are done, as are `E14-01`, `E14-02`, and
-`E14-04`. The three that remain need a physical iPhone or the owner's hosted credentials;
-none can be closed from the simulator.
+`E14-04`. `E16-02` is deployed and verified against the hosted database; what is left of it
+needs the demo account's password on a device. The rest need a physical iPhone; none can be
+closed from the simulator.
 
 ---
 
@@ -187,7 +188,7 @@ E03 + E04 + E05 ─ E16 App Review demo environment  (server only; no iOS change
 | Task | Status | Deps | Proves |
 |---|---|---|---|
 | E16-01 Demo groups, lifecycle, provisioning | done | E03-03, E04-01, E05-02 | AC-1, AC-3 |
-| E16-02 Hosted activation | todo | E16-01 | — |
+| E16-02 Hosted activation | blocked | E16-01 | — |
 
 ---
 

@@ -32,6 +32,7 @@ set local role postgres;
 do $$
 declare
   v_group_id uuid;
+  v_cleared  int;
 begin
   select c.group_id into v_group_id
     from public.pilot_cohorts c
@@ -42,6 +43,28 @@ begin
       'The App Review cohort has no group yet. Sign in as the review account once first — '
       'that call to assign_pilot_cohort() creates the group — then re-run this script.';
   end if;
+
+  if not (select is_demo from public.groups where id = v_group_id) then
+    raise exception
+      'Group % is not a demo group. Apply migrations 20260815090000, 20260815090500 and '
+      '20260815120000 first.', v_group_id;
+  end if;
+
+  -- ─── clear whatever the group is carrying ────────────────────────────────
+  --
+  -- Not housekeeping — the archive is the first thing a reviewer sees. The group currently
+  -- holds a mixture nobody designed: two rounds on sentinel dates in January 2020 left by the
+  -- previous version of this script, a `voided` night from before the companions existed, and
+  -- tomorrow's round materialised by a scheduler that no longer runs for this group. Left in
+  -- place, The Record opens on "Wednesday 1 January 2020" above a night that never happened.
+  --
+  -- Everything here is fixture data in one demo group, and `demo_provision()` rebuilds a
+  -- coherent three nights immediately below. Submissions and guesses go with the rounds by
+  -- `on delete cascade`. **The group id comes from the App Review cohort and nothing else** —
+  -- no other group, pilot or otherwise, is read or written by this statement.
+  delete from public.rounds where group_id = v_group_id;
+  get diagnostics v_cleared = row_count;
+  raise notice 'cleared % pre-demo round(s) from the App Review group', v_cleared;
 
   perform public.demo_provision(v_group_id);
 

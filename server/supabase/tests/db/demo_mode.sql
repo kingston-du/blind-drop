@@ -16,7 +16,7 @@
 -- whole played session below sits inside local 2026-08-15.
 begin;
 set search_path = public, extensions, tests;
-select plan(36);
+select plan(38);
 
 -- ─── a demo group, via the cohort that creates one ───────────────────────────
 -- `seed.sql` disables every cohort locally, so that a `PUT /me` in the Edge Function suite
@@ -196,6 +196,20 @@ select public.demo_tick(tests.demo_group());
 select is(tests.demo_rounds(), 5,
   'crossing midnight carries the unplayed round rather than opening a second one');
 select is(tests.demo_state(), 'open', 'and it is still the round they were in');
+
+-- ─── marking a group that already has rounds ─────────────────────────────────
+-- The production case, and the one 20260815090000 alone does not cover: the App Review group
+-- was created before its cohort was ever flagged, so `assign_pilot_cohort()` never carried
+-- `is_demo` onto it. 20260815120000 backfills it, and the propagation trigger has to reach the
+-- rounds already sitting in the group — otherwise the first `demo_arm()` against one fails
+-- `rounds_window` on a round still holding a real round's constraint.
+
+update public.groups set is_demo = true where id = tests.the_group();
+select ok((select bool_and(is_demo) from public.rounds where group_id = tests.the_group()),
+  'marking an existing group carries is_demo down to the rounds it already has');
+update public.groups set is_demo = false where id = tests.the_group();
+select ok(not (select bool_or(is_demo) from public.rounds where group_id = tests.the_group()),
+  'and unmarking it carries back, so the column can never disagree with the group');
 
 -- ─── demo_arm cannot reach a real group ──────────────────────────────────────
 
