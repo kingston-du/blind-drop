@@ -200,6 +200,22 @@ E08 iOS foundation ─ E15 how to play  (parallel with E09..E14; E15 → E14-05)
 | E16-01 Demo groups, lifecycle, provisioning | done | E03-03, E04-01, E05-02 | AC-1, AC-3 |
 | E16-02 Hosted activation | blocked | E16-01 | — |
 
+## E17 — Polish pass · [file](E17-polish-pass.md)
+
+Amends three owner-level rules: `CLAUDE.md` §2.5 (E17-05), `docs/09` §1 (E17-07),
+`docs/10` §1 (E17-02). None is an agent's call; all three are recorded in the epic.
+
+| Task | Status | Deps | Proves |
+|---|---|---|---|
+| E17-01 The phase flash on foreground | todo | — | AC-2 |
+| E17-02 One share variant | todo | — | — |
+| E17-03 The answer card's links become an overflow menu | todo | — | — |
+| E17-04 The chrome sits where a header sits | todo | E17-01 | — |
+| E17-05 How to play is the legend | todo | — | — |
+| E17-06 The call sheet collapses | todo | — | — |
+| E17-07 Two haptics for the reveal | todo | E17-06 | — |
+| E17-08 The answers land harder | todo | E17-03 | — |
+
 ---
 
 ## Progress
@@ -223,4 +239,5 @@ E08 iOS foundation ─ E15 how to play  (parallel with E09..E14; E15 → E14-05)
 | E14 | 3 / 5 |
 | E15 | 3 / 3 |
 | E16 | 1 / 2 |
-| **Total** | **82 / 85** |
+| E17 | 0 / 8 |
+| **Total** | **82 / 93** |
