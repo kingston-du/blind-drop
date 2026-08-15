@@ -70,6 +70,62 @@ struct OutlineButton: View {
     }
 }
 
+/// `OutlineButton`, with a leading glyph and set one size down at `bodyM`.
+///
+/// The Record archive's two export buttons are the one caller: side by side, each half a
+/// 375pt row, "Export to Spotify" and "Export to Apple Music" at `OutlineButton`'s `bodyL`
+/// left the words crowding their own edges. The glyph is generic — an export, not either
+/// service's mark (`docs/07` §4: zero third-party assets, and a service's logo is exactly
+/// that) — so both buttons carry the same one and the words are what tell them apart.
+struct IconOutlineButton: View {
+    private let systemImage: String
+    private let title: LocalizedStringKey
+    private let isEnabled: Bool
+    private let action: () -> Void
+
+    init(
+        systemImage: String,
+        _ title: LocalizedStringKey,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) {
+        self.systemImage = systemImage
+        self.title = title
+        self.isEnabled = isEnabled
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.xs) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .medium))
+                // The flexible frame belongs on the *label*, not on the row around it — an
+                // `HStack` does not hand a plain `Text` more than its own single-line width
+                // unless something in it explicitly claims the rest (`FlightCard`'s `metadata`
+                // does the same for its title and artist). Without this, "Export to Apple
+                // Music" wrapped to two lines even on the 15 Pro Max, where the button plainly
+                // had the room for one.
+                //
+                // No `lineLimit` and no `minimumScaleFactor` either way: on an SE that title
+                // still does not fit beside the icon on one line, and shrinking it to fit is
+                // the crowded reading this button exists to fix. `OutlineButton`'s own
+                // `minHeight` (not a fixed height) already lets a two-line label make the
+                // button taller instead — this is that same rule, one size down.
+                Text(title)
+                    .typeStyle(.bodyM)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(minHeight: Layout.buttonHeight)
+            .padding(.horizontal, Space.md)
+        }
+        .buttonStyle(OutlineButtonStyle(isEnabled: isEnabled))
+        .disabled(!isEnabled)
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
 private struct OutlineButtonStyle: ButtonStyle {
     let isEnabled: Bool
 

@@ -21,6 +21,11 @@ struct RoundContext: Sendable, Equatable {
     /// `voided.next`).
     var opensTime: String { RevealHour.formatted(RevealHour.opensHour(revealHour: group.revealHour)) }
 
+    /// The hour the answers land, in the same form (`docs/11` `howto.step4.time`). Nothing on a
+    /// live phase screen needed this on its own — `deadline(now:)` already counts to `scores_at`
+    /// — but the how-to page states it as a fact rather than a countdown, so it needs the words.
+    var scoresTime: String { RevealHour.formatted(RevealHour.scoresHour(revealHour: group.revealHour)) }
+
     /// *"Monday 10 August"* (`docs/08` §2), in the group's timezone.
     var dateHeadline: String? {
         calendar.headline(localDate: round.localDate)

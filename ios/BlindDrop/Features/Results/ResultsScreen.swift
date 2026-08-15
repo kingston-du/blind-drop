@@ -138,22 +138,21 @@ struct ResultsScreen: View {
                 .padding(.bottom, Space.xs)
 
             ForEach(state.cards) { card in
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    FlightCard(
-                        number: card.cardNumber,
-                        track: card.track,
-                        accent: accent,
-                        // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
-                        // (`docs/12` §2). Nothing on a results card is a control.
-                        assignment: .resolved(card.resolution),
-                        resolve: ResolvePresentation(
-                            hasName: state.namedCards.contains(card.cardNumber),
-                            hasMark: state.markedCards.contains(card.cardNumber),
-                            reducedMotion: reduceMotion
-                        )
+                // The links used to be their own row under the card (`TrackLinkButtons`); they
+                // now sit inside it, beside the title — `FlightCard`'s `metadataRow` docs why.
+                FlightCard(
+                    number: card.cardNumber,
+                    track: card.track,
+                    accent: accent,
+                    // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
+                    // (`docs/12` §2). Nothing on a results card is a control.
+                    assignment: .resolved(card.resolution),
+                    resolve: ResolvePresentation(
+                        hasName: state.namedCards.contains(card.cardNumber),
+                        hasMark: state.markedCards.contains(card.cardNumber),
+                        reducedMotion: reduceMotion
                     )
-                    TrackLinkButtons(track: card.track)
-                }
+                )
             }
         }
     }

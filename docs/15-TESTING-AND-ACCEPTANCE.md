@@ -141,7 +141,7 @@ regression guard on tap count and animation length, which are the things that ac
 
 | Test | Location |
 |---|---|
-| 10 consecutive seals on iPhone 12 with zero animation hitches (Instruments, CI-run) | `perf/seal.instruments` |
+| 10 consecutive seals on iPhone 12 with zero animation hitches (Instruments, CI-run) — E14-03 ran this on an iPhone 13, no iPhone 12 available, see `docs/09-MOTION-SPEC.md` open question | `perf/seal.instruments` |
 | No SwiftUI layout pass during the seal | same |
 | Reduced-motion final state is pixel-identical to the normal path's final state | `ReducedMotionUITests.swift` |
 | Reduced motion crossfades — no state is skipped, the sealed state still exists | same |

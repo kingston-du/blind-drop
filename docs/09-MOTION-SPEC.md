@@ -9,6 +9,12 @@ Two moments get the entire motion budget. Everything else is standard iOS spring
 All of this lives in `ios/BlindDrop/DesignSystem/Motion/`. Target: **60fps on an iPhone 12**,
 verified with Instruments (`15-TESTING-AND-ACCEPTANCE.md` AC-11).
 
+> **Open question (E14-03):** no iPhone 12 was available for this pass; verification ran on a
+> physical iPhone 13 instead. The 13 is strictly faster, so a clean run there is a weaker
+> guarantee than a clean run on the 12 — it does not prove the 12 hits 60fps, only that the 13
+> does. Noted in the release note; re-verify on an actual iPhone 12 (or the oldest device the
+> app still supports) before shipping if one becomes available.
+
 ---
 
 ## 1. Budget
@@ -180,7 +186,7 @@ semantic (`07-DESIGN-SYSTEM.md` §2). Reduced motion removes movement, not meani
 
 | Check | How |
 |---|---|
-| 60fps on iPhone 12 | Instruments → Animation Hitches. Zero hitches over 10 consecutive seals. |
+| 60fps on iPhone 12 (ran on iPhone 13 — see open question above) | Instruments → Animation Hitches. Zero hitches over 10 consecutive seals. |
 | No layout during seal | Instruments → SwiftUI view-body counts flat during the animation. |
 | Reduced motion path | UI test with `UIAccessibility.isReduceMotionEnabled` forced; assert final state matches the normal path's final state exactly. |
 | Unseal runs once | Unit test on the `hasSeenUnseal` flag across relaunch. |

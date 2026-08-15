@@ -447,6 +447,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BlindDrop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Blind Drop";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music-games";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Only used to build a playlist in your library when you export the group's record.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -481,6 +482,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BlindDrop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Blind Drop";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music-games";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Only used to build a playlist in your library when you export the group's record.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

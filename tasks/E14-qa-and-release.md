@@ -55,6 +55,11 @@ including the two channels nobody thinks about.
 
 **On a physical iPhone 12**, not the simulator. Simulator frame timings mean nothing here.
 
+> **Open question:** no iPhone 12 available — ran this pass on a physical iPhone 13 instead.
+> The 13 is strictly faster, so passing here is a weaker guarantee than passing on a 12; note
+> this substitution in the release note and re-run on a 12 (or the oldest supported device)
+> before shipping if one becomes available.
+
 - [ ] 10 consecutive seals, zero animation hitches
 - [ ] 12-card unseal, zero hitches
 - [ ] No SwiftUI layout pass during either animation

@@ -246,4 +246,98 @@ import Testing
         #expect(timer.hasElapsed == nil, "not false — unknown")
         timer.stop()
     }
+
+    /// `docs/13` §5a: a countdown that already has a value for its current deadline holds that
+    /// value through a loading gap — a background/foreground cycle invalidating the clock —
+    /// rather than blanking to `--:--:--`, and jumps to the true value the moment the clock
+    /// re-anchors. This is the behaviour `--:--:--sometimes` complaints traced back to before
+    /// §5a: the countdown does not need to lie to avoid looking broken, it needs to remember.
+    @MainActor
+    @Test func aRunningTimerHoldsItsLastValueThroughALoadingGapThenJumps() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        let deadline = try instant("2026-08-10T18:01:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: deadline, form: .precise)
+        #expect(timer.display == .precise(hours: 0, minutes: 1, seconds: 0))
+
+        // The device sleeps for a while, `RootView` invalidates on `willEnterForeground`, and a
+        // refetch is in flight — the exact gap this rule covers.
+        uptime.advance(20)
+        clock.invalidate()
+        timer.refresh()
+
+        #expect(
+            timer.display == .precise(hours: 0, minutes: 1, seconds: 0),
+            "held at the last known value, not reset to --:--:--"
+        )
+        #expect(timer.hasElapsed == nil, "the clock itself is honestly unsure during the gap")
+
+        // The refetch response re-anchors the clock. The very next tick's refresh() is the
+        // "jump" — there is no separate step that writes the corrected value.
+        clock.sync(serverNow: try instant("2026-08-10T18:00:20Z"))
+        timer.refresh()
+        #expect(timer.display == .precise(hours: 0, minutes: 0, seconds: 40))
+        timer.stop()
+    }
+
+    /// The hold in the test above is scoped to *the same deadline*. A phase transition — `open`
+    /// moving to `revealed`, the same `CountdownTimer` re-pointed at a new deadline — must not
+    /// carry the old phase's number onto the new screen even if the clock happens to be
+    /// unanchored at that exact instant.
+    @MainActor
+    @Test func aNewDeadlineClearsTheHeldValueEvenWhenUnanchored() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: try instant("2026-08-10T18:00:03Z"), form: .precise)
+        #expect(timer.display == .precise(hours: 0, minutes: 0, seconds: 3))
+
+        uptime.advance(3)
+        clock.invalidate()
+
+        // Re-pointed at a *different* deadline — e.g. the round just revealed — while the clock
+        // is still unanchored from the same background cycle.
+        timer.start(until: try instant("2026-08-11T00:00:00Z"), form: .precise)
+        #expect(
+            timer.display == .unknown,
+            "the old phase's 0:00:03 is not a cached value for this new countdown"
+        )
+        timer.stop()
+    }
+
+    /// `RoundScreen` hands one `CountdownTimer` to every phase screen, and two `CountdownView`s
+    /// can be mounted on it for a single frame — the header badge disappearing the instant a
+    /// submission is sealed, as the sealed card's own countdown appears in the same render.
+    /// Before this was reference-counted, whichever of the two called `stop()` last cancelled
+    /// the ticker outright, and if that happened to be the one leaving rather than the one
+    /// arriving, the countdown froze until a background/foreground cycle forced a refetch. This
+    /// is that race, forced deterministically: two `start()`s, one `stop()`, and the ticker must
+    /// still be running for the observer that did not leave.
+    @MainActor
+    @Test func oneObserverLeavingDoesNotStopATimerAnotherStillWants() async throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        let reveal = try instant("2026-08-11T00:00:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        // The badge and the sealed card, both pointing at the same timer at once.
+        timer.start(until: reveal, form: .precise)
+        timer.start(until: reveal, form: .precise)
+        #expect(timer.display == .precise(hours: 6, minutes: 0, seconds: 0))
+
+        // The badge disappears — one of the two observers leaves.
+        timer.stop()
+
+        // The uptime the ticker's next tick will read already reflects a second having passed;
+        // the real sleep just gives that tick room to actually fire.
+        uptime.advance(1)
+        try await Task.sleep(for: .seconds(1.3))
+        #expect(timer.display == .precise(hours: 5, minutes: 59, seconds: 59),
+                "the sealed card's countdown must still be ticking after the badge alone left")
+
+        // The second, and last, observer leaves — only now does it really stop.
+        timer.stop()
+    }
 }

@@ -21,9 +21,9 @@
 /* ── Onboarding (docs/11 §Onboarding) ──────────────────────────────────────── */
 
 "onboarding.title" = "Blind Drop";
-"onboarding.subtitle" = "One song each, every day. Nobody sees anything until 8:00.";
+"onboarding.subtitle" = "One song each, every day. Guess who submitted each song at the 8:00 PM reveal.";
 "onboarding.signin.apple" = "Sign in with Apple";
-"onboarding.signin.review" = "App Review sign in";
+"onboarding.signin.review" = "App Review Sign In";
 "onboarding.signin.email" = "Review email";
 "onboarding.signin.password" = "Review password";
 "onboarding.signin.continue" = "Continue";
@@ -81,6 +81,35 @@
 /* ── The round's header (docs/11 §The round's header) ──────────────────────── */
 
 "menu.title" = "Menu";
+
+/* ── Track links (docs/11 §Track links) ─────────────────────────────────────── */
+
+"link.apple" = "Apple Music";
+"link.spotify" = "Spotify";
+
+/* ── How to play (docs/11 §How to play) ─────────────────────────────────────── */
+
+"howto.title" = "How to play";
+"howto.intro" = "Everyone drops one song each, every day. Try and guess who dropped what, and create a group record (playlist) at the same time.";
+"howto.step1.title" = "Drop a song";
+"howto.step1.body" = "Search and seal your song for the day. Could be what you're listening to, or just a song you like.";
+"howto.step2.title" = "The reveal";
+"howto.step2.body" = "Every dropped song is revealed, anonymous and numbered.";
+"howto.step3.title" = "Guess";
+"howto.step3.time" = "2 hours";
+"howto.step3.body" = "Make your best guess, and put a name on every card.";
+"howto.step4.title" = "Results";
+"howto.step4.body" = "See your friends' real music taste, and how right or wrong you were.";
+"howto.scoring.title" = "Scoring";
+"howto.ear.title" = "Ear";
+"howto.ear.body" = "How well you know your friends (musically at least). The percentage of answers you get correct. (Ranked)";
+"howto.read.title" = "Readability";
+"howto.read.body" = "How \"readable\", or guessable your music taste is. There's no bad or good, it's a spectrum. High and low scores are equally intriguing. (Unranked)";
+"howto.notes.title" = "Good to know";
+"howto.note.void" = "Fewer than three drops means every song is returned with no reveal/record addition. Get your friends to participate next time.";
+"howto.note.replace" = "You can swap your song as many times as you want before the reveal.";
+"howto.note.watch" = "If you don't drop a song, you don't get to play. Maybe you should participate next time.";
+"howto.note.record" = "Again, every song dropped goes into \"The Record\" or a group playlist. It's exportable to Apple Music, or Spotify (bit iffy).";
 "group.title" = "Group";
 "group.members" = "Members";
 "group.loading" = "Loading the group.";
@@ -89,7 +118,7 @@
 
 "submit.headline" = "Today's song.";
 "submit.badge" = "Seals in %@";
-"submit.blind" = "Nobody can tell whether you've dropped. You can't tell either.";
+"submit.blind" = "Drop your song of the day and see who knows your taste.";
 "submit.subhead" = "Nobody sees it until 8:00 PM.";
 "submit.countdown.label" = "until reveal";
 "submit.action" = "Drop a song";
@@ -111,7 +140,7 @@
 "resolve.error.notfound" = "That song isn't in the Apple catalog. Search for it instead.";
 "resolve.error.badlink" = "That's not a song link.";
 "confirm.title" = "Your song";
-"confirm.note" = "Once it's sealed you can't see it either, and after %@ nothing about it changes.";
+"confirm.note" = "Seal your song for the day. After %@ nothing about it changes.";
 "confirm.action" = "Seal it";
 "confirm.another" = "Pick another";
 "confirm.error" = "That didn't seal. Try again.";
@@ -121,12 +150,12 @@
 "sealed.status" = "Sealed until %@.";
 "sealed.badge" = "Sealed";
 "sealed.opens.label" = "Opens in";
-"sealed.company" = "Everyone else is somewhere in this too. You'll never know where.";
+"sealed.company" = "Come back for the reveal to see today's drops.";
 "sealed.countdown.label" = "until reveal";
 "sealed.replace" = "Replace song";
 "sealed.replaced" = "Sealed again.";
 "push.permission.title" = "Want to know when it opens?";
-"push.permission.body" = "Two notifications a night: when the songs go up, and when the answers land. Nothing else.";
+"push.permission.body" = "Know when songs go up, and when answers land. Nothing else.";
 "push.permission.allow" = "Turn on notifications";
 "push.permission.skip" = "Not now";
 

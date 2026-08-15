@@ -239,6 +239,25 @@ extension TrackDTO {
         spotifyURL: nil
     )
 
+    /// Both links present — `CardCornerLinks`' worst case. Every other fixture here has
+    /// `spotifyID: nil`, which never exercises the stacked two-line corner; this is the one
+    /// that tells a stacked corner colliding with the seal stamp apart from one that does not.
+    static let bothLinks = TrackDTO(
+        trackKey: "isrc:USUM71300456",
+        isrc: "USUM71300456",
+        title: "Eenie Meenie",
+        artist: "Sean Kingston & Justin Bieber",
+        album: "Sean Kingston & Justin Bieber",
+        artworkURL: "https://example.test/{w}x{h}bb.jpg",
+        artworkBackgroundColor: "1d2b3a",
+        durationMilliseconds: 194_000,
+        previewURL: URL(string: "https://example.test/eenie.m4a"),
+        appleMusicID: "1440857783",
+        appleMusicURL: URL(string: "https://music.apple.com/us/song/eenie-meenie/1440857783")!,
+        spotifyID: "3a1lNhkSLSkpJE4MSHpDu9",
+        spotifyURL: URL(string: "https://open.spotify.com/track/3a1lNhkSLSkpJE4MSHpDu9")!
+    )
+
     /// The truncation case. A one-line row that grows with the text and truncates at its end is
     /// intact; a layout that overlaps at `.accessibility5` is not, and this is the fixture that
     /// tells them apart in a diff.

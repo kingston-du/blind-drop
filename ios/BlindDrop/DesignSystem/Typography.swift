@@ -2,7 +2,7 @@ import CoreText
 import SwiftUI
 import UIKit
 
-/// The eleven type styles of `docs/07` §3, and the one place a point size is written down.
+/// The twelve type styles of `docs/07` §3, and the one place a point size is written down.
 ///
 /// Three roles, three faces, and they do not do each other's jobs:
 ///
@@ -40,6 +40,12 @@ enum TypeStyle: String, CaseIterable, Sendable {
     /// 11/14 · SF Mono Medium, tracking +1.3, uppercase — the micro-label that runs above a
     /// block, inside a badge, and down the side of every number in the app.
     case label
+    /// 10/13 · SF Mono Medium, tracking +1.1, uppercase — `label`, one step down. For a
+    /// micro-label sharing tight quarters with something else: the sealed card's corner links,
+    /// the paste fallback once the field above it has already made its case. Not a general
+    /// substitute for `label` — it exists for the two or three places `label` itself is the
+    /// thing crowding the row.
+    case labelSmall
     /// 13/18 · SF Pro Text Regular — helper text.
     case caption
     /// 34/36 · SF Mono Medium — a large monospaced figure.
@@ -143,6 +149,13 @@ extension TypeStyle {
             // caption read as apparatus rather than as a sentence somebody forgot to finish.
             Spec(size: 11, lineHeight: 14, face: .mono, weight: .medium,
                  textStyle: .caption1, tracking: 1.3, isUppercase: true,
+                 maximumScale: nil, isTabular: true)
+        case .labelSmall:
+            // `.caption1`, the same ramp `label` rides — `.caption2`'s curve barely moves below
+            // its own default size, and at a 10pt base that rounds to no shrink at all, which is
+            // exactly what `TypographyTests.everyStyleGrowsWithDynamicType` exists to catch.
+            Spec(size: 10, lineHeight: 13, face: .mono, weight: .medium,
+                 textStyle: .caption1, tracking: 1.1, isUppercase: true,
                  maximumScale: nil, isTabular: true)
         case .caption:
             Spec(size: 13, lineHeight: 18, face: .body, weight: .regular,

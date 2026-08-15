@@ -129,6 +129,15 @@ import Testing
             "a11y.namechip", "a11y.namechip.unassigned", "a11y.namechip.assigned",
             "a11y.guess.assigned", "a11y.preview.play", "a11y.preview.stop",
             "a11y.track", "a11y.track.hint", "a11y.readability",
+            "howto.title", "howto.intro",
+            "howto.step1.title", "howto.step1.body",
+            "howto.step2.title", "howto.step2.body",
+            "howto.step3.title", "howto.step3.time", "howto.step3.body",
+            "howto.step4.title", "howto.step4.body",
+            "howto.scoring.title", "howto.ear.title", "howto.ear.body",
+            "howto.read.title", "howto.read.body",
+            "howto.notes.title", "howto.note.void", "howto.note.replace",
+            "howto.note.watch", "howto.note.record",
         ]
         for key in keys {
             #expect(Copy.string(key) != key, "\(key) is not in Localizable.strings")

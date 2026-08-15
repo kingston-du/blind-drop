@@ -32,6 +32,20 @@ private let sizes = SnapshotRenderer.typeSizes
 @MainActor
 @Suite struct OnboardingSnapshots {
 
+    // MARK: - 1.1, sign in
+
+    /// The one screen before there is a session, so it has no `snapshotContent` to skip a
+    /// container's inset — nothing wraps it yet. What the golden is actually for is the title
+    /// block's position: capped rather than plain leading spacer (`SignInScreen`'s own doc),
+    /// so it sits close under the help button rather than centred low by however much taller
+    /// the App Review link's row is than the help row's.
+    @Test(arguments: devices, sizes)
+    func signIn(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "SignIn", device, size) {
+            SignInScreen().environment(AppEnvironment())
+        }
+    }
+
     // MARK: - 1.2, the name
 
     @Test(arguments: devices, sizes)

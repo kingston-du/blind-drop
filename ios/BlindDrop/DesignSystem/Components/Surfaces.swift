@@ -87,20 +87,25 @@ struct Rule: View {
 struct SectionLabel: View {
     private let text: Text
     var color: Color = Palette.inkDim
+    /// `.label` by default. `.labelSmall` is for the two or three places `label` itself is the
+    /// thing crowding the row — a sealed card's corner links, sharing a corner with the stamp.
+    var style: TypeStyle = .label
 
-    init(_ key: LocalizedStringKey, color: Color = Palette.inkDim) {
+    init(_ key: LocalizedStringKey, color: Color = Palette.inkDim, style: TypeStyle = .label) {
         text = Text(key)
         self.color = color
+        self.style = style
     }
 
-    init(verbatim: String, color: Color = Palette.inkDim) {
+    init(verbatim: String, color: Color = Palette.inkDim, style: TypeStyle = .label) {
         text = Text(verbatim: verbatim)
         self.color = color
+        self.style = style
     }
 
     var body: some View {
         text
-            .typeStyle(.label)
+            .typeStyle(style)
             .foregroundStyle(color)
             .fixedSize(horizontal: false, vertical: true)
     }

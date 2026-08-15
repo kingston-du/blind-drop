@@ -168,6 +168,8 @@ enum TypeStyle {
     case bodyM       // 15/20  SF Pro Text Regular    — artist, supporting
     case bodyS       // 13/18  SF Pro Text Regular    — the line under a control
     case label       // 11/14  SF Mono Medium, +1.3, UPPERCASE — every micro-label
+    case labelSmall  // 10/13  SF Mono Medium, +1.1, UPPERCASE — label, one step down, for a
+                      //                                          micro-label crowding a corner
     case caption     // 13/18  SF Pro Text Regular    — helper text
     case monoXL      // 34/36  SF Mono Medium         — a large monospaced figure
     case monoM       // 15/20  SF Mono Medium         — percentages, scores

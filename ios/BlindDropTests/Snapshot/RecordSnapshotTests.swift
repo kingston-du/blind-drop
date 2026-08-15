@@ -97,8 +97,8 @@ private struct RecordSnapshotContent: View {
             }
 
             HStack(spacing: Space.sm) {
-                OutlineButton("record.export.spotify") {}
-                OutlineButton("record.export.apple") {}
+                IconOutlineButton(systemImage: "square.and.arrow.up", "record.export.spotify") {}
+                IconOutlineButton(systemImage: "square.and.arrow.up", "record.export.apple") {}
             }
             .padding(.top, Layout.blockGap)
         }

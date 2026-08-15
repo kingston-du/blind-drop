@@ -118,10 +118,10 @@ import UIKit
             .displayXL: 56, .displayL: 44, .displayM: 32, .displayS: 24,
             .numberL: 44, .numberM: 26,
             .bodyL: 17, .bodyLStrong: 17, .bodyM: 15, .bodyS: 13,
-            .label: 11, .caption: 13,
+            .label: 11, .labelSmall: 10, .caption: 13,
             .monoXL: 34, .monoM: 15, .monoS: 12,
         ]
-        #expect(documented.count == TypeStyle.allCases.count, "docs/07 §3 has eleven styles")
+        #expect(documented.count == TypeStyle.allCases.count, "docs/07 §3 has twelve styles")
         for (style, size) in documented {
             #expect(style.spec.size == size, "\(style)")
             #expect(abs(Typography.uiFont(style, for: smallest).pointSize - size) < 0.5, "\(style)")

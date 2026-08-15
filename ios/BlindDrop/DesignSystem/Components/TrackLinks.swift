@@ -51,53 +51,59 @@ enum TrackLinkRouter {
     }
 }
 
-/// Neutral, text-only utilities shown beneath sealed and results cards. Both appear when both
-/// links exist; neither inherits the screen's phase accent.
-struct TrackLinkButtons: View {
+/// The same two links, compact and stacked, in place of a full "Open in …" row.
+///
+/// This replaced `TrackLinkButtons` — a text row of "Open in Spotify" / "Open in Apple Music"
+/// drawn beneath the sealed and results cards. Both cards now draw the links themselves (the
+/// sealed card's corner, the results card's trailing row), so nothing calls the row form any
+/// more; `record.open.spotify`/`record.open.apple` (the same "Open in …" copy) live on for The
+/// Record's own overflow menu, which still wants the long form.
+///
+/// The sealed card's cover is one plain panel with the stamp in its lower-right (`docs/09` §2)
+/// — its upper-right is genuinely empty, not space borrowed from anything else — so there it is
+/// drawn as a true corner, `.overlay(alignment: .topTrailing)` from the call site. A results
+/// answer card has no equivalent dead space (its title already claims the row's width), so
+/// there it is a trailing row of its own instead (`FlightCard`'s `cornerLinks`) — same words,
+/// same stack order, a different place to put them. Neither call draws it from inside the card
+/// itself: both cards collapse their whole subtree into one VoiceOver element (`docs/12` §2),
+/// and a link nested inside that collapse would be unreachable.
+///
+/// Apple Music first — it is the platform's own store — Spotify under it, both in `labelSmall`
+/// so two lines and an arrow fit without crowding whatever they sit beside.
+struct CardCornerLinks: View {
     let track: TrackDTO
     var opener: any TrackLinkOpening = SystemTrackLinkOpener()
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// The colour the words are read in — `accent.text` on the sealed card's amber cover,
+    /// `inkDim` (the default) on a white answer card, matching every other micro-label there.
+    var color: Color = Palette.inkDim
 
     var body: some View {
         Group {
-            if dynamicTypeSize >= .accessibility1 {
-                VStack(alignment: .leading, spacing: Space.xs) { buttons }
-            } else {
-                HStack(spacing: Space.sm) { buttons }
+            if TrackLinkDestination.appleMusic(track: track) != nil
+                || TrackLinkDestination.spotify(track: track) != nil {
+                VStack(alignment: .trailing, spacing: Space.xxs) {
+                    if let apple = TrackLinkDestination.appleMusic(track: track) {
+                        link("link.apple") { TrackLinkRouter.open(apple, using: opener) }
+                    }
+                    if let spotify = TrackLinkDestination.spotify(track: track) {
+                        link("link.spotify") { TrackLinkRouter.open(spotify, using: opener) }
+                    }
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
-    private var buttons: some View {
-            if let spotify = TrackLinkDestination.spotify(track: track) {
-                link("record.open.spotify") {
-                    TrackLinkRouter.open(spotify, using: opener)
-                }
-            }
-            if let apple = TrackLinkDestination.appleMusic(track: track) {
-                link("record.open.apple") {
-                    TrackLinkRouter.open(apple, using: opener)
-                }
-            }
-    }
-
-    /// A text link, set in the micro-label.
-    ///
-    /// These sit under a card as a footnote to it, so they are drawn as apparatus rather than as
-    /// controls: two `bodyL` links under every answer would read as the screen's actions, and
-    /// the screen's action is the share button at the bottom.
-    private func link(
-        _ title: LocalizedStringKey,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func link(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            SectionLabel(title)
-                .padding(.vertical, Space.sm)
-                .padding(.trailing, Space.md)
-                .contentShape(Rectangle())
-                .frame(minHeight: Layout.minimumTouchTarget)
+            HStack(spacing: Space.xxs) {
+                SectionLabel(title, color: color, style: .labelSmall)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            .padding(.horizontal, Space.xs)
+            .contentShape(Rectangle())
+            .frame(minWidth: Layout.minimumTouchTarget, minHeight: Layout.minimumTouchTarget, alignment: .trailing)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(.isButton)

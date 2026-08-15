@@ -64,6 +64,21 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// `CardCornerLinks`' worst case: both services present, stacked two lines in the cover's
+    /// corner, at the size where `docs/12` §1's *"nothing truncates and nothing overlaps"*
+    /// either holds against the seal stamp in the opposite corner or visibly does not.
+    @Test(arguments: devices)
+    func sealedWithBothLinks(_ device: SnapshotRenderer.Device) throws {
+        try verify(named: "Sealed-bothLinks", device, .accessibility5) { context, timer in
+            SealedScreen(
+                context: context,
+                submission: SubmissionDTO(track: .bothLinks, sealedAt: CountdownFixture.serverNow),
+                timer: timer,
+                replace: {}
+            )
+        }
+    }
+
     /// After a replacement — *"Sealed again."* Never announced to anybody else, never counted.
     @Test(arguments: devices, [DynamicTypeSize.large])
     func sealedAfterReplacing(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {

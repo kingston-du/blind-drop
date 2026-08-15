@@ -128,6 +128,20 @@ struct FlightCard: View {
                 if let clearGuess {
                     Button(action: clearGuess) { Text(verbatim: Copy.A11y.clearGuess) }
                 }
+                // `cornerLinks`' own `CardCornerLinks` is `accessibilityHidden` — this is how
+                // the two links it would otherwise draw stay reachable on an answer card.
+                if isAnswer {
+                    if let apple = TrackLinkDestination.appleMusic(track: track) {
+                        Button(action: { TrackLinkRouter.open(apple, using: SystemTrackLinkOpener()) }) {
+                            Text("link.apple")
+                        }
+                    }
+                    if let spotify = TrackLinkDestination.spotify(track: track) {
+                        Button(action: { TrackLinkRouter.open(spotify, using: SystemTrackLinkOpener()) }) {
+                            Text("link.spotify")
+                        }
+                    }
+                }
             }
             // …and as a child, so direct-touch exploration finds it where it is drawn.
             .accessibilityChildren {
@@ -215,6 +229,17 @@ struct FlightCard: View {
     }
 
     /// Tonight's answer for one song.
+    ///
+    /// The links are their own row rather than a third voice in `metadata`'s — `metadata`'s
+    /// title and artist already claim the row's whole remaining width (`.frame(maxWidth:
+    /// .infinity)`, so a `TrackRow` style column fills what a shorter word would leave empty),
+    /// and `CardCornerLinks`' `labelSmall` has no Dynamic Type ceiling of its own (`docs/07` §3
+    /// caps only the display face). The two together, squeezed onto one row on an SE, do not
+    /// truncate or overlap — they wrap one syllable per line, which is `docs/12` §1's "nothing
+    /// crowds" failure by a different name, and it happens at the *default* size, not only at
+    /// `.accessibility5`. A trailing row of its own, the width of the whole card rather than
+    /// whatever the title left over, is what lets it draw the one line it draws in the sealed
+    /// card's much wider corner.
     private var answerCard: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
             if isStacked {
@@ -230,10 +255,21 @@ struct FlightCard: View {
                     metadata
                 }
             }
+            cornerLinks
             assignmentChip
         }
         .padding(Layout.cardInset)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// `CardCornerLinks`, hidden from VoiceOver here and re-exposed through `body`'s
+    /// `.accessibilityActions` — the whole card is one VoiceOver element (`docs/12` §2), and a
+    /// link reachable only by direct touch inside that collapse would not be reachable by
+    /// anyone swiping through it.
+    private var cornerLinks: some View {
+        CardCornerLinks(track: track)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .accessibilityHidden(true)
     }
 
     /// The number, in the accent, capped at 1.6× by `Typography` so it stays the largest thing

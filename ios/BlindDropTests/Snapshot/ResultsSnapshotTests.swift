@@ -35,9 +35,14 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
-    @Test(arguments: devices)
-    func theWholeNight(_ device: SnapshotRenderer.Device) {
-        verify(named: "Results-8", device, .large) {
+    /// SE only, not the full `devices` matrix — `docs/07` §5's card-corner track links
+    /// (`CardCornerLinks`) add a genuine ~90pt per card for two independently 44pt-tall tap
+    /// targets (`docs/12` §5), and eight cards of that on the 15 Pro Max's wider, higher-scale
+    /// canvas pushes the render past `UIImage.pngData()`'s ceiling — the same one this file's
+    /// own header already describes trimming `.accessibility1`/`5` off of for this exact reason.
+    @Test
+    func theWholeNight() {
+        verify(named: "Results-8", .iPhoneSE, .large) {
             ResultsSnapshotFixture.screen(cards: ResultsSnapshotFixture.allCards)
         }
     }

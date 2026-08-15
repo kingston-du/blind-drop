@@ -31,8 +31,9 @@ level up, don't miss out, hurry.*
 | Key | String |
 |---|---|
 | `onboarding.title` | Blind Drop |
-| `onboarding.subtitle` | One song each, every day. Nobody sees anything until 8:00. |
+| `onboarding.subtitle` | One song each, every day. Guess who submitted each song at the 8:00 PM reveal. |
 | `onboarding.signin.apple` | Sign in with Apple |
+| `onboarding.signin.review` | App Review Sign In |
 | `onboarding.name.title` | What should we call you? |
 | `onboarding.name.help` | This is the name people guess with. Use the one your friends use. |
 | `onboarding.name.placeholder` | First name |
@@ -74,6 +75,56 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 
 ---
 
+## Track links
+
+| Key | String |
+|---|---|
+| `link.apple` | Apple Music |
+| `link.spotify` | Spotify |
+
+The service name alone, for a card's corner (Sealed, Results' answer card) where `record.open.*`'s
+"Open in …" is too long to sit beside a stamp. Apple Music first, Spotify under it.
+
+---
+
+## How to play
+
+| Key | String |
+|---|---|
+| `howto.title` | How to play |
+| `howto.intro` | Everyone drops one song each, every day. Try and guess who dropped what, and create a group record (playlist) at the same time. |
+| `howto.step1.title` | Drop a song |
+| `howto.step1.body` | Search and seal your song for the day. Could be what you're listening to, or just a song you like. |
+| `howto.step2.title` | The reveal |
+| `howto.step2.body` | Every dropped song is revealed, anonymous and numbered. |
+| `howto.step3.title` | Guess |
+| `howto.step3.time` | 2 hours |
+| `howto.step3.body` | Make your best guess, and put a name on every card. |
+| `howto.step4.title` | Results |
+| `howto.step4.body` | See your friends' real music taste, and how right or wrong you were. |
+| `howto.scoring.title` | Scoring |
+| `howto.ear.title` | Ear |
+| `howto.ear.body` | How well you know your friends (musically at least). The percentage of answers you get correct. (Ranked) |
+| `howto.read.title` | Readability |
+| `howto.read.body` | How "readable", or guessable your music taste is. There's no bad or good, it's a spectrum. High and low scores are equally intriguing. (Unranked) |
+| `howto.notes.title` | Good to know |
+| `howto.note.void` | Fewer than three drops means every song is returned with no reveal/record addition. Get your friends to participate next time. |
+| `howto.note.replace` | You can swap your song as many times as you want before the reveal. |
+| `howto.note.watch` | If you don't drop a song, you don't get to play. Maybe you should participate next time. |
+| `howto.note.record` | Again, every song dropped goes into "The Record" or a group playlist. It's exportable to Apple Music, or Spotify (bit iffy). |
+
+The `[?]` beside `[≡]` in every phase's header, and alone in the top-right corner of sign-in
+(`08-SCREEN-SPECS.md` §1.1, §2, §8) — the explainer is reachable before there is even a round.
+
+The four steps' clock times (`howto.step1`, `.step2`, `.step4`) are never written down as
+strings: they are `RevealHour.formatted(...)` against the group's own `reveal_hour`, so a group
+that seals at 6:00 PM reads its own schedule rather than the 8:00 PM default. `howto.step3.time`
+is the one literal — the two-hour guess window is a constant, not a group setting. No step names
+the phase it happens in (`sealed` / `live` / `scored`) — the time alone says when, and a phase
+word beside it repeated a fact the countdown already carries.
+
+---
+
 ## Submit — open, nothing dropped
 
 | Key | String |
@@ -83,7 +134,7 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `submit.countdown.label` | until reveal |
 | `submit.action` | Drop a song |
 | `submit.badge` | Seals in %@ |
-| `submit.blind` | Nobody can tell whether you've dropped. You can't tell either. |
+| `submit.blind` | Drop your song of the day and see who knows your taste. |
 | `submit.nudge` | Two hours left to drop. |
 | `submit.closed.headline` | Tonight's round is done. |
 | `submit.closed.subhead` | The next one opens at %@. |
@@ -108,7 +159,7 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `resolve.error.notfound` | That song isn't in the Apple catalog. Search for it instead. |
 | `resolve.error.badlink` | That's not a song link. |
 | `confirm.title` | Your song |
-| `confirm.note` | Once it's sealed you can't see it either, and after %@ nothing about it changes. |
+| `confirm.note` | Seal your song for the day. After %@ nothing about it changes. |
 | `confirm.action` | Seal it |
 | `confirm.another` | Pick another |
 | `confirm.error` | That didn't seal. Try again. |
@@ -122,12 +173,12 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `sealed.status` | Sealed until %@. |
 | `sealed.badge` | Sealed |
 | `sealed.opens.label` | Opens in |
-| `sealed.company` | Everyone else is somewhere in this too. You'll never know where. |
+| `sealed.company` | Come back for the reveal to see today's drops. |
 | `sealed.countdown.label` | until reveal |
 | `sealed.replace` | Replace song |
 | `sealed.replaced` | Sealed again. |
 | `push.permission.title` | Want to know when it opens? |
-| `push.permission.body` | Two notifications a night: when the songs go up, and when the answers land. Nothing else. |
+| `push.permission.body` | Know when songs go up, and when answers land. Nothing else. |
 | `push.permission.allow` | Turn on notifications |
 | `push.permission.skip` | Not now |
 

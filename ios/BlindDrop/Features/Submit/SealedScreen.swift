@@ -19,14 +19,26 @@ struct SealedScreen: View {
     private let accent = PhaseAccent.sealed
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.blockGap) {
+        VStack(alignment: .leading, spacing: Space.xl) {
             VStack(alignment: .leading, spacing: Layout.itemGap) {
                 SealedCard(
                     track: submission.track,
                     groupInitial: context.groupInitial,
                     remaining: Copy.countdown(timer.display)
                 )
-                TrackLinkButtons(track: submission.track)
+                // The cover's own upper-right is empty — the stamp lands lower-right (`docs/09`
+                // §2) — so the links sit there rather than adding a line under the card. Drawn
+                // from here, not from inside `SealedCard`, because that card collapses to one
+                // VoiceOver element and a link nested in the collapse would be unreachable.
+                .overlay(alignment: .topTrailing) {
+                    // `SealedCard` insets its artwork by `Layout.cardInset` and draws it at the
+                    // card's full width (`fillsWidth: true`), so that inset is also where the
+                    // cover itself begins — matching it here lands the links **on the cover**,
+                    // the same surface the stamp sits on, rather than in the white margin above.
+                    CardCornerLinks(track: submission.track, color: accent.text)
+                        .padding(.top, Layout.cardInset + Space.sm)
+                        .padding(.trailing, Layout.cardInset + Space.sm)
+                }
                 status
             }
             countdown

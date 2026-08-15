@@ -47,6 +47,9 @@ struct RoundScreen: View {
     @State private var confirmingDirect: TrackDTO?
     /// Whether the song on screen replaced an earlier one **this session** (`docs/08` §4).
     @State private var didReplace = false
+    /// The how-to sheet (`docs/08` §2, §8). Reachable from every phase through the same
+    /// `[?]` in `RoundHeader`, and — like Search — a sheet rather than a fourth `Route`.
+    @State private var isShowingHowTo = false
     /// Bumped when the countdown elapses and when the app returns to the foreground. One
     /// `.task(id:)` does the loading, so the work is structured and cancels with the screen
     /// (`docs/13` §6) rather than being an unstructured `Task` per event.
@@ -107,7 +110,8 @@ struct RoundScreen: View {
                 RoundHeader(
                     groupName: headerName(store),
                     dateHeadline: store.state.value?.dateHeadline,
-                    path: $router.path
+                    path: $router.path,
+                    showHowTo: { isShowingHowTo = true }
                 ) {
                     badge(store: store, timer: timer)
                 }
@@ -140,6 +144,13 @@ struct RoundScreen: View {
         // The pre-prompt for notifications, after the first successful seal (`docs/05` §4).
         .sheet(isPresented: pushPromptBinding) {
             PushPermissionSheet(registrar: env.push)
+        }
+        // The group's own schedule, not the copy deck's placeholder hours.
+        .sheet(isPresented: $isShowingHowTo) {
+            HowToSheet(
+                revealHour: store.state.value?.group.revealHour ?? RevealHour.default,
+                close: { isShowingHowTo = false }
+            )
         }
     }
 
@@ -546,6 +557,9 @@ struct RoundHeader<Badge: View>: View {
     let groupName: String?
     let dateHeadline: String?
     @Binding var path: [Route]
+    /// Opens **How to play** (`docs/08` §2, §8). On every phase, next to the menu — the same
+    /// place the `[?]` sits everywhere else it appears.
+    let showHowTo: () -> Void
     /// What the round is doing, in the corner. Empty on the phases that draw their own.
     @ViewBuilder let badge: Badge
 
@@ -553,18 +567,50 @@ struct RoundHeader<Badge: View>: View {
         groupName: String?,
         dateHeadline: String? = nil,
         path: Binding<[Route]>,
+        showHowTo: @escaping () -> Void,
         @ViewBuilder badge: () -> Badge = { EmptyView() }
     ) {
         self.groupName = groupName
         self.dateHeadline = dateHeadline
         self._path = path
+        self.showHowTo = showHowTo
         self.badge = badge()
     }
 
+    /// **Who on the first line, when and what-it-is-doing on the second.**
+    ///
+    /// The badge used to sit in the top row between the name and the menu, which was wrong for
+    /// the one phase whose badge is wide: *"Seals in 04:12:33"* is a dozen characters that
+    /// `.fixedSize()` will not give up, so the group name — the only thing on the row that *can*
+    /// yield — absorbed the whole cost. The name truncated, and the date under it wrapped onto a
+    /// second line to squeeze past the pill. A header that damages the group's identity in order
+    /// to report the clock has its priorities backwards.
+    ///
+    /// So the name gets the top row to itself, sharing it only with the menu — one glyph, fixed
+    /// width, nothing to negotiate. The date and the badge pair up on the row beneath, which is
+    /// the **full** column width because the menu is not on it: *when* the round is and *what it
+    /// is doing* are one thought, and at the default size they sit side by side with room over.
+    ///
+    /// Three rows, each holding one thing: **who**, **when**, **what it is doing**. The name
+    /// shares its row only with the menu — one glyph, fixed width, nothing to negotiate — and the
+    /// date and the badge each get the full column width, so neither has to wrap to make room for
+    /// the other. One reading order straight down the leading edge, and nothing on it competes
+    /// for the same pixels.
+    ///
+    /// The height this costs is real, and it is paid for rather than ignored: this is the search
+    /// screen with the keyboard already up, and a header that grows pushes the column into the
+    /// status bar. `submit.blind` was shortened to two rendered lines in the same change that
+    /// added this row. If either grows again, this is the pair to weigh — they are spending the
+    /// same points.
+    ///
+    /// The gaps are the stacks' own rather than `.padding` on the badge, because three of the
+    /// five phases pass no badge at all: `EmptyView` contributes no subview, so `VStack` spacing
+    /// around it collapses to nothing, whereas a padded empty view would reserve its padding and
+    /// leave a gap under the date on every badgeless phase.
     var body: some View {
-        HStack(alignment: .center, spacing: Space.sm) {
-            if groupName != nil || dateHeadline != nil {
-                VStack(alignment: .leading, spacing: Space.xs) {
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                HStack(alignment: .center, spacing: Space.sm) {
                     if let groupName {
                         Text(verbatim: groupName)
                             .typeStyle(.bodyLStrong)
@@ -572,27 +618,30 @@ struct RoundHeader<Badge: View>: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
-                    if let dateHeadline {
-                        Text(verbatim: dateHeadline)
-                            .typeStyle(.caption)
+                    Spacer(minLength: Space.sm)
+                    HelpButton(action: showHowTo)
+                    Menu {
+                        Button("record.title") { path.append(.record) }
+                        Button("group.title") { path.append(.group) }
+                        Button("settings.title") { path.append(.settings) }
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(Font(Typography.uiFont(.bodyLStrong)))
                             .foregroundStyle(Palette.inkDim)
-                            .accessibilityIdentifier("round.dateHeadline")
+                            .minimumTouchTarget()
                     }
+                    .accessibilityLabel(Text("menu.title"))
+                }
+                if let dateHeadline {
+                    Text(verbatim: dateHeadline)
+                        .typeStyle(.caption)
+                        .foregroundStyle(Palette.inkDim)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("round.dateHeadline")
                 }
             }
-            Spacer(minLength: Space.sm)
+
             badge
-            Menu {
-                Button("record.title") { path.append(.record) }
-                Button("group.title") { path.append(.group) }
-                Button("settings.title") { path.append(.settings) }
-            } label: {
-                Image(systemName: "line.3.horizontal")
-                    .font(Font(Typography.uiFont(.bodyLStrong)))
-                    .foregroundStyle(Palette.inkDim)
-                    .minimumTouchTarget()
-            }
-            .accessibilityLabel(Text("menu.title"))
         }
     }
 }

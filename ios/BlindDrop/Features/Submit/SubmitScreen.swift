@@ -52,7 +52,13 @@ struct SubmitScreen: View {
                 isFieldFocused: $isFieldFocused,
                 choose: choose,
                 header: { prompt },
-                footer: { footer }
+                footer: { footer },
+                // This is the round's own search screen, sitting directly under `RoundHeader` —
+                // an uncapped gap here left "Today's song." a variable, often large distance
+                // under it. `addsGapBeforePaste` spends what capping this saves on holding the
+                // paste fallback where it was rather than dragging it up too.
+                topGapCap: Space.x5,
+                addsGapBeforePaste: true
             )
         }
     }

@@ -264,7 +264,11 @@ Rules, all testable:
    move when the user changes the clock or the timezone. Setting the device to 2029 changes
    nothing.
 3. `now` is **optional**. Before the first successful response the app does not know what time
-   it is, and it says so — the countdown shows `--:--:--`, not a guess.
+   it is, and `ServerClock` says so — `now`, `timeRemaining(until:)`, and `isAnchored` are all
+   truthful about having no anchor, unconditionally. `CountdownTimer` is a separate rule (§5a):
+   a countdown for a deadline it has never yet shown a value for renders `--:--:--` rather than
+   guessing, but one that already has a value for its *current, unchanged* deadline holds that
+   value through a loading gap instead of blanking — see below.
 4. Re-anchoring on every response means drift never accumulates.
 5. `systemUptime` does not advance while the device is asleep. On `willEnterForeground` the
    anchor is invalidated and a refetch is issued before any countdown renders. Assume the
@@ -273,8 +277,28 @@ Rules, all testable:
    `GroupDTO`, never `TimeZone.current`. A user travelling still plays on the group's clock.
 
 `ServerClockTests` asserts: setting a fake device clock ±5 years changes no computed
-countdown; a stale anchor after background returns `nil` until resync; drift over a simulated
-2-hour session stays under 1 second.
+countdown; `ServerClock.now` after an invalidated/stale anchor returns `nil` until resync;
+drift over a simulated 2-hour session stays under 1 second.
+
+### 5a. `CountdownTimer` — held, not blanked, across a loading gap
+
+`ServerClock` going unanchored is not, by itself, a reason for the *displayed* countdown to
+blank to `--:--:--`. `CountdownTimer.refresh()` only writes `.unknown` when there is no prior
+value for the deadline currently in play:
+
+- A **new** deadline (`start()` called with a value different from the one it already had —
+  a phase transition, or the very first call) clears the display to `.unknown` immediately,
+  because the previous number belonged to a different countdown and showing it would be
+  showing the wrong event's time.
+- The **same** deadline continuing (the ordinary tick, or a loading gap — `willEnterForeground`
+  invalidating the clock while a refetch is in flight) leaves the display alone. It already
+  holds a value the app confirmed correct a moment ago; that is a hold, not the guess rule 3
+  forbids. The next successful `sync()` re-anchors the clock, and the next tick's `refresh()`
+  jumps straight to the true value — there is no separate "snap" step to write.
+
+This is why the header badge and a phase screen's countdown can look momentarily frozen rather
+than dashed during a background/foreground cycle, and why that is correct: the value shown was
+true as of the last thing the app heard from the server, for a deadline that has not changed.
 
 ---
 
@@ -292,7 +316,11 @@ countdown; a stale anchor after background returns `nil` until resync; drift ove
 ## 7. Offline
 
 - No local database. The app is a thin client to a server-authoritative game; a local cache
-  of game state is a correctness hazard, not a feature.
+  of game state is a correctness hazard, not a feature. `CountdownTimer` holding its last
+  displayed digits across a loading gap (§5a) is not an exception to this: nothing is
+  persisted, nothing is read back after a relaunch, and the hold applies only to a value the
+  app already rendered for the exact deadline still in play — it is not a cache of game state,
+  it is a display not being cleared for a fraction of a second while nothing has changed.
 - The in-memory `LoadState.stale` case covers a foreground refetch failure.
 - **Mutations are never queued.** A submission that "sends when you reconnect" could land at
   20:01 and be silently rejected — or worse, silently accepted into tomorrow. Offline

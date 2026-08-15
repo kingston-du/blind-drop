@@ -32,15 +32,21 @@ struct AppleSignInButton: UIViewRepresentable {
         // The button's own intrinsic width would centre it at whatever Apple thinks the label
         // needs; the screen is a single column and the primary action spans it (`docs/07` §4).
         button.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        // **Vertically it hugs.** A `UIViewRepresentable` with no vertical hugging priority takes
-        // every point SwiftUI offers it, and `SignInScreen` offers it everything between two
-        // `Spacer`s — which draws Apple's 52pt control as a black panel two thirds of the screen
-        // tall. The snapshot goldens cannot see this: `SnapshotRenderer` sizes a view to its
-        // natural height, so there is no spare space for a greedy view to eat, and it took a
-        // launch on a simulator to notice.
-        button.setContentHuggingPriority(.required, for: .vertical)
-        button.setContentCompressionResistancePriority(.required, for: .vertical)
         return button
+    }
+
+    /// Apple's UIKit control has a short intrinsic height. Returning the design-system height
+    /// here makes the black control itself 56pt tall; a SwiftUI frame alone would only make a
+    /// 56pt transparent wrapper around Apple's visibly smaller button.
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: ASAuthorizationAppleIDButton,
+        context: Context
+    ) -> CGSize? {
+        CGSize(
+            width: proposal.width ?? uiView.intrinsicContentSize.width,
+            height: Layout.buttonHeight
+        )
     }
 
     func updateUIView(_ button: ASAuthorizationAppleIDButton, context: Context) {

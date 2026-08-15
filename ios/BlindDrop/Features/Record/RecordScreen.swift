@@ -210,12 +210,14 @@ struct RecordScreen: View {
             // Side by side, as two equal choices. Stacked, each full width, they read as a
             // primary and a runner-up, and neither of them is either.
             HStack(spacing: Space.sm) {
-                OutlineButton(
+                IconOutlineButton(
+                    systemImage: "square.and.arrow.up",
                     "record.export.spotify",
                     isEnabled: store.spotifyExport != .working
                 ) { Task { await store.exportToSpotify() } }
 
-                OutlineButton(
+                IconOutlineButton(
+                    systemImage: "square.and.arrow.up",
                     "record.export.apple",
                     isEnabled: store.appleExport != .working
                 ) { Task { await store.exportToAppleMusic() } }
