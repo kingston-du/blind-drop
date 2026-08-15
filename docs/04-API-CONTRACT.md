@@ -192,6 +192,14 @@ Sets `left_at`. Returns `204`. The client returns to the join/create screen.
 
 ## 4. The round
 
+> **Demo groups change nothing here.** For the App Review group (`02-DOMAIN-RULES.md` §6) all
+> three routes below have the same paths, the same key sets and the same bodies they have for
+> anybody else. What differs is only the value of `reveals_at` and `scores_at`: dropping a song
+> brings the reveal twelve seconds out, completing the guess sheet brings the score twenty
+> seconds out, and `GET /rounds/current` runs `demo_tick()` before it reads. No response is
+> shaped differently and no field is added — `tests/functions/demo.test.ts` compares a demo
+> group's payloads against a real group's byte for byte.
+
 ### `GET /rounds/current` — the workhorse
 
 Returns today's round for the caller's group, shaped by phase. The client calls this on

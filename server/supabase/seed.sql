@@ -282,3 +282,39 @@ alter function public.set_membership_joined_at(uuid, timestamptz) owner to postg
 revoke all on function public.set_membership_joined_at(uuid, timestamptz)
   from public, anon, authenticated;
 grant execute on function public.set_membership_joined_at(uuid, timestamptz) to service_role;
+
+-- ─── local-only: turning a test group into a demo group ──────────────────────
+--
+-- `groups.is_demo` is set from a pilot cohort and nowhere else (20260815090000): there is no
+-- API route that can mark a group, which is exactly the property the demo environment relies
+-- on. That leaves the Edge Function tests unable to arrange the one state they need to check
+-- the two `demo_arm` calls in `rounds/index.ts`.
+--
+-- Same reasoning as `tick_rounds_at` above, and the same shape: seed-only, so no deployed
+-- database has it, and there is no grant on a hosted project to review because the function
+-- is not there to grant.
+create or replace function public.make_demo_group(p_group_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.groups set is_demo = true where id = p_group_id;
+$$;
+
+alter function public.make_demo_group(uuid) owner to postgres;
+revoke all on function public.make_demo_group(uuid) from public, anon, authenticated;
+grant execute on function public.make_demo_group(uuid) to service_role;
+
+-- ─── local-only: no cohort claims a test user ────────────────────────────────
+--
+-- `assign_pilot_cohort()` runs on every `PUT /me` (docs/04 §2), and the App Review cohort ships
+-- enabled with one seat. On a hosted project that is the point. Locally it means the first
+-- named user after `supabase db reset` is silently enrolled into a group they did not ask for,
+-- and the next thing that user does — `POST /groups` — gets `ALREADY_IN_GROUP`. Which test
+-- that is depends on the order Deno happens to run the files in, so the failure moves around.
+--
+-- Enrollment itself is covered by `tests/db/pilot_cohorts.sql` and `tests/db/demo_mode.sql`,
+-- both of which enable the cohort they need inside their own transaction. Nothing outside
+-- those two wants a cohort to fire.
+update public.pilot_cohorts set enabled = false;

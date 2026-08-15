@@ -299,4 +299,46 @@ readability is its own kind of win.
 8. A user has at most one submission per round (unique constraint).
 9. A user has at most one guess per (round, card) (unique constraint).
 10. Rounds with `state = voided` contribute to no aggregate.
-11. `scores_at = reveals_at + 2h` and `opens_at = reveals_at − 10h`, always.
+11. `scores_at = reveals_at + 2h` and `opens_at = reveals_at − 10h` for every round of a real
+    group. A demo group's rounds (§6) only have to satisfy
+    `opens_at ≤ reveals_at ≤ scores_at`; `rounds_window` says exactly that, and `rounds.is_demo`
+    is set by trigger from `groups.is_demo` so the two can never disagree.
+12. No round of a demo group ever reaches `voided`, and no demo transition writes to
+    `notification_outbox`.
+
+---
+
+## 6. The demo group
+
+**This is a release mechanism, not a game rule, and it can never apply to a real group.**
+
+App Review happens whenever it happens. On the real schedule the whole loop — drop, seal,
+reveal, guess, results — is reachable for two hours a day, and a round with fewer than three
+submitters voids (§2). A reviewer who opens the app at 23:00 would find a scored round or the
+dark hours, and an account playing alone would find every night voided. Neither shows the app
+working.
+
+A group whose `is_demo` is set advances on **the reviewer's actions** rather than on the clock:
+
+| Moment | What happens |
+|---|---|
+| The round is created | The real schedule: `reveals_at` is the next `reveal_hour`:00 group-local. Nothing about the round differs from a real one yet. |
+| The reviewer drops a song | `reveals_at` moves to twelve seconds out. |
+| The countdown reaches zero | The next `GET /rounds/current` reveals the round, exactly as the countdown reaching zero triggers a refetch in any group. |
+| The guess sheet is completed | `scores_at` moves to twenty seconds out. A partial sheet gets three minutes, so the loop finishes either way. |
+| Two minutes after it scores | A fresh round opens and the finished one joins The Record as yesterday. |
+
+What does **not** change:
+
+- The server still owns time and still owns the phase. Every transition is a `UPDATE … WHERE
+  state = <expected>` in SQL against `now_()`, and the client reads `rounds.state` verbatim
+  (§2). There is no client-side demo mode and no second code path in the app.
+- The wire format. Same routes, same key sets, same bodies; only the timestamps differ, and
+  they are timestamps either way. `tests/functions/demo.test.ts` compares them byte for byte.
+- Reveal still requires a full room, so a reviewer who never drops a song is never revealed
+  past: the round slides to the next reveal hour and keeps showing an honest wait.
+
+Only a pilot cohort can mark a group (`pilot_cohorts.is_demo` → `groups.is_demo`), and pilot
+cohorts are server-only rows with no API surface. `ensure_rounds()` and all three
+`tick_rounds()` loops skip demo groups entirely, and `demo_arm()`/`demo_tick()` return
+immediately for a group that is not one — the exclusion is enforced in both directions.

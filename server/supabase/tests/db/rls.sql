@@ -5,7 +5,7 @@
 -- tests/functions/postgrest_locked.test.ts; what is provable in SQL is proved here.
 begin;
 set search_path = public, extensions, tests;
-select plan(57);
+select plan(61);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -21,8 +21,8 @@ order by c.relname;
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'),
-  11,
-  'exactly eleven tables in public — nothing has been added without a doc change');
+  12,
+  'exactly twelve tables in public — nothing has been added without a doc change');
 
 -- ─── zero policies. Not "the right policies". Zero. ──────────────────────────
 select is_empty($$
@@ -82,6 +82,8 @@ select set_eq(
        ('guesses', 'SELECT'), ('guesses', 'INSERT'), ('guesses', 'UPDATE'),
        ('guesses', 'DELETE'),
        ('devices', 'SELECT'), ('devices', 'INSERT'), ('devices', 'UPDATE'),
+       -- DELETE arrived with sign-out detaching its APNs token (20260814201956).
+       ('devices', 'DELETE'),
        ('notification_outbox', 'SELECT'), ('notification_outbox', 'UPDATE'),
        ('track_links', 'SELECT'), ('track_links', 'INSERT'), ('track_links', 'UPDATE'),
        ('rate_limit_events', 'SELECT'), ('rate_limit_events', 'INSERT'),
@@ -104,9 +106,10 @@ select set_eq(
   $$ select routine_name
        from information_schema.role_routine_grants
       where routine_schema = 'public' and grantee = 'service_role'
-        -- These two helpers are created by seed.sql after every migration. They never exist on
-        -- a hosted database and are covered by the fixture tests that use them.
-        and routine_name not in ('tick_rounds_at', 'set_membership_joined_at') $$,
+        -- These helpers are created by seed.sql after every migration. They never exist on a
+        -- hosted database and are covered by the fixture tests that use them.
+        and routine_name not in
+            ('tick_rounds_at', 'set_membership_joined_at', 'make_demo_group') $$,
   $$ values
        ('now_'::information_schema.sql_identifier),
        ('ensure_rounds'::information_schema.sql_identifier),
@@ -120,7 +123,11 @@ select set_eq(
        ('claim_notification_outbox'::information_schema.sql_identifier),
        ('finish_notification_outbox'::information_schema.sql_identifier),
        ('release_notification_outbox'::information_schema.sql_identifier),
-       ('assign_pilot_cohort'::information_schema.sql_identifier) $$,
+       ('assign_pilot_cohort'::information_schema.sql_identifier),
+       -- The demo lifecycle (20260815090500). `demo_provision` is deliberately absent: it
+       -- manufactures players and backdated rounds, and is owner-run only.
+       ('demo_arm'::information_schema.sql_identifier),
+       ('demo_tick'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
 
 select is_empty($$
@@ -148,7 +155,7 @@ select throws_ok(
          format('authenticated cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts']) as t,
+                  'pilot_cohorts','demo_companions']) as t,
      lateral (select set_config('role', 'authenticated', true)) as _;
 reset role;
 
@@ -159,7 +166,7 @@ select throws_ok(
          format('anon cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts']) as t,
+                  'pilot_cohorts','demo_companions']) as t,
      lateral (select set_config('role', 'anon', true)) as _;
 reset role;
 

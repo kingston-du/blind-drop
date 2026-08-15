@@ -148,6 +148,18 @@ interface RoundRow {
 const ROUND_COLUMNS = "id, local_date, state, opens_at, reveals_at, scores_at, card_order";
 
 /**
+ * Today's round, and whether the group it belongs to is the App Review demo group.
+ *
+ * `isDemo` rides along on the group read this function already does, so knowing it costs
+ * nothing. It gates the two `demo_arm` calls below and nothing else — no branch in this file
+ * shapes a response differently for a demo group, and the golden files are the check on that.
+ */
+interface CurrentRound {
+  round: RoundRow;
+  isDemo: boolean;
+}
+
+/**
  * Today's round for the caller's group, keyed by the group's *local* calendar date.
  *
  * Not "the round whose window contains now" — the group-local date, which is what docs/02 §1
@@ -160,16 +172,24 @@ const ROUND_COLUMNS = "id, local_date, state, opens_at, reveals_at, scores_at, c
  * `ensure_rounds()` is called on a miss rather than 404ing, because the one moment a round can
  * legitimately be absent is the first minute of a brand-new group — the scheduler runs each
  * minute (docs/03 §4) and the API is not going to make the founding member wait for it.
+ *
+ * A demo group gets `demo_tick()` instead, and gets it *before* the lookup rather than on a
+ * miss. `tick_rounds()` does not run for demo groups (20260815090000), so this call is the
+ * only thing that advances one — the reveal the reviewer's countdown is waiting on happens
+ * here, on the refetch that countdown triggers. It is still the server deciding the phase:
+ * the handler below reads `rounds.state` exactly as it does for everybody else, and never
+ * compares a clock (CLAUDE.md §2.2).
  */
-async function currentRound(ctx: MemberCtx): Promise<RoundRow> {
+async function currentRound(ctx: MemberCtx): Promise<CurrentRound> {
   const { data: group, error: groupError } = await ctx.db
     .from("groups")
-    .select("timezone")
+    .select("timezone, is_demo")
     .eq("id", ctx.groupId)
     .maybeSingle();
   if (groupError) throw dbFailure("rounds.group", groupError);
   if (!group) throw new ApiError("NOT_FOUND");
 
+  const isDemo = group.is_demo === true;
   const today = localDate(group.timezone, serverNow());
 
   const load = async (): Promise<RoundRow | null> => {
@@ -183,15 +203,43 @@ async function currentRound(ctx: MemberCtx): Promise<RoundRow> {
     return data;
   };
 
+  if (isDemo) {
+    const { error: tickError } = await ctx.db.rpc("demo_tick", { p_group_id: ctx.groupId });
+    if (tickError) throw dbFailure("rounds.demo_tick", tickError);
+    const ticked = await load();
+    if (!ticked) throw new ApiError("NOT_FOUND");
+    return { round: ticked, isDemo };
+  }
+
   const existing = await load();
-  if (existing) return existing;
+  if (existing) return { round: existing, isDemo };
 
   const { error: ensureError } = await ctx.db.rpc("ensure_rounds");
   if (ensureError) throw dbFailure("rounds.ensure_rounds", ensureError);
 
   const created = await load();
   if (!created) throw new ApiError("NOT_FOUND");
-  return created;
+  return { round: created, isDemo };
+}
+
+/**
+ * How long a demo round waits before its next transition, in seconds. docs/02 §6.
+ *
+ * Long enough that the screen it is on registers as a screen — the seal lands, the stamp
+ * animates, the countdown is visibly a countdown — and short enough that a reviewer never
+ * wonders whether the app has stopped. `DEMO_GUESS_CAP_SECONDS` is the backstop for a sheet
+ * that is never completed, so the loop always finishes even if the reviewer wanders off
+ * mid-guess.
+ */
+const DEMO_SEAL_SECONDS = 12;
+const DEMO_GUESS_SECONDS = 20;
+const DEMO_GUESS_CAP_SECONDS = 180;
+
+/** Brings a demo round's next transition forward. A no-op for every real group — the guard is
+ *  here *and* in `demo_arm()` itself, which refuses any round outside a demo group. */
+async function armDemo(ctx: MemberCtx, roundId: string, seconds: number): Promise<void> {
+  const { error } = await ctx.db.rpc("demo_arm", { p_round_id: roundId, p_seconds: seconds });
+  if (error) throw dbFailure("rounds.demo_arm", error);
 }
 
 /**
@@ -425,7 +473,7 @@ serveFunction("rounds", {
   // deep-linked from the push.
   "GET /current": async (req, route) => {
     const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
-    const round = await currentRound(ctx);
+    const { round } = await currentRound(ctx);
     const mine = await mySubmission(ctx, round.id);
     const base = roundDTO(round, mine);
     if (round.state !== "revealed") return ok(base);
@@ -548,7 +596,7 @@ serveFunction("rounds", {
       isrc: optional(str({ min: 1, max: 24 })),
     });
 
-    const round = await currentRound(ctx);
+    const { round, isDemo } = await currentRound(ctx);
     // `open` and nothing else. `voided` gets its own code, and `revealed`/`scored` get
     // `WRONG_PHASE` carrying the state and — by construction in `fail()` — nothing else.
     requirePhase(round, ["open"]);
@@ -578,6 +626,12 @@ serveFunction("rounds", {
       .single();
     if (error) throw dbFailure("rounds.submit", error);
 
+    // The demo group's reveal is the reviewer's own drop, twelve seconds later. Nothing about
+    // the response changes — the client adopts it, renders `SealedScreen`, and that screen's
+    // countdown to `reveals_at` is simply short. The transition itself still happens on the
+    // server, on the refetch the countdown triggers.
+    if (isDemo) await armDemo(ctx, round.id, DEMO_SEAL_SECONDS);
+
     return ok(submissionDTO(data as { track_meta: unknown; updated_at: string }));
   },
 
@@ -600,7 +654,7 @@ serveFunction("rounds", {
     );
 
     const body = await parseBody(req, { assignments: assignmentList() });
-    const round = await currentRound(ctx);
+    const { round, isDemo } = await currentRound(ctx);
 
     // 1. Phase. Guesses are editable until `scores_at`, which is to say for exactly as long as
     //    the round is `revealed` — `tick_rounds()` moves it to `scored` at that instant and
@@ -690,6 +744,21 @@ serveFunction("rounds", {
     // `assignable_count` is S − 1: every card the caller could be asked about (docs/02 §4.1).
     // It is derived from the round's own card count, which the caller can already see in
     // `cards`, so it discloses nothing they did not have.
-    return ok(guessSheetDTO(saved, Math.max(order.length - 1, 0)));
+    const assignableCount = Math.max(order.length - 1, 0);
+
+    // The demo group's score lands twenty seconds after the sheet is complete — which is the
+    // same request `RevealStore.lockIn()` sends, since it flushes the whole sheet immediately.
+    // A partial sheet gets the three-minute backstop instead, so the loop finishes even for a
+    // reviewer who names two cards and puts the phone down. Re-armed on every write, so
+    // changing a guess restarts the wait rather than losing it.
+    if (isDemo) {
+      await armDemo(
+        ctx,
+        round.id,
+        saved.length >= assignableCount ? DEMO_GUESS_SECONDS : DEMO_GUESS_CAP_SECONDS,
+      );
+    }
+
+    return ok(guessSheetDTO(saved, assignableCount));
   },
 });

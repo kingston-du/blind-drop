@@ -285,7 +285,7 @@ nothing.
 ## 4. Round lifecycle functions — `0004_round_lifecycle.sql`
 
 Two functions. Both are `security definer`, owned by `postgres`, and callable only by the
-service role.
+service role. Both skip demo groups — see §4.1.
 
 ### `ensure_rounds()`
 
@@ -470,9 +470,36 @@ none of those are score history.
 
 ---
 
+## 4.1 The demo lifecycle — `20260815090000`, `20260815090500`
+
+The App Review environment (`02-DOMAIN-RULES.md` §6). Two columns, one table and five
+functions, all of which no-op on a group that is not a demo group.
+
+| Object | What it is |
+|---|---|
+| `groups.is_demo` | Set from `pilot_cohorts.is_demo` by `assign_pilot_cohort()`, and nowhere else. There is no API path to it. |
+| `rounds.is_demo` | Mirrors the group's, by `before insert` trigger on `rounds` and `after update of is_demo` trigger on `groups`. Exists only so `rounds_window` can exempt a demo round from the fixed 10h/2h window. |
+| `demo_companions` | The fixture players in a demo group. Server-only, deny-by-default, no grant to `service_role`. |
+| `demo_arm(round, seconds)` | Brings the round's next transition `seconds` away — `reveals_at` while open, `scores_at` once revealed. Never moves `reveals_at` after the reveal: `cannotGuessReason()` reads it against `joined_at`, and moving it misreads as a late join. |
+| `demo_tick(group)` | The state machine. Scores a revealed round whose window ran out, reveals an open one once every member has submitted, carries an unplayed round across local midnight, and rolls a fresh round two minutes after the last one scored. Never voids, never writes `notification_outbox`. |
+| `shuffle_submissions(round)` | The Fisher–Yates from `0015`, extracted so `tick_rounds()` and `demo_tick()` share one implementation and `tests/db/shuffle.sql` proves both. |
+| `demo_provision(group)` | Owner-run fixture setup: names the founding member *App Reviewer*, installs three companions, writes three finished nights, opens tonight's round. **Not granted to `service_role`** — no API path should manufacture players or backdated rounds. |
+
+`ensure_rounds()` and all three `tick_rounds()` loops carry `not g.is_demo`, so the scheduler
+and the demo lifecycle can never both own a round.
+
+---
+
 ## 7. Seed data for local dev
 
 `server/supabase/seed.sql` creates: one group (`America/New_York`, `reveal_hour = 20`), nine
 profiles matching the `02-DOMAIN-RULES.md` §4.4 fixture names, and three rounds — one
 `scored` with the full §4.4 data, one `revealed`, one `open`. Every test and every simulator
 run starts from this. Keep the names and numbers in sync with §4.4.
+
+It also does two things that exist only locally, both marked as such in the file: it installs
+`tick_rounds_at`, `set_membership_joined_at` and `make_demo_group`, which let a test arrange
+state no API route can reach; and it disables every pilot cohort, so that a `PUT /me` in the
+Edge Function suite does not silently enrol a test user into a group they never asked for.
+None of the three helpers exists on a deployed database, which is why there is no grant to
+review.
