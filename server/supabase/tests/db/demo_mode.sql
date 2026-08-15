@@ -16,7 +16,7 @@
 -- whole played session below sits inside local 2026-08-15.
 begin;
 set search_path = public, extensions, tests;
-select plan(38);
+select plan(41);
 
 -- ─── a demo group, via the cohort that creates one ───────────────────────────
 -- `seed.sql` disables every cohort locally, so that a `PUT /me` in the Edge Function suite
@@ -87,6 +87,12 @@ select is((select count(*)::int from public.submissions where round_id = tests.d
 select is((select reveals_at from public.rounds where id = tests.demo_round()),
   '2026-08-16 03:00:00+00'::timestamptz,
   'and it carries the real schedule — tonight''s 20:00 — until the reviewer acts');
+-- Caught live against the hosted project (20260815130000): opens_at used to carry the real
+-- ten-hours-before-reveal offset — 10:00 local for tonight's 20:00 — so a reviewer signing in
+-- at 03:17 saw "Tonight's round is done. The next one opens at 10:00 AM." and could not drop a
+-- song at all. It must never be in the future, from the moment the round is rolled.
+select ok((select opens_at <= public.now_() from public.rounds where id = tests.demo_round()),
+  'a freshly rolled demo round is droppable immediately, hours before its real 10:00 open');
 
 -- ─── the scheduler cannot see any of this ────────────────────────────────────
 -- 20:30 local, so the demo round is past its own reveals_at with a room that is one short.
@@ -118,6 +124,10 @@ select is((select reveals_at from public.rounds where id = tests.demo_round()),
   '2026-08-17 03:00:00+00'::timestamptz,
   'an unplayed demo round slides to the next reveal rather than revealing without its room');
 select is(tests.demo_state(), 'open', 'and stays open');
+-- The same guarantee, at the *other* place demo_tick() writes opens_at: sliding a day forward
+-- must not put the round back behind the dark-hours gate it had already cleared.
+select ok((select opens_at <= public.now_() from public.rounds where id = tests.demo_round()),
+  'sliding to the next reveal because the room was incomplete keeps the round droppable too');
 
 -- ─── drop → seal → reveal ────────────────────────────────────────────────────
 -- 21:00 local: past tonight's reveal hour, which for a real group is the dead zone this
@@ -185,6 +195,8 @@ select is((select max(local_date) from public.rounds
             where group_id = tests.demo_group() and state = 'scored'),
   '2026-08-14'::date,
   'as yesterday — The Record reads newest first, so it lands at the top rather than the bottom');
+select ok((select opens_at <= public.now_() from public.rounds where id = tests.demo_round()),
+  'and the fresh round it opened is droppable immediately too');
 
 -- ─── across local midnight ───────────────────────────────────────────────────
 -- The round the reviewer is in the middle of is carried to the new date, not abandoned there
