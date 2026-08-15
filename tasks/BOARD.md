@@ -2,8 +2,9 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E14-03`. `E00`–`E13` are done, as are `E14-01`, `E14-02`, and `E14-04`. The two
-that remain both need a physical iPhone; neither can be closed from the simulator.
+**Start here:** `E14-03`. `E00`–`E13` and `E16-01` are done, as are `E14-01`, `E14-02`, and
+`E14-04`. The three that remain need a physical iPhone or the owner's hosted credentials;
+none can be closed from the simulator.
 
 ---
 
@@ -20,6 +21,8 @@ E00-05 fixture server
                                                               └─ E12 results+share ─ E13 record+export
 
 E04..E07 + E13  ─ E14 QA & release
+
+E03 + E04 + E05 ─ E16 App Review demo environment  (server only; no iOS change)
 ```
 
 ---
@@ -179,6 +182,13 @@ E04..E07 + E13  ─ E14 QA & release
 | E14-04 Full-loop UI test | done | E12-05 | AC-10 |
 | E14-05 Release checklist | wip | E14-01..04 | all |
 
+## E16 — App Review demo environment · [file](E16-app-review-demo.md)
+
+| Task | Status | Deps | Proves |
+|---|---|---|---|
+| E16-01 Demo groups, lifecycle, provisioning | done | E03-03, E04-01, E05-02 | AC-1, AC-3 |
+| E16-02 Hosted activation | todo | E16-01 | — |
+
 ---
 
 ## Progress
@@ -200,4 +210,5 @@ E04..E07 + E13  ─ E14 QA & release
 | E12 | 5 / 5 |
 | E13 | 5 / 5 |
 | E14 | 3 / 5 |
-| **Total** | **78 / 80** |
+| E16 | 1 / 2 |
+| **Total** | **79 / 82** |
