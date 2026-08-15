@@ -1,6 +1,6 @@
 # E17 — Polish pass
 
-Eight corrections to things that shipped working but not right: one real bug, three layout
+Nine corrections to things that shipped working but not right: two real bugs, three layout
 mistakes, two interactions that were flat, and two rules the owner has amended.
 
 Three product-defining rules change here, and each is called out in the task that changes it.
@@ -251,3 +251,32 @@ name, and a bar that **fills** is worth more than a bar that appears.
 - [ ] `Motion.Resolve.rise` 4 → 8, still geometry-neutral
 - [ ] Reduced motion still lands everything at once, filled, no stagger (`docs/09` §5)
 - [ ] The card's height is unchanged at every point in the sequence
+
+---
+
+### E17-09 — The group's name on every phase
+
+**Status:** todo · **Deps:** E17-01 · **Reads:** `docs/08` §2, §6, §7
+**Touches:** `BlindDrop/Features/Round/RoundScreen.swift`, `docs/08-SCREEN-SPECS.md`
+**Verify:** `xcodebuild test -only-testing:BlindDropUnitTests/RoundInsetTests`
+
+`headerName(_:)` returns `nil` on `revealed` and `scored` — *"the phases that draw their own
+title"* — and `docs/08` §6 and §7's drawings agree, so this shipped as specified. It is still
+wrong on screen: `dateHeadline` is passed on **every** phase, so what renders is an empty
+leading slot beside `[?]` and `[≡]` with *"Monday 10 August"* under it. The row is spent and
+says nothing.
+
+The screen titles and the header title are different registers. *"Tonight's drop"* says what
+this screen **is**; *"The Cove"* says whose it is. They do not compete, the row already exists
+and already carries the date, so the name costs no height — and with no tab bar and no
+navigation title (`docs/13` §9), this header is the app's only statement of which group you are
+looking at.
+
+Done with E17-04 by one agent: both change the same header block in the same file, and
+splitting them would mean two passes over `RoundHeader` for one visual result.
+
+- [ ] `headerName` returns the group's name on all four phases
+- [ ] Reveal and results still draw their own headlines; nothing is said twice
+- [ ] `docs/08` §6 and §7 drawings updated to show the header row
+- [ ] Checked at `accessibility5` — the name truncates before the date wraps, which is the
+      priority `RoundHeader`'s three-row layout already encodes

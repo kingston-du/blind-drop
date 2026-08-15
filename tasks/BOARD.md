@@ -215,6 +215,7 @@ Amends three owner-level rules: `CLAUDE.md` §2.5 (E17-05), `docs/09` §1 (E17-0
 | E17-06 The call sheet collapses | todo | — | — |
 | E17-07 Two haptics for the reveal | todo | E17-06 | — |
 | E17-08 The answers land harder | todo | E17-03 | — |
+| E17-09 The group's name on every phase | todo | E17-01 | — |
 
 ---
 
@@ -239,5 +240,5 @@ Amends three owner-level rules: `CLAUDE.md` §2.5 (E17-05), `docs/09` §1 (E17-0
 | E14 | 3 / 5 |
 | E15 | 3 / 3 |
 | E16 | 1 / 2 |
-| E17 | 0 / 8 |
-| **Total** | **82 / 93** |
+| E17 | 0 / 9 |
+| **Total** | **82 / 94** |
