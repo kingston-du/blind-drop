@@ -24,6 +24,8 @@ E00-05 fixture server
 E04..E07 + E13  ─ E14 QA & release
 
 E03 + E04 + E05 ─ E16 App Review demo environment  (server only; no iOS change)
+
+E08 iOS foundation ─ E15 how to play  (parallel with E09..E14; E15 → E14-05)
 ```
 
 ---
@@ -181,7 +183,15 @@ E03 + E04 + E05 ─ E16 App Review demo environment  (server only; no iOS change
 | E14-02 Accessibility pass | done | E12-03, E13-01 | AC-2 gates |
 | E14-03 Animation performance pass | wip | E10-04, E11-04 | AC-11 |
 | E14-04 Full-loop UI test | done | E12-05 | AC-10 |
-| E14-05 Release checklist | wip | E14-01..04 | all |
+| E14-05 Release checklist | wip | E14-01..04, E15 | all |
+
+## E15 — How to play · [file](E15-how-to-play.md)
+
+| Task | Status | Deps | Proves |
+|---|---|---|---|
+| E15-01 Copy deck: How to play | done | — | — |
+| E15-02 `HowToSheet` | done | E15-01, E08-04 | — |
+| E15-03 `HelpButton` and its three entry points | done | E15-02 | — |
 
 ## E16 — App Review demo environment · [file](E16-app-review-demo.md)
 
@@ -211,5 +221,6 @@ E03 + E04 + E05 ─ E16 App Review demo environment  (server only; no iOS change
 | E12 | 5 / 5 |
 | E13 | 5 / 5 |
 | E14 | 3 / 5 |
+| E15 | 3 / 3 |
 | E16 | 1 / 2 |
-| **Total** | **79 / 82** |
+| **Total** | **82 / 85** |
