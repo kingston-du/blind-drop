@@ -479,6 +479,15 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups GET /current/record": "groups_record",
     "groups GET /current/record/export": "groups_record_export",
     "groups POST /current/leave": null, // 204
+    // ADR-011 (E18-01): every `current`-shaped route above also exists named by group id, one
+    // shared handler apiece. Same DTO, same golden — the shape a member of *a* circle sees
+    // does not change depending on how the circle was addressed.
+    "groups GET /:group_id": "groups_current",
+    "groups PATCH /:group_id": "groups_current",
+    "groups GET /:group_id/standings": "groups_standings",
+    "groups GET /:group_id/record": "groups_record",
+    "groups GET /:group_id/record/export": "groups_record_export",
+    "groups POST /:group_id/leave": null, // 204
     "rounds GET /current": "round_open",
     "rounds PUT /current/submission": "submission",
     // Reachable only once the round is `revealed`, which is to say only once the blind window
@@ -489,6 +498,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // all — and captured anyway, on the same principle as the guess sheet above: "this cannot
     // be called during `open`" is a claim that needs a golden file behind it.
     "rounds GET /:round_id/results": "round_results",
+    // ADR-011 (E18-01): the `current`-shaped round routes, named by group id.
+    "rounds GET /:group_id/current": "round_open",
+    "rounds PUT /:group_id/current/submission": "submission",
+    "rounds PUT /:group_id/current/guesses": "guess_sheet",
     // The scheduler's, not a client's: `requireServiceRole` and nothing else, so there is no
     // phase in which a device can reach it (tasks/E07-05). Its body is four integers about the
     // worker's own pass — no group, no round, no member — and `examined` is capped at the batch

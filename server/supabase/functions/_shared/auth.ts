@@ -1,18 +1,25 @@
-// _shared/auth.ts — the authorization pipeline. docs/14 §4.
+// _shared/auth.ts — the authorization pipeline. docs/14 §4, ADR-011.
 //
-//   1. requireUser(req, route)        → user_id, or 401 UNAUTHENTICATED
-//   2. requireProfile(ctx)            → display_name, or 409 NO_PROFILE
-//   3. requireMembership(ctx)         → group_id, role, joined_at, or 409 NO_GROUP
-//   4. requirePhase(round, [...])     → or 409 WRONG_PHASE
+//   1. requireUser(req, route)          → user_id, or 401 UNAUTHENTICATED
+//   2. requireProfile(ctx)              → display_name, or 409 NO_PROFILE
+//   3. requireMembership(ctx, groupId)  → group_id, role, joined_at, or 404 NOT_FOUND
+//      requireDefaultMembership(ctx)    → the same, for the `/current`-shaped compat routes
+//   4. requirePhase(round, [...])       → or 409 WRONG_PHASE
 //
 // Guess handlers apply joined-in-time before submitter eligibility through the shared helper
 // in `rounds/index.ts`; that owner-approved order keeps JOINED_LATE reachable for newcomers.
 //
 // The guards compose: each takes the context the previous one returned and widens it, so a
-// handler cannot reach step 3 without having passed steps 1 and 2. **`requireMembership`
-// takes no group parameter** — the group comes from the caller's active membership and never
-// from the request, which is what leaves the client-facing API with no IDOR surface for group
-// data (ADR-005, docs/14 §4).
+// handler cannot reach step 3 without having passed steps 1 and 2.
+//
+// **ADR-011 replaced ADR-005's free authorization with an explicit one.** Under one-group-
+// per-user, resolving "the caller's group" from the caller was the whole check — there was no
+// group id in the request for anyone to forge. Now every group-scoped route takes a group id,
+// which is new attack surface, and `requireMembership` is what closes it: it proves the
+// caller is an active member of *that* id before returning anything shaped by it. A
+// non-member gets `NOT_FOUND` — the same answer a fabricated id gets — so the response never
+// tells a caller whether a group they don't belong to exists. Membership of one circle proves
+// nothing about any other; there is no route that accepts a group id without this check.
 
 import { ApiError } from "./http.ts";
 import { type Db, dbFailure, serviceClient } from "./db.ts";
@@ -111,16 +118,46 @@ export async function requireProfile(ctx: UserCtx): Promise<ProfileCtx> {
 
 // ─── 3. membership ───────────────────────────────────────────────────────────
 
-/** Resolves the caller's one active membership (ADR-005). Takes no group parameter, by
- *  design. An ex-member's still-valid token lands here and gets `NO_GROUP` (docs/14 §5). */
-export async function requireMembership(ctx: ProfileCtx): Promise<MemberCtx> {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Proves the caller is an active member of **this** group (ADR-011) and returns their
+ * membership in it. A malformed id, a nonexistent group, and a real group the caller does not
+ * belong to are one answer — `NOT_FOUND` — because distinguishing them is an existence oracle
+ * (docs/14 §4, the same reasoning `requireSubmitter` already applies to a round).
+ */
+export async function requireMembership(ctx: ProfileCtx, groupId: string): Promise<MemberCtx> {
+  if (!UUID.test(groupId)) throw new ApiError("NOT_FOUND");
   const { data, error } = await ctx.db
     .from("memberships")
     .select("group_id, role, joined_at")
     .eq("user_id", ctx.userId)
+    .eq("group_id", groupId)
     .is("left_at", null)
     .maybeSingle();
   if (error) throw dbFailure("requireMembership", error);
+  if (!data) throw new ApiError("NOT_FOUND");
+  return { ...ctx, groupId: data.group_id, role: data.role, joinedAt: data.joined_at };
+}
+
+/**
+ * Resolves a group for the `/current`-shaped routes the shipped app still calls until `E19`
+ * lands (`docs/01` ADR-011's cost note). With several active circles there is no longer one
+ * true answer, so this picks the oldest — `joined_at` ascending, `id` ascending to break a
+ * tie — which is at least stable across requests rather than arbitrary per query. An ex-
+ * member's still-valid token, or a member with no circle at all, gets `NO_GROUP` (docs/14 §5).
+ */
+export async function requireDefaultMembership(ctx: ProfileCtx): Promise<MemberCtx> {
+  const { data, error } = await ctx.db
+    .from("memberships")
+    .select("id, group_id, role, joined_at")
+    .eq("user_id", ctx.userId)
+    .is("left_at", null)
+    .order("joined_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw dbFailure("requireDefaultMembership", error);
   if (!data) throw new ApiError("NO_GROUP");
   return { ...ctx, groupId: data.group_id, role: data.role, joinedAt: data.joined_at };
 }

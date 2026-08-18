@@ -22,6 +22,7 @@ export type ErrorCode =
   | "ROUND_VOIDED"
   | "INVALID_INPUT"
   | "ALREADY_IN_GROUP"
+  | "CIRCLE_LIMIT_REACHED"
   | "NOT_ADMIN"
   | "RATE_LIMITED"
   | "UPSTREAM_UNAVAILABLE"
@@ -66,8 +67,13 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
   },
   ALREADY_IN_GROUP: {
     status: 409,
-    message: "You're already in a group. Leave it first.",
+    message: "You're already in that circle.",
     copyKey: "error.alreadyingroup",
+  },
+  CIRCLE_LIMIT_REACHED: {
+    status: 409,
+    message: "You're already in three circles. Leave one to join another.",
+    copyKey: "error.circlelimitreached",
   },
   NOT_ADMIN: {
     status: 403,

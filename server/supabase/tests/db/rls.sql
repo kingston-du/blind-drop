@@ -127,7 +127,11 @@ select set_eq(
        -- The demo lifecycle (20260815090500). `demo_provision` is deliberately absent: it
        -- manufactures players and backdated rounds, and is owner-run only.
        ('demo_arm'::information_schema.sql_identifier),
-       ('demo_tick'::information_schema.sql_identifier) $$,
+       ('demo_tick'::information_schema.sql_identifier),
+       -- ADR-011 (20260818090000). No Edge Function calls this directly — it is granted
+       -- because `enforce_circle_cap`'s trigger body calls it, which is a real function call
+       -- charged to the DML role's own privileges, unlike the trigger's own dispatch.
+       ('active_circle_cap'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
 
 select is_empty($$

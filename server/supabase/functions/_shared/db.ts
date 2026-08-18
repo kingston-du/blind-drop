@@ -28,11 +28,17 @@ export function serviceClient(): Db {
 }
 
 export const UNIQUE_VIOLATION = "23505";
-/** Raised by `create_group()` when the caller already holds an active membership (ADR-005). */
-export const ALREADY_IN_GROUP = "BD001";
+/** `memberships_circle_cap` (`20260818090000_circle_cap.sql`) — the caller is already at
+ *  ADR-011's cap. Raised by both `POST /groups` and `POST /groups/join`, since both insert a
+ *  membership through the same trigger. */
+export const CIRCLE_LIMIT_REACHED = "BD002";
 
 export function isUniqueViolation(error: PostgrestError | null): boolean {
   return error?.code === UNIQUE_VIOLATION;
+}
+
+export function isCircleLimitReached(error: PostgrestError | null): boolean {
+  return error?.code === CIRCLE_LIMIT_REACHED;
 }
 
 /**

@@ -68,11 +68,12 @@ create table public.memberships (
   left_at    timestamptz
 );
 
--- ADR-005: one group per user. A user may have many historical memberships but
--- at most one active.
--- SUPERSEDED by ADR-011 — E18-01 replaces this index with that ADR's cap.
-create unique index memberships_one_active_per_user
-  on public.memberships (user_id) where left_at is null;
+-- ADR-005 (one group per user) is superseded by ADR-011. `memberships_one_active_per_user`
+-- — the index that enforced ADR-005 by construction — is dropped in
+-- `20260818090000_circle_cap.sql` (E18-01). Its replacement cannot be an index: "at most N
+-- active rows per user" has no index shape in Postgres, so it is a `before insert` trigger,
+-- `memberships_circle_cap`, that takes an advisory lock on the user id and counts. See that
+-- migration for the trigger and `public.active_circle_cap()`, the one statement of the number.
 create unique index memberships_unique_active_pair
   on public.memberships (group_id, user_id) where left_at is null;
 create index memberships_group_active on public.memberships (group_id)

@@ -1,7 +1,7 @@
 -- schema.sql — tasks/E01-01. Every table, column type, and index in docs/03 §2 exists.
 begin;
 set search_path = public, extensions, tests;
-select plan(132);
+select plan(133);
 
 -- ─── extensions (docs/03 §2, 0001) ───────────────────────────────────────────
 select has_extension('pgcrypto', 'pgcrypto is installed (gen_random_uuid)');
@@ -44,18 +44,18 @@ select ok((select count(*) = 1 from pg_indexes
            where schemaname='public' and tablename='groups' and indexdef ilike '%UNIQUE%invite_code%'),
           'invite_code is unique');
 
--- ─── memberships — ADR-005 lives in these indexes ────────────────────────────
+-- ─── memberships — ADR-011 lives here now ────────────────────────────────────
 select has_column('public','memberships', c, format('memberships.%I', c))
 from unnest(array['id','group_id','user_id','role','joined_at','left_at']) as c;
-select has_index('public','memberships','memberships_one_active_per_user',
-                 'ADR-005: at most one active membership per user');
-select index_is_unique('public','memberships','memberships_one_active_per_user', 'memberships memberships_one_active_per_user');
+select hasnt_index('public','memberships','memberships_one_active_per_user',
+                   'ADR-005''s index is gone — E18-01 replaced it with the cap trigger below');
 select has_index('public','memberships','memberships_unique_active_pair', 'memberships memberships_unique_active_pair');
 select index_is_unique('public','memberships','memberships_unique_active_pair', 'memberships memberships_unique_active_pair');
 select has_index('public','memberships','memberships_group_active', 'memberships memberships_group_active');
-select ok((select indexdef ilike '%where (left_at is null)%' from pg_indexes
-           where indexname='memberships_one_active_per_user'),
-          'memberships_one_active_per_user is partial on left_at is null');
+select has_function('public','active_circle_cap', 'active_circle_cap() exists (ADR-011)');
+select has_function('public','enforce_circle_cap', 'enforce_circle_cap() exists');
+select has_trigger('public','memberships','memberships_circle_cap',
+                   'memberships memberships_circle_cap — the cap, enforced on insert');
 
 -- ─── rounds ──────────────────────────────────────────────────────────────────
 select has_column('public','rounds', c, format('rounds.%I', c))

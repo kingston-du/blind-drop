@@ -2,7 +2,8 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here: `E18-01`.** `E22-01`, `E23-01`, `E26` and `E27` are open and parallel to it.
+`E18-01` closed 2026-08-18, unblocking `E18-02` and `E18-03` (parallel to each other).
+`E22-01`, `E23-01`, `E26` and `E27` remain open too.
 
 `E00`–`E13`, `E15`, `E16-01` and **all of `E17`** are done, as are `E14-01`, `E14-02` and
 `E14-04`.
@@ -266,7 +267,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E18-01 A user may hold several circles | wip | E17-10 | no | AC-1 |
+| E18-01 A user may hold several circles | done | E17-10 | no | AC-1 |
 | E18-02 What every circle needs from me right now | todo | E18-01 | no | AC-1 |
 | E18-03 The same song, twice, in one evening | todo | E18-01 | vs E18-02 | — |
 
@@ -376,7 +377,7 @@ Investigation only. Each ends in a recommendation, not code.
 
 | Beta epic | Done / Total |
 |---|---|
-| E18 circles: server | 0 / 3 |
+| E18 circles: server | 1 / 3 |
 | E19 circles: the app | 0 / 3 |
 | E20 invitations | 0 / 3 |
 | E21 circle settings | 0 / 2 |
@@ -386,4 +387,4 @@ Investigation only. Each ends in a recommendation, not code.
 | E25 insights | 0 / 2 |
 | E26 UI polish | 0 / 4 |
 | E27 spikes | 0 / 5 |
-| **Beta total** | **0 / 28** |
+| **Beta total** | **1 / 28** |

@@ -1,18 +1,27 @@
-// groups/index.ts — the group and its roster. docs/04 §3, docs/02 §1, docs/14 §4.
+// groups/index.ts — the group and its roster. docs/04 §3, docs/02 §1, docs/14 §4, ADR-011.
 //
-//   POST  /groups                    create a group, become its admin
-//   POST  /groups/join               join by invite code
-//   GET   /groups/current            the group and its roster
-//   PATCH /groups/current            admin only; name and reveal_hour
-//   GET   /groups/current/standings  all-time, ranked one way and not the other
-//   GET   /groups/current/record     the archive, newest night first, cursor-paginated
+//   POST  /groups                              create a group, become its admin
+//   POST  /groups/join                         join by invite code
+//   GET   /groups/current                      the group and its roster — oldest circle
+//   GET   /groups/:group_id                    the same, for a named circle
+//   PATCH /groups/current                      admin only; name and reveal_hour
+//   PATCH /groups/:group_id                    the same, for a named circle
+//   GET   /groups/current/standings            all-time, ranked one way and not the other
+//   GET   /groups/:group_id/standings          the same, for a named circle
+//   GET   /groups/current/record                the archive, newest night first, paginated
+//   GET   /groups/:group_id/record              the same, for a named circle
 //   GET   /groups/current/record/export?service=  the ordered track list, for the client to
-//                                    turn into a playlist with the user's own credentials
-//   POST  /groups/current/leave      set left_at
+//                                               turn into a playlist with its own credentials
+//   GET   /groups/:group_id/record/export?service=  the same, for a named circle
+//   POST  /groups/current/leave                set left_at
+//   POST  /groups/:group_id/leave              the same, for a named circle
 //
-// **There is no route here that takes a group id.** Every one of them resolves the group from
-// the caller's active membership (ADR-005, docs/14 §4), which is what leaves group data with
-// no IDOR surface: there is no id to tamper with, so there is nothing to fuzz.
+// **Every `:group_id` route proves membership of that id before it does anything else**
+// (`requireMembership`, ADR-011) — a non-member gets the same `NOT_FOUND` a fabricated id
+// would. The `current` forms are compatibility: they resolve to the caller's oldest active
+// circle (`requireDefaultMembership`) so the shipped app keeps working unmodified until `E19`
+// gives it a switcher. Each pair shares one handler function; only the group resolution
+// differs, so there is exactly one code path per route to review, not two.
 
 import {
   ApiError,
@@ -30,11 +39,12 @@ import {
   ipBucket,
   type MemberCtx,
   requireAdmin,
+  requireDefaultMembership,
   requireMembership,
   requireProfile,
   requireUser,
 } from "../_shared/auth.ts";
-import { ALREADY_IN_GROUP, type Db, dbFailure, isUniqueViolation } from "../_shared/db.ts";
+import { type Db, dbFailure, isCircleLimitReached, isUniqueViolation } from "../_shared/db.ts";
 import {
   earStandingDTO,
   type ExportTrackDTO,
@@ -386,6 +396,208 @@ function fitPage(rounds: ArchiveRound[], limit: number, member: string | null): 
   return chosen;
 }
 
+// ─── the shared handlers ─────────────────────────────────────────────────────
+// One function per route, called from both its `current`-shaped and its `:group_id`-shaped
+// entry — the two differ only in how `ctx.groupId` was resolved, never in what happens after.
+
+async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
+  const body = await parseBody(req, {
+    name: optional(str({ min: 1, max: 40 })),
+    reveal_hour: optional(int({ min: 18, max: 21 })),
+  });
+  // `timezone` is immutable after creation (docs/04 §3). It is not in the schema above, so
+  // sending it is an unknown key and fails with INVALID_INPUT naming the field — which is
+  // exactly the answer the UI needs to show `settings.timezone.locked`.
+  if (body.name === undefined && body.reveal_hour === undefined) {
+    throw new ApiError("INVALID_INPUT", { field: "body" });
+  }
+
+  const patch: Record<string, string | number> = {};
+  if (body.name !== undefined) {
+    const name = body.name.trim();
+    if (name.length === 0) throw new ApiError("INVALID_INPUT", { field: "name" });
+    patch.name = name;
+  }
+  if (body.reveal_hour !== undefined) patch.reveal_hour = body.reveal_hour;
+
+  const { data, error } = await ctx.db
+    .from("groups")
+    .update(patch)
+    .eq("id", ctx.groupId)
+    .select(GROUP_COLUMNS)
+    .single();
+  if (error) throw dbFailure("groups.patch", error);
+
+  const group = data as GroupRow;
+  return ok(
+    groupPatchDTO(
+      await currentGroupDTO(ctx, group),
+      body.reveal_hour === undefined ? null : await effectiveFrom(ctx.db, group),
+    ),
+  );
+}
+
+// docs/04 §4. Two lists that deliberately do not have the same shape.
+//
+// **Best Ear is ranked. Readability is not, and carries no `rank` field.** docs/02 §4.5 makes
+// that a product rule rather than a presentation preference: guessing well is a scoreboard,
+// being hard to read is a trait, and low readability is its own kind of win. The reason the
+// rule is enforced *here*, by not sending the field, is that a client which receives a rank
+// will render it — someone will reasonably assume a field that exists is meant to be shown.
+// The readability array is sorted descending purely so the list is stable between refreshes.
+//
+// Safe in every phase. Every number on it comes from `scored` rounds only, so nothing here
+// moves while tonight's round is open — the standings a member reads at 19:00 are the same
+// ones they read at 09:00, and a member watching them for a change learns nothing (docs/14
+// §3).
+async function standingsForGroup(ctx: MemberCtx): Promise<Response> {
+  const [rows, played, members] = await Promise.all([
+    standingRows(ctx.db, ctx.groupId),
+    roundsPlayed(ctx.db, ctx.groupId),
+    roster(ctx.db, ctx.groupId),
+  ]);
+
+  // Scoped to the active roster. Someone who left keeps their attribution in The Record and
+  // in every past round's results — the rounds happened, and their guesses still count toward
+  // everyone else's readability — but a leaderboard is about the room as it is now, and a
+  // departed member sitting at rank 2 forever is a scoreline nobody can respond to. See the
+  // owner-approved resolution in tasks/E05.
+  const byId = new Map(rows.map((row) => [row.user_id, row]));
+  const present = members
+    .map((member) => ({ member, row: byId.get(member.user_id) }))
+    .filter((entry): entry is { member: MemberDTO; row: StandingRow } => entry.row !== undefined);
+
+  // A member with no ear at all — every round they played, they assigned nothing — is absent
+  // from Best Ear rather than ranked last with a dash. docs/02 §4.1 draws that line for a
+  // single round and it holds all the way up: never guessing is not the same as guessing
+  // badly, and the leaderboard is the one surface where the difference would read as a score.
+  const earRows = present
+    .filter((entry) => entry.row.ear_all_time !== null)
+    .sort((a, b) =>
+      b.row.ear_all_time! - a.row.ear_all_time! ||
+      a.member.display_name.localeCompare(b.member.display_name) ||
+      a.member.user_id.localeCompare(b.member.user_id)
+    );
+
+  const bestEar = ranked(
+    earRows.map((entry) => ({ ...entry, ear_all_time: entry.row.ear_all_time! })),
+  )
+    .map(({ rank, row }) =>
+      earStandingDTO(rank, row.member, {
+        ear_all_time: row.ear_all_time,
+        ear_correct_total: row.row.ear_correct_total ?? 0,
+      })
+    );
+
+  const readability = present
+    .filter((entry) => entry.row.readability_all_time !== null)
+    .sort((a, b) =>
+      b.row.readability_all_time! - a.row.readability_all_time! ||
+      a.member.display_name.localeCompare(b.member.display_name) ||
+      a.member.user_id.localeCompare(b.member.user_id)
+    )
+    .map((entry) =>
+      readabilityStandingDTO(entry.member, {
+        readability_all_time: entry.row.readability_all_time!,
+        band: entry.row.band,
+      })
+    );
+
+  return ok(standingsDTO(played, bestEar, readability));
+}
+
+// docs/04 §5. The archive: every night this group has finished, newest first, grouped by the
+// group-local date it was played on.
+//
+// Safe in every phase for the same reason the standings are: it is a function of `scored`
+// rounds only, so nothing on it moves while tonight's round is in flight. A member who
+// refreshes The Record all evening watching for it to grow sees exactly what they saw at
+// 09:00 — and at 22:00, when tonight's round scores, it grows by a whole night at once for
+// everybody, which is a fact about the clock rather than about any person (docs/14 §3).
+async function recordForGroup(req: Request, ctx: MemberCtx): Promise<Response> {
+  const params = new URL(req.url).searchParams;
+  const limit = recordLimit(params.get("limit"));
+  const member = memberFilter(params.get("member"));
+  const rawCursor = params.get("cursor");
+  const before = rawCursor === null || rawCursor === "" ? null : decodeCursor(rawCursor);
+
+  // One more night than could possibly fit, which is what makes `next_cursor` honest: a
+  // cursor is sent when a night was left behind, and withheld when the archive ran out.
+  // Every scored round holds at least three songs (docs/02 §2, below that it voids), so
+  // `limit + 1` nights always over-covers a budget of `limit` songs — and under a `member`
+  // filter, where a night is worth one song, it over-covers it exactly.
+  const planned = await archiveRounds(ctx.db, ctx.groupId, before, limit + 1);
+  const page = fitPage(planned, limit, member);
+  const more = planned.length > page.length;
+
+  const entries = await archiveEntries(ctx.db, page.map((round) => round.round_id), member);
+  const cursor = more && page.length > 0 ? encodeCursor(page[page.length - 1].local_date) : null;
+  return ok(recordDTO(daysWithEntries(page, entries), cursor));
+}
+
+// docs/04 §5, docs/06 §6. The ordered track list, and nothing else.
+//
+// **The server never creates the playlist.** It holds no Spotify or Apple Music credential
+// belonging to a user and has no write side to this route: the client authorises with its
+// own token — Spotify by PKCE, Apple by MusicKit — and posts the ids below to the service
+// itself. What arrives here is a list; what happens to it happens in the user's account.
+//
+// Unresolved tracks are counted, not hidden. A song with no id for the requested service is
+// skipped from `tracks` and shows up in `unresolved_count`, which the UI states plainly
+// ("3 songs aren't on Spotify. The rest are in.", docs/11 `record.export.partial`). Silently
+// shipping a shorter playlist is how somebody finds out three weeks later.
+//
+// The whole archive, uncapped: a group plays one round a night, so a year is a few hundred
+// nights and the playlist the user asked for is the playlist they get. If this ever needs a
+// cap it has to arrive as a number in the payload, the way `unresolved_count` did, and never
+// as a silent `.limit()`.
+async function exportForGroup(req: Request, ctx: MemberCtx): Promise<Response> {
+  const service = new URL(req.url).searchParams.get("service");
+  if (service !== "spotify" && service !== "apple") {
+    throw new ApiError("INVALID_INPUT", { field: "service" });
+  }
+
+  const [group, rounds] = await Promise.all([
+    loadGroup(ctx.db, ctx.groupId),
+    archiveRounds(ctx.db, ctx.groupId, null),
+  ]);
+  const entries = await archiveEntries(ctx.db, rounds.map((round) => round.round_id), null);
+
+  // Newest night first, and within a night the order The Record shows on screen, so the
+  // playlist reads top to bottom the way the archive does (docs/06 §6).
+  const tracks: ExportTrackDTO[] = [];
+  let unresolved = 0;
+  for (const round of rounds) {
+    for (const entry of entries.get(round.round_id) ?? []) {
+      const track = exportTrackDTO(entry.track);
+      const id = service === "spotify" ? track.spotify_uri : track.apple_music_id;
+      if (id === null) unresolved += 1;
+      else tracks.push(track);
+    }
+  }
+
+  // docs/06 §6: `"{Group name} — Blind Drop"`, and a new playlist every time. An existing
+  // one with the same name is never reused — silently mutating a playlist the user may have
+  // edited is worse than a duplicate they can delete.
+  return ok(exportDTO(`${group.name} — Blind Drop`, tracks, unresolved));
+}
+
+/** Soft, always: submissions and guesses stay, and past attribution in The Record is
+ *  preserved (docs/03 §6). The next request naming this circle gets `NOT_FOUND`; the next
+ *  request through the `current` compat routes falls to whichever circle is now oldest.
+ *  Scoped to `ctx.groupId` specifically — leaving one circle must never end active membership
+ *  in another (ADR-011: circles do not interact). */
+async function leaveGroup(ctx: MemberCtx): Promise<Response> {
+  const { error } = await ctx.db
+    .from("memberships")
+    .update({ left_at: new Date().toISOString() })
+    .eq("user_id", ctx.userId)
+    .eq("group_id", ctx.groupId)
+    .is("left_at", null);
+  if (error) throw dbFailure("groups.leave", error);
+  return noContent();
+}
+
 const MAX_INVITE_ATTEMPTS = 5;
 
 // docs/04 §8: `POST /groups/join` is limited to 10/hour per user and, additionally, 30/hour
@@ -435,7 +647,7 @@ serveFunction("groups", {
           ]),
         );
       }
-      if (error.code === ALREADY_IN_GROUP) throw new ApiError("ALREADY_IN_GROUP");
+      if (isCircleLimitReached(error)) throw new ApiError("CIRCLE_LIMIT_REACHED");
       if (!isUniqueViolation(error)) throw dbFailure("groups.create", error);
       // else: the invite code collided. Round again with a new one.
     }
@@ -482,8 +694,10 @@ serveFunction("groups", {
     const { error: joinError } = await ctx.db
       .from("memberships")
       .insert({ group_id: group.id, user_id: ctx.userId, role: "member" });
-    // `memberships_one_active_per_user` is the enforcement of ADR-005, so a second group is a
-    // unique violation rather than a race we have to check for first.
+    // Two distinct failures, checked in this order because they can both be true at once and
+    // the cap is the more informative answer: `memberships_circle_cap` (ADR-011) refuses a
+    // fourth circle; `memberships_unique_active_pair` refuses rejoining one already held.
+    if (isCircleLimitReached(joinError)) throw new ApiError("CIRCLE_LIMIT_REACHED");
     if (isUniqueViolation(joinError)) throw new ApiError("ALREADY_IN_GROUP");
     if (joinError) throw dbFailure("groups.join", joinError);
 
@@ -492,48 +706,28 @@ serveFunction("groups", {
 
   // ─── current ───────────────────────────────────────────────────────────────
   "GET /current": async (req, route) => {
-    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return ok(await currentGroupDTO(ctx));
+  },
+  "GET /:group_id": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
     return ok(await currentGroupDTO(ctx));
   },
 
   "PATCH /current": async (req, route) => {
     const ctx = requireAdmin(
-      await requireMembership(await requireProfile(await requireUser(req, route))),
+      await requireDefaultMembership(await requireProfile(await requireUser(req, route))),
     );
-    const body = await parseBody(req, {
-      name: optional(str({ min: 1, max: 40 })),
-      reveal_hour: optional(int({ min: 18, max: 21 })),
-    });
-    // `timezone` is immutable after creation (docs/04 §3). It is not in the schema above, so
-    // sending it is an unknown key and fails with INVALID_INPUT naming the field — which is
-    // exactly the answer the UI needs to show `settings.timezone.locked`.
-    if (body.name === undefined && body.reveal_hour === undefined) {
-      throw new ApiError("INVALID_INPUT", { field: "body" });
-    }
-
-    const patch: Record<string, string | number> = {};
-    if (body.name !== undefined) {
-      const name = body.name.trim();
-      if (name.length === 0) throw new ApiError("INVALID_INPUT", { field: "name" });
-      patch.name = name;
-    }
-    if (body.reveal_hour !== undefined) patch.reveal_hour = body.reveal_hour;
-
-    const { data, error } = await ctx.db
-      .from("groups")
-      .update(patch)
-      .eq("id", ctx.groupId)
-      .select(GROUP_COLUMNS)
-      .single();
-    if (error) throw dbFailure("groups.patch", error);
-
-    const group = data as GroupRow;
-    return ok(
-      groupPatchDTO(
-        await currentGroupDTO(ctx, group),
-        body.reveal_hour === undefined ? null : await effectiveFrom(ctx.db, group),
-      ),
+    return patchGroup(req, ctx);
+  },
+  "PATCH /:group_id": async (req, route, params) => {
+    const ctx = requireAdmin(
+      await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
     );
+    return patchGroup(req, ctx);
   },
 
   // ─── standings ─────────────────────────────────────────────────────────────
@@ -551,61 +745,15 @@ serveFunction("groups", {
   // ones they read at 09:00, and a member watching them for a change learns nothing (docs/14
   // §3).
   "GET /current/standings": async (req, route) => {
-    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
-
-    const [rows, played, members] = await Promise.all([
-      standingRows(ctx.db, ctx.groupId),
-      roundsPlayed(ctx.db, ctx.groupId),
-      roster(ctx.db, ctx.groupId),
-    ]);
-
-    // Scoped to the active roster. Someone who left keeps their attribution in The Record and
-    // in every past round's results — the rounds happened, and their guesses still count toward
-    // everyone else's readability — but a leaderboard is about the room as it is now, and a
-    // departed member sitting at rank 2 forever is a scoreline nobody can respond to. See the
-    // owner-approved resolution in tasks/E05.
-    const byId = new Map(rows.map((row) => [row.user_id, row]));
-    const present = members
-      .map((member) => ({ member, row: byId.get(member.user_id) }))
-      .filter((entry): entry is { member: MemberDTO; row: StandingRow } => entry.row !== undefined);
-
-    // A member with no ear at all — every round they played, they assigned nothing — is absent
-    // from Best Ear rather than ranked last with a dash. docs/02 §4.1 draws that line for a
-    // single round and it holds all the way up: never guessing is not the same as guessing
-    // badly, and the leaderboard is the one surface where the difference would read as a score.
-    const earRows = present
-      .filter((entry) => entry.row.ear_all_time !== null)
-      .sort((a, b) =>
-        b.row.ear_all_time! - a.row.ear_all_time! ||
-        a.member.display_name.localeCompare(b.member.display_name) ||
-        a.member.user_id.localeCompare(b.member.user_id)
-      );
-
-    const bestEar = ranked(
-      earRows.map((entry) => ({ ...entry, ear_all_time: entry.row.ear_all_time! })),
-    )
-      .map(({ rank, row }) =>
-        earStandingDTO(rank, row.member, {
-          ear_all_time: row.ear_all_time,
-          ear_correct_total: row.row.ear_correct_total ?? 0,
-        })
-      );
-
-    const readability = present
-      .filter((entry) => entry.row.readability_all_time !== null)
-      .sort((a, b) =>
-        b.row.readability_all_time! - a.row.readability_all_time! ||
-        a.member.display_name.localeCompare(b.member.display_name) ||
-        a.member.user_id.localeCompare(b.member.user_id)
-      )
-      .map((entry) =>
-        readabilityStandingDTO(entry.member, {
-          readability_all_time: entry.row.readability_all_time!,
-          band: entry.row.band,
-        })
-      );
-
-    return ok(standingsDTO(played, bestEar, readability));
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return standingsForGroup(ctx);
+  },
+  "GET /:group_id/standings": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return standingsForGroup(ctx);
   },
 
   // ─── the record ────────────────────────────────────────────────────────────
@@ -618,25 +766,15 @@ serveFunction("groups", {
   // 09:00 — and at 22:00, when tonight's round scores, it grows by a whole night at once for
   // everybody, which is a fact about the clock rather than about any person (docs/14 §3).
   "GET /current/record": async (req, route) => {
-    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
-    const params = new URL(req.url).searchParams;
-    const limit = recordLimit(params.get("limit"));
-    const member = memberFilter(params.get("member"));
-    const rawCursor = params.get("cursor");
-    const before = rawCursor === null || rawCursor === "" ? null : decodeCursor(rawCursor);
-
-    // One more night than could possibly fit, which is what makes `next_cursor` honest: a
-    // cursor is sent when a night was left behind, and withheld when the archive ran out.
-    // Every scored round holds at least three songs (docs/02 §2, below that it voids), so
-    // `limit + 1` nights always over-covers a budget of `limit` songs — and under a `member`
-    // filter, where a night is worth one song, it over-covers it exactly.
-    const planned = await archiveRounds(ctx.db, ctx.groupId, before, limit + 1);
-    const page = fitPage(planned, limit, member);
-    const more = planned.length > page.length;
-
-    const entries = await archiveEntries(ctx.db, page.map((round) => round.round_id), member);
-    const cursor = more && page.length > 0 ? encodeCursor(page[page.length - 1].local_date) : null;
-    return ok(recordDTO(daysWithEntries(page, entries), cursor));
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return recordForGroup(req, ctx);
+  },
+  "GET /:group_id/record": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return recordForGroup(req, ctx);
   },
 
   // ─── the export ────────────────────────────────────────────────────────────
@@ -657,48 +795,27 @@ serveFunction("groups", {
   // cap it has to arrive as a number in the payload, the way `unresolved_count` did, and never
   // as a silent `.limit()`.
   "GET /current/record/export": async (req, route) => {
-    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
-    const service = new URL(req.url).searchParams.get("service");
-    if (service !== "spotify" && service !== "apple") {
-      throw new ApiError("INVALID_INPUT", { field: "service" });
-    }
-
-    const [group, rounds] = await Promise.all([
-      loadGroup(ctx.db, ctx.groupId),
-      archiveRounds(ctx.db, ctx.groupId, null),
-    ]);
-    const entries = await archiveEntries(ctx.db, rounds.map((round) => round.round_id), null);
-
-    // Newest night first, and within a night the order The Record shows on screen, so the
-    // playlist reads top to bottom the way the archive does (docs/06 §6).
-    const tracks: ExportTrackDTO[] = [];
-    let unresolved = 0;
-    for (const round of rounds) {
-      for (const entry of entries.get(round.round_id) ?? []) {
-        const track = exportTrackDTO(entry.track);
-        const id = service === "spotify" ? track.spotify_uri : track.apple_music_id;
-        if (id === null) unresolved += 1;
-        else tracks.push(track);
-      }
-    }
-
-    // docs/06 §6: `"{Group name} — Blind Drop"`, and a new playlist every time. An existing
-    // one with the same name is never reused — silently mutating a playlist the user may have
-    // edited is worse than a duplicate they can delete.
-    return ok(exportDTO(`${group.name} — Blind Drop`, tracks, unresolved));
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return exportForGroup(req, ctx);
+  },
+  "GET /:group_id/record/export": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return exportForGroup(req, ctx);
   },
 
   // ─── leave ─────────────────────────────────────────────────────────────────
   "POST /current/leave": async (req, route) => {
-    const ctx = await requireMembership(await requireProfile(await requireUser(req, route)));
-    // Soft, always: submissions and guesses stay, and past attribution in The Record is
-    // preserved (docs/03 §6). The next request from this token gets NO_GROUP.
-    const { error } = await ctx.db
-      .from("memberships")
-      .update({ left_at: new Date().toISOString() })
-      .eq("user_id", ctx.userId)
-      .is("left_at", null);
-    if (error) throw dbFailure("groups.leave", error);
-    return noContent();
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return leaveGroup(ctx);
+  },
+  "POST /:group_id/leave": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return leaveGroup(ctx);
   },
 });

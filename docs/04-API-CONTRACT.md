@@ -10,6 +10,15 @@ All bodies are JSON. All timestamps are RFC 3339 UTC with a `Z`.
 > submitted/not-submitted status, or anything from which one can be derived. Golden-file
 > tests in `server/supabase/tests/golden/` assert the exact key sets below.
 
+> **ADR-011, `E18-01`.** Every route below shown as `…/current…` also exists as
+> `…/{group_id}/current…` (and `GET /groups/current` as `GET /groups/{group_id}`, `PATCH`,
+> `standings`, `record`, `record/export` and `leave` the same way) — same payload, same
+> errors, differing only in which circle it names. `requireMembership` proves the caller
+> belongs to that `group_id` before anything else runs; a non-member gets the same
+> `NOT_FOUND` a fabricated id would. The bare `current` forms are compatibility: they resolve
+> to the caller's **oldest** active circle, and stay answering until `E19` gives the app a
+> switcher. `docs/01` ADR-011.
+
 ---
 
 ## 1. Envelope
@@ -51,7 +60,8 @@ client switches on it. Never put a raw DB error in `message`.
 | `JOINED_LATE` | 403 | Joined after `reveals_at`; excluded from this round |
 | `ROUND_VOIDED` | 409 | Round had fewer than 3 submissions |
 | `INVALID_INPUT` | 400 | Validation failure; `details` may name the field |
-| `ALREADY_IN_GROUP` | 409 | ADR-005 — one group per user. **Superseded by ADR-011**: becomes that ADR's cap in `E18-01`. |
+| `ALREADY_IN_GROUP` | 409 | The caller is already an active member of the circle named (`POST /groups/join`) |
+| `CIRCLE_LIMIT_REACHED` | 409 | ADR-011 — the caller already holds the cap's worth of active circles (`POST /groups`, `POST /groups/join`) |
 | `NOT_ADMIN` | 403 | Group settings change by a non-admin |
 | `RATE_LIMITED` | 429 | See §8 |
 | `UPSTREAM_UNAVAILABLE` | 502 | Apple Music / Spotify failure |
@@ -140,7 +150,7 @@ this best-effort immediately before sign out.
 
 `timezone` must be a valid IANA name (validate against `pg_timezone_names`). `reveal_hour`
 optional, default `20`, range `18..21`. Creator becomes `admin`. Returns the group DTO. Fails
-`ALREADY_IN_GROUP` if the user has an active membership.
+`CIRCLE_LIMIT_REACHED` if the caller already holds ADR-011's cap of active circles.
 
 ### `POST /groups/join`
 
@@ -149,8 +159,8 @@ optional, default `20`, range `18..21`. Creator becomes `admin`. Returns the gro
 { "invite_code": "K7MQ2X" }
 ```
 
-Case-insensitive, whitespace stripped. Returns the group DTO. Fails `NOT_FOUND` or
-`ALREADY_IN_GROUP`.
+Case-insensitive, whitespace stripped. Returns the group DTO. Fails `NOT_FOUND`,
+`CIRCLE_LIMIT_REACHED` (ADR-011's cap), or `ALREADY_IN_GROUP` (already active in this one).
 
 ### `GET /groups/current`
 
@@ -186,7 +196,11 @@ not yet created (`03-DATA-MODEL.md` §4) — the response echoes
 
 ### `POST /groups/current/leave`
 
-Sets `left_at`. Returns `204`. The client returns to the join/create screen.
+Sets `left_at` on the named circle only — under ADR-011 a member can hold several, and
+leaving one must never touch another's membership row. Returns `204`. Pre-`E19`, with the
+`current` alias resolving to the caller's oldest circle, the client returns to the join/create
+screen exactly as it did under ADR-005 — that behaviour is unaffected by this ADR by
+construction, since today's app only ever has the one circle to lose.
 
 ---
 
@@ -202,8 +216,9 @@ Sets `left_at`. Returns `204`. The client returns to the join/create screen.
 
 ### `GET /rounds/current` — the workhorse
 
-Returns today's round for the caller's group, shaped by phase. The client calls this on
-launch, on foreground, and when a countdown reaches zero.
+Returns today's round for the caller's group (the caller's oldest active circle; the caller's
+only one, pre-`E19`), shaped by phase. The client calls this on launch, on foreground, and
+when a countdown reaches zero.
 
 **Phase `open` — the entire payload:**
 

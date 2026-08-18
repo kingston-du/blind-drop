@@ -23,6 +23,7 @@ import {
   enforceRateLimit,
   type MemberCtx,
   requireAdmin,
+  requireDefaultMembership,
   requireJoinedBefore,
   requireMembership,
   requirePhase,
@@ -44,6 +45,7 @@ const ALL_CODES: ErrorCode[] = [
   "ROUND_VOIDED",
   "INVALID_INPUT",
   "ALREADY_IN_GROUP",
+  "CIRCLE_LIMIT_REACHED",
   "NOT_ADMIN",
   "RATE_LIMITED",
   "UPSTREAM_UNAVAILABLE",
@@ -273,24 +275,43 @@ Deno.test("requireProfile: 409 NO_PROFILE before onboarding, then the name", asy
   assertEquals(anaCtx.userId, ANA);
 });
 
-Deno.test("requireMembership: 409 NO_GROUP, and it takes no group parameter", async () => {
-  // The signature is the point: there is no group id to pass, so there is no IDOR surface
-  // for group data anywhere in the client-facing API (ADR-005, docs/14 §4).
-  assertEquals(requireMembership.length, 1);
+const THE_COVE = "b0000000-0000-4000-8000-000000000001"; // seed.sql
 
+Deno.test("requireMembership: proves membership of the named group, or 404 NOT_FOUND", async () => {
+  // The signature is the point: a group id is now a request parameter (ADR-011), so
+  // `requireMembership` is what closes the IDOR surface that opens — a non-member of a real
+  // group gets the same answer as a fabricated id (docs/14 §4).
+  assertEquals(requireMembership.length, 2);
+
+  const anaCtx = await requireProfile(await requireUser(authed(await mintToken(ANA)), "GET /"));
+  const ana = await requireMembership(anaCtx, THE_COVE);
+  assertEquals(ana.role, "admin");
+  assertEquals(ana.groupId, THE_COVE);
+
+  const notAMember = await assertRejects(
+    () => requireMembership(anaCtx, "c0000000-0000-4000-8000-0000000000fe"),
+    ApiError,
+  );
+  assertEquals(notAMember.code, "NOT_FOUND");
+
+  const malformed = await assertRejects(() => requireMembership(anaCtx, "not-a-uuid"), ApiError);
+  assertEquals(malformed.code, "NOT_FOUND", "a malformed id is the same answer, not a 500");
+});
+
+Deno.test("requireDefaultMembership: resolves the caller's oldest circle, or 409 NO_GROUP", async () => {
   const nameless = await newUser();
   const profileCtx = {
     ...(await requireUser(authed(nameless.token), "GET /")),
     displayName: "Nobody",
   };
-  const error = await assertRejects(() => requireMembership(profileCtx), ApiError);
+  const error = await assertRejects(() => requireDefaultMembership(profileCtx), ApiError);
   assertEquals(error.code, "NO_GROUP");
 
-  const ana = await requireMembership(
+  const ana = await requireDefaultMembership(
     await requireProfile(await requireUser(authed(await mintToken(ANA)), "GET /")),
   );
   assertEquals(ana.role, "admin");
-  assert(ana.groupId);
+  assertEquals(ana.groupId, THE_COVE, "Ana's only seeded circle");
 });
 
 Deno.test("requireAdmin: a member cannot change group settings", () => {

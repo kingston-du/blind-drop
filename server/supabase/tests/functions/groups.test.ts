@@ -71,15 +71,18 @@ Deno.test("POST /groups needs a profile first", async () => {
   assertEquals(res.body.error.code, "NO_PROFILE");
 });
 
-Deno.test("POST /groups is ALREADY_IN_GROUP for someone with an active membership", async () => {
+Deno.test("POST /groups allows a second circle for someone with an active membership", async () => {
+  // ADR-005 refused this. ADR-011 (tasks/E18-01) lifts it — a user may hold several active
+  // circles, up to a cap. The cap itself, and the error it refuses with, are covered in
+  // circles.test.ts.
   const { user } = await newGroupOwner("Ana");
   const res = await groups("/", {
     method: "POST",
     token: user.token,
     body: { name: "Another Cove", timezone: "UTC" },
   });
-  assertEquals(res.status, 409);
-  assertEquals(res.body.error.code, "ALREADY_IN_GROUP");
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.name, "Another Cove");
 });
 
 // ─── join ────────────────────────────────────────────────────────────────────

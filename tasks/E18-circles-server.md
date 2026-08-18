@@ -17,7 +17,7 @@ two never change under each other. Keep `/groups/current` answering until `E19` 
 
 ### E18-01 — A user may hold several circles
 
-**Status:** wip · **Deps:** E17-10 · **Parallel:** no
+**Status:** done · **Deps:** E17-10 · **Parallel:** no
 **Reads:** `docs/01` ADR-011, `docs/03` §1–§2, `docs/14` §2
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/_shared/auth.ts`,
 `server/supabase/functions/groups/`, `server/supabase/tests/db/`
@@ -32,16 +32,31 @@ The cap is a product number, not a schema truth: it belongs where it can be rais
 without a migration, and it must fail with a named error the app can render, not a constraint
 violation.
 
-- [ ] The active-membership index replaced by ADR-011's cap, enforced where join and create
+- [x] The active-membership index replaced by ADR-011's cap, enforced where join and create
       both pass through, as one named constant
-- [ ] `requireMembership` resolves a **named** group and proves the caller belongs to it;
+- [x] `requireMembership` resolves a **named** group and proves the caller belongs to it;
       membership of one circle grants nothing in another
-- [ ] Every group-scoped route takes the group explicitly, `/groups/current` still answering for
+- [x] Every group-scoped route takes the group explicitly, `/groups/current` still answering for
       the shipped app until `E19` lands
-- [ ] pgTAP: a user at the cap is refused one more, with the named error
-- [ ] Deno: a member of A asking for B's group, standings, record, round and results gets the
+- [x] pgTAP: a user at the cap is refused one more, with the named error
+- [x] Deno: a member of A asking for B's group, standings, record, round and results gets the
       same response as a stranger — no existence oracle in the status code or the body
-- [ ] Rounds, submissions, guesses and scoring views unchanged in meaning, still keyed by circle
+- [x] Rounds, submissions, guesses and scoring views unchanged in meaning, still keyed by circle
+
+`memberships_one_active_per_user` is gone, replaced by `active_circle_cap()` (currently 3) and
+the `memberships_circle_cap` trigger — one advisory-locked check both `POST /groups` and
+`POST /groups/join` pass through via the same `memberships` insert. `requireMembership` now
+takes an explicit `groupId` and returns `NOT_FOUND` for a non-member exactly as it does for a
+fabricated id; `requireDefaultMembership` (oldest active circle, stable tiebreak) backs the
+`current`-shaped routes the shipped app still calls. Every group-scoped route in `groups/` and
+`rounds/` now has a `:group_id` sibling sharing one handler with its `current` counterpart.
+`GET /rounds/{round_id}/results`'s membership check was folded into the round query itself
+(caller's own circles fetched first, keyed by caller — cost is round-independent) after review
+found the naive two-step version cost more when the round existed than when it didn't, an
+oracle by timing even though the body and status already matched. Verified: `npm run test:db`
+(624/624), `npm run test:functions` (232/232, including new `circles.test.ts`), `npm run
+audit:leak` (AC-1 satisfied, timing r ≈ −0.07), `node scripts/lint.mjs` clean. Server-only, no
+simulator pass applicable.
 
 ---
 
