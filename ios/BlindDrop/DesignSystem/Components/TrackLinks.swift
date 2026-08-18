@@ -138,6 +138,8 @@ struct TrackUtilityMenu: View {
     /// absent, not disabled, for the same reason a missing link is.
     var showResults: (() -> Void)? = nil
     var opener: any TrackLinkOpening = SystemTrackLinkOpener()
+    /// The sealed card puts the menu over its amber cover; other surfaces use the default ink.
+    var color: Color = Palette.inkDim
     /// See `EnvironmentValues.blindDropRendersForSnapshot`.
     @Environment(\.blindDropRendersForSnapshot) private var rendersForSnapshot
 
@@ -172,7 +174,7 @@ struct TrackUtilityMenu: View {
 
     private var glyph: some View {
         Image(systemName: "ellipsis")
-            .foregroundStyle(Palette.inkDim)
+            .foregroundStyle(color)
             .minimumTouchTarget()
     }
 }

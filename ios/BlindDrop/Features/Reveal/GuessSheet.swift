@@ -133,7 +133,6 @@ struct GuessSheet: View {
         // view gives SwiftUI no common geometry to animate and is what caused the hard jump.
         .offset(y: restingOffset + dragOffset)
         .animation(Motion.CallSheet.spring, value: detent)
-        .simultaneousGesture(dragGesture)
         .onChange(of: store.blockedReason) { _, reason in
             if reason != nil { setDetent(.open) }
         }
@@ -436,6 +435,11 @@ struct GuessSheet: View {
                 }
             }
         }
+        // The name pool owns its own scrolling gestures. The header is the sheet's stable,
+        // full-width handle, so its drag takes precedence over the transparent toggle behind
+        // it. Without that precedence the button recognizer wins and a downward swipe is
+        // treated like an inert press instead of collapsing the sheet.
+        .highPriorityGesture(dragGesture)
     }
 
     @ViewBuilder private func snapshotPool(layout: NamePoolLayout) -> some View {

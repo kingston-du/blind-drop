@@ -26,18 +26,18 @@ struct SealedScreen: View {
                     groupInitial: context.groupInitial,
                     remaining: Copy.countdown(timer.display)
                 )
-                // The cover's own upper-right is empty — the stamp lands lower-right (`docs/09`
-                // §2) — so the links sit there rather than adding a line under the card. Drawn
-                // from here, not from inside `SealedCard`, because that card collapses to one
-                // VoiceOver element and a link nested in the collapse would be unreachable.
+                // The cover's upper-right is empty — the stamp lands lower-right (`docs/09` §2)
+                // — so the one compact service menu belongs there. It stays outside
+                // `SealedCard`, whose contents are deliberately one VoiceOver element.
                 .overlay(alignment: .topTrailing) {
-                    // `SealedCard` insets its artwork by `Layout.cardInset` and draws it at the
-                    // card's full width (`fillsWidth: true`), so that inset is also where the
-                    // cover itself begins — matching it here lands the links **on the cover**,
-                    // the same surface the stamp sits on, rather than in the white margin above.
-                    CardCornerLinks(track: submission.track, color: accent.text)
-                        .padding(.top, Layout.cardInset + Space.sm)
-                        .padding(.trailing, Layout.cardInset + Space.sm)
+                    if TrackLinkDestination.appleMusic(track: submission.track) != nil
+                        || TrackLinkDestination.spotify(track: submission.track) != nil {
+                        // `SealedCard` insets its artwork by `Layout.cardInset`, so the same
+                        // inset keeps this over the cover rather than in the white margin.
+                        TrackUtilityMenu(track: submission.track, color: accent.text)
+                            .padding(.top, Layout.cardInset + Space.sm)
+                            .padding(.trailing, Layout.cardInset + Space.sm)
+                    }
                 }
                 status
             }
