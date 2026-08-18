@@ -128,8 +128,11 @@ struct FlightCard: View {
                 if let clearGuess {
                     Button(action: clearGuess) { Text(verbatim: Copy.A11y.clearGuess) }
                 }
-                // `cornerLinks`' own `CardCornerLinks` is `accessibilityHidden` — this is how
-                // the two links it would otherwise draw stay reachable on an answer card.
+                // `linksMenu` is `accessibilityHidden` — these are how the two links inside it
+                // stay reachable on an answer card. Both services, each present only when the
+                // payload actually carries it: an action that opens nothing is the same lie as
+                // a menu item that does. Apple Music first here, as on the sealed card's corner,
+                // where the order is the platform's store before the other one.
                 if isAnswer {
                     if let apple = TrackLinkDestination.appleMusic(track: track) {
                         Button(action: { TrackLinkRouter.open(apple, using: SystemTrackLinkOpener()) }) {
@@ -230,46 +233,74 @@ struct FlightCard: View {
 
     /// Tonight's answer for one song.
     ///
-    /// The links are their own row rather than a third voice in `metadata`'s — `metadata`'s
-    /// title and artist already claim the row's whole remaining width (`.frame(maxWidth:
-    /// .infinity)`, so a `TrackRow` style column fills what a shorter word would leave empty),
-    /// and `CardCornerLinks`' `labelSmall` has no Dynamic Type ceiling of its own (`docs/07` §3
-    /// caps only the display face). The two together, squeezed onto one row on an SE, do not
-    /// truncate or overlap — they wrap one syllable per line, which is `docs/12` §1's "nothing
-    /// crowds" failure by a different name, and it happens at the *default* size, not only at
-    /// `.accessibility5`. A trailing row of its own, the width of the whole card rather than
-    /// whatever the title left over, is what lets it draw the one line it draws in the sealed
-    /// card's much wider corner.
+    /// **The links are one glyph, not two rows.** They were a trailing row of `CardCornerLinks`
+    /// until `E17-03`: two independently 44pt-tall tap targets (`docs/12` §5) plus the gap above
+    /// them is ~90pt of card, and a night runs to twelve cards, so the two words cost most of a
+    /// screen of scrolling on a list whose whole job is to be read top to bottom. The Record had
+    /// already answered this for a list of the same links — an ellipsis, top right — and the same
+    /// menu is what the card takes now (`TrackUtilityMenu`, minus the *See results* item, which
+    /// on the results screen would lead here).
+    ///
+    /// **Placed by the layout, not by an overlay.** The menu shares the card's first row, in an
+    /// `HStack(alignment: .top)`; the row itself keeps its own `.center` alignment, because the
+    /// number/artwork/title relationship is what makes the card read as a tasting sheet and
+    /// nothing here touches it. An `.overlay(alignment: .topTrailing)` would have been fewer
+    /// lines and would have put the ellipsis on top of the title at `.accessibility5`, where the
+    /// title wraps to three lines and takes every point of width it is given. In a stack it
+    /// cannot: the menu's 44pt is width the row never had to give.
+    ///
+    /// It sits beside **whatever the first row is**, which differs by size and is the point. Below
+    /// `.accessibility1` that row is the number, the artwork and the metadata, so the menu costs
+    /// the title 52pt of a line it was truncating anyway. Above it the row is the number and the
+    /// artwork alone (`docs/12` §1's reflow) and the metadata has dropped below — where it keeps
+    /// the card's **full** width, rather than the width left over beside an ellipsis it is no
+    /// longer level with. Hanging the menu off the whole head block instead would have been one
+    /// stack fewer and would have narrowed the title by those 52pt at exactly the sizes the
+    /// reflow exists to give it room at.
     private var answerCard: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
             if isStacked {
-                HStack(alignment: .center, spacing: Space.lg) {
-                    cardNumber
-                    artwork
+                HStack(alignment: .top, spacing: Space.sm) {
+                    HStack(alignment: .center, spacing: Space.lg) {
+                        cardNumber
+                        artwork
+                    }
+                    // Neither the number nor the artwork grows with the type size, so this row
+                    // does not fill the card on its own and the menu needs pushing to the edge.
+                    // The row below has `metadata`'s `maxWidth: .infinity` doing the same job.
+                    Spacer(minLength: Space.sm)
+                    linksMenu
                 }
                 metadata
             } else {
-                HStack(alignment: .center, spacing: Space.lg) {
-                    cardNumber
-                    artwork
-                    metadata
+                HStack(alignment: .top, spacing: Space.sm) {
+                    HStack(alignment: .center, spacing: Space.lg) {
+                        cardNumber
+                        artwork
+                        metadata
+                    }
+                    linksMenu
                 }
             }
-            cornerLinks
             assignmentChip
         }
         .padding(Layout.cardInset)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// `CardCornerLinks`, hidden from VoiceOver here and re-exposed through `body`'s
+    /// The card's overflow, hidden from VoiceOver here and re-exposed through `body`'s
     /// `.accessibilityActions` — the whole card is one VoiceOver element (`docs/12` §2), and a
-    /// link reachable only by direct touch inside that collapse would not be reachable by
-    /// anyone swiping through it.
-    private var cornerLinks: some View {
-        CardCornerLinks(track: track)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .accessibilityHidden(true)
+    /// menu reachable only by direct touch inside that collapse would not be reachable by anyone
+    /// swiping through it.
+    ///
+    /// Absent, not empty, when the payload carries neither service: an ellipsis that opens onto
+    /// nothing is worse than no ellipsis. The same test `CardCornerLinks` makes before it draws.
+    @ViewBuilder private var linksMenu: some View {
+        if TrackLinkDestination.appleMusic(track: track) != nil
+            || TrackLinkDestination.spotify(track: track) != nil {
+            TrackUtilityMenu(track: track)
+                .accessibilityHidden(true)
+        }
     }
 
     /// The number, in the accent, capped at 1.6× by `Typography` so it stays the largest thing
@@ -459,12 +490,15 @@ struct FlightCard: View {
                     announcement: Copy.resultCount(
                         correct: resolution.correctCount,
                         eligible: resolution.eligibleCount
-                    )
+                    ),
+                    fillProgress: presentation.hasBar ? 1 : 0
                 )
             }
             .opacity(presentation.hasName ? 1 : 0)
             .animation(presentation.reducedMotion ? Motion.Resolve.reduced : Motion.Resolve.name,
                        value: presentation.hasName)
+            .animation(presentation.reducedMotion ? Motion.Resolve.reduced : Motion.Resolve.mark,
+                       value: presentation.hasBar)
         }
 
         /// The caller's own guess. **`ultramarine` check or `inkFaint` strike — never red and

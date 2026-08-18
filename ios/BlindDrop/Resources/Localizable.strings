@@ -226,6 +226,9 @@
 "reveal.progress" = "%lld of %lld assigned";
 "reveal.locked.title" = "Locked in.";
 "reveal.callsheet" = "Your call sheet";
+"reveal.callsheet.naming" = "Naming No. %lld";
+"reveal.callsheet.expand" = "Expand call sheet";
+"reveal.callsheet.collapse" = "Collapse call sheet";
 "reveal.blocked.notsubmitter" = "You didn't drop tonight, so you're sitting this one out.";
 "reveal.blocked.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "reveal.blocked.canview" = "You can still look.";
@@ -261,8 +264,9 @@
 "results.standings.ear.detail" = "%lld correct";
 "results.standings.readability" = "How readable";
 "results.share" = "Share tonight";
-"results.share.square" = "For a group chat";
-"results.share.story" = "For a story";
+/* The line under the share sheet's preview. It names the picture; it does not offer a choice —
+   the share sheet draws one card and the variant picker is gone (docs/10 §4). */
+"results.share.caption" = "Your results";
 
 /* ── The share card (docs/11 §Share card headlines, docs/10 §2) ────────────── */
 /* One headline, chosen by precedence. Never more than one, and never a superlative that */

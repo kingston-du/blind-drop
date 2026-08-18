@@ -79,7 +79,8 @@ final class ResultsStore {
             me: state.value?.me,
             standings: standings.value,
             namedCards: resolve?.namedCards,
-            markedCards: resolve?.markedCards
+            markedCards: resolve?.markedCards,
+            barredCards: resolve?.barredCards
         )
     }
 }

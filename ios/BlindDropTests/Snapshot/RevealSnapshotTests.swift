@@ -99,7 +99,7 @@ private let sizes = SnapshotRenderer.typeSizes
         verify(named: "GuessSheet", device, size) {
             GuessSheet(store: RevealFixture.store(cardCount: 6, myCardNumber: 4, poolSize: 5,
                                                   guesses: [1: "Cal", 3: "Ana"]))
-                .content(layout: NamePoolLayout(dynamicTypeSize: size))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size), typeSize: size)
         }
     }
 
@@ -111,7 +111,7 @@ private let sizes = SnapshotRenderer.typeSizes
         verify(named: "GuessSheet-notsubmitter", device, size) {
             GuessSheet(store: RevealFixture.store(cardCount: 6, canGuess: false,
                                                   reason: .notASubmitter, poolSize: 5))
-                .content(layout: NamePoolLayout(dynamicTypeSize: size))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size), typeSize: size)
         }
     }
 
@@ -122,7 +122,7 @@ private let sizes = SnapshotRenderer.typeSizes
         verify(named: "GuessSheet-joinedlate", device, size) {
             GuessSheet(store: RevealFixture.store(cardCount: 6, canGuess: false,
                                                   reason: .joinedLate, poolSize: 5))
-                .content(layout: NamePoolLayout(dynamicTypeSize: size))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size), typeSize: size)
         }
     }
 
@@ -134,7 +134,7 @@ private let sizes = SnapshotRenderer.typeSizes
     func guessSheetTwelveMembersAtAccessibilityFive(_ device: SnapshotRenderer.Device) {
         verify(named: "GuessSheet-12", device, .accessibility5) {
             GuessSheet(store: RevealFixture.store(cardCount: 12, myCardNumber: 7))
-                .content(layout: .verticalGrid)
+                .content(layout: .verticalGrid, typeSize: .accessibility5)
         }
     }
 

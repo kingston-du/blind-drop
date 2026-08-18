@@ -38,6 +38,7 @@ struct VoidedScreen: View {
             countdown
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Space.xxl)
     }
 
     /// The song, unsealed and plain, and the line that explains why it is back.

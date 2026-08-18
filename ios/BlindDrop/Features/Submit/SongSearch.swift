@@ -96,6 +96,25 @@ struct SongSearch<Header: View, Footer: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.22), value: isBrowsing)
+        // Only the paper behind the controls dismisses focus; rows, fields and the paste control
+        // keep their own gestures and do not become accidental keyboard-dismiss taps.
+        //
+        // **This layer alone only covers the idle state**, which is why the browsing state went
+        // unnoticed: `rows` is a `ScrollView`, a `ScrollView` is greedy, and the empty half of a
+        // one-result search is therefore *inside* it. A scroll view eats a tap on its empty area
+        // rather than passing it to what is behind, so every tap under the last result did
+        // nothing at all. `rows` carries its own dismissal for that reason.
+        .background {
+            Palette.paper
+                .contentShape(Rectangle())
+                .onTapGesture(perform: dismissFocus)
+        }
+    }
+
+    /// Puts the keyboard away. Two fields can hold it, and neither knows about the other.
+    private func dismissFocus() {
+        isFieldFocused.wrappedValue = false
+        isPasteFocused = false
     }
 
     // MARK: - The field
@@ -166,6 +185,13 @@ struct SongSearch<Header: View, Footer: View>: View {
             .padding(.bottom, Layout.blockGap)
         }
         .scrollDismissesKeyboard(.interactively)
+        // A drag already puts the keyboard away; a tap on the empty space under the results did
+        // not, because the scroll view is what occupies that space and it absorbs the tap before
+        // the dismissal layer behind it ever sees one. `simultaneousGesture` rather than
+        // `onTapGesture`, so it adds to the rows instead of replacing them: a tap on a row still
+        // chooses that track, and also drops the keyboard on the way to the confirm screen, which
+        // is what somebody who just tapped a result wanted either way.
+        .simultaneousGesture(TapGesture().onEnded(dismissFocus))
     }
 
     // MARK: - The fallback

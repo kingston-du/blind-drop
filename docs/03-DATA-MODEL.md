@@ -70,6 +70,7 @@ create table public.memberships (
 
 -- ADR-005: one group per user. A user may have many historical memberships but
 -- at most one active.
+-- SUPERSEDED by ADR-011 — E18-01 replaces this index with that ADR's cap.
 create unique index memberships_one_active_per_user
   on public.memberships (user_id) where left_at is null;
 create unique index memberships_unique_active_pair

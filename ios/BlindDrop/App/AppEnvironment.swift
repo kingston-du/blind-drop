@@ -16,7 +16,7 @@ final class AppEnvironment {
     let session: SessionStore
     let api: APIClient
     let router: Router
-    /// The two notes of `docs/09`. Injected rather than constructed at the call site so the
+    /// The app's haptic vocabulary from `docs/09`. Injected rather than constructed at the call site so the
     /// seal and unseal can be driven by a counting double in a test (`docs/09` §6) — and so
     /// `DesignSystem/` never depends on `UIImpactFeedbackGenerator` being real.
     let haptics: HapticEngine

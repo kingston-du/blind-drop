@@ -194,11 +194,14 @@ enum Motion {
         static let stagger = 120
         /// The name's crossfade.
         static let duration = 0.220
-        /// How far the name travels up as it arrives. Four points — a settle, not an entrance.
-        static let rise: CGFloat = 4
+        /// How far the name travels up as it arrives. Eight points — a settle with presence,
+        /// still small enough to leave the card's geometry untouched.
+        static let rise: CGFloat = 8
         /// The mark lands **after** its own name, not after the sequence. A user reading the
         /// third card is told whose song it was and then, a beat later, whether they had it.
         static let markDelay = 80
+        /// The room bar fills after the card's mark has landed.
+        static let barDelay = 80
 
         static let name = Animation.easeOut(duration: duration)
         static let mark = Animation.easeOut(duration: duration)
@@ -207,6 +210,11 @@ enum Motion {
         /// crossfade is kept — reduced motion removes movement, not the arrival — and the rise
         /// is dropped, because the rise **is** the movement.
         static let reduced = Animation.easeInOut(duration: duration)
+    }
+
+    /// The reveal call sheet's one interruptible spring (`docs/09` §1).
+    enum CallSheet {
+        static let spring = Animation.spring(response: 0.34, dampingFraction: 0.82)
     }
 
     /// Button press: 120ms, scale 0.985 (`docs/09` §1). Under reduced motion, opacity only

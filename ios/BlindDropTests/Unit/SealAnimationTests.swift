@@ -39,10 +39,47 @@ import Testing
     /// The generators are warmed before the first note. A cold generator delivers the tap a frame
     /// or two late, and on a 100ms cue that is the difference between feeling the cover let go and
     /// feeling something happen afterwards.
+    ///
+    /// **Exactly the seal's own two, not `Haptic.allCases`.** The assertion used to be the
+    /// all-cases one, and it was right until `E17-07` added a third note that the seal can never
+    /// fire: `.nameLands` belongs to the reveal, and a submit screen that warms a generator for a
+    /// tap it will never play is a lie in the code as well as wasted Taptic time. What the
+    /// all-cases form was really protecting — *no note can fire cold* — is asserted whole by
+    /// `everyNoteIsWarmedBySomebody` below, which is a stronger claim than this test ever made.
     @Test func bothGeneratorsAreWarmedFirst() async {
         let haptics = CountingHaptics()
         await SealAnimation(haptics: haptics).run(reducedMotion: false)
-        #expect(Set(haptics.prepared) == Set(Haptic.allCases))
+        #expect(Set(haptics.prepared) == [.coverMoves, .stampLands])
+    }
+
+    /// **No note can fire cold.** The property the all-cases assertion above used to carry,
+    /// stated where it is actually true: across the three places that fire haptics, the union of
+    /// what they warm is the whole vocabulary. A fourth `Haptic` case added without a warm-up
+    /// fails here, which is the failure `E17-07` shipped and this slice is closing.
+    @Test func everyNoteIsWarmedBySomebody() async {
+        let seal = CountingHaptics()
+        await SealAnimation(haptics: seal).run(reducedMotion: false)
+
+        let unseal = CountingHaptics()
+        await UnsealAnimation(
+            roundID: "r1",
+            cardNumbers: [1],
+            flags: LocalFlags(defaults: UserDefaults(suiteName: #function)!),
+            haptics: unseal
+        ).run(reducedMotion: true)
+
+        let reveal = CountingHaptics()
+        RevealStore(
+            cards: [],
+            pool: [],
+            myCardNumber: nil,
+            canGuess: true,
+            me: nil,
+            haptics: reveal
+        ).prepareHaptics()
+
+        let warmed = Set(seal.prepared) .union(unseal.prepared) .union(reveal.prepared)
+        #expect(warmed == Set(Haptic.allCases))
     }
 
     /// A second tap while the first seal is running does nothing — no second timeline, no third

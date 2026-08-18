@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Testing
+import UIKit
 @testable import BlindDrop
 
 /// `docs/07` §2: *"`PaletteContrastTests` asserts every row. If you change a hex, the test
@@ -54,7 +55,7 @@ import Testing
             == contrastRatio(Palette.Hex.paper, Palette.Hex.ink))
     }
 
-    // MARK: - The ten rows of docs/07 §2
+    // MARK: - The eleven rows of docs/07 §2
 
     /// One row of the `docs/07` §2 contrast table.
     struct Row: Sendable, CustomStringConvertible {
@@ -65,15 +66,16 @@ import Testing
         /// The ratio `docs/07` §2 prints. Drift from the computed value means someone edited a
         /// hex without editing the doc — or the doc without the hex.
         let documented: Double
-        /// The WCAG minimum this pair has to clear. `nil` for the one row whose requirement
-        /// column is `—`; see `amberIsBelowEveryThresholdOnPurpose`.
+        /// The WCAG minimum this pair has to clear, or `nil` for a row `docs/07` §2 prints with
+        /// `—` in its requirement column. Every row currently has one; the optional is what lets
+        /// a future surface-only pair into the drift check without inventing a threshold for it.
         let minimum: Double?
 
         var description: String { pair }
     }
 
-    /// Verbatim from the `docs/07` §2 table, in its order. Ten rows, and that is the list — the
-    /// remaining tokens (`paperSunk`, `edge`, `edgeStrong`, `hairline`, `track`, the two washes,
+    /// Verbatim from the `docs/07` §2 table, in its order. Eleven rows, and that is the list —
+    /// the remaining tokens (`paperSunk`, `edge`, `edgeStrong`, `hairline`, `track`, the two washes,
     /// the two wash edges, the row tint and the pressed fills) are surfaces and borders that
     /// carry no text, and inventing thresholds for them would be inventing spec.
     static let rows: [Row] = [
@@ -100,6 +102,14 @@ import Testing
         Row(pair: "amber on surface",
             foreground: Palette.Hex.amber, background: Palette.Hex.surface,
             documented: 4.24, minimum: 3.0),
+        // The other half of `PhaseAccent.mark`, on the same white card. Same bar as its amber
+        // sibling for the same reason: it draws `FlightCard`'s number and How to play's step
+        // numeral, both `numberM`. The ratio is the transpose of `white on ultramarine fill`,
+        // and the row is here anyway — a table where one accent's mark tier is written down and
+        // the other's is only implied is a table somebody reads as a rule about amber.
+        Row(pair: "ultramarine on surface",
+            foreground: Palette.Hex.ultramarine, background: Palette.Hex.surface,
+            documented: 8.98, minimum: 3.0),
         Row(pair: "amberText on amberWash",
             foreground: Palette.Hex.amberText, background: Palette.Hex.amberWash,
             documented: 5.37, minimum: 4.5),
@@ -114,18 +124,17 @@ import Testing
             documented: 5.78, minimum: 4.5),
     ]
 
-    @Test func theTableHasTenRows() {
-        #expect(Self.rows.count == 10)
+    @Test func theTableHasElevenRows() {
+        #expect(Self.rows.count == 11)
     }
 
     /// The accessibility half. This is the assertion that must never be relaxed: it is the
     /// reason a hex is allowed to be what it is.
     @Test(arguments: rows)
     func everyApplicableRowClearsItsWCAGMinimum(_ row: Row) {
-        // The table deliberately gives `amber on surface` no requirement: amber is a fill,
-        // never text or a lone mark. Its upper bound is asserted by the dedicated fill-only
-        // test below. Returning here is therefore the specified assertion for that row, not
-        // a missing check.
+        // A row `docs/07` §2 prints with `—` in its requirement column has nothing to clear:
+        // it is a surface pair, and inventing a threshold for it would be inventing spec. Such
+        // a row is still held to the documented ratio by the drift test below.
         guard let minimum = row.minimum else { return }
         let ratio = contrastRatio(row.foreground, row.background)
         #expect(
@@ -187,6 +196,56 @@ import Testing
         // and the edge is the darker of the two or it would not be an edge.
         #expect(relativeLuminance(Palette.Hex.amberEdge) > fill)
         #expect(relativeLuminance(Palette.Hex.amberWash) > relativeLuminance(Palette.Hex.amberEdge))
+    }
+
+    // MARK: - The legend numerals, at the size they are drawn
+
+    /// How to play's step numerals (`HowToSheet.step`), which `CLAUDE.md` §2.5's second
+    /// exception lets carry both accents on one page because they are the legend.
+    ///
+    /// The exception is about meaning; it lowers no floor. And the floor for `amber` is the
+    /// interesting one — 4.24:1 on `surface` clears WCAG's 3.0 large-text-and-graphics bar and
+    /// misses the 4.5 body bar — so the colour is only defensible for as long as the numeral
+    /// stays large. That makes this **two** assertions, not one: the ratio, and the point size
+    /// that decides which ratio applies. A test that checked the colour alone would go on
+    /// passing the day somebody re-set the numerals in `bodyM`, and the page would be quietly
+    /// illegible to the readers it matters most to.
+    @Test func theLegendNumeralsClearTheBarAtTheSizeTheyAreDrawn() {
+        // The tier the page actually asks for, rather than a hex picked here to match it —
+        // `HowToSheet` writes `accent.mark`, so `mark` is what has to clear the bar.
+        #expect(PhaseAccent.sealed.mark == Color(hex: Palette.Hex.amber))
+        #expect(PhaseAccent.revealed.mark == Color(hex: Palette.Hex.ultramarine))
+
+        // Step 1 is `.sealed`, steps 2–4 are `.revealed`, and all four are drawn on the white
+        // of `cardSurface()` — not on `paper`, which is the background the §2 table's other
+        // accent rows are measured against.
+        for (step, hex) in [("step 1 — amber", Palette.Hex.amber),
+                            ("steps 2–4 — ultramarine", Palette.Hex.ultramarine)] {
+            let ratio = contrastRatio(hex, Palette.Hex.surface)
+            #expect(
+                ratio >= 3.0,
+                "\(step) is \(ratio) : 1 on surface — below the 3.0 large-text bar in docs/07 §2"
+            )
+        }
+
+        // The size half. WCAG 2.1 calls bold text large from 14pt; `numberM` is 26pt at `.large`
+        // and rides the `.title1` ramp, so the smallest it is ever drawn at is whatever the
+        // smallest content-size category resolves to. That number is what has to clear 14.
+        let resolved = DynamicTypeSize.allCases.map {
+            Typography.uiFont(.numberM, for: UIContentSizeCategory($0)).pointSize
+        }
+        let smallest = resolved.min() ?? 0
+        #expect(
+            smallest >= 14,
+            """
+            How to play's numeral resolves to \(smallest)pt at the smallest Dynamic Type size, \
+            under WCAG's 14pt bold large-text threshold. `amber` on `surface` is 4.24 : 1 — it \
+            clears the 3.0 large-text bar and misses the 4.5 body bar, so a smaller numeral \
+            makes the colour wrong rather than merely small. Put the size back, or move the \
+            numeral to `PhaseAccent.text` (`amberText`, 6.39 : 1 on surface) and say so in \
+            docs/07 §2.
+            """
+        )
     }
 
     // MARK: - Transcription

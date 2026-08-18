@@ -30,8 +30,16 @@ Two accents carry meaning and appear nowhere decoratively:
 > **Ultramarine = revealed. Information is open.**
 
 A user should be able to tell what phase the round is in from across the room. **Exactly one
-accent per screen**, except during the reveal transition where amber gives way to
-ultramarine.
+accent per screen**, with two exceptions: the reveal transition, where amber gives way to
+ultramarine, and **How to play**, which is the legend.
+
+How to play carries both because its four steps *are* the four phases, in order — step 1,
+*Drop a song*, is the blind window and is drawn in amber; steps 2, 3 and 4 are what happens
+once the information is out and are drawn in ultramarine. That is the one page where showing
+the two side by side is the content rather than a decoration of it. The exception is that page
+and nothing else: a screen that mentions a phase does not inherit it, and the rest of How to
+play stays neutral — the scoring card in particular, because `Ear` and `Readability` are
+unranked by design (`docs/16`) and an accent on either implies a better end.
 
 ### Tokens
 
@@ -81,6 +89,7 @@ enum Palette {
 | `amberText` on `paper` | 5.65 : 1 | 4.5 (body) | pass |
 | `white` on `amber` fill | 4.24 : 1 | 3.0 (large text) | pass — **the 17pt semibold button label and nothing smaller** |
 | `amber` on `surface` | 4.24 : 1 | 3.0 (non-text graphics) | pass |
+| `ultramarine` on `surface` | 8.98 : 1 | 3.0 (non-text graphics) | pass |
 | `amberText` on `amberWash` | 5.37 : 1 | 4.5 (body) | pass |
 | `ultramarine` on `paper` | 7.94 : 1 | 4.5 | pass |
 | `white` on `ultramarine` fill | 8.98 : 1 | 4.5 | pass |
@@ -89,6 +98,13 @@ enum Palette {
 The tiered amber exists because a single warm amber cannot be both a satisfying fill and an
 accessible label. Reach for `amberText` when writing words, `amber` when filling an area or
 drawing a mark, `amberDeep` when a fill is pressed, `amberEdge` when a wash needs closing.
+
+The two `on surface` rows are the **mark** tier — `PhaseAccent.mark`, the tier that draws
+rather than writes. They carry the two display numerals in the app: `FlightCard`'s card number
+and How to play's step numeral, both set in `numberM`. 3.0 is the right bar for both because
+the display face at that size is large text under WCAG at every Dynamic Type category the app
+resolves, and `PaletteContrastTests` asserts the size half of that as well as the ratio half —
+a bar that only ever checks the colour is a bar somebody clears by shrinking the type.
 
 `white` on `amber` is the one pair in the table pinned from **both** sides: it must clear 3.0,
 and it must not clear 4.5. A minimum on its own erodes — somebody sets a 13pt caption on amber,
@@ -108,6 +124,7 @@ too quiet to be text at apparatus sizes, so **micro-labels are set in `inkDim`**
 | Primary button, `revealed`/`scored` | `ultramarine` fill, `white` label |
 | Sealed card treatment | `amberWash` fill, `amberDeep` 1pt border, `amberDeep` stamp |
 | Live card treatment | `surface`, `edge` border, `ultramarine` card number |
+| How to play step numeral | `amber` on step 1, `ultramarine` on steps 2–4 — the legend, above |
 | Correct answer mark | `ultramarine` |
 | Incorrect answer mark | `inkFaint` strike — **never red** |
 | Error text | `alert` |

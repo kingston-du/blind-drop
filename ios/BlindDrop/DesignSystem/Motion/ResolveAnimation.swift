@@ -10,11 +10,14 @@ struct ResolvePresentation: Equatable, Sendable {
     let hasName: Bool
     /// Whether the mark on the caller's own guess has arrived.
     let hasMark: Bool
+    let hasBar: Bool
     let reducedMotion: Bool
 
     /// Everything already in place — what a re-opened round renders, and what a completed or
     /// skipped sequence settles to.
-    static let settled = ResolvePresentation(hasName: true, hasMark: true, reducedMotion: false)
+    static let settled = ResolvePresentation(
+        hasName: true, hasMark: true, hasBar: true, reducedMotion: false
+    )
 }
 
 /// Runs the results name-resolve, once per round, and lets any scroll gesture end it.
@@ -39,6 +42,7 @@ final class ResolveAnimation {
     private(set) var namedCards: Set<Int> = []
     /// The cards whose mark is showing.
     private(set) var markedCards: Set<Int> = []
+    private(set) var barredCards: Set<Int> = []
 
     private let cardNumbers: [Int]
     private let roundID: String
@@ -61,13 +65,14 @@ final class ResolveAnimation {
         ResolvePresentation(
             hasName: namedCards.contains(cardNumber),
             hasMark: markedCards.contains(cardNumber),
+            hasBar: barredCards.contains(cardNumber),
             reducedMotion: reducedMotion
         )
     }
 
     /// Whether anything is still on its way. The screen stops arming the skip gesture once there
     /// is nothing left to skip.
-    var isRunning: Bool { markedCards.count < cardNumbers.count }
+    var isRunning: Bool { barredCards.count < cardNumbers.count }
 
     // MARK: - The sequence
 
@@ -78,7 +83,7 @@ final class ResolveAnimation {
     /// — is one sorted list a test can read, and so every wait belongs to the single structured
     /// task the screen awaits.
     struct Event: Equatable, Sendable {
-        enum Kind: Equatable, Sendable { case name, mark }
+        enum Kind: Equatable, Sendable { case name, mark, bar }
 
         /// Milliseconds from the start of the sequence.
         let at: Int
@@ -96,10 +101,19 @@ final class ResolveAnimation {
                 return [
                     Event(at: start, cardNumber: number, kind: .name),
                     Event(at: start + Motion.Resolve.markDelay, cardNumber: number, kind: .mark),
+                    Event(
+                        at: start + Motion.Resolve.markDelay + Motion.Resolve.barDelay,
+                        cardNumber: number,
+                        kind: .bar
+                    ),
                 ]
             }
             .sorted { left, right in
-                left.at == right.at ? left.kind == .name && right.kind == .mark : left.at < right.at
+                if left.at != right.at { return left.at < right.at }
+                switch (left.kind, right.kind) {
+                case (.name, .mark), (.name, .bar), (.mark, .bar): return true
+                default: return false
+                }
             }
     }
 
@@ -125,6 +139,7 @@ final class ResolveAnimation {
             switch event.kind {
             case .name: namedCards.insert(event.cardNumber)
             case .mark: markedCards.insert(event.cardNumber)
+            case .bar: barredCards.insert(event.cardNumber)
             }
         }
     }
@@ -153,5 +168,6 @@ final class ResolveAnimation {
     private func finish() {
         namedCards = Set(cardNumbers)
         markedCards = Set(cardNumbers)
+        barredCards = Set(cardNumbers)
     }
 }

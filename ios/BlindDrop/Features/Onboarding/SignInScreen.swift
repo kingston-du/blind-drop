@@ -42,7 +42,7 @@ struct SignInScreen: View {
             // collapses to `.none` at accessibility sizes, same as a plain `Spacer()` would, so a
             // tall title never fights it for room.
             Spacer(minLength: Space.none)
-                .frame(maxHeight: Space.x6)
+                .frame(maxHeight: Space.x6 + Space.xxl)
 
             Text("onboarding.title")
                 .typeStyle(.displayL)

@@ -6,6 +6,30 @@
 - `E##-<name>.md` — one epic, containing its tasks in full.
 - `ICEBOX.md` — good ideas that are out of scope (`docs/16-OUT-OF-SCOPE.md` §4).
 
+## Tasks and slices
+
+`E00`–`E17` were written at one-commit granularity: a task is a deliverable. That was right for
+building the thing from nothing, and none of it is being renumbered.
+
+**From `E18` onward a task is a *slice*** — the largest coherent unit that can be understood,
+implemented, built, tested, exercised in the app, reviewed and closed as **one behaviour**. The
+format below is unchanged; only the size is. Fewer, larger, each one a thing a person could use.
+
+Split a slice when it spans unrelated systems, when its parts verify separately, when it drags
+in context that has nothing to do with the rest of it, when regressions stop being reasonable to
+think about as one change, or when no single flow demonstrates that it is finished. Do **not**
+split it by file, layer, or component — a slice that ships a screen ships its store, its DTO and
+its strings with it.
+
+Slices carry two extra fields:
+
+| Field | Meaning |
+|---|---|
+| **Parallel** | `yes` / `no`, and against what. `yes` means disjoint files and independent verification — safe to run in another worktree alongside its siblings. |
+| **Verify** | As before, plus **what gets exercised in the simulator**. For a user-facing slice, "the tests pass" is not the whole answer. |
+
+The full working loop for a slice is `CLAUDE.md` §8, not the six steps below.
+
 ## Task format
 
 ```markdown

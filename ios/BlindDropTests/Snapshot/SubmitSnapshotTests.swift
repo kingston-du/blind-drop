@@ -94,8 +94,10 @@ private let sizes = SnapshotRenderer.typeSizes
     @Test(arguments: devices, sizes)
     func voided(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         try verify(named: "Voided", device, size, fixture: "round_voided") { context, timer in
+            // Never `nil` on a voided round — tomorrow's opening does not consult the clock, so
+            // this is the one phase whose deadline an unanchored clock could not blank.
             VoidedScreen(context: context, submission: try! Self.submission(), timer: timer,
-                         deadline: context.deadline(now: context.round.revealsAt))
+                         deadline: context.deadline(now: context.round.revealsAt)!)
         }
     }
 
@@ -225,8 +227,12 @@ private let sizes = SnapshotRenderer.typeSizes
         let timer = CountdownTimer(clock: clock)
         // Pointed at the round's own deadline, so a screen that re-points it — `CountdownView` does
         // on appear — lands on the same digits rather than on the gap between two constants.
+        // `#require` rather than `??`: the clock here is anchored a line above, so a `nil`
+        // deadline would mean `RoundContext` had stopped answering a question it can answer —
+        // worth failing on rather than papering over with a fallback the goldens would then be
+        // rendered against.
         timer.start(
-            until: context.deadline(now: CountdownFixture.serverNow),
+            until: try #require(context.deadline(now: CountdownFixture.serverNow)),
             form: Typography.countdownForm(for: size)
         )
 

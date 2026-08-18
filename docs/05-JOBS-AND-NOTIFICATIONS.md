@@ -58,6 +58,11 @@ Transition and enqueue happen in **one transaction**. Never enqueue first.
 
 ## 3. The three notifications
 
+> **Amended by the owner — ADR-011, `CLAUDE.md` §2.6.** The budget is now three *deliveries*
+> per user per day across **all** their circles, grouped where they coincide; it did not grow
+> with the circle count. The kinds below are unchanged and `invite` joins them in `E20-03`.
+> `E23-02` brings this section in line. Until it lands, what follows is what the code does.
+
 Exactly three per day, maximum. This app earns trust by being quiet.
 
 | # | When | Audience | Title / body | Deep link |
@@ -144,6 +149,11 @@ first successful seal, never at launch — the ask lands when the user has just 
 something happens at 8:00 PM and has a reason to want to be told.
 
 ### There are no notification settings
+
+> **Amended by the owner (ADR-011, `CLAUDE.md` §2.6).** Three *deliveries* per user per day
+> across **all** their circles, grouped where they coincide — the budget did not grow with the
+> circle count. `E23-02` brings this section and §3 in line; until then §3's per-round table is
+> still what the code does.
 
 No per-type toggles, no quiet hours, no in-app preference screen. Three pushes a day is
 already quiet; a settings screen implies there is something to manage. Users who want silence

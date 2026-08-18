@@ -1,16 +1,15 @@
 import UIKit
 
-/// The app's entire haptic vocabulary: two notes, both from `docs/09` §2–3.
+/// The app's entire haptic vocabulary: three notes, from `docs/09` §1–3.
 ///
 /// They are named for the moment rather than for the generator, because the moment is what is
 /// being tested. `docs/09` §6 asserts *counts* — the seal fires two, the unseal fires one, and
 /// a reduced-motion seal still fires one — and a count test only means something if the thing
 /// being counted is "the stamp landed" rather than "some rigid impact happened somewhere".
 ///
-/// There is no third note. `docs/09` §1: *"If a task proposes an animation not in this table,
-/// the answer is no."* The same goes for feedback: a tap that buzzes because buzzing is
-/// available is how an app ends up feeling like a slot machine, and `CLAUDE.md` §2.7 rules out
-/// the whole genre.
+/// The reveal's assignment is the one deliberate third note: it is a committed action, not a
+/// selection. A tap that buzzes because buzzing is available is still how an app ends up feeling
+/// like a slot machine, and `CLAUDE.md` §2.7 rules out the whole genre.
 enum Haptic: Sendable, Equatable, CaseIterable {
     /// `.impact(.soft)`, intensity 0.4 — the seal cover starting to move (`docs/09` §2, 100ms),
     /// and the first card's cover release in the unseal (§3).
@@ -18,11 +17,14 @@ enum Haptic: Sendable, Equatable, CaseIterable {
     /// `.impact(.rigid)`, intensity 0.9 — the stamp making contact (`docs/09` §2, 380ms). Fired
     /// at the moment of contact, not at the start of the phase that draws it.
     case stampLands
+    /// `.impact(.light)`, intensity 0.5 — a name commits to a card in the reveal.
+    case nameLands
 
     var style: UIImpactFeedbackGenerator.FeedbackStyle {
         switch self {
         case .coverMoves: .soft
         case .stampLands: .rigid
+        case .nameLands: .light
         }
     }
 
@@ -30,6 +32,7 @@ enum Haptic: Sendable, Equatable, CaseIterable {
         switch self {
         case .coverMoves: 0.4
         case .stampLands: 0.9
+        case .nameLands: 0.5
         }
     }
 }
@@ -58,7 +61,7 @@ final class SystemHaptics: HapticEngine {
     func fire(_ haptic: Haptic) {
         let generator = generator(for: haptic)
         generator.impactOccurred(intensity: haptic.intensity)
-        // Re-prepared immediately: the seal's two notes are 280ms apart, which is inside the
+        // Re-prepared immediately: the seal's notes are 280ms apart, which is inside the
         // window where a generator that was allowed to go cold costs the second one its timing.
         generator.prepare()
     }

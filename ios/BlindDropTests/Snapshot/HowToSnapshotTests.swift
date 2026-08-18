@@ -6,11 +6,18 @@ private let devices = SnapshotRenderer.Device.matrix
 
 /// `docs/08` §2, §8: the explainer reached from every phase's `[?]` and from sign-in.
 ///
-/// No `RoundContext` to key a fixture off, and no accent — the one thing that changes the page's
-/// words at all is the group's `reveal_hour`, and every golden here is the default
-/// (`RevealHour.default`, 20:00). `HowToTests` covers the arithmetic for a group with a
+/// No `RoundContext` to key a fixture off, and no accent to vary — the page carries **both**
+/// accents at once and always the same way round, because it is the legend (`CLAUDE.md` §2.5's
+/// second exception): step 1 is amber, steps 2–4 are ultramarine, on every golden here. The one
+/// thing that changes the page at all is the group's `reveal_hour`, and every golden is the
+/// default (`RevealHour.default`, 20:00). `HowToTests` covers the arithmetic for a group with a
 /// different one; this suite is only asking whether the words at that arithmetic's result lay
 /// out (`docs/12` §1 — nothing truncates, nothing overlaps).
+///
+/// `HowTo-steps` is therefore the golden that has to be *looked at* rather than merely diffed:
+/// it is the only picture of the two accents beside each other, and the only one where the
+/// hairline down the numeral column either holds the four steps together or does not. The
+/// contrast ratios behind that colouring are asserted separately, in `PaletteContrastTests`.
 ///
 /// **The full page and `.accessibility5` never share a golden.** At that size the whole column
 /// is over 9,800px tall on an SE and past 12,000px on the wide device — long enough that the

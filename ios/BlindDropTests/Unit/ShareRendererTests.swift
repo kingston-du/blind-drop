@@ -83,8 +83,14 @@ import UIKit
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
-    /// **Both** variants are cleaned up, not only the one that was shared. Somebody who looked
-    /// at the story thumbnail and then sent the square-tall has had two files written for them.
+    /// **Both** variants are cleaned up, not only the one that was shared.
+    ///
+    /// The UI asks for one shape now (`ShareSheet` draws square-tall and offers no choice), so this
+    /// is the renderer's contract rather than a sequence a user can currently produce: `discard()`
+    /// answers for everything it wrote, whatever asked for it. `.story` is still spec'd, still
+    /// rendered on demand, and a cleanup that only swept the shape the UI happened to use would be
+    /// a card of real display names left in the temporary directory the day the other one is asked
+    /// for again.
     @Test func everyVariantWrittenIsAlsoDeleted() async throws {
         let renderer = ShareRenderer(loader: CountingArtworkLoader())
         var urls: [URL] = []
@@ -102,11 +108,10 @@ import UIKit
 
     /// **Two asks for the same variant at once produce one file, not two.**
     ///
-    /// This is the picker's ordinary sequence, not a contrived one: it starts the preselected
-    /// variant rendering the moment it appears and the button asks for the same one as soon as a
-    /// thumb lands, well inside the time a render takes. Two renders would mean two files and
-    /// one of them orphaned — a card of real names left in the temporary directory with nothing
-    /// holding its name.
+    /// This is the sheet's ordinary sequence, not a contrived one: it starts the card rendering the
+    /// moment it appears and the button asks for the same one as soon as a thumb lands, well inside
+    /// the time a render takes. Two renders would mean two files and one of them orphaned — a card
+    /// of real names left in the temporary directory with nothing holding its name.
     @Test func twoSimultaneousAsksForOneVariantRenderOnce() async throws {
         let renderer = ShareRenderer(loader: CountingArtworkLoader(delay: .milliseconds(20)))
 
@@ -145,7 +150,7 @@ import UIKit
     /// `discard()` sweeps the files it knows about, and a render that has not written yet is not
     /// one of them — so without a generation check the sweep runs, the render finishes, and a
     /// card of real display names is left in the temporary directory with nothing holding its
-    /// name. Dismissing the picker the moment it opens is all it takes.
+    /// name. Dismissing the sheet the moment it opens is all it takes.
     @Test func aRenderThatFinishesAfterDiscardCleansUpAfterItself() async throws {
         let renderer = ShareRenderer(loader: CountingArtworkLoader(delay: .milliseconds(500)))
 

@@ -83,24 +83,44 @@ private let variants = ShareCard.Variant.allCases
         #expect(difference > 0, "the card's numerals are drawn in the display face")
     }
 
-    /// The variant picker (`docs/10` §4): **two thumbnails, square-tall preselected**, and the
-    /// live card drawn inside each — not the rendered PNG, which is not on disk yet when the
-    /// sheet opens.
+    /// The share sheet (`docs/10` §4): **one square-tall preview, its caption and the button**,
+    /// with the live card drawn inside the preview — not the rendered PNG, which is not on disk
+    /// yet when the sheet opens.
     ///
-    /// Across the device axis because the picker's whole job is a side-by-side comparison, and
-    /// two thumbnails that do not fit an SE side by side is the way that job fails.
+    /// Across the device axis still, although the sheet's content is now a fixed width on both:
+    /// that is the assertion. A preview sized for one phone is exactly what the old two-thumbnail
+    /// picker had to be, and the golden is where a return to that would show up.
     @Test(arguments: SnapshotRenderer.Device.matrix)
-    func thePicker(_ device: SnapshotRenderer.Device) {
-        let sheet = ShareSheet(
-            content: ShareCardFixture.tonight,
-            renderer: ShareRenderer(loader: StubArtworkLoader.shared)
-        )
+    func theSheet(_ device: SnapshotRenderer.Device) {
         SnapshotRenderer.verify(
-            SnapshotRenderer.image(of: sheet.snapshotContent, device: device, typeSize: .large),
-            named: "Share-picker-\(device.name)",
+            SnapshotRenderer.image(of: Self.sheet.snapshotContent, device: device, typeSize: .large),
+            named: "Share-sheet-\(device.name)",
             in: "Share"
         )
     }
+
+    /// **The sheet fits the detent it opens at**, measured rather than eyeballed.
+    ///
+    /// `Layout.shareSheetHeight` is a fixed number arrived at by adding up tokens, and the way that
+    /// number goes wrong is silently: a preview one step wider, a caption that grows a line, and
+    /// the button is under the fold of a sheet that cannot be dragged for it. The render already
+    /// carries the sheet's own `screenInset` on all four sides — `SnapshotRenderer` applies exactly
+    /// the padding `body` does — so its height in points is the height the detent has to contain.
+    /// On the SE, because a detent that fits the small phone fits every phone.
+    @Test func theSheetFitsItsDetent() {
+        let image = SnapshotRenderer.image(
+            of: Self.sheet.snapshotContent, device: .iPhoneSE, typeSize: .large
+        )
+        #expect(image.size.height <= Layout.shareSheetHeight,
+                "the sheet is \(image.size.height)pt tall against a \(Layout.shareSheetHeight)pt detent")
+    }
+
+    /// One sheet, built once: it holds a renderer, and every test that draws it wants the same
+    /// stubbed one rather than a fresh temporary directory each time.
+    private static let sheet = ShareSheet(
+        content: ShareCardFixture.tonight,
+        renderer: ShareRenderer(loader: StubArtworkLoader.shared)
+    )
 
     private func verify(
         _ image: UIImage,

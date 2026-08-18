@@ -14,6 +14,8 @@ struct ProportionBar: View {
     /// The sentence the row announces. Built by the caller from `Copy`, because *"nobody got
     /// it"* and *"4 of 7 got it"* are different sentences and the choice between them is copy.
     let announcement: String
+    /// The resolved fill amount. Zero is the pre-arrival state used by results motion.
+    var fillProgress: Double = 1
 
     private var fraction: Double {
         guard whole > 0 else { return 0 }
@@ -41,7 +43,7 @@ struct ProportionBar: View {
                 Capsule().fill(Palette.track)
                 Capsule()
                     .fill(accent.fill)
-                    .frame(width: proxy.size.width * fraction)
+                    .frame(width: proxy.size.width * fraction * min(1, max(0, fillProgress)))
             }
         }
         .frame(height: trackHeight)

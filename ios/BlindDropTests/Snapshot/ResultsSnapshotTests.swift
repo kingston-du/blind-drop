@@ -23,6 +23,14 @@ private let sizes = SnapshotRenderer.typeSizes
 ///   name but not yet its mark, one with neither. The geometry has to be identical to the
 ///   settled render — *nothing lays out during the animation* (`docs/09` §1) — and that is a
 ///   claim only a picture of the middle can make.
+///
+/// **What every card golden here cannot show.** Since `E17-03` the answer card's track links are
+/// a `Menu` in its top right, and `ImageRenderer` draws a `Menu` as a yellow "unsupported view"
+/// placeholder — it is UIKit-backed and there is no host window to build it in. The placeholder
+/// occupies the menu's **real 44 × 44 frame**, so the claims these goldens make about it are the
+/// true ones: that it sits in the corner, and that nothing collides with it at any type size.
+/// Only the ellipsis glyph inside is lost. Do not fix this by branching the card on a test-only
+/// flag — the golden would then be a picture of something the app never renders.
 @MainActor
 @Suite struct ResultsSnapshots {
 
@@ -35,11 +43,20 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
-    /// SE only, not the full `devices` matrix — `docs/07` §5's card-corner track links
-    /// (`CardCornerLinks`) add a genuine ~90pt per card for two independently 44pt-tall tap
-    /// targets (`docs/12` §5), and eight cards of that on the 15 Pro Max's wider, higher-scale
-    /// canvas pushes the render past `UIImage.pngData()`'s ceiling — the same one this file's
-    /// own header already describes trimming `.accessibility1`/`5` off of for this exact reason.
+    /// SE only, not the full `devices` matrix.
+    ///
+    /// The reason was the track links: two independently 44pt-tall tap targets (`docs/12` §5) and
+    /// the gap above them were ~90pt on every card, and eight cards of that on the 15 Pro Max's
+    /// wider, higher-scale canvas pushed the render past `UIImage.pngData()`'s ceiling — the same
+    /// one this file's header describes trimming `.accessibility1`/`5` off for. `E17-03` spent
+    /// that height: the links are now one 44pt ellipsis in the card's top right
+    /// (`TrackUtilityMenu`), sharing a row with content that was already taller than it, so they
+    /// cost the card nothing at all.
+    ///
+    /// It stays SE-only anyway. The ceiling is a limit on this golden's *worst* case, not its
+    /// current one, and a whole-night render is the picture that grows every time a card gains a
+    /// line — the three-card matrix above is where the per-device differences are actually
+    /// checked, and this one is here to be recognisable as a night.
     @Test
     func theWholeNight() {
         verify(named: "Results-8", .iPhoneSE, .large) {

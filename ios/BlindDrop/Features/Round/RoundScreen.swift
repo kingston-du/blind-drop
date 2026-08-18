@@ -54,6 +54,9 @@ struct RoundScreen: View {
     /// `.task(id:)` does the loading, so the work is structured and cancels with the screen
     /// (`docs/13` §6) rather than being an unstructured `Task` per event.
     @State private var loadToken = 0
+    /// The last thing the clock actually told this screen about where the open round sits in
+    /// its own day. See `openState(_:)` for what it is for and why it is not a phase decision.
+    @State private var heldOpenState = HeldOpenState()
 
     var body: some View {
         content
@@ -105,33 +108,43 @@ struct RoundScreen: View {
         // for the phases whose screens do not (`Phase.bleedsToScreenEdge`). `Layout.screenInset`
         // is applied exactly once on any path from here to a pixel, and `RoundInsetTests` keeps
         // it that way by cross-checking the flag against which screens write the token.
-        return VStack(alignment: .leading, spacing: Layout.blockGap) {
-            VStack(alignment: .leading, spacing: Layout.blockGap) {
-                RoundHeader(
-                    groupName: headerName(store),
-                    dateHeadline: store.state.value?.dateHeadline,
-                    path: $router.path,
-                    showHowTo: { isShowingHowTo = true }
-                ) {
-                    badge(store: store, timer: timer)
+        return phase(store: store, timer: timer, submit: submit, seal: seal)
+            .padding(.horizontal, phaseInset(store))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .safeAreaInset(edge: .top, spacing: Space.none) {
+                VStack(alignment: .leading, spacing: Layout.blockGap) {
+                    RoundHeader(
+                        groupName: headerName(store),
+                        dateHeadline: store.state.value?.dateHeadline,
+                        path: $router.path,
+                        showHowTo: { isShowingHowTo = true }
+                    ) {
+                        badge(store: store, timer: timer)
+                    }
+                    if let error = store.state.error {
+                        OfflineBanner(error: error)
+                    }
                 }
-                if let error = store.state.error {
-                    OfflineBanner(error: error)
-                }
+                .padding(.horizontal, Layout.screenInset)
+                .padding(.top, Layout.chromeTop)
+                .padding(.bottom, Layout.itemGap)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Palette.paper)
             }
-            .padding(.horizontal, Layout.screenInset)
-
-            phase(store: store, timer: timer, submit: submit, seal: seal)
-                .padding(.horizontal, phaseInset(store))
-            Spacer(minLength: Space.none)
+        .task(id: phaseDeadlineID(store)) { await refreshAtPhaseDeadline(store) }
+        // Open, sealed, reveal and voided already render this timer. Its concrete deadline is
+        // the reliable transition signal; results is covered by the task above because it has
+        // no visible countdown to observe.
+        .onChange(of: timer.hasElapsed) { _, elapsed in
+            if elapsed == true { loadToken += 1 }
         }
-        .padding(.top, Layout.blockGap)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Every tick: has the thing being counted to passed? The **store** answers, from the
-        // server's clock, and the answer is a refetch. The view neither knows nor decides what
-        // comes next (`CLAUDE.md` §2.2).
-        .onChange(of: timer.display) {
-            if store.deadlineHasPassed() { loadToken += 1 }
+        // The hold, written down. Every evaluation of this body reads the clock through
+        // `liveOpenState(_:)`; the moment that reading is an answer rather than `.unknown` it
+        // is kept, and `openState(_:)` falls back to it while the clock has no anchor. `initial`
+        // because the first evaluation after a load is already an answer and there is nothing
+        // to wait for.
+        .onChange(of: liveOpenState(store), initial: true) { _, live in
+            if live.value != .unknown { heldOpenState = live }
         }
         .sheet(isPresented: $isSearching) {
             searchSheet(store: store, submit: submit, seal: seal)
@@ -152,6 +165,78 @@ struct RoundScreen: View {
                 close: { isShowingHowTo = false }
             )
         }
+    }
+
+    // MARK: - Where in the day the round sits
+
+    /// **The hold, and why it is not the client deciding a phase.**
+    ///
+    /// `RootView` invalidates the clock on every `scenePhase == .active` (`docs/13` §5 rule 5:
+    /// an uptime anchor does not advance while the device sleeps, so after any background period
+    /// it is a lie of exactly the length of the nap). For the length of the refetch that follows
+    /// — a round trip, on cellular, at eight in the evening — `env.clock.now` is `nil` and
+    /// `RoundContext.openState(now:)` correctly answers `.unknown`.
+    ///
+    /// A screen still has to draw something in that window. The three options are: guess, blank,
+    /// or hold. Guessing is what shipped and it is the bug — `.unknown` treated as *"open"* put
+    /// the search screen and its keyboard over a round that was closed, for the length of every
+    /// app open. Blanking to the skeleton would flash grey bars over a screen the app was told
+    /// was correct four hundred milliseconds ago, on every app open, for no new information.
+    /// So: **hold**. Render the last answer the clock actually gave, until it gives another.
+    ///
+    /// This is the argument `CountdownTimer.refresh()` already makes for the number inside the
+    /// badge (`docs/13` §5a), applied to the screen around it. It is worth being explicit about
+    /// what it is not, because `CLAUDE.md` §2.2 is the first thing a reviewer will reach for:
+    ///
+    /// - **It does not decide a phase.** `round.phase` is the server's word, decoded and never
+    ///   assigned on this side, and the hold cannot reach it. What is held is which side of
+    ///   `opens_at` the app was last told it is on — a fact *within* the `open` phase, about
+    ///   what to draw, not about what the round now is. A round moves from `open` to `revealed`
+    ///   because the server said so and for no other reason, and nothing here shortens or
+    ///   extends the blind window by a millisecond.
+    /// - **It does not act.** `deadlineHasPassed()` — the one place a clock reading turns into a
+    ///   request — deliberately ignores the hold and reads `ServerClock` directly. A refetch
+    ///   fires off a time the app currently has, or it does not fire.
+    /// - **It is scoped to the round it was read from.** A hold taken on one round is discarded
+    ///   the moment a different `round_id` is on screen, which is the same scoping
+    ///   `CountdownTimer.start(until:form:)` applies when it clears to `.unknown` for a deadline
+    ///   it has never shown a value for. Yesterday's answer is not this round's answer.
+    ///
+    /// **On a cold launch there is nothing held, and no flash either.** The two cannot both be
+    /// true unless a `RoundContext` can never exist alongside an unanchored clock, and it cannot:
+    /// `APIClient.send` calls `clock.sync(serverNow:)` on the envelope *before* it returns the
+    /// payload, so by the time `RoundStore.load()` reaches `state.apply(.success(…))` the clock
+    /// is anchored. Every path that produces a context goes through it — `load()` and `adopt(_:)`,
+    /// and `adopt` only ever rebuilds a context that already existed. Before the first successful
+    /// response there is no context and `phase(…)` draws the skeleton, which is the honest thing
+    /// to draw when the app knows neither the phase nor the hour. `RoundStoreTests` asserts both
+    /// halves.
+    private func openState(_ context: RoundContext) -> RoundContext.OpenState {
+        let live = context.openState(now: env.clock.now)
+        guard live == .unknown else { return live }
+        guard heldOpenState.roundID == context.round.id else { return .unknown }
+        return heldOpenState.value
+    }
+
+    /// What the phase on screen is counting to, with the hold applied.
+    ///
+    /// `nil` only for an `open` round on a clock that has never been anchored — the cold-launch
+    /// case the note above rules out. The other four rows of `RoundContext`'s table do not
+    /// consult the clock at all, so a voided round knows what it is counting to whatever the
+    /// clock is doing.
+    private func deadline(_ context: RoundContext) -> Date? {
+        context.deadline(openState: openState(context))
+    }
+
+    /// The reading as the clock has it *this instant*, before any hold is applied — the value
+    /// the `.onChange` in `loaded(…)` watches. Carrying the round's id means the hold is stored
+    /// with the thing that makes it valid rather than beside it.
+    private func liveOpenState(_ store: RoundStore) -> HeldOpenState {
+        guard let context = store.state.value else { return HeldOpenState() }
+        return HeldOpenState(
+            roundID: context.round.id,
+            value: context.openState(now: env.clock.now)
+        )
     }
 
     // MARK: - The phases
@@ -176,32 +261,50 @@ struct RoundScreen: View {
                     // `docs/05` §4: the ask lands after the first seal and never at launch. The
                     // registrar decides whether there is anything to ask.
                     .task { await env.push.promptAfterFirstSeal() }
-                } else {
+                } else if let deadline = deadline(context) {
                     // **The search screen is the screen** — there is no lobby in front of it.
                     // Choosing a song pushes the confirm step, which is the same destination the
                     // replacement sheet pushes, so the seal happens in exactly one place.
+                    //
+                    // Both arguments are resolved *here*, against the hold, and handed down
+                    // already settled. `SubmitScreen` raises the keyboard on appear, and the one
+                    // thing it must never be handed is a maybe: this branch existing at all is
+                    // the guarantee that `isBeforeOpen` is an answer the clock gave rather than
+                    // one the screen assumed.
                     SubmitScreen(
                         context: context,
                         store: submit,
                         player: player,
                         timer: timer,
-                        deadline: context.deadline(now: env.clock.now),
-                        isBeforeOpen: context.isBeforeOpen(now: env.clock.now),
+                        deadline: deadline,
+                        isBeforeOpen: openState(context) == .beforeOpen,
                         choose: { track in
                             seal.reset()
                             didReplace = false
                             confirmingDirect = track
                         }
                     )
+                } else {
+                    // `.unknown` with nothing held: a context on an unanchored clock, which the
+                    // note on `openState(_:)` shows cannot happen. It is drawn rather than
+                    // asserted because the skeleton is already what this screen shows when it
+                    // does not know what to draw, and because the alternative — falling back to
+                    // one side of `opens_at` — is the bug this task removed.
+                    RoundSkeleton()
                 }
 
             case let .voided(mySubmission):
-                VoidedScreen(
-                    context: context,
-                    submission: mySubmission,
-                    timer: timer,
-                    deadline: context.deadline(now: env.clock.now)
-                )
+                // Never `nil` on this phase — tomorrow's opening is a day added to `opens_at` on
+                // the group's calendar and the clock has no say in it. Unwrapped rather than
+                // special-cased so there is one expression for "what is this screen counting to".
+                if let deadline = deadline(context) {
+                    VoidedScreen(
+                        context: context,
+                        submission: mySubmission,
+                        timer: timer,
+                        deadline: deadline
+                    )
+                }
 
             // The two that scroll bleed to the edge and inset themselves: a scroll indicator
             // belongs at the screen's edge, and the reveal's guess sheet is pinned across the
@@ -214,7 +317,8 @@ struct RoundScreen: View {
                     groupInitial: context.groupInitial,
                     me: store.me,
                     timer: timer,
-                    player: player
+                    player: player,
+                    refreshRound: { loadToken += 1 }
                 )
 
             case .scored:
@@ -235,6 +339,33 @@ struct RoundScreen: View {
     private func phaseInset(_ store: RoundStore) -> CGFloat {
         guard let phase = store.state.value?.round.phase else { return Layout.screenInset }
         return phase.bleedsToScreenEdge ? Space.none : Layout.screenInset
+    }
+
+    private func phaseDeadlineID(_ store: RoundStore) -> String? {
+        guard let context = store.state.value,
+              case .scored = context.round.phase,
+              let deadline = deadline(context)
+        else { return nil }
+        return "\(context.round.id)#\(deadline.timeIntervalSinceReferenceDate)"
+    }
+
+    private func refreshAtPhaseDeadline(_ store: RoundStore) async {
+        guard let context = store.state.value,
+              case .scored = context.round.phase,
+              let deadline = deadline(context)
+        else { return }
+        while !Task.isCancelled {
+            guard let now = env.clock.now else {
+                try? await Task.sleep(for: .seconds(1))
+                continue
+            }
+            let remaining = deadline.timeIntervalSince(now)
+            if remaining <= 0 {
+                loadToken += 1
+                return
+            }
+            try? await Task.sleep(for: .seconds(min(remaining, 60)))
+        }
     }
 
     // MARK: - The sheet
@@ -321,13 +452,10 @@ struct RoundScreen: View {
 
     // MARK: - Chrome
 
-    /// The group's name, or nothing on the phases that draw their own title (`docs/08` §6).
+    /// The group's name on every phase; reveal/results add their own phase title below it.
     private func headerName(_ store: RoundStore) -> String? {
         guard let context = store.state.value else { return nil }
-        return switch context.round.phase {
-        case .open, .voided: context.group.name
-        case .revealed, .scored: nil
-        }
+        return context.group.name
     }
 
     /// The status badge in the corner: what the round is doing, and when it stops doing it.
@@ -335,16 +463,25 @@ struct RoundScreen: View {
     /// Only the two amber phases carry one. The reveal and the results draw their own headers
     /// with their own countdowns, and a second clock in the corner would be the same number
     /// twice — the header would be arguing with the screen underneath it.
+    ///
+    /// The dark hours have no badge — the countdown they own is the big one in the middle of
+    /// `SubmitScreen.closed`, and a second copy of it in the corner would be the header arguing
+    /// with the screen for a different reason. That is why the test here is `== .open` rather
+    /// than `!= .beforeOpen`: `.unknown` draws nothing. Held, that case does not arise; unheld,
+    /// drawing nothing for a moment is the one option that cannot be wrong, and it is also what
+    /// keeps `CountdownView` from being re-pointed at a deadline the app is unsure of — a
+    /// changed `deadline` clears the timer to `--:--:--` (`docs/13` §5a), which is precisely the
+    /// blink the hold exists to prevent.
     @ViewBuilder private func badge(store: RoundStore, timer: CountdownTimer) -> some View {
         if let context = store.state.value {
             switch context.round.phase {
             case let .open(mySubmission):
                 if mySubmission != nil {
                     StatusBadge("sealed.badge", accent: .sealed)
-                } else if !context.isBeforeOpen(now: env.clock.now) {
+                } else if openState(context) == .open, let deadline = deadline(context) {
                     CountdownView(
                         timer: timer,
-                        deadline: context.deadline(now: env.clock.now),
+                        deadline: deadline,
                         accent: .sealed,
                         announces: .reveal,
                         prominence: .badge,
@@ -366,6 +503,20 @@ struct RoundScreen: View {
     }
 }
 
+/// One reading of `RoundContext.openState(now:)`, kept together with the round it was read from.
+///
+/// A pair rather than two `@State`s because the id is what makes the value mean anything: a
+/// `.beforeOpen` remembered from yesterday's round is not an answer about today's, and storing
+/// the two side by side leaves it to whoever writes the next line to remember to check. It is
+/// also the value `.onChange(of:)` watches, which is why it is `Equatable` — the observation and
+/// the storage are the same shape on purpose, so there is no conversion step where the id could
+/// be dropped.
+private struct HeldOpenState: Equatable {
+    /// `nil` before any round has loaded, which no `round_id` matches.
+    var roundID: String?
+    var value: RoundContext.OpenState = .unknown
+}
+
 /// The reveal, with a store that survives a refetch.
 ///
 /// It exists for one reason: `RevealStore` holds the caller's **in-progress** sheet — the focused
@@ -383,6 +534,7 @@ private struct RevealHost: View {
     let me: String?
     let timer: CountdownTimer
     let player: PreviewPlayer
+    let refreshRound: () -> Void
 
     @State private var store: RevealStore?
     @State private var unseal: UnsealAnimation?
@@ -417,7 +569,9 @@ private struct RevealHost: View {
                 me: me,
                 saveGuesses: { assignments in
                     try await api.send(.saveGuesses(assignments))
-                }
+                },
+                haptics: env.haptics,
+                onLockInSaved: refreshRound
             )
             built.adopt(payload.myGuesses)
             built.answersAt = answersAt

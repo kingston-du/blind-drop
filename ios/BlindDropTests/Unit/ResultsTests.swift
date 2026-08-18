@@ -113,17 +113,19 @@ import Testing
     @Test func theTimelineStaggersNamesAndTrailsEachMarkBehindItsOwn() {
         let events = ResolveAnimation.timeline(cardNumbers: [1, 2, 3])
 
-        #expect(events.map(\.at) == [0, 80, 120, 200, 240, 320])
-        #expect(events.map(\.cardNumber) == [1, 1, 2, 2, 3, 3])
-        #expect(events.map(\.kind) == [.name, .mark, .name, .mark, .name, .mark])
+        #expect(events.map(\.at) == [0, 80, 120, 160, 200, 240, 280, 320, 400])
+        #expect(events.map(\.cardNumber) == [1, 1, 2, 1, 2, 3, 2, 3, 3])
+        #expect(events.map(\.kind) == [
+            .name, .mark, .name, .bar, .mark, .name, .bar, .mark, .bar
+        ])
     }
 
     /// The card numbers are the server's, not indices: a flight that starts at No. 1 and a
     /// hypothetical one that does not are scheduled the same way.
     @Test func theTimelineSchedulesByPositionAndCarriesTheCardsOwnNumber() {
         let events = ResolveAnimation.timeline(cardNumbers: [7, 4])
-        #expect(events.map { ($0.at, $0.cardNumber) }.map(\.0) == [0, 80, 120, 200])
-        #expect(events.map(\.cardNumber) == [7, 7, 4, 4])
+        #expect(events.map { ($0.at, $0.cardNumber) }.map(\.0) == [0, 80, 120, 160, 200, 280])
+        #expect(events.map(\.cardNumber) == [7, 7, 4, 7, 4, 4])
     }
 
     /// **Any scroll gesture completes the whole sequence immediately** (`docs/09` §4). Nothing

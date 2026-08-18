@@ -30,6 +30,25 @@ import Testing
         #expect(Layout.namePoolMaximumHeightFraction == 0.4)
     }
 
+    /// `E17-03`: the answer card's links are an ellipsis menu now, and the menu is
+    /// `accessibilityHidden` — the card is a single VoiceOver element (`docs/12` §2), so a menu
+    /// inside the collapse is reachable by direct touch and by nobody swiping. `FlightCard.body`
+    /// re-exposes both links as custom actions on the card, and this asserts what that block can
+    /// actually build: a track carrying both services yields both destinations, and a track
+    /// carrying only Apple Music yields exactly one — an action that opened nothing would be
+    /// worse than no action, so the `if let` in front of each is the test's real subject.
+    @Test func bothTrackLinksAreReachableAsCardActions() {
+        let both = TrackDTO.onBothServices
+        #expect(TrackLinkDestination.appleMusic(track: both) != nil)
+        #expect(TrackLinkDestination.spotify(track: both) != nil)
+
+        // Apple Music is the only service `TrackDTO` requires, so this is the shape most of the
+        // record is in: one action, not two, and not one dead one.
+        let appleOnly = TrackDTO.motionSickness
+        #expect(TrackLinkDestination.appleMusic(track: appleOnly) != nil)
+        #expect(TrackLinkDestination.spotify(track: appleOnly) == nil)
+    }
+
     @Test(arguments: [
         (DynamicTypeSize.large, NamePoolLayout.horizontalScroll),
         (.accessibility2, .horizontalScroll),
@@ -42,4 +61,25 @@ import Testing
     ) {
         #expect(NamePoolLayout(dynamicTypeSize: size) == expected)
     }
+}
+
+private extension TrackDTO {
+    /// A track on both services. The unit target's shared fixtures
+    /// (`PreviewPlayerTests`' `.motionSickness` and friends) are all Apple-only, and Apple-only
+    /// is the case that cannot tell a card exposing one link from a card exposing two.
+    static let onBothServices = TrackDTO(
+        trackKey: "isrc:USUM71300456",
+        isrc: "USUM71300456",
+        title: "Eenie Meenie",
+        artist: "Sean Kingston & Justin Bieber",
+        album: "Sean Kingston & Justin Bieber",
+        artworkURL: "https://example.test/{w}x{h}bb.jpg",
+        artworkBackgroundColor: "1d2b3a",
+        durationMilliseconds: 194_000,
+        previewURL: nil,
+        appleMusicID: "1440857783",
+        appleMusicURL: URL(string: "https://music.apple.com/us/song/eenie-meenie/1440857783")!,
+        spotifyID: "3a1lNhkSLSkpJE4MSHpDu9",
+        spotifyURL: URL(string: "https://open.spotify.com/track/3a1lNhkSLSkpJE4MSHpDu9")!
+    )
 }

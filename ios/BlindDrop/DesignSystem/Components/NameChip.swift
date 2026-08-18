@@ -33,6 +33,15 @@ struct NameChip: View {
     /// chip rather than disappear behind a one-line truncation.
     var allowsWrapping = false
 
+    /// `Layout.nameChipMinimumWidth`, scaled with the body text it sits behind (`E26-02`).
+    ///
+    /// Scaled rather than constant because the floor is expressed in characters — *about six* —
+    /// and a character is not a fixed number of points. A 72-point floor against 17-point text is
+    /// a comfortable pill; the same 72 against `accessibility2`'s 28-point text is narrower than
+    /// the word inside it, which puts the floor below the natural width and makes it do nothing
+    /// at exactly the sizes where an even row of targets matters most.
+    @ScaledMetric(relativeTo: .body) private var minimumWidth = Layout.nameChipMinimumWidth
+
     /// A chip's three states. `.consumed` carries the card number it went to, because *"already
     /// used"* is not the fact — *"on No. 3"* is, and it is what the announcement says.
     enum State: Equatable {
@@ -57,7 +66,19 @@ struct NameChip: View {
                 .lineLimit(allowsWrapping ? nil : 1)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Space.md)
-                .frame(minHeight: Layout.chipHeight)
+                // The pill has a floor as well as a height (`E26-02`). Without it the row is as
+                // ragged as the names in it — "Jo" draws a 40-point target next to a 90-point
+                // one — and picking a name becomes an aiming problem rather than a reading one.
+                //
+                // **Only in the row.** `allowsWrapping` marks the accessibility-size grid, whose
+                // two flexible columns already give every chip the same width — so the floor has
+                // no evening-out left to do there, and it does harm: a 72-point floor scaled to
+                // `accessibility5` is over 200, wider than half an SE, and the columns overlap
+                // into each other rather than sitting side by side.
+                .frame(
+                    minWidth: allowsWrapping ? nil : minimumWidth,
+                    minHeight: Layout.chipHeight
+                )
                 .background(
                     RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).fill(fill)
                 )

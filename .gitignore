@@ -48,6 +48,13 @@ ios/BlindDropTests/__Snapshots__/__Failures__/
 ios/BlindDropTests/__Snapshots__/__Failures__/
 
 # ── Agent scratch ────────────────────────────────────────────────────────────
-# Local agent state and git worktrees. Not part of the project, and a worktree added here by
-# `git add -A` lands in the history as a gitlink nobody can resolve.
-.claude/
+# Local agent state and git worktrees. A worktree added here by `git add -A` lands in the
+# history as a gitlink nobody can resolve, so it stays ignored.
+.claude/*
+.claude/worktrees/
+
+# The shared Claude configuration is part of the project and is committed: the project agents
+# (`reviewer`, `verifier`) and the `/next-slice` command are how CLAUDE.md §8 is actually
+# executed, and an agent definition only one machine has is one that silently does not run.
+!.claude/agents/
+!.claude/commands/

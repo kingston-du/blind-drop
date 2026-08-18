@@ -223,7 +223,11 @@ Accent: **ultramarine**. This screen must work equally well at 6 cards and 12.
 
 ```
 ┌─────────────────────────────┐
+│  The Cove          [?] [≡]  │   RoundHeader: the group's name on every phase (E17-09)
+│  Monday 10 August           │   monoS inkDim
+│                             │
 │  Tonight's drop  (01:42:19) │   displayL ink + ultramarine countdown badge
+│                             │   the badge takes its own row above .accessibility1
 │  8 songs                    │   bodyM inkDim
 │                             │
 │  ┌───────────────────────┐  │
@@ -241,8 +245,11 @@ Accent: **ultramarine**. This screen must work equally well at 6 cards and 12.
 │              ⋮              │     because your card is still your secret
 │                             │
 ├─────────────────────────────┤   surface, rounded at the top two corners only
-│            ▁▁▁              │   grab bar
-│  YOUR CALL SHEET  6/7 ASSIGNED │  label, both ends
+│            ▁▁▁              │   grab bar — inside the header's tap region, not
+│  YOUR CALL SHEET  6/7 ASSIGNED │  a control of its own (E17-10)
+│                             │   the whole row toggles the detent; the trailing
+│                             │   slot reads NAMING NO. 4 while a card is focused
+│                             │   and CHANGE A GUESS once locked
 │  Ana  Ben  C̶a̶l̶  Dee  Eli    │   name pool, pinned, horizontally scrollable;
 │  ┌───────────────────────┐  │   a spent name is struck through as well as dimmed
 │  │  Lock in guesses      │  │   PrimaryButton, ultramarine
@@ -298,7 +305,9 @@ tracked by a persisted `hasSeenUnseal(roundId)` flag. Never on a re-open.
 
 ## 7. Results — `scored`
 
-Accent: **ultramarine**. Three sections in one scroll.
+Accent: **ultramarine**. Three sections in one scroll, under the same `RoundHeader` §6 draws —
+the group's name and the date, on this phase as on every other (E17-09). *"Answers"* is the
+screen's own title and sits below it; the two are different registers and do not compete.
 
 ### 7.1 Answers, card by card
 Each card resolves: the number, the artwork, the track, and the owner's name arriving in

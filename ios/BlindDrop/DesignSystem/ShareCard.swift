@@ -28,10 +28,17 @@ enum ShareCard {
     static func canvas(_ pixels: CGFloat) -> CGFloat { pixels / scale }
 
     /// The two artifacts (`docs/10` §1).
+    ///
+    /// Both shapes stay in the model; only one of them has a way out of the app. `ShareSheet`
+    /// renders `.squareTall` and offers no choice, so `.story` is currently drawn by the goldens
+    /// and by nothing else — kept because `docs/10` §3 specifies it, because the share card is the
+    /// surface most likely to want a second shape back, and because deleting a spec'd artifact to
+    /// tidy up an enum is a product decision rather than a cleanup.
     enum Variant: String, CaseIterable, Identifiable, Sendable {
-        /// 1080 × 1350. **The default** — iMessage is where this actually gets pasted.
+        /// 1080 × 1350, and the one the share sheet draws — iMessage is where this actually gets
+        /// pasted.
         case squareTall
-        /// 1080 × 1920, for Stories.
+        /// 1080 × 1920, for Stories. Rendered on demand; not offered by the UI.
         case story
 
         var id: String { rawValue }
@@ -80,14 +87,6 @@ enum ShareCard {
         /// accessibility sizes — except that a rendered image has no type size, so here it is a
         /// property of the shape and nothing else.
         var stacksHeadline: Bool { self == .story }
-
-        /// The picker's label for this thumbnail (`docs/11` — `results.share.*`).
-        var pickerLabel: LocalizedStringKey {
-            switch self {
-            case .squareTall: "results.share.square"
-            case .story: "results.share.story"
-            }
-        }
     }
 
     /// *"Artwork at 96pt, `Radius.artwork`, unmodified"* (`docs/10` §3).

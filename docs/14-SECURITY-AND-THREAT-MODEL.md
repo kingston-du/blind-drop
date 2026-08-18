@@ -105,6 +105,8 @@ helper enforces steps 5–6 in both its read and write paths:
 
 - **The group is never taken from the request.** It comes from the caller's active
   membership (ADR-005). There is no `group_id` parameter anywhere in the client-facing API,
+  <!-- ADR-011: from E18-01 there is one, and this section's guarantee is re-established by an
+       explicit membership check on every group-scoped route, plus the non-member tests it names. -->
   so there is no IDOR surface for group data.
 - `round_id` in a path is validated to belong to the caller's group before anything is read.
 - RLS is deny-by-default on every table as a second lock. It is not the primary control and

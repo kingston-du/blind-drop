@@ -99,20 +99,45 @@ struct RevealScreen: View {
     /// VoiceOver jumps to No. 11 on a twelve-card reveal, and how the scroll view knows to bring
     /// it into view when it does.
     @Namespace private var songs
+    @State private var callSheetDetent: CallSheetDetent = .peek
+    @State private var callSheet = CallSheetMetrics()
+    @State private var scrollTarget: Int?
+    /// Each card's frame in the `"reveal-flight"` coordinate space, last reported by
+    /// `RevealCardFrames`. Held so `occludedByOpenSheet` changing — which is not itself a card
+    /// frame changing — can still recompute visibility against it. See the `onChange` in `flight`.
+    @State private var cardFrames: [Int: CGRect] = [:]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
 
     private let accent = PhaseAccent.revealed
 
+    /// `FlightCard`, `ResultsScreen` and `StandingsView` all draw the same line at
+    /// `.accessibility1`, and this row belongs on the same side of it.
+    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
+
     var body: some View {
         GeometryReader { proxy in
-            VStack(spacing: Space.none) {
+            ZStack(alignment: .bottom) {
                 flight
-                // Pinned, so the names stay reachable however far down the flight the reader is
-                // (`docs/08` §6). The two scroll independently.
-                GuessSheet(store: store, availableHeight: proxy.size.height)
+                    // The flight keeps a constant landing strip. The open sheet overlays it
+                    // rather than resizing it, so a twelve-card list never relays out mid-drag.
+                    .safeAreaInset(edge: .bottom, spacing: Space.none) {
+                        Color.clear.frame(height: callSheet.peek)
+                    }
+                GuessSheet(
+                    store: store,
+                    availableHeight: proxy.size.height,
+                    bottomInset: proxy.safeAreaInsets.bottom,
+                    detent: $callSheetDetent,
+                    onMetrics: { callSheet = $0 },
+                    lockIn: { callSheetDetent = .peek }
+                )
             }
+            // The panel is a bottom surface, not a safe-area-sized card. Extending this stack
+            // through the home-indicator region removes the paper seam beneath both detents.
+            .ignoresSafeArea(.container, edges: .bottom)
         }
         .background(Palette.paper)
         // `docs/12` §2: *"Assigning a guess posts an `.announcement`"*. Posted here rather than
@@ -123,27 +148,98 @@ struct RevealScreen: View {
             AccessibilityNotification.Announcement(announcement).post()
             store.consumeAnnouncement()
         }
-        .task { await unseal?.run(reducedMotion: reduceMotion) }
+        // **The flight follows the focus, not just the tap.** Assigning a name advances the store
+        // to the next unassigned card (`docs/08` §6), and until this existed the screen did not
+        // go with it: the ring moved to a card that was often below the open sheet, so every
+        // second name meant scrolling to find out where the interaction had gone. Driving the
+        // scroll from `focusedCard` rather than from the card tap covers both directions into
+        // `assign(_:to:)`, which is the same reason the store puts them through one function.
+        .onChange(of: store.focusedCard) { _, card in scrollTarget = card }
+        .task {
+            // Both of this screen's notes, warmed before either can fire.
+            store.prepareHaptics()
+            await unseal?.run(reducedMotion: reduceMotion)
+        }
         .onDisappear {
             player?.stop()
             store.cancelPendingSave()
         }
     }
 
+    /// How much of the flight an **open** sheet stands in front of.
+    ///
+    /// Zero at peek, where the reserved inset already accounts for everything on screen.
+    private var occludedByOpenSheet: CGFloat {
+        callSheetDetent == .open ? callSheet.occluded : Space.none
+    }
+
+    /// Recomputes which cards are actually on screen and tells `unseal` — the one call site
+    /// both the frame-preference change and the sheet-occlusion change route through, so the two
+    /// triggers can never disagree about how the bounds are built.
+    private func updateVisibleCards(viewportSize: CGSize) {
+        let bounds = CGRect(
+            origin: .zero,
+            size: CGSize(
+                width: viewportSize.width,
+                height: max(0, viewportSize.height - occludedByOpenSheet)
+            )
+        )
+        unseal?.updateVisibleCards(Set(cardFrames.compactMap { number, frame in
+            frame.intersects(bounds) && frame.width > 0 && frame.height > 0 ? number : nil
+        }))
+    }
+
     private var flight: some View {
         GeometryReader { viewport in
-            ScrollView {
-                // The screen inset belongs to the scroll container, not to the column inside it
-                // (`docs/07` §4). Keeping it here is also what lets `content` be snapshot directly.
-                content
-                    .padding(.horizontal, Layout.screenInset)
+            ScrollViewReader { reader in
+                ScrollView {
+                    // The screen inset belongs to the scroll container, not to the column inside it
+                    // (`docs/07` §4). Keeping it here is also what lets `content` be snapshot directly.
+                    content
+                        .padding(.horizontal, Layout.screenInset)
+                        // **What the open sheet covers has to stay reachable.** The flight
+                        // reserves the *peek* height and nothing more, which is what keeps twelve
+                        // cards from being re-laid-out on every frame of a drag (`E17-06`) — but
+                        // on its own it also means the flight can only scroll as far as a
+                        // collapsed sheet needs, and the last card or two sit permanently behind
+                        // an open one. On the eight-card fixture No. 8 was not merely awkward to
+                        // reach: it could not be brought into view at all.
+                        //
+                        // Trailing space on the scrolled column, which lengthens the scrollable
+                        // extent without touching any card's geometry — the guarantee above
+                        // survives. Not `contentMargins(.bottom, …, for: .scrollContent)`, which
+                        // reads like the right tool and is not: it *replaces* the margin the
+                        // bottom safe-area inset already contributes rather than adding to it, so
+                        // it hands back with one hand what the inset gave with the other and
+                        // No. 8 stays exactly where it was. And keyed off the settled detent
+                        // rather than the live drag, so it changes once per transition instead of
+                        // sixty times a second.
+                        .padding(.bottom, occludedByOpenSheet)
+                }
+                .onChange(of: scrollTarget) { _, target in
+                    guard let target else { return }
+                    withAnimation(Motion.CallSheet.spring) {
+                        // The top anchor keeps the focused card above the open sheet without
+                        // changing the flight's layout while the sheet animates over it.
+                        reader.scrollTo(target, anchor: .top)
+                    }
+                }
             }
             .coordinateSpace(name: "reveal-flight")
             .onPreferenceChange(RevealCardFrames.self) { frames in
-                let bounds = CGRect(origin: .zero, size: viewport.size)
-                unseal?.updateVisibleCards(Set(frames.compactMap { number, frame in
-                    frame.intersects(bounds) && frame.width > 0 && frame.height > 0 ? number : nil
-                }))
+                cardFrames = frames
+                updateVisibleCards(viewportSize: viewport.size)
+            }
+            // **The sheet opening is also a bounds change, not only a scroll.** The preference
+            // above fires when a card's *frame* changes, which is scroll-driven — tap the peek
+            // header open with no card focused, and nothing scrolls, so nothing would have
+            // recomputed which cards the now-open sheet covers. `unseal.updateVisibleCards` would
+            // have kept running against the bounds from before the sheet opened, and a card
+            // scheduled to unseal in that window could release while genuinely hidden behind it.
+            // Recomputing here, off the settled detent, closes the other half of what the padding
+            // above already does for scrolling.
+            .onChange(of: occludedByOpenSheet) { _, _ in
+                updateVisibleCards(viewportSize: viewport.size)
             }
             // `docs/12` §2: *"reveal cards form a custom rotor 'Songs' so a VoiceOver user can
             // jump between numbers directly"*.
@@ -201,13 +297,28 @@ struct RevealScreen: View {
     /// means nothing in the column moves when it does.
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            HStack(alignment: .center, spacing: Space.md) {
+            // **The badge takes its own row at accessibility sizes.** Sharing one with the title
+            // is right at ordinary sizes and catastrophic above `.accessibility1`: the countdown
+            // is eight monospaced digits with no line to break on, so it claims the row's whole
+            // width and leaves the title whatever is left — which at `accessibility5` was four
+            // points, one wrapped letter of *"Tonight's drop"*, the descender of a **p** floating
+            // under the date. The `Spacer`'s `minLength` cannot prevent that; only not competing
+            // for the row can. Same `.accessibility1` boundary as `FlightCard` and the standings.
+            if isStacked {
                 Text(verbatim: Copy.string("reveal.title"))
                     .typeStyle(.displayL)
                     .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: Space.sm)
                 countdown
+            } else {
+                HStack(alignment: .center, spacing: Space.md) {
+                    Text(verbatim: Copy.string("reveal.title"))
+                        .typeStyle(.displayL)
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: Space.sm)
+                    countdown
+                }
             }
             songCount
         }
@@ -268,8 +379,13 @@ struct RevealScreen: View {
                 // A card the caller cannot act on is not a button. `.mine` and `.unavailable`
                 // both land here, from opposite directions: one is theirs already, the other is
                 // never going to be theirs to fill in.
+                // `scrollTarget` is not set here: `tapCard` moves `focusedCard`, and the
+                // `onChange` above is the one place the flight is scrolled from.
                 chooseGuess: store.isGuessable(card.cardNumber)
-                    ? { store.tapCard(card.cardNumber) }
+                    ? {
+                        callSheetDetent = .open
+                        store.tapCard(card.cardNumber)
+                    }
                     : nil,
                 clearGuess: store.isLocked || state.guesses[card.cardNumber] == nil
                     ? nil
@@ -282,6 +398,7 @@ struct RevealScreen: View {
                     )
                 }
             )
+            .id(card.cardNumber)
             .overlay(focusRing(on: card.cardNumber))
             .background {
                 GeometryReader { proxy in

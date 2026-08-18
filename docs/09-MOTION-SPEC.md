@@ -23,7 +23,7 @@ verified with Instruments (`15-TESTING-AND-ACCEPTANCE.md` AC-11).
 |---|---|---|
 | **The seal** | ~600ms | disproportionate |
 | **The unseal** | ~380ms per card, staggered | disproportionate |
-| Results name-resolve | 220ms × 120ms stagger | moderate |
+| Results name-resolve | 220ms × 120ms stagger, with the room bar filling after each mark | moderate |
 | Screen transitions | iOS default | none |
 | Button press | 120ms, scale 0.985 | none |
 | Everything else | iOS default spring | none |
@@ -146,6 +146,10 @@ their phones at the same second.
 One haptic only: `.impact(.soft)` at the **first** card's cover release. Twelve haptics is a
 massage chair.
 
+Reveal interaction adds two committed notes: `.impact(.light)` at intensity 0.5 when a name
+lands on a card, and `.impact(.rigid)` at intensity 0.9 when guesses lock in. Selection alone is
+silent; it is pickup, not commitment.
+
 Cards below the fold animate when scrolled into view if the sequence has already passed them,
 so nothing appears pre-unsealed.
 
@@ -155,8 +159,9 @@ Persist `hasSeenUnseal(roundId)` in `UserDefaults`. Runs exactly once per round.
 
 ## 4. Results name-resolve
 
-Card owners' names arrive top-to-bottom, 120ms apart, each a 220ms crossfade plus `y: 4 → 0`.
-The correct/incorrect mark on your guess arrives 80ms after its name.
+Card owners' names arrive top-to-bottom, 120ms apart, each a 220ms crossfade plus `y: 8 → 0`.
+The correct/incorrect mark on your guess arrives 80ms after its name. The room bar fills 80ms
+after that mark.
 
 **Any scroll gesture completes the entire sequence immediately.** A user who already knows
 what they want to see must never be made to wait for an animation. Runs once per round.

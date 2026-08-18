@@ -88,6 +88,8 @@ final class RevealStore {
     private(set) var announcement: String?
 
     private let saveGuesses: GuessSaver?
+    private let haptics: HapticEngine?
+    private let onLockInSaved: (() -> Void)?
     private var saveTask: Task<Void, Never>?
     private var editRevision = 0
 
@@ -100,7 +102,9 @@ final class RevealStore {
         canGuess: Bool,
         cannotGuessReason: CannotGuessReason? = nil,
         me: String?,
-        saveGuesses: GuessSaver? = nil
+        saveGuesses: GuessSaver? = nil,
+        haptics: HapticEngine? = nil,
+        onLockInSaved: (() -> Void)? = nil
     ) {
         self.cards = cards
         self.pool = pool.filter { $0.userID != me }
@@ -108,6 +112,8 @@ final class RevealStore {
         self.canGuess = canGuess
         self.cannotGuessReason = cannotGuessReason
         self.saveGuesses = saveGuesses
+        self.haptics = haptics
+        self.onLockInSaved = onLockInSaved
     }
 
     /// Adopts the caller's saved sheet — what `GET /rounds/current` returned in `my_guesses`.
@@ -222,11 +228,21 @@ final class RevealStore {
 
     /// Confirms the current sheet and dismisses its active focus. Saving has already happened on
     /// every edit; this also replaces a pending debounce with an immediate final whole-sheet PUT.
+    ///
+    /// **Clears `saveErrorKey` first, like `didEdit()` does.** `RevealScreen` collapses the sheet
+    /// to peek the moment this is called (`lockIn?()`, optimistic), and `GuessSheet` forces it
+    /// back open on `saveErrorKey`'s `onChange`. That only fires on a *change of value* — retry
+    /// after an offline failure and fail again the same way, and an uncleared key would still
+    /// read `"error.offline"` before and after, so the view never sees a transition and the sheet
+    /// stays collapsed on a failure nobody can see. Starting from `nil` here guarantees the next
+    /// failure, identical or not, is a real `nil → key` change and reopens the sheet every time.
     func lockIn() {
         guard canGuess, !assignments.isEmpty else { return }
         isLocked = true
+        saveErrorKey = nil
         focusedCard = nil
         selectedMember = nil
+        haptics?.fire(.stampLands)
         scheduleSave(debounce: false)
     }
 
@@ -236,6 +252,24 @@ final class RevealStore {
         isLocked = false
         saveErrorKey = nil
         focusedCard = cards.lazy.map(\.cardNumber).first { isAssignable($0) }
+    }
+
+    /// Warms the two notes this screen can play, once, when it appears.
+    ///
+    /// The reveal fires `.nameLands` on every assignment and `.stampLands` on the lock-in, and
+    /// until this existed both of them played on a cold generator — the exact frame-or-two lag
+    /// `SystemHaptics` was written to avoid, and the one the seal already guards against by
+    /// warming at the top of its run. An assignment is a single tap with no lead-in, so there is
+    /// no moment inside the interaction late enough to warm at and early enough to matter.
+    func prepareHaptics() {
+        haptics?.prepare(.nameLands)
+        haptics?.prepare(.stampLands)
+    }
+
+    /// Collapsing the call sheet releases a half-completed tap without changing any assignment.
+    func dismissSheet() {
+        focusedCard = nil
+        selectedMember = nil
     }
 
     /// The view owns the lifetime boundary. There is one task and it does not survive the screen.
@@ -265,6 +299,7 @@ final class RevealStore {
         }
 
         assignments[cardNumber] = userID
+        haptics?.fire(.nameLands)
         if let name = displayNames[userID] {
             announcement = Copy.A11y.guessAssigned(cardNumber: cardNumber, name: name)
         }
@@ -340,7 +375,10 @@ final class RevealStore {
     }
 
     private func finishSave(revision: Int) {
-        if revision == editRevision { saveErrorKey = nil }
+        if revision == editRevision {
+            saveErrorKey = nil
+            if isLocked { onLockInSaved?() }
+        }
         saveTask = nil
         isSaving = false
     }

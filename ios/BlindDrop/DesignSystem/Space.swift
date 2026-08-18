@@ -64,6 +64,8 @@ enum Stroke {
 enum Layout {
     /// Horizontal inset on every screen.
     static let screenInset = Space.xxl
+    /// Top breathing room for screen chrome inside the safe area.
+    static let chromeTop = Space.sm
     /// Vertical gap between distinct blocks.
     static let blockGap = Space.x3
     /// Vertical gap within a block.
@@ -90,6 +92,18 @@ enum Layout {
     static let previewControl: CGFloat = 28
     /// A name chip's drawn height; its hit region is `minimumTouchTarget`.
     static let chipHeight: CGFloat = 38
+
+    /// A name chip's minimum drawn width (`E26-02`).
+    ///
+    /// Not strict equality, which is the obvious answer and the wrong one: twelve pills all sized
+    /// to the longest name in the circle waste the row, and at accessibility sizes a fixed width
+    /// either truncates a name or overflows. A floor instead. Every name up to about six
+    /// characters — which is most first names, and all eleven of the fixture's — comes out the
+    /// same width, so the row reads as one set of targets; anything genuinely longer grows past
+    /// it rather than being cut. 72 also keeps four whole pills plus the edge of a fifth on an
+    /// SE's 327 points of content width, which is what stops the row from looking finished when
+    /// it is not. It scales with Dynamic Type at the call site (`NameChip`).
+    static let nameChipMinimumWidth: CGFloat = Space.x6
     /// The grab bar on a pinned panel. A mark that the panel is its own surface, not a control.
     static let grabber = (width: CGFloat(38), height: CGFloat(4))
     /// A status badge's drawn height. It is a label, never a control, so it has no hit region.
@@ -118,12 +132,39 @@ enum Layout {
     static let standingsNameColumn: CGFloat = Space.x6
     static let standingsBandColumn: CGFloat = Space.x5 + Space.lg
 
-    /// One thumbnail in the share picker (`docs/10` §4).
+    /// The card, drawn small, on the share sheet (`docs/10` §4).
     ///
-    /// Two of them plus the screen inset and the gap between fit inside an SE's 375 points,
-    /// which is what decides the number: the picker's whole job is letting somebody compare the
-    /// two shapes at a glance, and a picker that scrolls is one they compare in two glances.
-    static let shareThumbnailWidth: CGFloat = Space.x6 + Space.x4
+    /// This was `shareThumbnailWidth`, and it was 112 points because *two* of them plus the screen
+    /// inset and the gap between had to fit inside an SE's 375 — the picker's job was letting
+    /// somebody compare two shapes at a glance. There is no picker any more (`ShareSheet`), so that
+    /// reason is gone and the constraint with it: one preview only has to fit once, and the point
+    /// of it is no longer comparison but recognition — *this is the thing you are about to send*.
+    /// 184 is a little over half the SE's content width, which is large enough to read the group
+    /// name and the flight rows on and still leaves the sheet shorter than its detent.
+    static let sharePreviewWidth: CGFloat = Space.x6 * 2 + Space.x4
+
+    /// The share sheet's own detent (`docs/10` §4).
+    ///
+    /// A fixed height rather than `.medium`, because `.medium` is half of whatever screen it is
+    /// shown on and this sheet is the same size on every screen: a 184-point preview, one caption
+    /// line and one button, all of them fixed. Half of an SE is 333 points, which the preview no
+    /// longer fits; half of a 15 Pro Max is 466, which is two hundred points of nothing under the
+    /// button. The number is the content, added up: `screenInset` 24, preview 230, `Space.sm` 8,
+    /// a 18-point caption line, `blockGap` 32, `buttonHeight` 56, `screenInset` 24 — 392, with the
+    /// remainder as slack. `ShareCardSnapshots.theSheetFitsItsDetent` measures the real render
+    /// against this, so the arithmetic cannot quietly stop being true.
+    static let shareSheetHeight: CGFloat = 400
+
+    /// The reveal call sheet's collapsed status row (`docs/08` §6).
+    ///
+    /// **A fallback, not the number.** `GuessSheet` measures its own peek header and publishes the
+    /// real height as a `CallSheetMetrics`; this is what a snapshot with no enclosing
+    /// screen gets, and what the flight reserves for one layout pass before the measurement
+    /// arrives. The constant used to be the whole answer and it was wrong by about a chip: 108
+    /// points is roughly two dozen more than the header actually occupies, so the collapsed sheet
+    /// showed the top quarter of the name row — and a pool visible while collapsed is exactly what
+    /// `E17-06` set out to remove, because it gives nobody a reason to raise the sheet.
+    static let callSheetPeekHeight: CGFloat = Space.x6 + Space.xxl + Space.md
 
     /// How far a finger travels before it counts as *scrolling past* rather than as a tap
     /// (`docs/09` §4: *"any scroll gesture completes the entire sequence immediately"*).

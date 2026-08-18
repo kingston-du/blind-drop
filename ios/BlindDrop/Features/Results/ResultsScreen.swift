@@ -30,13 +30,15 @@ struct ResultsViewState: Equatable, Sendable {
     let namedCards: Set<Int>
     /// The cards whose mark has arrived.
     let markedCards: Set<Int>
+    let barredCards: Set<Int>
 
     init(
         cards: [ResultCardDTO],
         me: PersonalScoreDTO? = nil,
         standings: StandingsDTO? = nil,
         namedCards: Set<Int>? = nil,
-        markedCards: Set<Int>? = nil
+        markedCards: Set<Int>? = nil,
+        barredCards: Set<Int>? = nil
     ) {
         self.cards = cards
         self.me = me
@@ -46,6 +48,7 @@ struct ResultsViewState: Equatable, Sendable {
         let all = Set(cards.map(\.cardNumber))
         self.namedCards = namedCards ?? all
         self.markedCards = markedCards ?? all
+        self.barredCards = barredCards ?? all
     }
 }
 
@@ -150,6 +153,7 @@ struct ResultsScreen: View {
                     resolve: ResolvePresentation(
                         hasName: state.namedCards.contains(card.cardNumber),
                         hasMark: state.markedCards.contains(card.cardNumber),
+                        hasBar: state.barredCards.contains(card.cardNumber),
                         reducedMotion: reduceMotion
                     )
                 )

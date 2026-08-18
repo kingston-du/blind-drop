@@ -180,6 +180,9 @@ score time. Do not denormalize into `submissions`.
 
 ### ADR-005 — One group per user, enforced in the schema
 
+> **Superseded by ADR-011 (2026-08-17).** Kept because the reasoning still governs how the
+> replacement must be built, not because the decision stands.
+
 **Decision.** A user has at most one active membership. The endpoint is `/groups/current`,
 singular, with no group ID in any client-facing path.
 
@@ -189,6 +192,44 @@ route shape makes the constraint structural rather than a comment.
 
 **Cost.** If multi-group ever ships, every route changes. Accepted — that is a v2 rewrite of
 the navigation model anyway.
+
+### ADR-011 — A user may hold several circles; the group id becomes explicit
+
+**Owner decision, 2026-08-17. Supersedes ADR-005.** Not an agent's call, and recorded here
+because ADR-005 was structural: the constraint lives in an index, a route shape, the fixture
+server, and `docs/16`. Reversing it in one place and not the others produces a codebase that
+half-believes each.
+
+**Decision.** A user may hold more than one active membership — capped at **three** for the
+beta. *This ADR is the source of that number; everywhere else cites it rather than repeating it,
+so raising the cap is one edit here plus the constant it names.* Group-scoped routes take the group explicitly rather than resolving "the caller's only
+one". Rounds, submissions, guesses, standings, Ear and Readability all stay scoped to the
+circle they happened in; nothing aggregates across circles.
+
+**Why now.** The beta needs more than one circle per tester to produce useful signal, and
+adding a second circle is the cheapest way to learn whether the daily loop survives contact
+with competing attention. The blind window is not affected — a group id is an authorization
+parameter, not a leak — but ADR-005 was right that it is *a new authorization surface*, which
+is the constraint the replacement inherits.
+
+**What ADR-005 was protecting, and how that is kept.**
+
+1. **Every route that names a group must prove membership of that group.** ADR-005 got this
+   free by resolving from the caller. Now it is an explicit check, on every route, and a test
+   that a non-member gets the same answer for a real id as for a fabricated one. The IDOR
+   surface ADR-005 avoided by construction is now avoided by assertion — so the assertions are
+   not optional.
+2. **No cross-circle aggregation.** No combined standings, no global Ear, no feed. `docs/16`
+   §1's ban on cross-group play stands unchanged.
+3. **One statement of scope on screen at all times.** With several circles, "which circle am I
+   looking at?" must never be ambiguous — which is why the group's name sits in the header on
+   every phase (E17-09) before the switcher ships (E19).
+4. **The push budget does not multiply.** Three deliveries per user per day, grouped across
+   circles. See `CLAUDE.md` §2.6.
+
+**Cost.** Every group-scoped route, DTO, store, and deep link changes, plus the fixture
+server. Sequenced deliberately as `E18` (server) then `E19` (app) so the two never change
+under each other.
 
 ---
 

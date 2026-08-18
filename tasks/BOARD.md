@@ -2,10 +2,22 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-**Start here:** `E14-03`. `E00`–`E13` and `E16-01` are done, as are `E14-01`, `E14-02`, and
-`E14-04`. `E16-02` is deployed and verified against the hosted database; what is left of it
-needs the demo account's password on a device. The rest need a physical iPhone; none can be
-closed from the simulator.
+**Start here: `E18-01`.** `E22-01`, `E23-01`, `E26` and `E27` are open and parallel to it.
+
+`E00`–`E13`, `E15`, `E16-01` and **all of `E17`** are done, as are `E14-01`, `E14-02` and
+`E14-04`.
+
+`E17` closed on 2026-08-17, and it was not the re-record it looked like. Five real defects were
+behind the goldens, three of the nine slices were not doing what their own checklists claimed,
+and `CLAUDE.md` §5's re-record recipe was itself wrong. What was found and what was done about it
+is in [E17's *What E17-10 actually found*](E17-polish-pass.md). One item is knowingly
+unverified — the call sheet's drag gesture — and `E26-02` should drive it.
+
+`E14-03`, `E14-05` and `E16-02` need a physical iPhone and the owner; none can be closed from
+the simulator. They are not blocking the beta work.
+
+`E18` onward is the beta. **One task there is one slice** (`tasks/README.md`), worked under
+`CLAUDE.md` §8 — plan, implement, verify, run it, review, close.
 
 ---
 
@@ -27,6 +39,25 @@ E03 + E04 + E05 ─ E16 App Review demo environment  (server only; no iOS change
 
 E08 iOS foundation ─ E15 how to play  (parallel with E09..E14; E15 → E14-05)
 ```
+
+### The beta
+
+```
+E17-10 close the polish pass          done — the iOS lane is unblocked
+ ├─ E18 circles: server ─ E19 circles: the app ─┬─ E20 invitations
+ │            └─ E24 leaderboard+profiles ─ E25 insights
+ │                                              └─ E21 circle settings
+ ├─ E22 sealed privacy      one slice, parallel with anything
+ └─ E26 UI polish           three independent slices
+
+(no dep on E17-10 — server-side or investigation only)
+    E23 notifications       E23-01 free; E23-02 then needs E18-01
+    E27 spikes              investigation only, parallel with everything
+```
+
+E17-10 gated the **iOS** work, because it is what left the app's goldens and its one failing
+test in a known state. That gate is open. E23-01 and E27 touch neither, so they never waited —
+their `Deps` columns say `—` and mean it. E19-03 and E20-03 join the two lanes back together and need both.
 
 ---
 
@@ -207,15 +238,113 @@ Amends three owner-level rules: `CLAUDE.md` §2.5 (E17-05), `docs/09` §1 (E17-0
 
 | Task | Status | Deps | Proves |
 |---|---|---|---|
-| E17-01 The phase flash on foreground | todo | — | AC-2 |
-| E17-02 One share variant | todo | — | — |
-| E17-03 The answer card's links become an overflow menu | todo | — | — |
-| E17-04 The chrome sits where a header sits | todo | E17-01 | — |
-| E17-05 How to play is the legend | todo | — | — |
-| E17-06 The call sheet collapses | todo | — | — |
-| E17-07 Two haptics for the reveal | todo | E17-06 | — |
-| E17-08 The answers land harder | todo | E17-03 | — |
-| E17-09 The group's name on every phase | todo | E17-01 | — |
+| E17-01 The phase flash on foreground | done | — | AC-2 |
+| E17-02 One share variant | done | — | — |
+| E17-03 The answer card's links become an overflow menu | done | — | — |
+| E17-04 The chrome sits where a header sits | done | E17-01 | — |
+| E17-05 How to play is the legend | done | — | — |
+| E17-06 The call sheet collapses | done | — | — |
+| E17-07 Two haptics for the reveal | done | E17-06 | — |
+| E17-08 The answers land harder | done | E17-03 | — |
+| E17-09 The group's name on every phase | done | E17-01 | — |
+| **E17-10 Close the polish pass** | **done** | — | AC-2, AC-11 |
+
+`E17-10` verified all nine, fixed what was actually broken behind them, and re-recorded 47
+goldens after opening every diff. Lint clean; 389 unit and 58 snapshot tests green.
+
+---
+
+# The beta
+
+From here a task is a **slice** — `tasks/README.md`. **Parallel** says whether it can run in
+another worktree beside its siblings.
+
+## E18 — Multi-circle: the server foundation · [file](E18-circles-server.md)
+
+Lifts ADR-005. Read `docs/01` ADR-011 first — it owns the circle cap and the rules the
+replacement inherits.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E18-01 A user may hold several circles | todo | E17-10 | no | AC-1 |
+| E18-02 What every circle needs from me right now | todo | E18-01 | no | AC-1 |
+| E18-03 The same song, twice, in one evening | todo | E18-01 | vs E18-02 | — |
+
+## E19 — Multi-circle: the app holds more than one · [file](E19-circles-app.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E19-01 Every screen knows which circle it is showing | todo | E18-01, E18-02 | no | AC-1, AC-10 |
+| E19-02 The switcher | todo | E19-01 | no | — |
+| E19-03 A notification opens the circle it came from | todo | E19-02, E23-01 | no | — |
+
+## E20 — Circle creation and invitations · [file](E20-invitations.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E20-01 Pending invitations | todo | E18-01 | vs E21, E24 | AC-3, AC-5 |
+| E20-02 Starting a circle, and filling it | todo | E20-01, E19-02 | no | — |
+| E20-03 Invitations in the switcher, and the push | todo | E20-02, E23-01 | no | AC-3 |
+
+## E21 — Circle settings and roles · [file](E21-circle-settings.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E21-01 The circle's own screen | todo | E19-02 | vs E20, E24 | — |
+| E21-02 Who is in charge | todo | E21-01 | no | — |
+
+## E22 — Sealed-song privacy · [file](E22-sealed-privacy.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E22-01 Hold to peek | todo | E17-10 | **yes, vs everything** | AC-1 |
+
+## E23 — Notifications, working and verified · [file](E23-notifications.md)
+
+Push does not work today. `E23-01` diagnoses before anything is repaired.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E23-01 Find out why, then fix it | todo | — | **yes, vs E19–E21** | AC-3 |
+| E23-02 Three deliveries, whatever the circle count | todo | E23-01, E18-01 | no | AC-3 |
+| E23-03 It arrives, and it opens the right thing | todo | E23-02, E19-03 | no | AC-3 |
+
+## E24 — The leaderboard and profiles · [file](E24-leaderboard-profiles.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E24-01 Best Ear | todo | E18-01 | vs E20, E21 | — |
+| E24-02 A person, in this circle | todo | E24-01 | no | AC-1 |
+
+## E25 — Insights · [file](E25-insights.md)
+
+Needs history to mean anything. Defer without regret if the beta has not produced it.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E25-01 Who you know, and who knows you | todo | E24-02 | vs E26 | — |
+| E25-02 Who you get mistaken for | todo | E25-01 | no | — |
+
+## E26 — UI polish and known bugs · [file](E26-ui-polish.md)
+
+Only what does not belong to another slice. Everything else is fixed on the screen that owns it.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E26-01 Results, laid out for the numbers it produces | todo | E17-10 | **yes** | AC-9 |
+| E26-02 Guessing, without the fidget | todo | E17-10 | **yes** | — |
+| E26-03 Searching for a song with a keyboard in the way | todo | E17-10 | **yes** | — |
+
+## E27 — Spikes · [file](E27-spikes.md)
+
+Investigation only. Each ends in a recommendation, not code.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E27-01 Opening a song in Spotify | todo | — | **yes** | — |
+| E27-02 Pick for me | todo | — | **yes** | — |
+| E27-03 A web page | todo | — | **yes** | — |
+| E27-04 Themed prompts | todo | — | **yes** | — |
 
 ---
 
@@ -240,5 +369,19 @@ Amends three owner-level rules: `CLAUDE.md` §2.5 (E17-05), `docs/09` §1 (E17-0
 | E14 | 3 / 5 |
 | E15 | 3 / 3 |
 | E16 | 1 / 2 |
-| E17 | 0 / 9 |
-| **Total** | **82 / 94** |
+| E17 | 10 / 10 |
+| **v1 total** | **92 / 95** |
+
+| Beta epic | Done / Total |
+|---|---|
+| E18 circles: server | 0 / 3 |
+| E19 circles: the app | 0 / 3 |
+| E20 invitations | 0 / 3 |
+| E21 circle settings | 0 / 2 |
+| E22 sealed privacy | 0 / 1 |
+| E23 notifications | 0 / 3 |
+| E24 leaderboard + profiles | 0 / 2 |
+| E25 insights | 0 / 2 |
+| E26 UI polish | 0 / 3 |
+| E27 spikes | 0 / 4 |
+| **Beta total** | **0 / 26** |

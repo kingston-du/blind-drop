@@ -34,6 +34,41 @@ struct RoundContext: Sendable, Equatable {
     /// The group's own clock, which every date and hour on these screens is written in.
     var calendar: GroupCalendar { GroupCalendar(timezone: group.timezone) }
 
+    /// Which side of `opens_at` an `open` round sits on — `docs/08` §2's dark hours, where the
+    /// field is not raised and the copy names the next opening, versus the round being live.
+    ///
+    /// **Three cases rather than a `Bool`, because there are three answers.** A `Bool` has
+    /// nowhere to put *"the clock has no anchor"*, so whichever way it falls it is asserting a
+    /// fact about the time of day that the app does not have. That is not a hypothetical: it
+    /// shipped. `isBeforeOpen(now:)` answered `nil` with `false` — *"the round is open"* — and
+    /// `RootView` invalidates the clock on every `scenePhase == .active` (`docs/13` §5 rule 5),
+    /// so for the length of one refetch on **every** return to the foreground the app rendered
+    /// the search screen, keyboard and all, over a round that was actually closed, and then
+    /// snapped back when the response landed.
+    ///
+    /// The type now makes that particular mistake unavailable: there is no way to read this
+    /// value without deciding, in the open, what to do when the answer is `.unknown`. What
+    /// `RoundScreen` does is hold the last one it was given — see `RoundScreen.openState(_:)`.
+    enum OpenState: Sendable, Equatable {
+        /// The clock has no anchor, so where the round sits in its own day is not yet a thing
+        /// the app knows. It is not "closed" and it is not "open"; it is unanswered.
+        case unknown
+        /// Before `opens_at`: the dark hours.
+        case beforeOpen
+        /// `opens_at` has passed and the blind window is running.
+        case open
+    }
+
+    /// Where the round sits relative to its opening, as far as the app actually knows.
+    ///
+    /// - Parameter now: the clock's reading, or `nil` while it has no anchor. `nil` in gives
+    ///   `.unknown` out, unconditionally — `docs/13` §5 rule 3: an unanchored clock is truthful
+    ///   about having no anchor rather than helpful about what the time probably is.
+    func openState(now: Date?) -> OpenState {
+        guard let now else { return .unknown }
+        return now < round.opensAt ? .beforeOpen : .open
+    }
+
     /// What the screen is counting to, and it is never the same thing twice:
     ///
     /// | Phase | Deadline | Why |
@@ -44,27 +79,39 @@ struct RoundContext: Sendable, Equatable {
     /// | `voided` | tomorrow's open | *"the countdown to tomorrow's open"* (`docs/08` §5) |
     /// | `scored` | tomorrow's open | the night is over |
     ///
-    /// - Parameter now: the clock's reading, or `nil` while it has no anchor. The *dark hours*
-    ///   branch is the only one that needs it, and with no anchor the screen counts to the reveal
-    ///   — which is what it will do a moment later anyway, and what `--:--:--` is showing
-    ///   meanwhile (`docs/13` §5 rule 3).
-    func deadline(now: Date?) -> Date {
+    /// Taking an `OpenState` rather than a `Date?` is what lets `RoundScreen` ask this question
+    /// against a **held** answer instead of against the clock directly. The two halves of the
+    /// open phase's row in that table are the same fact stated twice — which side of `opens_at`
+    /// we are on, and therefore what the countdown reads — so they must not be resolved
+    /// separately or they can disagree for a frame.
+    ///
+    /// - Parameter openState: only the `open` phase consults it. The other three count to
+    ///   something the clock has no say in, which is why a voided round still knows what it is
+    ///   counting to while the clock is unanchored, and why this is not simply `nil` whenever
+    ///   the clock is.
+    /// - Returns: `nil` in exactly one case — an `open` round whose `OpenState` is `.unknown`,
+    ///   where the answer genuinely depends on a time the app does not have. `opens_at` and
+    ///   `reveals_at` are ten hours apart; picking one is not a rounding error, it is the
+    ///   difference between counting to the right event and the wrong one.
+    func deadline(openState: OpenState) -> Date? {
         switch round.phase {
         case .open:
-            if let now, now < round.opensAt { return round.opensAt }
-            return round.revealsAt
+            switch openState {
+            case .unknown: nil
+            case .beforeOpen: round.opensAt
+            case .open: round.revealsAt
+            }
         case .revealed:
-            return round.scoresAt
+            round.scoresAt
         case .voided, .scored:
-            return calendar.nextDay(round.opensAt)
+            calendar.nextDay(round.opensAt)
         }
     }
 
-    /// Whether the round has not opened yet — `docs/08` §2's dark hours, where the button is
-    /// disabled and the copy names the next opening.
-    func isBeforeOpen(now: Date?) -> Bool {
-        guard let now else { return false }
-        return now < round.opensAt
+    /// The same table, read straight off the clock. The convenience for everything that is not
+    /// holding a previous answer — the store's own elapsed check, and the tests.
+    func deadline(now: Date?) -> Date? {
+        deadline(openState: openState(now: now))
     }
 }
 
@@ -147,9 +194,17 @@ final class RoundStore {
     /// The screen asks on every tick and refetches on `true`; the server decides what that means.
     /// `nil` clock → `false`: an unanchored clock knows nothing, and *"the deadline passed"* is
     /// not the thing to guess (`docs/13` §5 rule 3).
+    ///
+    /// This one deliberately does **not** consult `RoundScreen`'s held answer. A hold is right
+    /// for a rendering decision — it keeps a screen the app was told was correct on screen — and
+    /// wrong for this, which is the trigger for a refetch. Firing a request off a remembered
+    /// time would be the client acting on a clock it does not have.
     func deadlineHasPassed() -> Bool {
-        guard let context = state.value, let now = clock.now else { return false }
-        return now >= context.deadline(now: now)
+        guard let context = state.value,
+              let now = clock.now,
+              let deadline = context.deadline(now: now)
+        else { return false }
+        return now >= deadline
     }
 
     private func result<R: Decodable & Sendable>(of endpoint: Endpoint<R>) async -> Result<R, APIError> {

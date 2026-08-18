@@ -4,12 +4,34 @@ private struct ForcedReduceMotionKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct SnapshotRenderKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     /// Test-only override layered on top of the real system accessibility preference. The
     /// default is false, so production behavior continues to be driven entirely by iOS.
     var blindDropForcesReducedMotion: Bool {
         get { self[ForcedReduceMotionKey.self] }
         set { self[ForcedReduceMotionKey.self] = newValue }
+    }
+
+    /// True only inside `SnapshotRenderer`, which draws with `ImageRenderer`.
+    ///
+    /// **`ImageRenderer` cannot rasterise a `Menu`.** It draws a yellow placeholder with a red
+    /// slash through it instead — the same class of hole as the `ScrollView` one `GuessSheet`
+    /// documents, and worse in its consequences, because a `ScrollView` renders as nothing while
+    /// a `Menu` renders as something that looks deliberate. Left alone it bakes an error box into
+    /// every answer-card golden and blinds that corner of the card to every future regression.
+    ///
+    /// A `Menu` has no appearance of its own; its appearance is its label, which is an ordinary
+    /// glyph that renders fine. So under this flag `TrackUtilityMenu` draws the label and not the
+    /// container — the goldens then show exactly what the device shows, and the one thing they do
+    /// not cover is the presentation, which is a picture's business least of all. `ComponentTests`
+    /// is what proves the menu's *items* are the right ones.
+    var blindDropRendersForSnapshot: Bool {
+        get { self[SnapshotRenderKey.self] }
+        set { self[SnapshotRenderKey.self] = newValue }
     }
 }
 

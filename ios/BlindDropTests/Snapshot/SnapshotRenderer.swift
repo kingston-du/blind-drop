@@ -87,6 +87,9 @@ enum SnapshotRenderer {
             // real one would return nil here and every card would snapshot its placeholder,
             // which would make the goldens agree about nothing.
             .environment(\.artworkLoader, StubArtworkLoader.shared)
+            // `ImageRenderer` draws a `Menu` as a red-slashed placeholder. See
+            // `EnvironmentValues.blindDropRendersForSnapshot`.
+            .environment(\.blindDropRendersForSnapshot, true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Layout.screenInset)
             // The width is pinned *before* the background, so `paper` covers the whole frame

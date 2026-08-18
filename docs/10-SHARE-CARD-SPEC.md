@@ -19,8 +19,10 @@ the device.
 | **Story** | 1080 × 1920 (9:16) | 3× | Instagram / Snapchat Stories |
 
 Both are produced from one `ShareCardView` with a `variant` parameter, so a copy change lands
-in both. The share sheet offers both; **square-tall is the default** because iMessage is where
-this actually gets pasted.
+in both. **The model keeps both shapes; the sheet ships square-tall** — iMessage is where this
+actually gets pasted, and a chooser between one good default and one shape almost nobody wanted
+charged every sharer a decision to save a few of them a detour. Story is spec'd here, rendered on
+demand and covered by the goldens; it has no entry point in the UI (E17-02).
 
 `ImageRenderer.scale = 3`. Output PNG. Typical size ~800KB — acceptable; do not JPEG the
 artwork.
@@ -115,9 +117,10 @@ The date moves under the group name. Nothing is added.
 
 ## 4. Behaviour
 
-- **Share tonight** on `ResultsScreen` → variant picker (two thumbnails, square-tall
-  preselected) → system share sheet with the rendered PNG.
-- Render happens off the main thread, target < 250ms. Show the picker immediately with a
+- **Share tonight** on `ResultsScreen` → the share sheet: one square-tall preview, its caption,
+  and **Share tonight** → system share sheet with the rendered PNG. No variant picker — the sheet
+  shows the card rather than asking which one.
+- Render happens off the main thread, target < 250ms. Show the sheet immediately with a
   `paperSunk` skeleton if the render is not ready.
 - Fonts must be registered before rendering. `ImageRenderer` silently falls back to the system
   face if Bricolage is not loaded — a snapshot test asserts the rendered numerals are not the
@@ -154,3 +157,4 @@ for the implementation:
 | Headline precedence | Unit test over five fixtures, one per rule in §2 |
 | Long titles | Snapshot with a 90-character title and a 24-character display name |
 | Temp file cleanup | Unit test: file absent after share-sheet completion handler |
+| The sheet fits its detent | Snapshot test measures the rendered sheet on an SE against `Layout.shareSheetHeight` |

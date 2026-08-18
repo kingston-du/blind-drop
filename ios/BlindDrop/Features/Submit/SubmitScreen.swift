@@ -19,9 +19,18 @@ struct SubmitScreen: View {
     let player: PreviewPlayer
     let timer: CountdownTimer
     /// What the countdown counts to — the reveal, or the next opening during the dark hours.
-    /// Chosen by `RoundContext.deadline(now:)` against the **server's** clock, never here.
+    /// Chosen by `RoundContext.deadline(openState:)` against the **server's** clock, never here.
     let deadline: Date
     /// Whether the round has opened yet (`docs/08` §2, the dark-hours state).
+    ///
+    /// **A `Bool` because by the time it gets here it is settled**, not because there are only
+    /// two possibilities. There are three — `RoundContext.OpenState` — and the third,
+    /// *"the clock has no anchor and the app does not know"*, is resolved by `RoundScreen`
+    /// before this screen is built: it holds the last answer the clock gave across the refetch
+    /// that follows every return to the foreground, and does not construct this view at all
+    /// while it has none. Which is what makes `.onAppear` below safe to raise a keyboard from.
+    /// Pushing the three cases down here instead would put the same `if` on every phase screen
+    /// and get it wrong on one of them.
     let isBeforeOpen: Bool
     /// A chosen song goes to the confirm step, which the round presents.
     let choose: (TrackDTO) -> Void
@@ -34,6 +43,10 @@ struct SubmitScreen: View {
     var body: some View {
         column
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // The round is on a clock, so the field is up before anybody has to reach for it —
+            // but only over a round that is actually taking songs. This is the line that spent
+            // a round trip raising a keyboard over the dark hours on every app open, and it is
+            // fixed above rather than here: `isBeforeOpen` is now settled before it arrives.
             .onAppear { if !isBeforeOpen { isFieldFocused = true } }
             .onDisappear { player.stop() }
     }
@@ -122,6 +135,7 @@ struct SubmitScreen: View {
             Spacer(minLength: Space.none)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Space.xxl)
     }
 
     private var countdown: some View {

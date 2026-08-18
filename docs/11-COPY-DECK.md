@@ -211,6 +211,9 @@ Never state how many people did drop.
 | `reveal.progress` | %lld of %lld assigned |
 | `reveal.locked.title` | Locked in. |
 | `reveal.callsheet` | Your call sheet |
+| `reveal.callsheet.naming` | Naming No. %lld |
+| `reveal.callsheet.expand` | Expand call sheet |
+| `reveal.callsheet.collapse` | Collapse call sheet |
 | `reveal.action` | Lock in guesses |
 | `reveal.action.locked` | Locked in |
 | `reveal.edit` | Change a guess |
@@ -251,8 +254,7 @@ Never state how many people did drop.
 | `results.standings.ear.detail` | %lld correct |
 | `results.standings.readability` | How readable |
 | `results.share` | Share tonight |
-| `results.share.square` | For a group chat |
-| `results.share.story` | For a story |
+| `results.share.caption` | Your results |
 
 ### Readability bands
 

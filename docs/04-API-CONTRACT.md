@@ -51,7 +51,7 @@ client switches on it. Never put a raw DB error in `message`.
 | `JOINED_LATE` | 403 | Joined after `reveals_at`; excluded from this round |
 | `ROUND_VOIDED` | 409 | Round had fewer than 3 submissions |
 | `INVALID_INPUT` | 400 | Validation failure; `details` may name the field |
-| `ALREADY_IN_GROUP` | 409 | ADR-005 — one group per user |
+| `ALREADY_IN_GROUP` | 409 | ADR-005 — one group per user. **Superseded by ADR-011**: becomes that ADR's cap in `E18-01`. |
 | `NOT_ADMIN` | 403 | Group settings change by a non-admin |
 | `RATE_LIMITED` | 429 | See §8 |
 | `UPSTREAM_UNAVAILABLE` | 502 | Apple Music / Spotify failure |
@@ -506,7 +506,12 @@ There is no endpoint for any of these, and adding one is a spec violation:
 - Round history for a group you are not a member of.
 - Anything keyed by a `group_id` supplied by the client (ADR-005 — the group comes from the
   caller's membership, never from the request).
+  <!-- Superseded by ADR-011 from E18-01: routes name the group, and each proves membership of
+       that group explicitly. Until E18-01 lands, the rule above is still the truth. -->
 - Push-notification preferences. Three pushes, no settings (`05-JOBS-AND-NOTIFICATIONS.md`).
+  <!-- Amended by the owner (ADR-011, CLAUDE.md §2.6): three *deliveries* per user per day
+       across all their circles, grouped where they coincide. E23-02 lands it. Still no
+       preferences — that part is unchanged. -->
 
 ---
 

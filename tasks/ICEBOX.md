@@ -16,12 +16,13 @@ features, and they need the owner.
 *"A song that reminds you of summer."* Changes the game's texture from taste-reading to
 prompt-answering, which is a different product and needs its own design pass. The nullable
 `Round.prompt` column exists; nothing else does. **Blind window cost:** none — a prompt is
-public.
+public. **`E27-04` is a spike** — decide whether to test it, on evidence from the beta, before
+anyone builds a prompt UI. Still frozen until that spike says otherwise.
 
-### Multiple groups per user
-Changes navigation, routing, and every API path (ADR-005 encodes singularity in the route
-shape deliberately). **Blind window cost:** none directly, but every "which group?" parameter
-is a new authorization surface.
+### ~~Multiple groups per user~~ — promoted 2026-08-17
+Now `E18`–`E21`, under ADR-011. The warning that stood here was right and survives into the
+ADR: every "which group?" parameter is a new authorization surface, so every group-scoped
+route proves membership of that group explicitly.
 
 ### Reactions or comments on songs
 The group already has a group chat. Do not compete with it. **Blind window cost:** high if
