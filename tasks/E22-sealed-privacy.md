@@ -7,7 +7,7 @@ anything.
 
 ### E22-01 — Hold to peek
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** yes — against everything
+**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against everything
 **Reads:** `docs/08` §4, `docs/09` §2, `docs/11`, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Submit/SealedScreen.swift`,
 `BlindDrop/DesignSystem/Components/SealedCard.swift`, `Localizable.strings`,
