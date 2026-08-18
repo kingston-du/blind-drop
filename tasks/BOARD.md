@@ -266,7 +266,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E18-01 A user may hold several circles | todo | E17-10 | no | AC-1 |
+| E18-01 A user may hold several circles | wip | E17-10 | no | AC-1 |
 | E18-02 What every circle needs from me right now | todo | E18-01 | no | AC-1 |
 | E18-03 The same song, twice, in one evening | todo | E18-01 | vs E18-02 | — |
 
@@ -331,9 +331,10 @@ Only what does not belong to another slice. Everything else is fixed on the scre
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E26-01 Results, laid out for the numbers it produces | todo | E17-10 | **yes** | AC-9 |
+| E26-01 Results, laid out for the numbers it produces, and playable | todo | E17-10 | **yes** | AC-9 |
 | E26-02 Guessing, without the fidget | todo | E17-10 | **yes** | — |
 | E26-03 Searching for a song with a keyboard in the way | todo | E17-10 | **yes** | — |
+| E26-04 The clock hits zero and the screen does not follow | todo | E17-10 | **yes** | AC-2 |
 
 ## E27 — Spikes · [file](E27-spikes.md)
 
@@ -345,6 +346,7 @@ Investigation only. Each ends in a recommendation, not code.
 | E27-02 Pick for me | todo | — | **yes** | — |
 | E27-03 A web page | todo | — | **yes** | — |
 | E27-04 Themed prompts | todo | — | **yes** | — |
+| E27-05 Streaks | todo | — | **yes** | — |
 
 ---
 
@@ -382,6 +384,6 @@ Investigation only. Each ends in a recommendation, not code.
 | E23 notifications | 0 / 3 |
 | E24 leaderboard + profiles | 0 / 2 |
 | E25 insights | 0 / 2 |
-| E26 UI polish | 0 / 3 |
-| E27 spikes | 0 / 4 |
-| **Beta total** | **0 / 26** |
+| E26 UI polish | 0 / 4 |
+| E27 spikes | 0 / 5 |
+| **Beta total** | **0 / 28** |

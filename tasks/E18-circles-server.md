@@ -17,7 +17,7 @@ two never change under each other. Keep `/groups/current` answering until `E19` 
 
 ### E18-01 — A user may hold several circles
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** no
+**Status:** wip · **Deps:** E17-10 · **Parallel:** no
 **Reads:** `docs/01` ADR-011, `docs/03` §1–§2, `docs/14` §2
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/_shared/auth.ts`,
 `server/supabase/functions/groups/`, `server/supabase/tests/db/`
