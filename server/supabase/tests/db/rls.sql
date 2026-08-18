@@ -123,6 +123,8 @@ select set_eq(
        ('claim_notification_outbox'::information_schema.sql_identifier),
        ('finish_notification_outbox'::information_schema.sql_identifier),
        ('release_notification_outbox'::information_schema.sql_identifier),
+       -- E23-01: the outbox-health check (20260818140000), same posture as the three above.
+       ('stuck_notifications'::information_schema.sql_identifier),
        ('assign_pilot_cohort'::information_schema.sql_identifier),
        -- The demo lifecycle (20260815090500). `demo_provision` is deliberately absent: it
        -- manufactures players and backdated rounds, and is owner-run only.

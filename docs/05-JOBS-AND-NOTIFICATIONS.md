@@ -35,6 +35,38 @@ the reveal together.
 `tick_rounds()` is specified in `03-DATA-MODEL.md` §4. Read it there; it is the transactional
 core and is not duplicated here.
 
+### Deployment: the two database settings
+
+> **E23-01.** `app.functions_url` and `app.service_key` are read by the `push` and `links` jobs
+> above but set by **nothing** in this repo — no migration, `config.toml`, or `seed.sql`. That
+> is deliberate for `functions_url` (it's environment-specific) and required for `service_key`
+> (it's a secret; `0016_cron.sql`'s own tests assert neither a host nor a JWT-shaped key ever
+> lands as a literal in `cron.job`, where anyone with `select` on the catalog could read it).
+> Deliberate does not mean automatic, though: **on a project where these have never been set,
+> both jobs fail on their first line, every minute, silently** —
+> `current_setting('app.functions_url')` raises `42704 unrecognized configuration parameter`,
+> so `net.http_post` never runs, so `push-worker`/`links-worker` are never called. The failure
+> lands in `cron.job_run_details`, which nothing in this app queries. See
+> `tasks/E23-notifications.md` for how this was diagnosed and reproduced.
+>
+> **The one-time step, per environment**, run by whoever has admin access to that Supabase
+> project (SQL editor, or `supabase db query --linked --file …` with an uncommitted file — never
+> a migration):
+>
+> ```sql
+> alter database postgres set app.functions_url = 'https://<project-ref>.supabase.co/functions/v1';
+> alter database postgres set app.service_key = '<the service_role key for this project>';
+> ```
+>
+> Applies to new connections, which is what a fresh pg_cron run always is — no reload needed.
+> Verify with `select current_setting('app.functions_url', true);` (the `true` makes a still-missing
+> setting return `null` instead of raising, so this is safe to run as a check). If either comes
+> back null or the wrong host, the jobs are running and failing, not idle.
+>
+> Locally, `seed.sql` parks all four named jobs (`set_blind_drop_jobs_active(false)`) precisely
+> so `test:db`/`test:functions` never race a live scheduler — the GUCs are never set locally
+> either, on purpose, since nothing local depends on them being set.
+
 ---
 
 ## 2. Idempotency
@@ -192,6 +224,16 @@ is the only web surface in v1 (`16-OUT-OF-SCOPE.md`).
 | A group's timezone is deleted from tzdata | `ensure_rounds()` raises for that group only, logs, continues to the next. | Abort the whole tick. |
 | Clock skew on the DB host | Irrelevant within a minute; the tick is minute-granular. | — |
 | Two `push-worker` invocations overlap | `for update skip locked` means they claim disjoint rows. | Send the same row twice. |
+| `app.functions_url`/`app.service_key` unset (§1) | `push`/`links` fail at `current_setting()`, every minute, before any request is built. | Look like an idle worker. See below. |
 
 `E03` and `E06` each carry a test for the first row of this table — it is the one that
 actually happens.
+
+**E23-01.** Every failure mode above except clock skew ends the same way from the outbox's
+point of view: a row that stays unsent. Before this slice, nothing surfaced that — a worker
+that has never once run looked identical to a worker with nothing to send. `select
+public.stuck_notifications();` (service role only, same lockdown as `claim_notification_outbox`)
+returns any row unsent more than five minutes after `enqueued_at`, well past the 60-second
+accuracy target in `01-ARCHITECTURE.md` §6. An empty result is the only "the push path is
+healthy" a person should trust; a non-empty one names the stuck round, its `kind`, `attempts`,
+and `last_error` (once it has one — see §2's send marker).
