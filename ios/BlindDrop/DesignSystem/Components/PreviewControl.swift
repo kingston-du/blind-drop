@@ -25,6 +25,13 @@ struct PreviewControl: View {
                 )
                 // Drawn at 28pt, tapped at 44 (`docs/07` §5, `docs/12` §5).
                 .minimumTouchTarget()
+                // A card row's geometry belongs to its 88pt artwork, not to this control's
+                // generous hit area. Without cancelling the 8pt expansion on each side, a
+                // preview-bearing card reports a 44pt-tall artist line; baseline alignment can
+                // then make that one row visibly taller than its neighbours. The hit shape stays
+                // 44pt and lives safely inside the card's inset, while layout sees the 28pt
+                // control that is actually drawn.
+                .padding(-(Layout.minimumTouchTarget - Layout.previewControl) / 2)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Copy.A11y.preview(isPlaying: isPlaying))

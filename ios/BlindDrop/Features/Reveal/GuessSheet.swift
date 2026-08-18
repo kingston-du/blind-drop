@@ -306,14 +306,13 @@ struct GuessSheet: View {
         .padding(.bottom, Layout.itemGap)
         .frame(maxWidth: .infinity)
         .background {
-            Button(action: toggleDetent) {
-                Color.clear.contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!canCollapse)
-            .accessibilityLabel(Text(
-                detent == .open ? "reveal.callsheet.collapse" : "reveal.callsheet.expand"
-            ))
+            // This must be a gesture surface, rather than a transparent `Button`: SwiftUI gives
+            // the button's press recognizer the header's drag before the sheet can observe it.
+            // A normal tap still toggles the detent, and the drag owns both directions.
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(dragGesture)
+                .onTapGesture { toggleDetent() }
         }
         .background {
             GeometryReader { proxy in
@@ -435,11 +434,13 @@ struct GuessSheet: View {
                 }
             }
         }
-        // The name pool owns its own scrolling gestures. The header is the sheet's stable,
-        // full-width handle, so its drag takes precedence over the transparent toggle behind
-        // it. Without that precedence the button recognizer wins and a downward swipe is
-        // treated like an inert press instead of collapsing the sheet.
-        .highPriorityGesture(dragGesture)
+        // The pool keeps its own vertical/horizontal scroll gestures. The header's transparent
+        // surface above is the stable, full-width drag handle.
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(Text(
+            detent == .open ? "reveal.callsheet.collapse" : "reveal.callsheet.expand"
+        ))
+        .accessibilityAction { toggleDetent() }
     }
 
     @ViewBuilder private func snapshotPool(layout: NamePoolLayout) -> some View {
