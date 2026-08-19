@@ -8,17 +8,18 @@ No redesigns. Each of these is a specific wrong thing.
 
 ---
 
-### E26-01 — Results, laid out for the numbers it actually produces
+### E26-01 — Results, laid out for the numbers it actually produces, and playable
 
 **Status:** todo · **Deps:** E17-10 · **Parallel:** yes — against everything
-**Reads:** `docs/08` §7, `docs/10`, `docs/12` §5
-**Touches:** `BlindDrop/Features/Results/`, `BlindDrop/DesignSystem/ShareCard.swift`,
-snapshot tests
+**Reads:** `docs/08` §3 (the existing play control), §7, `docs/10`, `docs/12` §2, §5
+**Touches:** `BlindDrop/Features/Results/`, `BlindDrop/DesignSystem/Components/FlightCard.swift`,
+`BlindDrop/DesignSystem/ShareCard.swift`, `docs/08-SCREEN-SPECS.md` §7, snapshot tests
 **Verify:** `./ios/scripts/lint.sh`; `ResultsSnapshotTests`, `ShareCardSnapshotTests`,
-`ShareRendererTests`. Simulator: 0%, 50%, 100%, 3 members and 12, SE and `accessibility5`.
+`ShareRendererTests`, `PreviewPlayerTests`. Simulator: 0%, 50%, 100%, 3 members and 12, a title
+long enough to truncate and one that should not, play/pause/scrub on two rows in a row.
 **Proves:** AC-9
 
-Three faults on the same screen:
+Four faults on the same screen, plus one thing it never had:
 
 - **The Tonight image overflows at 100% readability.** "100 putting 10…" clips. A three-digit
   percentage is the widest the string ever gets and it was never laid out for. Fix the layout,
@@ -29,11 +30,30 @@ Three faults on the same screen:
   use — this is the case it did not cover.
 - **A completed round does not fill its screen.** When Tonight's Round is finished the content
   should be optically centred, not top-aligned against a page of white.
+- **Song titles read as clipped even when short.** `FlightCard`'s answer-card title is one line,
+  tail-truncated, no `.minimumScaleFactor`, inside a `.frame(maxWidth: .infinity)` — truncation
+  is intentional for a genuinely long title, so start by reproducing the report on a device
+  rather than assuming the layout is at fault: check the card's actual available width at rest
+  and under a long owner name, and whether the truncation is firing on titles that should fit.
+  Fix whichever it turns out to be — narrowed available width, or truncation too eager.
+- **The answer card cannot be played.** Submit's search sheet and the Reveal flight card both
+  already play a 30-second preview through `Core/Audio/PreviewPlayer.swift`; the Results answer
+  card is the one place a song is shown and cannot be heard. `FlightCard` already takes a
+  `preview:` parameter for exactly this — `ResultsHost`/`ResultsScreen` just never passes one.
+  Wire it the way `RevealScreen` already does, not a new mechanism. `docs/08` §7.1 does not
+  spec a play control today; add it there once built, matching the affordance already spec'd
+  for Submit's search at §3.
 
 - [ ] 100% readability renders inside the share card, with a golden pinning it
-- [ ] Every percentage 0–100 laid out on SE at `accessibility5`
+- [ ] Every percentage 0–100 laid out correctly
 - [ ] Anonymous results clear the call sheet at both detents
 - [ ] Completed state optically centred
+- [ ] Title overflow reproduced and diagnosed before it is fixed; a golden pins the case that
+      was actually wrong
+- [ ] Every answer card plays its preview inline, same component as Reveal and Submit
+- [ ] One preview plays at a time; starting a second stops the first
+- [ ] Play control has a real accessibility label and trait, not a bare icon
+- [ ] `docs/08` §7.1 updated to show the play control
 - [ ] No new colour, size or spacing literal in `Features/`
 
 ---
@@ -108,3 +128,44 @@ the outcome; the mechanism is whichever achieves it without reopening the layout
 - [ ] Dismissal remains discoverable and the background tap keeps working
 - [ ] Track rows still tappable — the regression `E17-04` warned about
 - [ ] The heading and field still rise with the keyboard; the chrome still does not move
+
+---
+
+### E26-04 — The clock hits zero and the screen does not follow
+
+**Status:** todo · **Deps:** E17-10 · **Parallel:** yes
+**Reads:** `docs/13` §5, `CLAUDE.md` §2.2
+**Touches:** `BlindDrop/Core/Time/CountdownTimer.swift`, `BlindDrop/Features/Round/RoundScreen.swift`
+**Verify:** `./ios/scripts/lint.sh`; `RoundStoreTests`, `ServerClockTests`. Simulator: sit on
+Sealed/Reveal/Results through a real phase boundary with a short fixture round, watching, no
+backgrounding.
+**Proves:** AC-2
+
+Reported: staying on screen through a phase deadline does not turn the page — leaving and coming
+back does. Lower priority; not the blind window, not a leak, just a stale screen.
+
+**Read before assuming this is unwired.** It is not obviously missing: `RoundScreen` already
+carries `.onChange(of: timer.hasElapsed)` bumping a `loadToken` that drives `.task(id: loadToken)`
+into `store.load()`, and a separate `.task(id: phaseDeadlineID(store))` sleep loop for the
+`scored` boundary that has no visible countdown. `RevealScreen` rides the same shared timer
+rather than owning one. So a mechanism exists for every phase; the report is that it does not
+always fire, not that it is absent. **Reproduce it before fixing it** — a plausible failure needs
+finding, not a plausible-sounding wiring gap invented from a design that looks correct.
+
+Worth checking specifically: `CountdownTimer`'s coarse-vs-precise tick rate — a countdown far
+from its deadline ticks every 60s, and if it is still coarse in the last minute the transition
+could land up to a minute late, which might read as "never," not "late." Also worth checking:
+whether `hasElapsed` is computed against a clock offset that can itself go stale while the app
+sits foregrounded and idle, so the comparison keeps returning false past the real deadline until
+something else (backgrounding) re-anchors it — which would make this the same root cause as
+`E17-01`, arriving from the opposite direction.
+
+- [ ] The failure reproduced on a real device or a controlled fixture, not assumed
+- [ ] Root cause named — tick-rate lag, a stale clock anchor, or something else found while
+      looking
+- [ ] Fixed at the root cause; a coarse tick rate does not quietly widen the window it already
+      had a name for
+- [ ] `RoundStoreTests`/`ServerClockTests` cover the specific failure found, not just the happy
+      path the existing mechanism already passes
+- [ ] Confirmed on Sealed, Reveal and Results — the report says "all phases", verify it actually
+      is
