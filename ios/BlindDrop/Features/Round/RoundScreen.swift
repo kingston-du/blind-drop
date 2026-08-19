@@ -135,6 +135,17 @@ struct RoundScreen: View {
         // Open, sealed, reveal and voided already render this timer. Its concrete deadline is
         // the reliable transition signal; results is covered by the task above because it has
         // no visible countdown to observe.
+        //
+        // Reliable **because** `CountdownTimer.hasElapsed` is a stored property the ticker
+        // writes on every tick, not a computed one read on demand (`E26-04`). A computed
+        // `hasElapsed` only depends, in Observation terms, on `deadline` and the clock's anchor
+        // — neither of which changes while the app just sits here — so nothing ever told this
+        // `onChange` to look again while time passed with the screen foregrounded and idle. The
+        // countdown a few lines below still ticked correctly the whole time, because *its*
+        // property (`display`) genuinely is written every tick; `hasElapsed` was not. Leaving
+        // and returning "fixed" it only because that path re-anchors the clock, which used to be
+        // the only write in this whole chain. Now the same write `display` gets is what
+        // `hasElapsed` gets too, so this fires on the same tick the visible number does.
         .onChange(of: timer.hasElapsed) { _, elapsed in
             if elapsed == true { loadToken += 1 }
         }

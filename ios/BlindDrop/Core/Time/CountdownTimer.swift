@@ -114,6 +114,30 @@ final class CountdownTimer {
     /// What the view renders. `.unknown` until the clock has an anchor.
     private(set) var display: CountdownDisplay = .unknown
 
+    /// Whether the deadline has passed, or `nil` while the clock is unanchored.
+    ///
+    /// The screen refetches on `true`; it does **not** move the round itself. Phase
+    /// transitions belong to the server and to nothing else (`CLAUDE.md` §2.2), and a client
+    /// that flipped its own state at zero would show a reveal that had not happened.
+    ///
+    /// **A stored property, written by `refresh()`, not computed on read.** It used to be
+    /// computed — `deadline` and `clock`'s anchor read fresh on every access — which is correct
+    /// for *value* but wrong for *notification*: those are the only two things Observation
+    /// tracks here, and neither one changes merely because a second passed. The ticker's own
+    /// tick writes `display` (a stored property), which is why the visible digits update every
+    /// second; it never touched anything `hasElapsed` depended on, so nothing ever told a
+    /// screen watching `hasElapsed` — as `RoundScreen`'s `.onChange(of: timer.hasElapsed)` does —
+    /// that the moment had arrived. The countdown kept ticking correctly right in front of the
+    /// user while the screen behind it never re-read the clock, because nothing woke it up to.
+    ///
+    /// Writing it here, on every `refresh()`, fixes that at the root: the tick that already
+    /// updates `display` now also updates this, and updating a stored `@Observable` property is
+    /// itself the notification — every reader of `hasElapsed`, on whatever screen, is invalidated
+    /// and re-reads it on the very next tick, the same cadence the visible digits already use.
+    /// This is not a poll bolted on beside the countdown; it is the countdown's own tick finally
+    /// reaching the one other thing it was supposed to.
+    private(set) var hasElapsed: Bool?
+
     init(clock: ServerClock) {
         self.clock = clock
     }
@@ -175,22 +199,23 @@ final class CountdownTimer {
     /// showing a number for a deadline the app has *never* confirmed would be. The next tick after
     /// the clock re-anchors falls through to the line below and the display jumps to the true
     /// value; there is no separate "snap" step.
+    ///
+    /// `hasElapsed` is written every call, unconditionally — including the unanchored branch,
+    /// where it goes to `nil` rather than being held. Unlike `display`, which is worth freezing
+    /// at its last true value for a moment so the digits do not flicker, "has the deadline
+    /// passed" has no honest frozen answer to show: `docs/13` §5 rule 3 says the app admits what
+    /// it does not know, and mid-gap it does not know this either.
     func refresh() {
         guard let deadline else {
             display = .unknown
+            hasElapsed = nil
             return
         }
-        guard let remaining = clock.timeRemaining(until: deadline) else { return }
+        guard let remaining = clock.timeRemaining(until: deadline) else {
+            hasElapsed = nil
+            return
+        }
         display = CountdownDisplay(remaining: remaining, form: form)
-    }
-
-    /// Whether the deadline has passed, or `nil` while the clock is unanchored.
-    ///
-    /// The screen refetches on `true`; it does **not** move the round itself. Phase
-    /// transitions belong to the server and to nothing else (`CLAUDE.md` §2.2), and a client
-    /// that flipped its own state at zero would show a reveal that had not happened.
-    var hasElapsed: Bool? {
-        guard let deadline, let remaining = clock.timeRemaining(until: deadline) else { return nil }
-        return remaining <= 0
+        hasElapsed = remaining <= 0
     }
 }

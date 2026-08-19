@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 @testable import BlindDrop
 
@@ -338,6 +339,89 @@ import Testing
                 "the sealed card's countdown must still be ticking after the badge alone left")
 
         // The second, and last, observer leaves — only now does it really stop.
+        timer.stop()
+    }
+
+    // MARK: - E26-04 — sitting on screen through a deadline must turn the page, not just leaving
+
+    /// Reproduces the reported bug at the level Observation actually operates: staying on screen
+    /// through a phase deadline did not turn the page; leaving and returning did. `RoundScreen`
+    /// detects the deadline with `.onChange(of: timer.hasElapsed)`, and SwiftUI's Observation only
+    /// re-evaluates a reader when a property it *touched* is later *written*. Every test above
+    /// calls `timer.hasElapsed` directly and would pass whether that property is computed or
+    /// stored, because a direct call always re-evaluates it — that is precisely why the old,
+    /// computed `hasElapsed` slipped past every one of them while still never waking a real
+    /// observer. `withObservationTracking` is the one seam that tells the two apart without a
+    /// SwiftUI view in the loop: it records what a read actually depended on, and reports whether
+    /// a later write touched any of it.
+    ///
+    /// Before the fix, `hasElapsed` was computed from `deadline` and the clock's anchor — neither
+    /// of which the ordinary tick's `refresh()` call ever wrote, only `display` did — so a reader
+    /// that had only ever asked about `hasElapsed` was never told a tick happened at all, only
+    /// that a *new* deadline (`start()`) or a fresh `sync()` had landed. Sitting on screen through
+    /// a deadline produces neither: the round does not change and the app makes no incidental
+    /// request. This test drives exactly that: one `start()`, then nothing but the passage of
+    /// time and the ticker's own `refresh()` — the same two calls a foregrounded, idle screen
+    /// sees between phase transitions.
+    @MainActor
+    @Test func hasElapsedNotifiesAnObserverOnTheOrdinaryTickAlone() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T23:59:59Z"))
+        let deadline = try instant("2026-08-11T00:00:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: deadline, form: .precise)
+        #expect(timer.hasElapsed == false)
+
+        var notified = false
+        withObservationTracking {
+            _ = timer.hasElapsed
+        } onChange: {
+            notified = true
+        }
+
+        // No new deadline, no `sync()` — only the uptime advancing and the ordinary tick's own
+        // `refresh()`, which is what `CountdownTimer.start()`'s `Task` calls every second on a
+        // screen nobody touched.
+        uptime.advance(1)
+        timer.refresh()
+
+        #expect(
+            notified,
+            "a reader watching hasElapsed alone must be woken by the ordinary tick, not only by " +
+                "a new deadline or a fresh sync() — this is the E26-04 regression: RoundScreen's " +
+                "onChange(of: timer.hasElapsed) never fired while the app just sat on screen"
+        )
+        #expect(timer.hasElapsed == true)
+        timer.stop()
+    }
+
+    /// The coarse form's tick is deliberately once a minute (`docs/12` §1) — that lag already has
+    /// a name and is accepted. This asserts the fix does not *add* to it: a coarse-form observer
+    /// is still woken by that same once-a-minute tick, not left waiting on some other event that
+    /// might not come at all (which was the actual bug, not merely a slow one).
+    @MainActor
+    @Test func hasElapsedNotifiesACoarseObserverOnItsOwnMinuteTick() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T23:00:00Z"))
+        let deadline = try instant("2026-08-11T00:00:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: deadline, form: .coarse)
+        #expect(timer.hasElapsed == false)
+
+        var notified = false
+        withObservationTracking {
+            _ = timer.hasElapsed
+        } onChange: {
+            notified = true
+        }
+
+        uptime.advance(3600)
+        timer.refresh()
+
+        #expect(notified, "the coarse tick must still wake an hasElapsed observer on its own cadence")
+        #expect(timer.hasElapsed == true)
         timer.stop()
     }
 }
