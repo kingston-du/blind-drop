@@ -340,10 +340,10 @@ Only what does not belong to another slice. Everything else is fixed on the scre
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E26-01 Results, laid out for the numbers it produces, and playable | todo | E17-10 | **yes** | AC-9 |
-| E26-02 Guessing, without the fidget | todo | E17-10 | **yes** | — |
-| E26-03 Searching for a song with a keyboard in the way | todo | E17-10 | **yes** | — |
-| E26-04 The clock hits zero and the screen does not follow | todo | E17-10 | **yes** | AC-2 |
+| E26-01 Results, laid out for the numbers it produces, and playable | wip | E17-10 | **yes** | AC-9 |
+| E26-02 Guessing, without the fidget | wip | E17-10 | **yes** | — |
+| E26-03 Searching for a song with a keyboard in the way | wip | E17-10 | **yes** | — |
+| E26-04 The clock hits zero and the screen does not follow | wip | E17-10 | **yes** | AC-2 |
 
 ## E27 — Spikes · [file](E27-spikes.md)
 

@@ -10,7 +10,7 @@ No redesigns. Each of these is a specific wrong thing.
 
 ### E26-01 — Results, laid out for the numbers it actually produces, and playable
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** yes — against everything
+**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against everything
 **Reads:** `docs/08` §3 (the existing play control), §7, `docs/10`, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Results/`, `BlindDrop/DesignSystem/Components/FlightCard.swift`,
 `BlindDrop/DesignSystem/ShareCard.swift`, `docs/08-SCREEN-SPECS.md` §7, snapshot tests
@@ -60,7 +60,7 @@ Four faults on the same screen, plus one thing it never had:
 
 ### E26-02 — Guessing, without the fidget
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** yes — against E26-01
+**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against E26-01
 **Reads:** `docs/08` §6, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Reveal/GuessSheet.swift`, snapshot tests
 **Verify:** `./ios/scripts/lint.sh`; `RevealSnapshotTests`, `A11yReachabilityTests`. Simulator:
@@ -105,7 +105,7 @@ real screen, and keep the 44pt minimum whatever the answer.
 
 ### E26-03 — Searching for a song with a keyboard in the way
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** yes — against E26-01, E26-02
+**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against E26-01, E26-02
 **Reads:** `docs/08` §3, `docs/12` §5
 **Touches:** `BlindDrop/Features/Submit/SongSearch.swift`, snapshot tests
 **Verify:** `./ios/scripts/lint.sh`; `SubmitSnapshotTests`. Simulator: type, scroll results with
@@ -133,7 +133,7 @@ the outcome; the mechanism is whichever achieves it without reopening the layout
 
 ### E26-04 — The clock hits zero and the screen does not follow
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** yes
+**Status:** wip · **Deps:** E17-10 · **Parallel:** yes
 **Reads:** `docs/13` §5, `CLAUDE.md` §2.2
 **Touches:** `BlindDrop/Core/Time/CountdownTimer.swift`, `BlindDrop/Features/Round/RoundScreen.swift`
 **Verify:** `./ios/scripts/lint.sh`; `RoundStoreTests`, `ServerClockTests`. Simulator: sit on
