@@ -7,14 +7,16 @@ closed 2026-08-19 — `GET /groups`, the switcher's data source — leaving `E18
 (now unblocked on the server side) open.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
-rather than silently skipped). `E26` remains open — an earlier batch attempt on all four slices
-ran out of budget before any of them produced usable work; all four went back to `todo` and were
-picked up again separately, surviving several more session-limit cutoffs along the way (worked
-worktrees were resumed rather than restarted where anything had actually landed). `E26-01`,
-`E26-02` and `E26-03` closed 2026-08-19 — `E26-01` results laid out and playable, with one known
-narrow-device title-truncation limit recorded as an open question in the epic file; `E26-02`
-closed the committing-drag test gap this note used to flag below; `E26-03` gave search results
-the room an `.accessibility5` subhead was eating. `E26-04` remains in progress.
+rather than silently skipped). `E26` — a first batch attempt on all four slices ran out of budget
+before any of them produced usable work; all four went back to `todo` and were picked up again
+separately, surviving several more session-limit cutoffs along the way (worked worktrees were
+resumed rather than restarted where anything had actually landed). All four closed 2026-08-19:
+`E26-01` results laid out and playable, with one known narrow-device title-truncation limit
+recorded as an open question in the epic file; `E26-02` closed the committing-drag test gap this
+note used to flag below; `E26-03` gave search results the room an `.accessibility5` subhead was
+eating; `E26-04` found `CountdownTimer.hasElapsed` was a computed property `@Observable` never
+re-invalidated readers of on the tick alone, and made it stored, written (guarded to real
+transitions) from the same `refresh()` call that already updates the visible countdown.
 
 `E00`–`E13`, `E15`, `E16-01` and **all of `E17`** are done, as are `E14-01`, `E14-02` and
 `E14-04`.
@@ -351,7 +353,7 @@ Only what does not belong to another slice. Everything else is fixed on the scre
 | E26-01 Results, laid out for the numbers it produces, and playable | done | E17-10 | **yes** | AC-9 |
 | E26-02 Guessing, without the fidget | done | E17-10 | **yes** | — |
 | E26-03 Searching for a song with a keyboard in the way | done | E17-10 | **yes** | — |
-| E26-04 The clock hits zero and the screen does not follow | wip | E17-10 | **yes** | AC-2 |
+| E26-04 The clock hits zero and the screen does not follow | done | E17-10 | **yes** | AC-2 |
 
 ## E27 — Spikes · [file](E27-spikes.md)
 
@@ -401,6 +403,6 @@ Investigation only. Each ends in a recommendation, not code.
 | E23 notifications | 1 / 3 |
 | E24 leaderboard + profiles | 0 / 2 |
 | E25 insights | 0 / 2 |
-| E26 UI polish | 3 / 4 |
+| E26 UI polish | 4 / 4 |
 | E27 spikes | 5 / 5 |
-| **Beta total** | **11 / 28** |
+| **Beta total** | **12 / 28** |

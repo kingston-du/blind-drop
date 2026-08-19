@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 @testable import BlindDrop
 
@@ -340,4 +341,103 @@ import Testing
         // The second, and last, observer leaves — only now does it really stop.
         timer.stop()
     }
+
+    // MARK: - E26-04 — sitting on screen through a deadline must turn the page, not just leaving
+
+    /// Reproduces the reported bug at the level Observation actually operates: staying on screen
+    /// through a phase deadline did not turn the page; leaving and returning did. `RoundScreen`
+    /// detects the deadline with `.onChange(of: timer.hasElapsed)`, and SwiftUI's Observation only
+    /// re-evaluates a reader when a property it *touched* is later *written*. Every test above
+    /// calls `timer.hasElapsed` directly and would pass whether that property is computed or
+    /// stored, because a direct call always re-evaluates it — that is precisely why the old,
+    /// computed `hasElapsed` slipped past every one of them while still never waking a real
+    /// observer. `withObservationTracking` is the one seam that tells the two apart without a
+    /// SwiftUI view in the loop: it records what a read actually depended on, and reports whether
+    /// a later write touched any of it.
+    ///
+    /// Before the fix, `hasElapsed` was computed from `deadline` and the clock's anchor — neither
+    /// of which the ordinary tick's `refresh()` call ever wrote, only `display` did — so a reader
+    /// that had only ever asked about `hasElapsed` was never told a tick happened at all, only
+    /// that a *new* deadline (`start()`) or a fresh `sync()` had landed. Sitting on screen through
+    /// a deadline produces neither: the round does not change and the app makes no incidental
+    /// request. This test drives exactly that: one `start()`, then nothing but the passage of
+    /// time and the ticker's own `refresh()` — the same two calls a foregrounded, idle screen
+    /// sees between phase transitions.
+    @MainActor
+    @Test func hasElapsedNotifiesAnObserverOnTheOrdinaryTickAlone() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T23:59:59Z"))
+        let deadline = try instant("2026-08-11T00:00:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: deadline, form: .precise)
+        #expect(timer.hasElapsed == false)
+
+        // `withObservationTracking`'s `onChange` is `@Sendable`, so a plain captured `var` is
+        // rejected under strict concurrency even though the mutation below happens synchronously,
+        // inside `refresh()`'s write, on the `@MainActor` this whole test is isolated to. Unlike
+        // `ArtworkView.cache`'s narrowly-scoped `nonisolated(unsafe)` on one field — the tighter
+        // escape, preferred when there is a single field to mark — this box exists only to give
+        // the closure something to capture at all, so the class-wide `@unchecked Sendable` here
+        // is the right-sized tool for a single-purpose test type, not a looser stand-in for it.
+        let notified = ObservationFlag()
+        withObservationTracking {
+            _ = timer.hasElapsed
+        } onChange: {
+            notified.value = true
+        }
+
+        // No new deadline, no `sync()` — only the uptime advancing and the ordinary tick's own
+        // `refresh()`, which is what `CountdownTimer.start()`'s `Task` calls every second on a
+        // screen nobody touched.
+        uptime.advance(1)
+        timer.refresh()
+
+        #expect(
+            notified.value,
+            "a reader watching hasElapsed alone must be woken by the ordinary tick, not only by a new deadline or a fresh sync() — this is the E26-04 regression: RoundScreen's onChange(of: timer.hasElapsed) never fired while the app just sat on screen"
+        )
+        #expect(timer.hasElapsed == true)
+        timer.stop()
+    }
+
+    /// The coarse form's tick is deliberately once a minute (`docs/12` §1) — that lag already has
+    /// a name and is accepted. This asserts the fix does not *add* to it: a coarse-form observer
+    /// is still woken by that same once-a-minute tick, not left waiting on some other event that
+    /// might not come at all (which was the actual bug, not merely a slow one).
+    @MainActor
+    @Test func hasElapsedNotifiesACoarseObserverOnItsOwnMinuteTick() throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T23:00:00Z"))
+        let deadline = try instant("2026-08-11T00:00:00Z")
+
+        let timer = CountdownTimer(clock: clock)
+        timer.start(until: deadline, form: .coarse)
+        #expect(timer.hasElapsed == false)
+
+        let notified = ObservationFlag()
+        withObservationTracking {
+            _ = timer.hasElapsed
+        } onChange: {
+            notified.value = true
+        }
+
+        uptime.advance(3600)
+        timer.refresh()
+
+        #expect(notified.value, "the coarse tick must still wake an hasElapsed observer on its own cadence")
+        #expect(timer.hasElapsed == true)
+        timer.stop()
+    }
+}
+
+/// A one-field `@unchecked Sendable` box, for the `onChange` closures above that must set a flag
+/// from `withObservationTracking`'s `@Sendable` callback. The mutation happens synchronously, on
+/// the same `@MainActor` call stack as the write that triggered it, but the closure's own type
+/// cannot say so. `ArtworkView.cache` marks its one field `nonisolated(unsafe)` instead, because
+/// it has an existing type to attach the escape to; this box exists purely to give a `@Sendable`
+/// closure something safe to capture, so marking the type itself is the right-sized version of
+/// the same escape rather than a looser one.
+private final class ObservationFlag: @unchecked Sendable {
+    var value = false
 }

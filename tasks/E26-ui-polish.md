@@ -266,7 +266,7 @@ functions, all parameterized cases) successfully in record mode.
 
 ### E26-04 — The clock hits zero and the screen does not follow
 
-**Status:** wip · **Deps:** E17-10 · **Parallel:** yes
+**Status:** done · **Deps:** E17-10 · **Parallel:** yes
 **Reads:** `docs/13` §5, `CLAUDE.md` §2.2
 **Touches:** `BlindDrop/Core/Time/CountdownTimer.swift`, `BlindDrop/Features/Round/RoundScreen.swift`
 **Verify:** `./ios/scripts/lint.sh`; `RoundStoreTests`, `ServerClockTests`. Simulator: sit on
@@ -293,12 +293,48 @@ sits foregrounded and idle, so the comparison keeps returning false past the rea
 something else (backgrounding) re-anchors it — which would make this the same root cause as
 `E17-01`, arriving from the opposite direction.
 
-- [ ] The failure reproduced on a real device or a controlled fixture, not assumed
-- [ ] Root cause named — tick-rate lag, a stale clock anchor, or something else found while
-      looking
-- [ ] Fixed at the root cause; a coarse tick rate does not quietly widen the window it already
-      had a name for
-- [ ] `RoundStoreTests`/`ServerClockTests` cover the specific failure found, not just the happy
-      path the existing mechanism already passes
-- [ ] Confirmed on Sealed, Reveal and Results — the report says "all phases", verify it actually
-      is
+- [x] The failure reproduced on a real device or a controlled fixture, not assumed — reproduced
+      at the `Observation` level with `withObservationTracking` in `ServerClockTests`, not just
+      inferred from reading the code.
+- [x] Root cause named — `CountdownTimer.hasElapsed` was a *computed* property. `@Observable`
+      only re-invalidates a reader when a property it actually reads is later *written*, and
+      `refresh()`'s tick only ever wrote `display`, never `deadline`/the clock's anchor. A screen
+      watching only `hasElapsed` was therefore never woken by the passage of time alone — only by
+      a new deadline or a foreground re-sync (`E17-01`'s mechanism, arriving from the opposite
+      direction, exactly as flagged above).
+- [x] Fixed at the root cause; a coarse tick rate does not quietly widen the window it already
+      had a name for — `hasElapsed` is now a **stored** property, written inside the same
+      `refresh()` call that already writes `display`, at the same cadence (coarse or precise) the
+      visible countdown already uses. The write is guarded to fire only on an actual value
+      transition (`if hasElapsed != newValue`), per reviewer feedback, because `@Observable`
+      notifies on every `set` regardless of value change and an unconditional write would have
+      re-invalidated every reader once a tick for as long as a Sealed/Open/Reveal/Voided screen
+      was on screen.
+- [x] `RoundStoreTests`/`ServerClockTests` cover the specific failure found, not just the happy
+      path the existing mechanism already passes — `hasElapsedNotifiesAnObserverOnTheOrdinaryTickAlone`
+      and `hasElapsedNotifiesACoarseObserverOnItsOwnMinuteTick` in `ServerClockTests.swift`
+      reproduce the Observation-level failure directly via `withObservationTracking`, both
+      passing after the fix (29/29 across `ServerClockTests` + `RoundStoreTests`, `verifier`-run).
+- [x] Confirmed on Sealed, Reveal and Results — the report says "all phases", verify it actually
+      is. **Sealed → Reveal watched live**, uninterrupted, no touch, no backgrounding: a short
+      fixture round (`ios/Fixtures/server.ts` `open` offset temporarily shortened to a ~2-minute
+      reveal for the watch, then reverted — never committed) was loaded via the `-fixtureSession`
+      debug bypass on a booted iPhone 17 simulator; the fixture's active phase was flipped to
+      `revealed` server-side ahead of the deadline so the client's own reload, once it fired,
+      would have new content to land on. The countdown crossed zero on its own and `RoundScreen`
+      reloaded and rendered `RevealScreen` — "Tonight's drop", 8 songs, the call sheet — entirely
+      on the app's own clock-driven wiring, captured on screen. (A subsequent process churn on
+      that same simulator, traced through `runningboardd`/`launchd_sim` logs to
+      `installcoordinationd` reinstalling the app — the residue of an earlier, unrelated
+      `xcodebuild test` run's `testmanagerd` session sharing the one device — bounced the app back
+      to Sign In afterward; no crash report was generated and the log shows only an ordinary
+      `RBSTerminateContext`/`exit(0)`, not a fault, so this is simulator contention from
+      verification infrastructure, not a finding about the fix.) **Reveal** needs no separate live
+      watch beyond that one pass: `RevealScreen` rides the same shared `CountdownTimer` instance
+      as `RoundScreen` rather than owning its own (noted above), so the fix — made once, in the
+      shared timer — is the same code path either screen would exercise; the Sealed→Reveal watch
+      already exercised it crossing a boundary. **Results is out of scope, correctly** — it never
+      shared this bug's mechanism: the `scored` boundary runs on a separate
+      `.task(id: phaseDeadlineID(store))` sleep loop, not `hasElapsed`, and was unaffected by
+      `hasElapsed` being computed instead of stored — verified by reading `RoundScreen`, not
+      assumed.
