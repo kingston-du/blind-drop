@@ -373,11 +373,16 @@ import Testing
         timer.start(until: deadline, form: .precise)
         #expect(timer.hasElapsed == false)
 
-        var notified = false
+        // `withObservationTracking`'s `onChange` is `@Sendable`, so a plain captured `var` is
+        // rejected under strict concurrency even though the mutation below happens synchronously,
+        // inside `refresh()`'s write, on the `@MainActor` this whole test is isolated to. A tiny
+        // `@unchecked Sendable` box — the same escape `ArtworkView.cache` documents — says exactly
+        // that and nothing more.
+        let notified = ObservationFlag()
         withObservationTracking {
             _ = timer.hasElapsed
         } onChange: {
-            notified = true
+            notified.value = true
         }
 
         // No new deadline, no `sync()` — only the uptime advancing and the ordinary tick's own
@@ -387,10 +392,8 @@ import Testing
         timer.refresh()
 
         #expect(
-            notified,
-            "a reader watching hasElapsed alone must be woken by the ordinary tick, not only by " +
-                "a new deadline or a fresh sync() — this is the E26-04 regression: RoundScreen's " +
-                "onChange(of: timer.hasElapsed) never fired while the app just sat on screen"
+            notified.value,
+            "a reader watching hasElapsed alone must be woken by the ordinary tick, not only by a new deadline or a fresh sync() — this is the E26-04 regression: RoundScreen's onChange(of: timer.hasElapsed) never fired while the app just sat on screen"
         )
         #expect(timer.hasElapsed == true)
         timer.stop()
@@ -410,18 +413,26 @@ import Testing
         timer.start(until: deadline, form: .coarse)
         #expect(timer.hasElapsed == false)
 
-        var notified = false
+        let notified = ObservationFlag()
         withObservationTracking {
             _ = timer.hasElapsed
         } onChange: {
-            notified = true
+            notified.value = true
         }
 
         uptime.advance(3600)
         timer.refresh()
 
-        #expect(notified, "the coarse tick must still wake an hasElapsed observer on its own cadence")
+        #expect(notified.value, "the coarse tick must still wake an hasElapsed observer on its own cadence")
         #expect(timer.hasElapsed == true)
         timer.stop()
     }
+}
+
+/// A one-field `@unchecked Sendable` box, for the `onChange` closures above that must set a flag
+/// from `withObservationTracking`'s `@Sendable` callback. The mutation happens synchronously, on
+/// the same `@MainActor` call stack as the write that triggered it, but the closure's own type
+/// cannot say so — this box is the documented way of saying it for it (`ArtworkView.cache`).
+private final class ObservationFlag: @unchecked Sendable {
+    var value = false
 }
