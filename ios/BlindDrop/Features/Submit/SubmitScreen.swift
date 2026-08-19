@@ -101,7 +101,10 @@ struct SubmitScreen: View {
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: browsing)
+        // Same duration as `SongSearch`'s own browsing-state transition (`SongSearch.swift`'s
+        // `body`), which this fade rides alongside — a mismatched duration would have the
+        // subhead finish fading a beat before the layout around it settles.
+        .animation(.easeInOut(duration: 0.22), value: browsing)
     }
 
     /// What sits under the field while nothing has been searched for: the nudge if the reveal is

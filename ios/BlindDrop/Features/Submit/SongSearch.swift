@@ -48,7 +48,7 @@ struct SongSearch<Header: View, Footer: View>: View {
 
     /// Whether anything has come back to look at. `.idle` and an empty result set are the same
     /// screen: a field, and room under it. `SubmitStore.isBrowsingResults` is the one definition;
-    /// this file and its two hosts all read it rather than each rederiving the same check.
+    /// `header(_:)` below is how a host gets the answer, rather than rederiving it itself.
     private var isBrowsing: Bool { store.isBrowsingResults }
 
     /// Whether the link box has been asked for.

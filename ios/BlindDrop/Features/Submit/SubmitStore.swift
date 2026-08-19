@@ -28,8 +28,9 @@ final class SubmitStore {
     private(set) var results: LoadState<[TrackDTO]> = .idle
 
     /// Whether anything has come back to look at. `.idle` and an empty result set are the same
-    /// screen: a field, and room under it. `SongSearch` and its hosts both read this rather than
-    /// each keeping their own copy of the same check.
+    /// screen: a field, and room under it. `SongSearch` reads this and hands the answer down to
+    /// its `header` closure (`E26-03`), so a host with something to give up while browsing —
+    /// `SubmitScreen`'s subhead — does not need its own copy of the same check.
     var isBrowsingResults: Bool {
         !(results.value ?? []).isEmpty
     }
