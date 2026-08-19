@@ -9,7 +9,10 @@ closed 2026-08-19 — `GET /groups`, the switcher's data source — leaving `E18
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` remains open — a batch attempt on all four slices ran out of
 budget before any of them produced usable work (`E26-01` partial and non-compiling,
-`E26-02`/`E26-03`/`E26-04` untouched); all four are back to `todo`.
+`E26-02`/`E26-03`/`E26-04` untouched); all four went back to `todo`. `E26-04` closed 2026-08-19 —
+`CountdownTimer.hasElapsed` was a computed property `@Observable` never re-invalidated readers of
+on the tick alone; now stored, written (guarded to real transitions) from the same `refresh()`
+call that already updates the visible countdown. `E26-01`/`E26-02`/`E26-03` remain open.
 
 `E00`–`E13`, `E15`, `E16-01` and **all of `E17`** are done, as are `E14-01`, `E14-02` and
 `E14-04`.
@@ -343,7 +346,7 @@ Only what does not belong to another slice. Everything else is fixed on the scre
 | E26-01 Results, laid out for the numbers it produces, and playable | wip | E17-10 | **yes** | AC-9 |
 | E26-02 Guessing, without the fidget | wip | E17-10 | **yes** | — |
 | E26-03 Searching for a song with a keyboard in the way | wip | E17-10 | **yes** | — |
-| E26-04 The clock hits zero and the screen does not follow | wip | E17-10 | **yes** | AC-2 |
+| E26-04 The clock hits zero and the screen does not follow | done | E17-10 | **yes** | AC-2 |
 
 ## E27 — Spikes · [file](E27-spikes.md)
 
