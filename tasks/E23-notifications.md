@@ -24,7 +24,7 @@ everything else to the point where that is the only remaining step.
 
 ### E23-01 — Find out why, then fix it
 
-**Status:** todo · **Deps:** — · **Parallel:** yes — against E19, E20, E21
+**Status:** done · **Deps:** — · **Parallel:** yes — against E19, E20, E21
 **Reads:** `docs/05` §1–§3, `docs/01` §5
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/push-worker/`,
 `server/supabase/tests/db/cron.sql`, `docs/05-JOBS-AND-NOTIFICATIONS.md`
@@ -148,28 +148,44 @@ Net: every command this slice's own area is verified by has passed, more than on
 in a shared, concurrently-mutated local stack — named here rather than silently waved off —
 not evidence against this diff.
 
-#### What remains unverified — device- and owner-only
+#### Owner follow-up, closing the slice — 2026-08-18
 
-- Whether `app.functions_url`/`app.service_key` currently have values on the hosted `blind-drop`
-  project. This agent has no hosted-project access (no `supabase link`, no dashboard, no service
-  role for that project). **Owner action:** check via the SQL editor
-  (`select current_setting('app.functions_url', true);`) and set both if empty — see docs/05 §1
-  for the exact statements.
-- Whether `push-worker` is currently deployed to that project, and whether `APNS_KEY_ID` /
-  `APNS_TEAM_ID` / `APNS_PRIVATE_KEY` / `APNS_TOPIC` / `APNS_ENVIRONMENT` have been set there via
-  `supabase secrets set`. Not answerable from the repo (see Suspect 2 above). **Owner action:**
-  `supabase functions deploy push-worker --project-ref ojzwgaffeegssfscoaiv`, confirm the five
-  secrets, and add the migrations covering `0016`/`0019`/the notification migrations to the
-  "what is actually deployed" record once done.
-- End-to-end cron dispatch (`pg_cron` → `pg_net` → `push-worker` over the network, as opposed to
-  the direct HTTP call `test:functions` already makes) was attempted locally in this sandbox and
-  not completed: the local edge-runtime container is not reachable reliably enough in this
-  environment to prove the network hop, only the SQL-level failure mode (above) and the
-  function-level behaviour (`test:functions`, unchanged and still passing). This is a real gap
-  worth closing with more time, but it is not the same gap as either named suspect and does not
-  block this slice.
-- An actual push arriving on a physical device — unchanged from the epic's own framing: needs a
-  device and the owner, which is `E23-03`.
+The three items above needed hosted-project access this agent didn't have. With it, all but the
+last are now resolved:
+
+- **The GUC design (`app.functions_url`/`app.service_key`) does not work on hosted Supabase, at
+  all, regardless of who runs it.** Verified live: `select rolsuper from pg_roles where rolname =
+  current_user` for the connecting `postgres` role returns `false`, and
+  `alter database postgres set app.functions_url = …` fails with `42501 permission denied to set
+  parameter`. This is a role-privilege restriction on the hosted tier, not a missing step — the
+  GUC design in this slice's original diagnosis was correct about the *symptom*
+  (`current_setting()` raising `42704`) but the fix it prescribed was never actually exercisable.
+  Superseded by two **Vault** secrets, `blind_drop_functions_url` and `blind_drop_service_key`,
+  read via `vault.decrypted_secrets` at call time instead of `current_setting()` — same
+  no-literal-in-`cron.job` property, different mechanism. `docs/05` §1 and `tests/db/cron.sql`
+  are updated to match; see `server/supabase/migrations/20260818150000_vault_worker_config.sql`.
+- **A second, independent bug found while fixing the first: `blind_drop_service_key` must be the
+  project's current `sb_secret_…` key, not the legacy `service_role` JWT.** `push-worker`'s
+  `requireServiceRole` does a plain equality against the deployed function's
+  `SUPABASE_SERVICE_ROLE_KEY` env var; on a project that has migrated to the new API-key system
+  (this one has — verified via `supabase secrets list`, the platform-injected key vars were all
+  rotated together on 2026-08-18), that env var is bound to the `sb_secret_…` value, and the
+  still-valid, still-listed legacy JWT is rejected with 401. Verified by direct `curl` against
+  the deployed `push-worker`: legacy JWT → 401, `sb_secret_…` → 200.
+- **`push-worker` is deployed**, and the five APNs secrets (`APNS_KEY_ID`, `APNS_TEAM_ID`,
+  `APNS_PRIVATE_KEY`, `APNS_TOPIC`, `APNS_ENVIRONMENT`) are present via `supabase secrets list` —
+  both were open questions in Suspect 2, now closed.
+- **End-to-end cron dispatch verified live**, not just locally: ran the exact SQL the `push` cron
+  job executes (`vault.decrypted_secrets` lookup → `net.http_post` → `push-worker`) directly
+  against the hosted project via `supabase db query --linked`, and confirmed via
+  `net._http_response`: `200`, `{"claimed":0,"sent":0,"failed":0,"devices":0,"disabled":0}` — the
+  worker runs, authenticates, and finds nothing in the outbox to send (expected; the seed/demo
+  project has no registered devices right now). Prior 401 responses from before the fix are also
+  visible in `net._http_response`, confirming this was a real, live-failing state and not a
+  local-only reproduction.
+- **Still unverified, and still genuinely `E23-03`'s scope:** an actual push arriving on a
+  physical device. That needs a device with the app installed, notification permission granted,
+  and a live round — a device state, not a server state, and not reachable from here.
 
 ---
 

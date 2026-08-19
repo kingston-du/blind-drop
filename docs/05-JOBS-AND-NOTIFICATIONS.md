@@ -14,9 +14,11 @@ select cron.schedule('tick', '* * * * *',
 -- Drain the outbox to APNs via the push-worker Edge Function.
 select cron.schedule('push', '* * * * *',
   $$ select net.http_post(
-       url     := current_setting('app.functions_url') || '/push-worker',
+       url     := (select decrypted_secret from vault.decrypted_secrets
+                    where name = 'blind_drop_functions_url') || '/push-worker',
        headers := jsonb_build_object(
-                    'Authorization', 'Bearer ' || current_setting('app.service_key'),
+                    'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets
+                                                     where name = 'blind_drop_service_key'),
                     'Content-Type',  'application/json'),
        body    := '{}'::jsonb) $$);
 ```
@@ -35,37 +37,49 @@ the reveal together.
 `tick_rounds()` is specified in `03-DATA-MODEL.md` §4. Read it there; it is the transactional
 core and is not duplicated here.
 
-### Deployment: the two database settings
+### Deployment: two Vault secrets
 
-> **E23-01.** `app.functions_url` and `app.service_key` are read by the `push` and `links` jobs
-> above but set by **nothing** in this repo — no migration, `config.toml`, or `seed.sql`. That
-> is deliberate for `functions_url` (it's environment-specific) and required for `service_key`
-> (it's a secret; `0016_cron.sql`'s own tests assert neither a host nor a JWT-shaped key ever
-> lands as a literal in `cron.job`, where anyone with `select` on the catalog could read it).
-> Deliberate does not mean automatic, though: **on a project where these have never been set,
-> both jobs fail on their first line, every minute, silently** —
-> `current_setting('app.functions_url')` raises `42704 unrecognized configuration parameter`,
-> so `net.http_post` never runs, so `push-worker`/`links-worker` are never called. The failure
+> **E23-01, amended 2026-08-18.** `app.functions_url`/`app.service_key` database GUCs were the
+> original design here and are what `0016_cron.sql`'s tests first shipped against — but they do
+> not work on a hosted project. Verified live: the `postgres` role on hosted Supabase is not a
+> real superuser (`select rolsuper from pg_roles where rolname = current_user` returns `false`),
+> and `alter database postgres set app.functions_url = …` fails with
+> `42501 permission denied to set parameter "app.functions_url"`. No connection method changes
+> that — it is a role-privilege restriction, not a client quirk. The GUC design in earlier
+> revisions of this doc was never actually exercised against a hosted project before being
+> written down; this section corrects that.
+>
+> The `push` and `links` jobs above instead read two **Vault secrets** at call time —
+> `blind_drop_functions_url` and `blind_drop_service_key` — via `vault.decrypted_secrets`. Same
+> property the GUC design was after: neither value is ever a literal in `cron.job.command`,
+> where anyone with `select` on the catalog could read it (`0016_cron.sql`'s tests still assert
+> this, now against the Vault pattern). On a project where these secrets have never been set,
+> both jobs fail on their first line, every minute, silently — the subquery returns no row, so
+> `url`/`Authorization` become `null`, `net.http_post` sends a request to nowhere. The failure
 > lands in `cron.job_run_details`, which nothing in this app queries. See
-> `tasks/E23-notifications.md` for how this was diagnosed and reproduced.
+> `tasks/E23-notifications.md` for how the original (GUC) failure mode was diagnosed.
 >
 > **The one-time step, per environment**, run by whoever has admin access to that Supabase
 > project (SQL editor, or `supabase db query --linked --file …` with an uncommitted file — never
 > a migration):
 >
 > ```sql
-> alter database postgres set app.functions_url = 'https://<project-ref>.supabase.co/functions/v1';
-> alter database postgres set app.service_key = '<the service_role key for this project>';
+> select vault.create_secret('https://<project-ref>.supabase.co/functions/v1', 'blind_drop_functions_url');
+> select vault.create_secret('<the project''s current sb_secret_… key>', 'blind_drop_service_key');
 > ```
 >
-> Applies to new connections, which is what a fresh pg_cron run always is — no reload needed.
-> Verify with `select current_setting('app.functions_url', true);` (the `true` makes a still-missing
-> setting return `null` instead of raising, so this is safe to run as a check). If either comes
-> back null or the wrong host, the jobs are running and failing, not idle.
+> **The key must be the project's current `sb_secret_…` secret API key, not the legacy
+> `service_role` JWT.** `push-worker`'s `requireServiceRole` check (`_shared/auth.ts`) is a plain
+> equality against the deployed function's `SUPABASE_SERVICE_ROLE_KEY` — once a project has
+> migrated to the new API-key system, the platform binds that env var to the `sb_secret_…` key,
+> and the legacy JWT is rejected with a 401 even though it is still listed as a valid, unrevoked
+> key in the dashboard. Verified by direct `curl` against the deployed function: legacy JWT → 401,
+> `sb_secret_…` → 200. Rotation is `vault.update_secret`, never a migration or a rescheduled job.
+> Verify with `select decrypted_secret from vault.decrypted_secrets where name = 'blind_drop_functions_url';`.
 >
 > Locally, `seed.sql` parks all four named jobs (`set_blind_drop_jobs_active(false)`) precisely
-> so `test:db`/`test:functions` never race a live scheduler — the GUCs are never set locally
-> either, on purpose, since nothing local depends on them being set.
+> so `test:db`/`test:functions` never race a live scheduler — the Vault secrets are never set
+> locally either, on purpose, since nothing local depends on them being set.
 
 ---
 
@@ -224,7 +238,7 @@ is the only web surface in v1 (`16-OUT-OF-SCOPE.md`).
 | A group's timezone is deleted from tzdata | `ensure_rounds()` raises for that group only, logs, continues to the next. | Abort the whole tick. |
 | Clock skew on the DB host | Irrelevant within a minute; the tick is minute-granular. | — |
 | Two `push-worker` invocations overlap | `for update skip locked` means they claim disjoint rows. | Send the same row twice. |
-| `app.functions_url`/`app.service_key` unset (§1) | `push`/`links` fail at `current_setting()`, every minute, before any request is built. | Look like an idle worker. See below. |
+| `blind_drop_functions_url`/`blind_drop_service_key` Vault secrets unset or wrong (§1) | `push`/`links` fail before any request is built, or `push-worker` returns 401. | Look like an idle worker. See below. |
 
 `E03` and `E06` each carry a test for the first row of this table — it is the one that
 actually happens.

@@ -50,14 +50,14 @@ select ok((select command not like '%ensure_rounds%'
 
 select ok((select command like '%net.http_post(%'
              from cron.job where jobname = 'push'), 'push drains through pg_net');
-select ok((select command like '%current_setting(''app.functions_url'')%'
+select ok((select command like '%vault.decrypted_secrets%blind_drop_functions_url%'
              from cron.job where jobname = 'push'),
-          'the function host comes from a database setting');
+          'the function host comes from a Vault secret, never a literal');
 select ok((select command like '%|| ''/push-worker''%'
              from cron.job where jobname = 'push'), 'push targets the push-worker function');
-select ok((select command like '%current_setting(''app.service_key'')%'
+select ok((select command like '%vault.decrypted_secrets%blind_drop_service_key%'
              from cron.job where jobname = 'push'),
-          'authorization comes from a database setting');
+          'authorization comes from a Vault secret, never a literal');
 select ok((select command like '%''Authorization''%''Bearer ''%'
              from cron.job where jobname = 'push'), 'push sends service-role bearer auth');
 select ok((select command like '%''Content-Type''%''application/json''%'
@@ -76,10 +76,10 @@ select ok((select command like '%net.http_post(%'
              from cron.job where jobname = 'links'), 'the backfill drains through pg_net');
 select ok((select command like '%|| ''/links-worker''%'
              from cron.job where jobname = 'links'), 'links targets the links-worker function');
-select ok((select command like '%current_setting(''app.functions_url'')%'
-             and command like '%current_setting(''app.service_key'')%'
+select ok((select command like '%vault.decrypted_secrets%blind_drop_functions_url%'
+             and command like '%vault.decrypted_secrets%blind_drop_service_key%'
              from cron.job where jobname = 'links'),
-          'its host and key come from database settings, like push''s');
+          'its host and key come from Vault secrets, like push''s');
 select ok((select command not like '%http%://%' and command not like '%eyJ%'
              from cron.job where jobname = 'links'),
           'and neither is embedded in cron.job');
