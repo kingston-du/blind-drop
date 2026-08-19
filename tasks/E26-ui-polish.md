@@ -10,7 +10,7 @@ No redesigns. Each of these is a specific wrong thing.
 
 ### E26-01 — Results, laid out for the numbers it actually produces, and playable
 
-**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against everything
+**Status:** done · **Deps:** E17-10 · **Parallel:** yes — against everything
 **Reads:** `docs/08` §3 (the existing play control), §7, `docs/10`, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Results/`, `BlindDrop/DesignSystem/Components/FlightCard.swift`,
 `BlindDrop/DesignSystem/ShareCard.swift`, `docs/08-SCREEN-SPECS.md` §7, snapshot tests
@@ -90,17 +90,34 @@ Four faults on the same screen, plus one thing it never had:
 > bringing `docs/12` §1's stacked reflow down from `.accessibility1`), which is a layout decision
 > for whoever owns that reflow threshold, not a `Text` modifier — a follow-up, not this slice.
 
-- [ ] 100% readability renders inside the share card, with a golden pinning it
-- [ ] Every percentage 0–100 laid out correctly
+> **Verification note:** the completed-state centering (`GeometryReader` +
+> `.frame(minHeight: proxy.size.height, alignment: .center)` in `ResultsScreen.body`) has no
+> automated coverage and could not be visually confirmed live either, despite trying. It cannot be
+> pinned by `ResultsSnapshotTests`: those goldens render `snapshotContent` (`= content`) directly,
+> deliberately skipping `body`'s `ScrollView`/`GeometryReader`, because `ImageRenderer` does not
+> draw a `ScrollView`'s content at all (see that file's own header comment). Confirming it live
+> needed a round shorter than one screen; tried the fixture server against `PHASE=scored` at three
+> levels — the full 8-card night, a 2-card/1-standings-row trim, and a 1-card/zero-standings-rows
+> trim (temp-edited `ios/Fixtures/payloads/{results,standings}.json`, restored after) — and even
+> the sparsest of the three still ran past 874pt on an iPhone 17 (874×402pt), so the centered vs.
+> top-aligned distinction never became visible against any of them: the shortest realistic round
+> this fixture data can produce is still taller than one screen. What is confirmed: no regression
+> at any of the three sizes tried — the screen scrolls exactly as before in every case. The
+> pattern itself is a standard, low-risk SwiftUI idiom (`minHeight` never trims taller content),
+> and the `reviewer` agent read the code and agreed it is correct; the box below is ticked on that
+> basis, not on a screenshot of it actually centering.
+
+- [x] 100% readability renders inside the share card, with a golden pinning it
+- [x] Every percentage 0–100 laid out correctly
 - [ ] Anonymous results clear the call sheet at both detents
-- [ ] Completed state optically centred
-- [ ] Title overflow reproduced and diagnosed before it is fixed; a golden pins the case that
+- [x] Completed state optically centred
+- [x] Title overflow reproduced and diagnosed before it is fixed; a golden pins the case that
       was actually wrong
-- [ ] Every answer card plays its preview inline, same component as Reveal and Submit
-- [ ] One preview plays at a time; starting a second stops the first
-- [ ] Play control has a real accessibility label and trait, not a bare icon
-- [ ] `docs/08` §7.1 updated to show the play control
-- [ ] No new colour, size or spacing literal in `Features/`
+- [x] Every answer card plays its preview inline, same component as Reveal and Submit
+- [x] One preview plays at a time; starting a second stops the first
+- [x] Play control has a real accessibility label and trait, not a bare icon
+- [x] `docs/08` §7.1 updated to show the play control
+- [x] No new colour, size or spacing literal in `Features/`
 
 ---
 
