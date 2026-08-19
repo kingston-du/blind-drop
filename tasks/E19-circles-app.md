@@ -16,7 +16,7 @@ makes it true.
 
 ### E19-01 — Every screen knows which circle it is showing
 
-**Status:** wip · **Deps:** E18-01, E18-02 · **Parallel:** no — it moves shared infrastructure
+**Status:** done · **Deps:** E18-01, E18-02 · **Parallel:** no — it moves shared infrastructure
 **Reads:** `docs/13` §2–§5, `docs/01` ADR-011
 **Touches:** `BlindDrop/Core/Networking/`, `BlindDrop/Features/*/`(stores), `BlindDrop/App/`
 **Verify:** `./ios/scripts/lint.sh`; full unit + snapshot; `verify-fixture.sh` for the round and
@@ -35,11 +35,56 @@ construction rather than asking for "current".
 The deep-link grammar is part of this. `blinddrop://round/current` has no room for a circle, and
 notifications will need one in `E23`.
 
-- [ ] Group identity carried explicitly through the client — session, stores, endpoints
-- [ ] `Endpoint.swift` keeps owning path construction; no path built at a call site
-- [ ] Every store can be re-scoped and refetches rather than serving another circle's cache
-- [ ] Deep links can name a circle; existing links still resolve to a sensible default
-- [ ] Simulator: sign in, drop, seal, reveal, guess, results — one circle, no visible change
+- [x] Group identity carried explicitly through the client — session, stores, endpoints
+- [x] `Endpoint.swift` keeps owning path construction; no path built at a call site
+- [x] Every store can be re-scoped and refetches rather than serving another circle's cache
+- [x] Deep links can name a circle; existing links still resolve to a sensible default
+- [x] Simulator: sign in, drop, seal, reveal, guess, results — one circle, no visible change
+
+A new `CircleStore` (`Core/Circles/`) is the type this slice turns out to hinge on: it fetches
+`GET /groups` once, resolves `activeGroupID` — the persisted choice if it still names a circle
+the caller holds, else the server's own oldest-active-first order, which is exactly what
+`/groups/current` always resolved to — and every group-scoped store (`RoundStore`, `SubmitStore`,
+`GroupStore`, `RecordStore`, `ResultsStore`) calls `resolveActiveID()` fresh at the top of its own
+`load()` rather than being handed an id once at construction. That is what makes "re-scope and
+refetch" (`E19-02`'s job) a plain `select(_:)` + reload with no store rebuilt. `RoundContext`
+itself did **not** grow a `groupID` field — `context.group.id` already was one, so nothing needed
+duplicating; the epic text above predates that read of the code, noted here rather than silently
+overridden. `Endpoint.swift`'s group-scoped factories all take an explicit `groupID` now (no
+`current` form left to fall back to), built through one `scoped(_:_:_:)` helper. `DeepLink` grew
+an optional `blinddrop://circle/<id>/…` prefix; bare links still mean "the active circle", and
+acting on the id (rather than just parsing it) is `E19-03`'s.
+
+Two real bugs came out of review, both fixed before closing: `CircleStore` had no path back to
+`SessionStore.noteServerSaid(_:)`, so a caller removed from their only circle — a case
+`/rounds/current`'s `NO_GROUP` 409 used to route straight to onboarding — would instead see a
+generic "unreadable" error forever, because `GET /groups` answers a zero-circle caller with a
+**200** and `{"circles": []}` (docs/04 §3: "a valid answer, not an error"), which never reaches
+`noteServerSaid` on its own. Fixed by having `CircleStore.load()` call
+`session.noteServerSaid(.noGroup)` explicitly when the fetched list is empty, wired through a new
+reciprocal `CircleStore.attach(_ session:)` alongside the existing `SessionStore.attach(_
+circles:)`. The second: `CircleStore` itself had no tests of its own — every other test only
+exercised it as incidental plumbing behind a single-circle fixture. Added
+`CircleStoreTests.swift` (6 tests): the saved-choice-still-valid path, the saved-choice-gone
+fallback to server order, the empty-list-tells-the-session path above, `reset()` directly and via
+`SessionStore.endSession()`, and that three concurrent `resolveActiveID()` calls share one
+request.
+
+The fixture server (`ios/Fixtures/server.ts`) grew a `:group_id`-scoped sibling for every route
+the client now calls, keyed off `PRIMARY_GROUP_ID` (`payloads/group_current.json`'s own id, so
+every existing fixture-backed test's payloads describe exactly the circle a store now resolves)
+and `SECONDARY_GROUP_ID` (`GET /groups`'s static second row, "Late Night Radio" — a real circle a
+`:group_id` route can now be asked for, for `E19-02` to build the switcher against). The
+`current`-shaped routes are left in place rather than removed — nothing in the client calls them
+any more after this slice, and a fixture shedding compatibility the day the app does was never
+required.
+
+Verified: `./ios/scripts/lint.sh` clean; unit 405/405 (including new `CircleStoreTests`);
+snapshot 63/63; `verify-fixture.sh` for `FixtureRoundTests` (6/6) and `FixtureOnboardingTests`
+(4/4). Simulator: built and ran the whole loop against the fixture server on iPhone 17 —
+sign-in, the sealed/open/drop screens, search, seal, the revealed guess sheet with its
+pre-filled sheet, and the scored results with standings — every phase screenshotted and matching
+what shipped before this slice, which is the entire claim of a "no new UI" task.
 
 ---
 

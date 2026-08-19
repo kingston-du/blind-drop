@@ -5,7 +5,11 @@ Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `block
 `E18-01` closed 2026-08-18, unblocking `E18-02` and `E18-03` (parallel to each other). `E18-02`
 closed 2026-08-19 — `GET /groups`, the switcher's data source. `E18-03` closed 2026-08-19 too —
 the cross-circle repeat refusal, `BD003`/`TRACK_ALREADY_USED`, folded into `upsert_submission`
-itself. `E18` is fully done; `E19-01` and `E23-02` are now open on the server side.
+itself. `E18` is fully done. `E19-01` closed 2026-08-19 too — the client moved off every
+`current`-shaped route onto a new `CircleStore` (`GET /groups`, resolving an active id the same
+way `/groups/current` always did), which every group-scoped store now re-resolves on its own
+`load()` rather than being handed once at construction. No new UI, by design; `E19-02` (the
+switcher) is next, now unblocked. `E23-02` is open on the server side.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` — a first batch attempt on all four slices ran out of budget
@@ -294,7 +298,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E19-01 Every screen knows which circle it is showing | wip | E18-01, E18-02 | no | AC-1, AC-10 |
+| E19-01 Every screen knows which circle it is showing | done | E18-01, E18-02 | no | AC-1, AC-10 |
 | E19-02 The switcher | todo | E19-01 | no | — |
 | E19-03 A notification opens the circle it came from | todo | E19-02, E23-01 | no | — |
 
@@ -397,7 +401,7 @@ Investigation only. Each ends in a recommendation, not code.
 | Beta epic | Done / Total |
 |---|---|
 | E18 circles: server | 3 / 3 |
-| E19 circles: the app | 0 / 3 |
+| E19 circles: the app | 1 / 3 |
 | E20 invitations | 0 / 3 |
 | E21 circle settings | 0 / 2 |
 | E22 sealed privacy | 1 / 1 |
