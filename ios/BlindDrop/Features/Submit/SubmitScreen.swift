@@ -64,7 +64,7 @@ struct SubmitScreen: View {
                 accent: accent,
                 isFieldFocused: $isFieldFocused,
                 choose: choose,
-                header: { prompt },
+                header: { browsing in prompt(browsing: browsing) },
                 footer: { footer },
                 // This is the round's own search screen, sitting directly under `RoundHeader` —
                 // an uncapped gap here left "Today's song." a variable, often large distance
@@ -78,18 +78,30 @@ struct SubmitScreen: View {
 
     // MARK: - Open
 
-    /// *"Today's song."* and the one line of rules under it.
-    private var prompt: some View {
+    /// *"Today's song."* and, while there is nothing under it yet, the one line of rules.
+    ///
+    /// **`E26-03`: the subhead steps aside once there are rows to show.** At `.accessibility5`
+    /// the headline (capped, `docs/12` §1) plus an uncapped `bodyL` subhead plus the field —
+    /// stacked under the round's own chrome, above a keyboard that is already up — left no room
+    /// for a single result row on iPhone 17; reproduced as zero rows visible while typing. The
+    /// subhead has done its job by the time a result exists to look at, so it is what gives the
+    /// room back rather than the headline (`docs/08` §2's *"headline and field at the top of the
+    /// screen"* while searching) or the field (still has to be read to keep typing in).
+    private func prompt(browsing: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
             Text("submit.headline")
                 .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("submit.subhead")
-                .typeStyle(.bodyL)
-                .foregroundStyle(Palette.inkDim)
-                .fixedSize(horizontal: false, vertical: true)
+            if !browsing {
+                Text("submit.subhead")
+                    .typeStyle(.bodyL)
+                    .foregroundStyle(Palette.inkDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.18), value: browsing)
     }
 
     /// What sits under the field while nothing has been searched for: the nudge if the reveal is
