@@ -130,12 +130,18 @@ final class CountdownTimer {
     /// that the moment had arrived. The countdown kept ticking correctly right in front of the
     /// user while the screen behind it never re-read the clock, because nothing woke it up to.
     ///
-    /// Writing it here, on every `refresh()`, fixes that at the root: the tick that already
-    /// updates `display` now also updates this, and updating a stored `@Observable` property is
-    /// itself the notification — every reader of `hasElapsed`, on whatever screen, is invalidated
-    /// and re-reads it on the very next tick, the same cadence the visible digits already use.
-    /// This is not a poll bolted on beside the countdown; it is the countdown's own tick finally
-    /// reaching the one other thing it was supposed to.
+    /// Writing it here, from `refresh()` on the tick where it actually changes, fixes that at the
+    /// root: the tick that already updates `display` now also updates this, and updating a stored
+    /// `@Observable` property is itself the notification — every reader of `hasElapsed`, on
+    /// whatever screen, is invalidated on the very next tick that flips it, the same cadence the
+    /// visible digits already use. This is not a poll bolted on beside the countdown; it is the
+    /// countdown's own tick finally reaching the one other thing it was supposed to.
+    ///
+    /// `refresh()` only performs the write when the value actually changes — `@Observable`
+    /// notifies on every `set` regardless of whether the new value differs, so an unconditional
+    /// write here would re-invalidate every `hasElapsed` reader once a tick, for as long as a
+    /// countdown is on screen, which is the exact cost class this file's tick-cadence comment
+    /// above already cares about avoiding.
     private(set) var hasElapsed: Bool?
 
     init(clock: ServerClock) {
@@ -200,22 +206,34 @@ final class CountdownTimer {
     /// the clock re-anchors falls through to the line below and the display jumps to the true
     /// value; there is no separate "snap" step.
     ///
-    /// `hasElapsed` is written every call, unconditionally — including the unanchored branch,
-    /// where it goes to `nil` rather than being held. Unlike `display`, which is worth freezing
-    /// at its last true value for a moment so the digits do not flicker, "has the deadline
-    /// passed" has no honest frozen answer to show: `docs/13` §5 rule 3 says the app admits what
-    /// it does not know, and mid-gap it does not know this either.
+    /// `hasElapsed` is only ever *written* on an actual transition, including into and out of
+    /// the unanchored `nil` — not because a same-value write would be wrong, but because
+    /// `@Observable` notifies on every `set`, value-change or not. Writing it unconditionally
+    /// on every tick would re-invalidate every reader of `hasElapsed` once a second (or once a
+    /// minute, coarse) for as long as a Sealed/Open/Reveal/Voided screen is on screen — a real,
+    /// continuous cost this fix would have introduced, in the same file that already reasons
+    /// carefully about waking the CPU only when something the display shows actually changes
+    /// (see the tick-cadence comment above). Guarding the write still notifies on the one tick
+    /// that matters — the one where the value actually flips — which is all `RoundScreen`'s
+    /// `.onChange(of: timer.hasElapsed)` needs.
+    ///
+    /// Unlike `display`, which is worth freezing at its last true value for a moment so the
+    /// digits do not flicker, "has the deadline passed" has no honest frozen answer to show:
+    /// `docs/13` §5 rule 3 says the app admits what it does not know, and mid-gap it does not
+    /// know this either — so the unanchored branch still writes through to `nil` whenever it
+    /// was not already `nil`.
     func refresh() {
         guard let deadline else {
             display = .unknown
-            hasElapsed = nil
+            if hasElapsed != nil { hasElapsed = nil }
             return
         }
         guard let remaining = clock.timeRemaining(until: deadline) else {
-            hasElapsed = nil
+            if hasElapsed != nil { hasElapsed = nil }
             return
         }
         display = CountdownDisplay(remaining: remaining, form: form)
-        hasElapsed = remaining <= 0
+        let elapsed = remaining <= 0
+        if hasElapsed != elapsed { hasElapsed = elapsed }
     }
 }

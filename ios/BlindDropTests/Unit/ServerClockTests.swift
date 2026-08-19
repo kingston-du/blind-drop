@@ -375,9 +375,11 @@ import Testing
 
         // `withObservationTracking`'s `onChange` is `@Sendable`, so a plain captured `var` is
         // rejected under strict concurrency even though the mutation below happens synchronously,
-        // inside `refresh()`'s write, on the `@MainActor` this whole test is isolated to. A tiny
-        // `@unchecked Sendable` box — the same escape `ArtworkView.cache` documents — says exactly
-        // that and nothing more.
+        // inside `refresh()`'s write, on the `@MainActor` this whole test is isolated to. Unlike
+        // `ArtworkView.cache`'s narrowly-scoped `nonisolated(unsafe)` on one field — the tighter
+        // escape, preferred when there is a single field to mark — this box exists only to give
+        // the closure something to capture at all, so the class-wide `@unchecked Sendable` here
+        // is the right-sized tool for a single-purpose test type, not a looser stand-in for it.
         let notified = ObservationFlag()
         withObservationTracking {
             _ = timer.hasElapsed
@@ -432,7 +434,10 @@ import Testing
 /// A one-field `@unchecked Sendable` box, for the `onChange` closures above that must set a flag
 /// from `withObservationTracking`'s `@Sendable` callback. The mutation happens synchronously, on
 /// the same `@MainActor` call stack as the write that triggered it, but the closure's own type
-/// cannot say so — this box is the documented way of saying it for it (`ArtworkView.cache`).
+/// cannot say so. `ArtworkView.cache` marks its one field `nonisolated(unsafe)` instead, because
+/// it has an existing type to attach the escape to; this box exists purely to give a `@Sendable`
+/// closure something safe to capture, so marking the type itself is the right-sized version of
+/// the same escape rather than a looser one.
 private final class ObservationFlag: @unchecked Sendable {
     var value = false
 }
