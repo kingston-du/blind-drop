@@ -10,7 +10,7 @@ No redesigns. Each of these is a specific wrong thing.
 
 ### E26-01 — Results, laid out for the numbers it actually produces, and playable
 
-**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against everything
+**Status:** done · **Deps:** E17-10 · **Parallel:** yes — against everything
 **Reads:** `docs/08` §3 (the existing play control), §7, `docs/10`, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Results/`, `BlindDrop/DesignSystem/Components/FlightCard.swift`,
 `BlindDrop/DesignSystem/ShareCard.swift`, `docs/08-SCREEN-SPECS.md` §7, snapshot tests
@@ -44,17 +44,80 @@ Four faults on the same screen, plus one thing it never had:
   spec a play control today; add it there once built, matching the affordance already spec'd
   for Submit's search at §3.
 
-- [ ] 100% readability renders inside the share card, with a golden pinning it
-- [ ] Every percentage 0–100 laid out correctly
+> **Open question:** *"Anonymous results sit under the call sheet"* — investigated and not
+> fixed here. `GuessSheet`, `CallSheetDetent`, `CallSheetMetrics` and `Layout.callSheetPeekHeight`
+> exist only in `Features/Reveal/` (`RevealScreen.swift`, `GuessSheet.swift`); there is no sheet,
+> peek inset, or bottom overlay anywhere in `Features/Results/` or `ResultsHost` — `ResultsScreen`
+> is a plain `ScrollView` with no docked panel at all. "The call sheet" is `docs/11`'s
+> `reveal.callsheet` — the reveal's guess apparatus — not anything on the results screen, and
+> `E17-06`'s peek-inset mechanism (`tasks/E17-polish-pass.md`) is Reveal-only work.
+>
+> A probe render of the blocked/non-submitter reveal (`RevealScreen`, `canGuess: false`, forced
+> `.open` per `GuessSheet.canCollapse`) confirms the sheet legitimately covers most of the screen
+> in that state — a real thing to look at — but fixing it means editing `RevealScreen.swift` /
+> `GuessSheet.swift`, which is `E26-02`'s file (`Parallel: yes` between the two slices assumes
+> disjoint files; `E26-02` was live-testing `RevealSnapshots`/`CallSheetDetentTests` in a sibling
+> worktree while this was investigated). Touching it here would both violate this slice's own
+> `Touches` list and race a concurrent edit to the same file.
+>
+> Picking the interpretation most protective of the actual defect: leave it as a defect, not a
+> silently dropped line. Its checklist box stays unticked. If it is still open once `E26-02`
+> lands, it belongs in a Reveal-scoped follow-up, not folded into a Results slice by file
+> proximity in a sentence.
+
+> **Open question:** *"Song titles read as clipped even when short"* — diagnosed on device, and
+> the honest answer is **both halves of the either/or the task poses, at once**. Truncation was
+> firing at 100% with nothing tried smaller first (fixed: `.minimumScaleFactor(0.8)`, matching
+> the share-card headline's own precedent), *and* the answer-card row genuinely has too little
+> width for an ordinary title below `.accessibility1` (not fixed: that is `docs/12` §1's reflow,
+> out of this slice's `Touches`).
+>
+> Measured against the worked example already in this file's own diagram, *"Motion Sickness"*,
+> which is also `results.json` card 07: on the SE at `.large` the title column left beside the
+> 44pt number, the 76pt artwork and the 44pt corner menu is roughly 70–80pt, and the title wants
+> something like double that even at 80% scale. Tried 0.7 and 0.6 by hand against the golden
+> before settling back on 0.8 — neither bought a meaningfully different result, because the gap
+> is proportional to font size and closing it needs a scale near 0.5, past comfortable legibility
+> for body text. So `Results-8-SE-large` still shows *"Motion Si…"* — better than the pre-fix
+> *"Motion…"*, not a title that now fits.
+>
+> Picking the interpretation most protective of the actual defect: `.minimumScaleFactor(0.8)` is
+> the correct, bounded fix for "truncating too eagerly" and stays. The checklist item is ticked
+> against that half — truncation now only fires after a real attempt to shrink, which is the bug
+> as filed — while the remaining truncation on the narrowest device is named here as a real,
+> known limit rather than claimed away in a code comment nobody would go back and check against a
+> screenshot. Recovering it needs the row's width back (moving or shrinking the corner menu, or
+> bringing `docs/12` §1's stacked reflow down from `.accessibility1`), which is a layout decision
+> for whoever owns that reflow threshold, not a `Text` modifier — a follow-up, not this slice.
+
+> **Verification note:** the completed-state centering (`GeometryReader` +
+> `.frame(minHeight: proxy.size.height, alignment: .center)` in `ResultsScreen.body`) has no
+> automated coverage and could not be visually confirmed live either, despite trying. It cannot be
+> pinned by `ResultsSnapshotTests`: those goldens render `snapshotContent` (`= content`) directly,
+> deliberately skipping `body`'s `ScrollView`/`GeometryReader`, because `ImageRenderer` does not
+> draw a `ScrollView`'s content at all (see that file's own header comment). Confirming it live
+> needed a round shorter than one screen; tried the fixture server against `PHASE=scored` at three
+> levels — the full 8-card night, a 2-card/1-standings-row trim, and a 1-card/zero-standings-rows
+> trim (temp-edited `ios/Fixtures/payloads/{results,standings}.json`, restored after) — and even
+> the sparsest of the three still ran past 874pt on an iPhone 17 (874×402pt), so the centered vs.
+> top-aligned distinction never became visible against any of them: the shortest realistic round
+> this fixture data can produce is still taller than one screen. What is confirmed: no regression
+> at any of the three sizes tried — the screen scrolls exactly as before in every case. The
+> pattern itself is a standard, low-risk SwiftUI idiom (`minHeight` never trims taller content),
+> and the `reviewer` agent read the code and agreed it is correct; the box below is ticked on that
+> basis, not on a screenshot of it actually centering.
+
+- [x] 100% readability renders inside the share card, with a golden pinning it
+- [x] Every percentage 0–100 laid out correctly
 - [ ] Anonymous results clear the call sheet at both detents
-- [ ] Completed state optically centred
-- [ ] Title overflow reproduced and diagnosed before it is fixed; a golden pins the case that
+- [x] Completed state optically centred
+- [x] Title overflow reproduced and diagnosed before it is fixed; a golden pins the case that
       was actually wrong
-- [ ] Every answer card plays its preview inline, same component as Reveal and Submit
-- [ ] One preview plays at a time; starting a second stops the first
-- [ ] Play control has a real accessibility label and trait, not a bare icon
-- [ ] `docs/08` §7.1 updated to show the play control
-- [ ] No new colour, size or spacing literal in `Features/`
+- [x] Every answer card plays its preview inline, same component as Reveal and Submit
+- [x] One preview plays at a time; starting a second stops the first
+- [x] Play control has a real accessibility label and trait, not a bare icon
+- [x] `docs/08` §7.1 updated to show the play control
+- [x] No new colour, size or spacing literal in `Features/`
 
 ---
 

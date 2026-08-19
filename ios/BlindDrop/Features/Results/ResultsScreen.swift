@@ -74,6 +74,11 @@ struct ResultsScreen: View {
     /// property of where the code lives rather than a condition somebody has to keep true.
     /// `ShareRendererTests` scans `Features/` to keep it that way.
     var share: ShareEntry?
+    /// The 30-second preview (`Core/Audio/PreviewPlayer.swift`). `nil` in every golden, which
+    /// renders `snapshotContent` directly and never this `body` — the same shared instance
+    /// `RevealScreen` and Submit's search sheet already play through, so dropping into an answer
+    /// card here stops whatever the caller had going in either of those.
+    var player: PreviewPlayer? = nil
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
@@ -84,24 +89,36 @@ struct ResultsScreen: View {
     private let accent = PhaseAccent.revealed
 
     var body: some View {
-        ScrollView {
-            // The inset belongs to the scroll container's *content*, not to the container
-            // (`docs/07` §4) — which is what puts the scroll indicator at the screen's edge
-            // where a thumb expects it. `RoundScreen` therefore does not inset this phase; the
-            // two together are the one application of `Layout.screenInset` on this path.
-            content
-                .padding(.horizontal, Layout.screenInset)
+        // **A completed round is not a form to fill in; it is a page to arrive at.** A short
+        // night — a small circle, nobody's all-time standings loaded yet — otherwise leaves the
+        // whole `ScrollView` top-anchored against a screen of white, which reads as unfinished
+        // rather than as done. `GeometryReader` hands the content the viewport's own height so it
+        // can ask to be at least that tall; content that is genuinely taller than the screen
+        // still scrolls exactly as before; `minHeight` never trims it.
+        GeometryReader { proxy in
+            ScrollView {
+                // The inset belongs to the scroll container's *content*, not to the container
+                // (`docs/07` §4) — which is what puts the scroll indicator at the screen's edge
+                // where a thumb expects it. `RoundScreen` therefore does not inset this phase;
+                // the two together are the one application of `Layout.screenInset` on this path.
+                content
+                    .padding(.horizontal, Layout.screenInset)
+                    .frame(minHeight: proxy.size.height, alignment: .center)
+            }
+            // **"Any scroll gesture completes the entire sequence immediately"** (`docs/09` §4).
+            //
+            // A *simultaneous* gesture, so the scroll still happens — the point is not to trade
+            // one for the other but to stop making somebody who is already moving down the list
+            // wait for names to arrive above them. The minimum distance keeps a tap from
+            // counting: a tap on a card is not somebody scrolling past it.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: Layout.scrollSkipDistance)
+                    .onChanged { _ in skipResolve?() }
+            )
         }
-        // **"Any scroll gesture completes the entire sequence immediately"** (`docs/09` §4).
-        //
-        // A *simultaneous* gesture, so the scroll still happens — the point is not to trade one
-        // for the other but to stop making somebody who is already moving down the list wait for
-        // names to arrive above them. The minimum distance keeps a tap from counting: a tap on a
-        // card is not somebody scrolling past it.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: Layout.scrollSkipDistance)
-                .onChanged { _ in skipResolve?() }
-        )
+        // A preview left playing after the results are dismissed is a sound with no visible way
+        // to stop it — the same rule `RevealScreen` and `SearchSheet` already hold.
+        .onDisappear { player?.stop() }
     }
 
     /// The screen without its scroll container.
@@ -150,6 +167,11 @@ struct ResultsScreen: View {
                     // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
                     // (`docs/12` §2). Nothing on a results card is a control.
                     assignment: .resolved(card.resolution),
+                    // The answers are the one place a song is shown on this screen and could not
+                    // be heard (`docs/08` §7.1) — Submit's search sheet and the reveal flight
+                    // both already play through the same shared player. No preview URL means no
+                    // control at all, same as everywhere else `preview(for:)` is built.
+                    preview: preview(for: card.track),
                     resolve: ResolvePresentation(
                         hasName: state.namedCards.contains(card.cardNumber),
                         hasMark: state.markedCards.contains(card.cardNumber),
@@ -158,6 +180,16 @@ struct ResultsScreen: View {
                     )
                 )
             }
+        }
+    }
+
+    /// `RevealScreen.preview(for:)`, verbatim: a track with no `previewURL`, or a screen with no
+    /// player at all — every golden — gets no control (`docs/06` §7), and a track already
+    /// playing draws its stop glyph off the shared player's own state rather than a local flag.
+    private func preview(for track: TrackDTO) -> TrackRow.Preview? {
+        guard track.previewURL != nil, let player else { return nil }
+        return TrackRow.Preview(isPlaying: player.playing == track.trackKey) {
+            player.toggle(track)
         }
     }
 }

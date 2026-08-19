@@ -45,6 +45,22 @@ private let variants = ShareCard.Variant.allCases
         )
     }
 
+    /// **The boundary the rate was never given a ceiling for.** `longTitles` stresses the flight
+    /// rows and the headline; it leaves the Best Ear pair itself at its short, easy default
+    /// (`"Cal"`). This is the pair's own worst case instead — the longest name the product
+    /// allows next to the rate's widest string, 100% — which is exactly the shape `E26-01`'s
+    /// report described: before `.lineLimit(1)`/`.minimumScaleFactor(0.7)` on the rate,
+    /// `ImageRenderer` does not clip past the card's fixed edge, it draws past the canvas, so a
+    /// squeezed rate does not look wrong, it just loses pixels nobody sees missing. This golden
+    /// is the picture that would have caught it.
+    @Test(arguments: variants)
+    func theLongestNameAndAHundredPercentTogether(_ variant: ShareCard.Variant) {
+        verify(
+            ShareCardFixture.render(variant: variant, content: ShareCardFixture.longestBestEar),
+            named: "Share-\(variant.rawValue)-longestbestear"
+        )
+    }
+
     /// **Amber must not appear** (`docs/10` §3). Nothing on this card is sealed, including the
     /// caller's own song — the one place the reveal screen allowed amber.
     ///
@@ -214,6 +230,27 @@ enum ShareCardFixture {
             cards[index] = card
         }
         json["cards"] = cards
+
+        let results = try! JSONDecoder.api.decode(
+            ResultsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)
+        )
+        return ShareCardContent(results: results, groupName: "The Cove", date: "10 August")
+    }()
+
+    /// `docs/10` §3's Best Ear pair at both its extremes at once: `DisplayName.maximumLength`
+    /// beside 100%. Cal is already tonight's leader in the base fixture (`ear: 1.0` in
+    /// `results.json`) — only the name changes, so the golden is a picture of the exact
+    /// boundary the layout has to hold, not a rate fabricated for the test.
+    static let longestBestEar: ShareCardContent = {
+        let name = String("Bartholomew Winterborneiii".prefix(DisplayName.maximumLength))
+        #expect(name.count == DisplayName.maximumLength)
+
+        var json = ResultsSnapshotFixture.payload("results")
+        var people = json["people"] as? [[String: Any]] ?? []
+        for index in people.indices where people[index]["display_name"] as? String == "Cal" {
+            people[index]["display_name"] = name
+        }
+        json["people"] = people
 
         let results = try! JSONDecoder.api.decode(
             ResultsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)

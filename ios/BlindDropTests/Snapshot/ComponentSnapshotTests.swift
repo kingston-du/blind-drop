@@ -70,6 +70,22 @@ private let sizes = SnapshotRenderer.typeSizes
                     chooseGuess: {}
                 )
                 FlightCard(number: 7, track: .ribs, accent: .revealed, assignment: .mine)
+                // The answer card (`E26-01`): `assignment: .resolved` is the results screen's
+                // shape, not the reveal's, and it is the one place a `preview:` on this
+                // component was never exercised — `TrackRow`'s own goldens above cover the
+                // control's two states, but not this component's `isAnswer` layout carrying one
+                // at all. `.motionSickness` is deliberate: an ordinary two-word title that
+                // narrows below `.accessibility1` (docs/12 §1's reflow) and was truncating to
+                // "Motion…" before `.minimumScaleFactor(0.8)` — see the title comment above.
+                FlightCard(
+                    number: 4,
+                    track: .motionSickness,
+                    accent: .revealed,
+                    assignment: .resolved(CardResolution(
+                        owner: "Eli", correctCount: 1, eligibleCount: 7, myGuess: nil
+                    )),
+                    preview: .init(isPlaying: false) {}
+                )
             }
         }
     }

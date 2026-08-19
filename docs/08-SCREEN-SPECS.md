@@ -330,6 +330,11 @@ Each card resolves: the number, the artwork, the track, and the owner's name arr
 `bodyLStrong`. Beneath, `monoS`: *"4 of 7 got it"*. If you guessed, your guess is shown with
 an `ultramarine` check or an `inkFaint` strike — never red, never a cross.
 
+Each card's play control plays the 30-second preview inline, on the artist line — the same
+control and the same shared player as Submit's search (§3.1) and the reveal flight. One at a
+time: starting a second preview stops the first. Absent, not disabled, when the track carries
+no preview URL.
+
 Reveal is progressive on first view: cards resolve top to bottom, 120ms apart, each a
 220ms crossfade of name-in. Skippable by scrolling — a scroll gesture completes the whole
 sequence immediately. Runs once per round.

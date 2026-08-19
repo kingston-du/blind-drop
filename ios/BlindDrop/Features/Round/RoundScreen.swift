@@ -327,7 +327,7 @@ struct RoundScreen: View {
                 // `loadToken` reaches it so a foreground refresh — or a countdown elapsing —
                 // retries the answers too. Results do not change once they land, but a first
                 // load that failed offline has to have a second chance that is not a relaunch.
-                ResultsHost(context: context, loadToken: loadToken)
+                ResultsHost(context: context, loadToken: loadToken, player: player)
             }
         } else if store.state.isLoading {
             RoundSkeleton()
@@ -627,6 +627,9 @@ private struct ResultsHost: View {
 
     let context: RoundContext
     let loadToken: Int
+    /// The app's one preview player (`docs/06` §4), shared with Submit and the reveal flight so
+    /// starting a preview here stops whatever either of those had going.
+    let player: PreviewPlayer
 
     @State private var store: ResultsStore?
     @State private var resolve: ResolveAnimation?
@@ -644,7 +647,8 @@ private struct ResultsHost: View {
                     // Withdrawn once the sequence has landed, so a scroll through settled
                     // answers is a plain scroll and not a gesture with a handler on it.
                     skipResolve: resolve?.isRunning == true ? { resolve?.skip() } : nil,
-                    share: shareEntry(store)
+                    share: shareEntry(store),
+                    player: player
                 )
             } else {
                 // One runloop, before the store exists. `docs/08` §10 gives loading a skeleton

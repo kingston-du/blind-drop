@@ -254,11 +254,19 @@ struct ShareCardView: View {
                         .typeStyle(.bodyL)
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
+                    // **100% is the widest this string ever gets** — a third digit nobody laid
+                    // out for. `headline` already shrinks rather than clips for the same reason
+                    // (`docs/10` §3's own "least bad of the three options"); this is that same
+                    // rule applied to the number the layout never gave a ceiling. Without it the
+                    // extra digit pushes past the card's fixed edge, which `ImageRenderer` does
+                    // not clip — it draws past the canvas and the glyph is simply gone.
                     Text(verbatim: ScoringFormat.percent(leader.rate))
                         .font(Font(Typography.fixed(
                             .display, size: variant.numberSize, weight: .heavy
                         )))
                         .foregroundStyle(accent.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
         }

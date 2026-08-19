@@ -372,6 +372,30 @@ struct FlightCard: View {
                 .foregroundStyle(Palette.ink)
                 .lineLimit(isStacked ? nil : 1)
                 .truncationMode(.tail)
+                // **The answer card only.** Below `.accessibility1` its title shares a row with
+                // the number, the artwork and the corner menu (`docs/12` §1's reflow has not
+                // happened yet), which leaves an ordinary two-word title — *"Motion Sickness"*,
+                // this file's own worked example — clipped at full size, at 100%, without ever
+                // trying anything smaller first. It gets the same "shrink rather than clip" the
+                // share card's headline already uses (`10-SHARE-CARD-SPEC.md` §3): 0.8, matching
+                // that precedent rather than a value picked to clear this one title.
+                //
+                // **Measured, not assumed, and the honest result: 0.8 buys a few more
+                // characters, not a fitting title.** On the SE at `.large` — the narrowest case
+                // this row ever renders — the title column left over beside a two-digit number
+                // (44pt numberL), the 76pt artwork and the 44pt corner menu is roughly 70–80pt;
+                // "Motion Sickness" at `bodyLStrong` wants something like double that even at
+                // 80%. Reaching a scale that fits it would mean shrinking to somewhere near half
+                // size, past the point the text is comfortably legible, which is a worse trade
+                // than a truncated ordinary title. So this title still truncates on the SE
+                // golden — as "Motion Si…" now, rather than "Motion…" — and that remainder is a
+                // real, narrowed-column limit, not eagerness in the truncation itself. Recovering
+                // it for good needs the row's own width back, which is `docs/12` §1's reflow
+                // brought earlier, not a `Text` modifier; see `tasks/E26-ui-polish.md`'s open
+                // question on `E26-01`. The reveal row keeps its plain truncation — its title
+                // never carried this report, and its chip already competes for the same line,
+                // which is a different-shaped problem.
+                .minimumScaleFactor(isStacked || !isAnswer ? 1 : 0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
