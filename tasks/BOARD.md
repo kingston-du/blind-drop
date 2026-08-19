@@ -3,8 +3,9 @@
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
 `E18-01` closed 2026-08-18, unblocking `E18-02` and `E18-03` (parallel to each other). `E18-02`
-closed 2026-08-19 — `GET /groups`, the switcher's data source — leaving `E18-03` and `E19-01`
-(now unblocked on the server side) open.
+closed 2026-08-19 — `GET /groups`, the switcher's data source. `E18-03` closed 2026-08-19 too —
+the cross-circle repeat refusal, `BD003`/`TRACK_ALREADY_USED`, folded into `upsert_submission`
+itself. `E18` is fully done; `E19-01` and `E23-02` are now open on the server side.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` — a first batch attempt on all four slices ran out of budget
@@ -287,7 +288,7 @@ replacement inherits.
 |---|---|---|---|---|
 | E18-01 A user may hold several circles | done | E17-10 | no | AC-1 |
 | E18-02 What every circle needs from me right now | done | E18-01 | no | AC-1 |
-| E18-03 The same song, twice, in one evening | todo | E18-01 | vs E18-02 | — |
+| E18-03 The same song, twice, in one evening | done | E18-01 | vs E18-02 | — |
 
 ## E19 — Multi-circle: the app holds more than one · [file](E19-circles-app.md)
 
@@ -395,7 +396,7 @@ Investigation only. Each ends in a recommendation, not code.
 
 | Beta epic | Done / Total |
 |---|---|
-| E18 circles: server | 1 / 3 |
+| E18 circles: server | 3 / 3 |
 | E19 circles: the app | 0 / 3 |
 | E20 invitations | 0 / 3 |
 | E21 circle settings | 0 / 2 |
@@ -405,4 +406,4 @@ Investigation only. Each ends in a recommendation, not code.
 | E25 insights | 0 / 2 |
 | E26 UI polish | 4 / 4 |
 | E27 spikes | 5 / 5 |
-| **Beta total** | **12 / 28** |
+| **Beta total** | **13 / 28** |

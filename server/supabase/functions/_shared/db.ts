@@ -32,6 +32,10 @@ export const UNIQUE_VIOLATION = "23505";
  *  ADR-011's cap. Raised by both `POST /groups` and `POST /groups/join`, since both insert a
  *  membership through the same trigger. */
 export const CIRCLE_LIMIT_REACHED = "BD002";
+/** `upsert_submission` (`20260819090000_track_reuse_overlap.sql`) — the caller already used
+ *  this track_key tonight in a different circle that shares another active member with this
+ *  one. tasks/E18-03, docs/02 §3. */
+export const TRACK_ALREADY_USED = "BD003";
 
 export function isUniqueViolation(error: PostgrestError | null): boolean {
   return error?.code === UNIQUE_VIOLATION;
@@ -39,6 +43,10 @@ export function isUniqueViolation(error: PostgrestError | null): boolean {
 
 export function isCircleLimitReached(error: PostgrestError | null): boolean {
   return error?.code === CIRCLE_LIMIT_REACHED;
+}
+
+export function isTrackAlreadyUsed(error: PostgrestError | null): boolean {
+  return error?.code === TRACK_ALREADY_USED;
 }
 
 /**

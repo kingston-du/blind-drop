@@ -59,6 +59,7 @@ client switches on it. Never put a raw DB error in `message`.
 | `NOT_A_SUBMITTER` | 403 | Guessing without having submitted |
 | `JOINED_LATE` | 403 | Joined after `reveals_at`; excluded from this round |
 | `ROUND_VOIDED` | 409 | Round had fewer than 3 submissions |
+| `TRACK_ALREADY_USED` | 409 | tasks/E18-03 — same `track_key` already submitted tonight in a circle that shares another active member with this one. Names no circle, no person |
 | `INVALID_INPUT` | 400 | Validation failure; `details` may name the field |
 | `ALREADY_IN_GROUP` | 409 | The caller is already an active member of the circle named (`POST /groups/join`) |
 | `CIRCLE_LIMIT_REACHED` | 409 | ADR-011 — the caller already holds the cap's worth of active circles (`POST /groups`, `POST /groups/join`) |

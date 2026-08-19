@@ -23,6 +23,7 @@ export type ErrorCode =
   | "INVALID_INPUT"
   | "ALREADY_IN_GROUP"
   | "CIRCLE_LIMIT_REACHED"
+  | "TRACK_ALREADY_USED"
   | "NOT_ADMIN"
   | "RATE_LIMITED"
   | "UPSTREAM_UNAVAILABLE"
@@ -74,6 +75,13 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
     status: 409,
     message: "You're already in three circles. Leave one to join another.",
     copyKey: "error.circlelimitreached",
+  },
+  // Names no circle, no person, nothing beyond the caller's own history — the leak this
+  // refusal exists to prevent is exactly "which circle" and "who else" (tasks/E18-03).
+  TRACK_ALREADY_USED: {
+    status: 409,
+    message: "You already used this today.",
+    copyKey: "error.trackalreadyused",
   },
   NOT_ADMIN: {
     status: 403,

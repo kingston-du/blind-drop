@@ -58,7 +58,7 @@ import {
   requireProfile,
   requireUser,
 } from "../_shared/auth.ts";
-import { dbFailure } from "../_shared/db.ts";
+import { dbFailure, isTrackAlreadyUsed } from "../_shared/db.ts";
 import {
   type CannotGuessReason,
   type CardDTO,
@@ -554,10 +554,19 @@ async function submitTrack(req: Request, ctx: MemberCtx): Promise<Response> {
   // unchanged song does not move `sealed_at`, which is why this is a function rather than a
   // PostgREST upsert (0018).
   //
-  // **A duplicate track is never rejected.** If somebody else already dropped this song the
-  // write succeeds exactly as if nobody had: the rejection itself would be the leak (docs/02
-  // §3), and the response is byte-identical either way because nothing in it is derived from
-  // another row.
+  // **A duplicate track within one round is never rejected.** If somebody else already
+  // dropped this song this round the write succeeds exactly as if nobody had: the rejection
+  // itself would be the leak (docs/02 §3), and the response is byte-identical either way
+  // because nothing in it is derived from another row.
+  //
+  // **Across circles it can be refused, narrowly.** `upsert_submission` (E18-03) raises BD003
+  // when this user already used this exact track tonight in a *different* circle that shares
+  // another active member with this one — the one case where the repeat itself would let a
+  // third person line up two reveals. The refusal names no circle and nobody else. The SQL
+  // that decides this runs unconditionally, on both the accepted and the refused path, so it
+  // is structurally the same cost either way — that property is not separately timed, the way
+  // `leak_timing.test.ts` times `GET /rounds/current`; the only party who could observe this
+  // response's latency is the caller themselves, who already sees the refusal in the body.
   const { data, error } = await ctx.db
     .rpc("upsert_submission", {
       p_round_id: round.id,
@@ -566,7 +575,10 @@ async function submitTrack(req: Request, ctx: MemberCtx): Promise<Response> {
       p_track_meta: track,
     })
     .single();
-  if (error) throw dbFailure("rounds.submit", error);
+  if (error) {
+    if (isTrackAlreadyUsed(error)) throw new ApiError("TRACK_ALREADY_USED");
+    throw dbFailure("rounds.submit", error);
+  }
 
   // The demo group's reveal is the reviewer's own drop, twelve seconds later. Nothing about
   // the response changes — the client adopts it, renders `SealedScreen`, and that screen's

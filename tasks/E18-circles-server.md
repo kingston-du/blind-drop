@@ -113,7 +113,7 @@ Verified: `npm run test:db` (632/632), `npm run test:functions` (245/245, includ
 
 ### E18-03 — The same song, twice, in one evening
 
-**Status:** todo · **Deps:** E18-01 · **Parallel:** yes — against E18-02
+**Status:** done · **Deps:** E18-01 · **Parallel:** yes — against E18-02
 **Reads:** `docs/02` §3, `docs/14` §2
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/rounds/`,
 `server/supabase/tests/`
@@ -131,8 +131,54 @@ The refusal must not itself leak. "You already used this today" tells the user s
 their own history, which is fine. It must not hint at which circle, who else is in it, or that
 anybody else is involved at all.
 
-- [ ] The overlap condition derived, not hardcoded to "any two circles"
-- [ ] Refusal is a named error with copy in `docs/11`; it names no circle and no person
-- [ ] pgTAP covers: no overlap (allowed), overlap (refused), same circle same day (already
+- [x] The overlap condition derived, not hardcoded to "any two circles"
+- [x] Refusal is a named error with copy in `docs/11`; it names no circle and no person
+- [x] pgTAP covers: no overlap (allowed), overlap (refused), same circle same day (already
       handled by replace), and the same song on consecutive days (allowed)
-- [ ] The refusal path costs the same time as the success path — `leak_timing` still passes
+- [x] The refusal path costs the same time as the success path — structurally, by construction
+      (see below); `leak_timing` itself only times `GET /rounds/current` and was not extended
+      to this endpoint, noted rather than silently overclaimed
+
+The check lives inside `upsert_submission` itself (`20260819090000_track_reuse_overlap.sql`),
+the one place every submission — first drop or replace — already passes through. Before every
+insert it looks up the round's `group_id`/`local_date`, takes the same advisory-lock discipline
+`enforce_circle_cap` established (a distinct key, so the two invariants never contend), and
+runs one `exists` query, unconditionally, on both the accepted and the refused path: does this
+user already have a submission with this `track_key` tonight (`r.local_date` equal, `r.group_id`
+different), in a circle that shares an *active* member — other than the submitter — with this
+one? Same circle same night never reaches the check at all (`r.group_id <> v_group_id` excludes
+it by construction), which is what makes it a plain replace rather than a case the rule has an
+opinion about. Different night always clears it, overlap or not — the channel this closes is
+"tonight," not "ever."
+
+New error code `TRACK_ALREADY_USED` (`BD003`, `_shared/db.ts` + `_shared/http.ts`), copy
+"You already used this today." (`docs/11`, `docs/04` §1). `rounds/index.ts`'s `submitTrack`
+maps BD003 to it; every other database error still falls through to `dbFailure`/`INTERNAL`
+unchanged. `docs/02` §3's "a duplicate track is never rejected" is unchanged for what it always
+meant — two *different* people in one round — and the header comment there now says so
+explicitly, so the two rules don't read as contradicting each other.
+
+New pgTAP suite `tests/db/track_reuse.sql` (9 assertions): a no-overlap pair (West/East, sharing
+only the submitter) allows the repeat; an overlapping pair (West/North, sharing Ben) refuses it
+with BD003 and writes no row; a same-circle same-day resubmission still just replaces; the same
+track the following night in the same overlapping pair is allowed; the refusal is stable across
+repeated attempts.
+
+Review (first pass) found two real test-coverage gaps, both fixed before closing: nothing
+exercised `TRACK_ALREADY_USED` through the actual HTTP path — only the pgTAP suite, which calls
+`upsert_submission` directly — and a code comment claimed the refusal's timing symmetry was
+"checked by `npm run audit:leak`", which is not true: `leak_timing.test.ts` times only
+`GET /rounds/current`, never the submit endpoint, so that property rested on the SQL's shape
+(the `exists` check runs unconditionally on both paths) rather than on any measurement. Fixed:
+a new end-to-end test in `rounds.test.ts` (`the same track twice tonight is refused only when
+the two circles share another member`) drives the West/North/East scenario through
+`PUT /{group_id}/current/submission` and asserts the 409, the code, and that the error body
+carries nothing beyond `code`/`message`; the overclaiming comments in the migration and in
+`rounds/index.ts` were reworded to say what is actually true — structurally equal cost, not a
+measured one, and moot as a channel anyway since only the caller who gets the 409 could ever
+time it.
+
+Verified: `npm run test:db` (641/641), `npm run audit:leak` (AC-1 satisfied, timing
+r ≈ 0.09), `node scripts/lint.mjs` clean, `npm run test:functions` (246/246, including the new
+end-to-end BD003 test and the two codes/copy exhaustiveness tests, which now cover
+`TRACK_ALREADY_USED` too). Server-only; no simulator pass applicable.
