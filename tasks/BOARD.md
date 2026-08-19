@@ -306,7 +306,7 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E23-01 Find out why, then fix it | todo | — | **yes, vs E19–E21** | AC-3 |
+| E23-01 Find out why, then fix it | done | — | **yes, vs E19–E21** | AC-3 |
 | E23-02 Three deliveries, whatever the circle count | todo | E23-01, E18-01 | no | AC-3 |
 | E23-03 It arrives, and it opens the right thing | todo | E23-02, E19-03 | no | AC-3 |
 
@@ -343,11 +343,11 @@ Investigation only. Each ends in a recommendation, not code.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E27-01 Opening a song in Spotify | todo | — | **yes** | — |
-| E27-02 Pick for me | todo | — | **yes** | — |
-| E27-03 A web page | todo | — | **yes** | — |
-| E27-04 Themed prompts | todo | — | **yes** | — |
-| E27-05 Streaks | todo | — | **yes** | — |
+| E27-01 Opening a song in Spotify | done | — | **yes** | — |
+| E27-02 Pick for me | done | — | **yes** | — |
+| E27-03 A web page | done | — | **yes** | — |
+| E27-04 Themed prompts | done | — | **yes** | — |
+| E27-05 Streaks | done | — | **yes** | — |
 
 ---
 
@@ -382,9 +382,9 @@ Investigation only. Each ends in a recommendation, not code.
 | E20 invitations | 0 / 3 |
 | E21 circle settings | 0 / 2 |
 | E22 sealed privacy | 0 / 1 |
-| E23 notifications | 0 / 3 |
+| E23 notifications | 1 / 3 |
 | E24 leaderboard + profiles | 0 / 2 |
 | E25 insights | 0 / 2 |
 | E26 UI polish | 0 / 4 |
-| E27 spikes | 0 / 5 |
+| E27 spikes | 5 / 5 |
 | **Beta total** | **1 / 28** |
