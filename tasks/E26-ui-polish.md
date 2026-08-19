@@ -44,6 +44,27 @@ Four faults on the same screen, plus one thing it never had:
   spec a play control today; add it there once built, matching the affordance already spec'd
   for Submit's search at §3.
 
+> **Open question:** *"Anonymous results sit under the call sheet"* — investigated and not
+> fixed here. `GuessSheet`, `CallSheetDetent`, `CallSheetMetrics` and `Layout.callSheetPeekHeight`
+> exist only in `Features/Reveal/` (`RevealScreen.swift`, `GuessSheet.swift`); there is no sheet,
+> peek inset, or bottom overlay anywhere in `Features/Results/` or `ResultsHost` — `ResultsScreen`
+> is a plain `ScrollView` with no docked panel at all. "The call sheet" is `docs/11`'s
+> `reveal.callsheet` — the reveal's guess apparatus — not anything on the results screen, and
+> `E17-06`'s peek-inset mechanism (`tasks/E17-polish-pass.md`) is Reveal-only work.
+>
+> A probe render of the blocked/non-submitter reveal (`RevealScreen`, `canGuess: false`, forced
+> `.open` per `GuessSheet.canCollapse`) confirms the sheet legitimately covers most of the screen
+> in that state — a real thing to look at — but fixing it means editing `RevealScreen.swift` /
+> `GuessSheet.swift`, which is `E26-02`'s file (`Parallel: yes` between the two slices assumes
+> disjoint files; `E26-02` was live-testing `RevealSnapshots`/`CallSheetDetentTests` in a sibling
+> worktree while this was investigated). Touching it here would both violate this slice's own
+> `Touches` list and race a concurrent edit to the same file.
+>
+> Picking the interpretation most protective of the actual defect: leave it as a defect, not a
+> silently dropped line. Its checklist box stays unticked. If it is still open once `E26-02`
+> lands, it belongs in a Reveal-scoped follow-up, not folded into a Results slice by file
+> proximity in a sentence.
+
 - [ ] 100% readability renders inside the share card, with a golden pinning it
 - [ ] Every percentage 0–100 laid out correctly
 - [ ] Anonymous results clear the call sheet at both detents

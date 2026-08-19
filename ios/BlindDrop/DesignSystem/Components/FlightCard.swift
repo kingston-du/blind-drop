@@ -372,6 +372,17 @@ struct FlightCard: View {
                 .foregroundStyle(Palette.ink)
                 .lineLimit(isStacked ? nil : 1)
                 .truncationMode(.tail)
+                // **The answer card only.** Below `.accessibility1` its title shares a row with
+                // the number, the artwork and the corner menu (`docs/12` §1's reflow has not
+                // happened yet), which leaves an ordinary two-word title — *"Motion Sickness"*,
+                // this file's own worked example — no room to set at full size without
+                // truncating: a narrowed column, not a genuinely long title. It gets the same
+                // "shrink rather than clip" the share card's headline already uses
+                // (`10-SHARE-CARD-SPEC.md` §3) instead of a wider truncation floor: a title that
+                // still does not fit at 80% is the case truncation is actually for. The reveal
+                // row keeps its plain truncation — its title never carried this report, and its
+                // chip already competes for the same line, which is a different-shaped problem.
+                .minimumScaleFactor(isStacked || !isAnswer ? 1 : 0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
