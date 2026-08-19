@@ -62,7 +62,7 @@ simulator pass applicable.
 
 ### E18-02 — What every circle needs from me right now
 
-**Status:** todo · **Deps:** E18-01 · **Parallel:** no
+**Status:** wip · **Deps:** E18-01 · **Parallel:** no
 **Reads:** `docs/04` §2, `docs/02` §2, `CLAUDE.md` §2.1
 **Touches:** `server/supabase/functions/groups/`, `server/supabase/tests/functions/`,
 `ios/Fixtures/`

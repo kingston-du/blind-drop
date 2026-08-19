@@ -274,7 +274,7 @@ replacement inherits.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E18-01 A user may hold several circles | done | E17-10 | no | AC-1 |
-| E18-02 What every circle needs from me right now | todo | E18-01 | no | AC-1 |
+| E18-02 What every circle needs from me right now | wip | E18-01 | no | AC-1 |
 | E18-03 The same song, twice, in one evening | todo | E18-01 | vs E18-02 | — |
 
 ## E19 — Multi-circle: the app holds more than one · [file](E19-circles-app.md)
