@@ -8,8 +8,14 @@ the cross-circle repeat refusal, `BD003`/`TRACK_ALREADY_USED`, folded into `upse
 itself. `E18` is fully done. `E19-01` closed 2026-08-19 too — the client moved off every
 `current`-shaped route onto a new `CircleStore` (`GET /groups`, resolving an active id the same
 way `/groups/current` always did), which every group-scoped store now re-resolves on its own
-`load()` rather than being handed once at construction. No new UI, by design; `E19-02` (the
-switcher) is next, now unblocked. `E23-02` is open on the server side.
+`load()` rather than being handed once at construction. No new UI, by design. `E19-02` closed
+2026-08-19 too — the group's name in the header is now the switcher's own control: a bottom sheet
+listing the caller's circles (name and state, needs-action ones first, no visible heading),
+picking one calls `CircleStore.select(_:)` and re-scopes `RoundStore` via a new `invalidate()`
+that clears to `.loading` before the refetch rather than racing it. Two real bugs surfaced by
+actually looking at the rendered output rather than trusting green tests, both fixed before
+closing — see the epic file's entry for both. `E19-03` is next, now unblocked (it also needs
+`E23-01`, already done). `E23-02` is open on the server side.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` — a first batch attempt on all four slices ran out of budget
@@ -299,7 +305,7 @@ replacement inherits.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E19-01 Every screen knows which circle it is showing | done | E18-01, E18-02 | no | AC-1, AC-10 |
-| E19-02 The switcher | todo | E19-01 | no | — |
+| E19-02 The switcher | done | E19-01 | no | — |
 | E19-03 A notification opens the circle it came from | todo | E19-02, E23-01 | no | — |
 
 ## E20 — Circle creation and invitations · [file](E20-invitations.md)
@@ -401,7 +407,7 @@ Investigation only. Each ends in a recommendation, not code.
 | Beta epic | Done / Total |
 |---|---|
 | E18 circles: server | 3 / 3 |
-| E19 circles: the app | 1 / 3 |
+| E19 circles: the app | 2 / 3 |
 | E20 invitations | 0 / 3 |
 | E21 circle settings | 0 / 2 |
 | E22 sealed privacy | 1 / 1 |
@@ -410,4 +416,4 @@ Investigation only. Each ends in a recommendation, not code.
 | E25 insights | 0 / 2 |
 | E26 UI polish | 4 / 4 |
 | E27 spikes | 5 / 5 |
-| **Beta total** | **13 / 28** |
+| **Beta total** | **14 / 28** |

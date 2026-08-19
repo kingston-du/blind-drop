@@ -90,7 +90,7 @@ what shipped before this slice, which is the entire claim of a "no new UI" task.
 
 ### E19-02 — The switcher
 
-**Status:** todo · **Deps:** E19-01 · **Parallel:** no
+**Status:** done · **Deps:** E19-01 · **Parallel:** no
 **Reads:** `docs/08` §2, §11, `docs/11`, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Round/RoundScreen.swift`, a new switcher view,
 `BlindDrop/Resources/Localizable.strings`, `docs/11-COPY-DECK.md`, snapshot tests
@@ -110,14 +110,82 @@ Circles needing the user's attention sort first. There is no "Action needed" hea
 circle wants attention, something small sits beside the current circle's name in the header;
 small enough that a person who does not care can ignore it forever.
 
-- [ ] Tapping the header name opens the sheet; it is a labelled control, reachable without the
+- [x] Tapping the header name opens the sheet; it is a labelled control, reachable without the
       gesture (`docs/12` §5)
-- [ ] Rows: name, the caller's state, an optional needs-action mark. Nothing else
-- [ ] Needs-action circles first, no visible section
-- [ ] A subtle mark beside the header name when another circle wants attention
-- [ ] Switching re-scopes every store and lands on the right phase for that circle
-- [ ] Sheet height suits one circle as well as three; SE and `accessibility5` checked
-- [ ] Every string in `docs/11` first
+- [x] Rows: name, the caller's state, an optional needs-action mark. Nothing else
+- [x] Needs-action circles first, no visible section
+- [x] A subtle mark beside the header name when another circle wants attention
+- [x] Switching re-scopes every store and lands on the right phase for that circle
+- [x] Sheet height suits one circle as well as three; SE and `accessibility5` checked
+- [x] Every string in `docs/11` first
+
+The user-facing word stays **group**, per this epic's own open question — `switcher.title` is
+"Your groups", not "Your circles".
+
+The header's name gained a chevron and — always visible, whether or not the caller holds a
+second circle. Kept unconditional on purpose: `E20` hangs "Start a group" off this same sheet,
+and a control that appears and disappears as circles come and go is a worse habit to teach than
+one tap the one-circle case does not strictly need (owner call, recorded rather than silently
+decided). `CircleSwitcher` (`Core/Circles/`) is the ordering — needs-action first, stable
+partition, plus `otherNeedsAction` for the header's own mark — as a pure value the same shape
+`RoundContext` already is, so both are unit-tested without a view.
+
+**The row is a name and a state, nothing else — literally.** Review caught the draft plan
+drifting from that: an active-row border (`rowSurface(border: .ink)`) had crept in as "the
+current circle, visually marked," which the checklist's own "nothing else" rules out. Removed;
+`.isSelected` on the row's accessibility trait says the same thing to VoiceOver without adding a
+sighted-only mark the copy deck doesn't call for.
+
+Switching calls `RoundStore.invalidate()` — a new method, clears to `.loading` — **before**
+bumping the reload, rather than letting `load()`'s own "keep the stale value while refetching"
+behaviour apply. That behaviour is right for an ordinary refresh, where *what* is on screen does
+not change, and wrong for a switch: a card tapped in the window between picking a circle and the
+refetch landing would resolve against the **new** `groupID` (`circles.resolveActiveID()` is read
+fresh at the moment of the tap) while still showing the **old** circle's round. Clearing first
+removes the window instead of racing it.
+
+Two real bugs came out of review, both fixed before closing, both caught by actually looking at
+the rendered output rather than trusting green tests:
+
+1. `a11y.switcher.attention` shipped without its trailing period, so the joined
+   `Copy.A11y.switcherRow(...)` sentence read "Wants your attention" with no stop before nothing
+   followed — caught by `AccessibilityCopyTests`, not by eye.
+2. The stacked accessibility-size row layout (added to fix a real truncation bug below) silently
+   never took effect in the snapshot suite: `snapshotContent` read `@Environment(\.dynamicTypeSize)`
+   directly, and `@Environment` only resolves on a view SwiftUI itself installs — calling
+   `sheet.snapshotContent` on a bare struct value (`SnapshotRenderer.image(of:device:typeSize:)`'s
+   own pattern, the same one `HowToSheet.snapshotContent` and `GuessSheet.content(layout:typeSize:)`
+   use) never installs `CircleSwitcherSheet` itself, so the property silently read its default
+   regardless of the size the suite asked to render. Fixed the same way `GuessSheet` already had
+   to: an explicit `typeSizeOverride`, and `snapshotContent(typeSize:)` takes the size as a
+   parameter instead of trusting the environment. Every `-accessibility1`/`-accessibility5` golden
+   from before this fix was silently the `.large` layout and had to be deleted and re-recorded.
+
+The bug bug #2 was hiding: below `.accessibility1` a name and a state word share one line
+(`TrackRow`'s own threshold and shape), and above it a name long enough to matter — "Late Night
+Radio" — truncated to four characters (`Late…`) fighting a state word on the same line at
+`accessibility5`, which is exactly the `docs/12` §1 "nothing truncates" failure the size exists
+to catch. Only visible by actually opening the rendered PNG; the harness had already written it
+to disk as the "golden" and the suite was green. Fixed by stacking the row (name above state)
+at `.accessibility1` and up, the same threshold `TrackRow.content` already uses for its own
+two-line accessibility layout.
+
+Verified: `./ios/scripts/lint.sh` clean; unit 417/417 (including new `CircleSwitcherTests` and
+the switcher's `AccessibilityCopyTests` additions); snapshot 65/65 (10 new `CircleSwitcher`
+goldens, each looked at, not just diffed); `verify-fixture.sh` for `FixtureRoundTests` (7/7,
+including `selectingACircleReScopesTheRoundToIt` against the real second circle `E19-01` put in
+the fixture server for this). Per `CLAUDE.md` §8 F's device-matrix override, the manual SE and
+`accessibility5` simulator pass is not required this slice — the golden matrix (SE + 15 Pro Max
+× `large`/`accessibility1`/`accessibility5`, `-three-*` at `accessibility5` too) already covers
+it and is what caught the truncation bug above; iPhone 17 is the live pass. Simulator: built and
+ran against the fixture server — tapped the header on the sealed screen, the sheet opened sized
+to its two rows (no wasted space), picked "Late Night Radio," and the whole screen re-scoped:
+header name, seal-stamp initial (`T` → `L`), and the sealed-until time (8:00 PM → 9:00 PM, each
+circle's own `reveal_hour`) all updated together, with no old-circle content visible mid-switch.
+Switched back and confirmed row order stayed stable (both circles `sealed`, no needs-action, no
+reshuffling). The needs-action mark and the stacked accessibility layout are verified by the
+golden suite rather than re-demonstrated live, since the fixture's second circle is pinned to
+`sealed`/`needs_action: false` and cannot exercise that state itself.
 
 ---
 
