@@ -155,6 +155,18 @@ enum LoadState<T> { case idle, loading, loaded(T), failed(APIError), stale(T, AP
 the offline banner (`08-SCREEN-SPECS.md` §10) rather than blanking. Model it in the enum so no
 screen can forget.
 
+### `CircleStore` — which circle a group-scoped store means (`E19-01`, `01-ARCHITECTURE.md` ADR-011)
+
+A second app-wide store beside `SessionStore`, injected the same way. It fetches `GET /groups`
+and resolves an `activeGroupID` — the persisted choice if it still names one of the caller's
+circles, else the server's own oldest-active-first ordering, which is what every `current`-
+shaped route resolved before `ADR-011`. Every group-scoped store (`RoundStore`, `SubmitStore`,
+`GroupStore`, `RecordStore`, `ResultsStore`) takes it and calls `resolveActiveID()` at the top
+of its own load, rather than being handed an id once at construction — which is what makes a
+switch (`E19-02`) a plain refetch instead of a rebuilt store. A circle that fails to resolve
+fails through the caller's own `LoadState`; there is no second error path for "we don't know
+which circle yet".
+
 ### Stores never decide phase
 
 A store may *refetch* when a countdown elapses. It may never set `state` to a different

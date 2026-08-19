@@ -63,6 +63,12 @@ final class SessionStore {
     /// kind that never shows up in a leak check because the objects genuinely live forever.
     private weak var api: APIClient?
 
+    /// Set by `AppEnvironment`, `weak` for the same reason: `AppEnvironment` is the app's one
+    /// long-lived composition root (`docs/13` §2), so a session that did not clear the circle
+    /// cache on `endSession()` would show the previous account's circles to the next one signed
+    /// in on the same install (`E19-01`).
+    private weak var circles: CircleStore?
+
     /// In memory only. It is written to the Keychain and read back from it; this is the copy
     /// the running process spends.
     private var refreshToken: String?
@@ -77,6 +83,10 @@ final class SessionStore {
 
     func attach(_ api: APIClient) {
         self.api = api
+    }
+
+    func attach(_ circles: CircleStore) {
+        self.circles = circles
     }
 
     // MARK: - Launch
@@ -242,6 +252,7 @@ final class SessionStore {
         try? secrets.delete(Keychain.Account.spotifyAccessToken)
         try? secrets.delete(Keychain.Account.spotifyRefreshToken)
         state = .signedOut
+        circles?.reset()
     }
 
     // MARK: - Storage

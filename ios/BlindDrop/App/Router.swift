@@ -51,7 +51,10 @@ final class Router {
                 break
             }
 
-        case .round, .results:
+        // `groupID` is not acted on here — switching to the named circle before landing is
+        // `E19-03`'s job. This slice only makes sure a link that names one still parses and
+        // still reaches this switch rather than being dropped.
+        case .round(_), .results(_):
             // Both mean "today's round". Results for today is a branch of RoundScreen, not a
             // pushed destination — modelling `.results` as a push is precisely the mistake
             // that would let a link land on a phase that is not current. Pop to the root and
@@ -60,7 +63,7 @@ final class Router {
             path = []
             pending = nil
 
-        case .record:
+        case .record(_):
             guard session == .ready, roundIsLoaded else { return }
             path = [.record]
             pending = nil

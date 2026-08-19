@@ -10,7 +10,7 @@ import Testing
 
     private func makeStore(_ responses: [RoundStub.Response] = []) -> (SubmitStore, StubSession) {
         let (env, stub) = RoundFixture.environment(responses: responses)
-        return (SubmitStore(api: env.api), stub)
+        return (SubmitStore(api: env.api, circles: env.circles), stub)
     }
 
     // MARK: - Searching (`docs/08` §3.1)

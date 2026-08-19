@@ -75,10 +75,23 @@ final class LocalFlags {
         defaults.stringArray(forKey: Key.seenResolveRounds)?.contains(roundID) == true
     }
 
+    // MARK: - Circles (`docs/01` ADR-011, `E19-01`)
+
+    /// The last circle the user explicitly chose (`E19-02`; this slice only reads it).
+    ///
+    /// Not a decision about which circles are theirs — `CircleStore` reconciles this against the
+    /// server's own list on every read, so an id for a circle the user has since left is quietly
+    /// ignored rather than remembered forever.
+    var activeCircleID: String? {
+        get { defaults.string(forKey: Key.activeCircleID) }
+        set { defaults.set(newValue, forKey: Key.activeCircleID) }
+    }
+
     private enum Key {
         static let askedAboutNotifications = "flags.notifications.asked"
         static let declinedNotifications = "flags.notifications.declined"
         static let seenUnsealRounds = "flags.reveal.seen-unseal-rounds"
         static let seenResolveRounds = "flags.results.seen-resolve-rounds"
+        static let activeCircleID = "flags.circles.active-id"
     }
 }

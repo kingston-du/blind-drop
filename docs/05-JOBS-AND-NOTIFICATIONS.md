@@ -218,6 +218,14 @@ URL scheme `blinddrop://`. Universal Links are out of scope except the invite la
 | `blinddrop://record` | The Record |
 | `blinddrop://join/<CODE>` | Join flow, code prefilled |
 
+**A circle prefix, since `E19-01`** (`docs/01` ADR-011): `blinddrop://circle/<GROUP_ID>/round/current`,
+`…/circle/<GROUP_ID>/round/current/results`, and `…/circle/<GROUP_ID>/record` name which
+circle the link belongs to. The bare forms above are unchanged and still mean "the active
+circle" — every link this table already promised keeps resolving exactly as it did before a
+second circle existed. `blinddrop://join/<CODE>` is never circle-prefixed: joining is how a
+circle is acquired, not a thing that already has one. Parsing a circle-prefixed link is
+`E19-01`; switching to the named circle before landing on it is `E19-03`.
+
 A deep link **never** shortcuts a phase gate. `blinddrop://round/current/results` opened at
 21:30 lands on the guess screen with no error — the client asks the server what phase it is
 and renders that. A deep link is a navigation hint, not an authorization.

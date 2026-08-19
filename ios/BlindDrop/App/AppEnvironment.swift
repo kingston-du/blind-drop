@@ -16,6 +16,11 @@ final class AppEnvironment {
     let session: SessionStore
     let api: APIClient
     let router: Router
+    /// The caller's own circles, and which one every group-scoped store treats as active
+    /// (`docs/01` ADR-011, `E19-01`). Here rather than on a screen because it is exactly the
+    /// kind of fact `SessionStore` and `ServerClock` already are: true for the whole app, not
+    /// for one feature.
+    let circles: CircleStore
     /// The app's haptic vocabulary from `docs/09`. Injected rather than constructed at the call site so the
     /// seal and unseal can be driven by a counting double in a test (`docs/09` §6) — and so
     /// `DesignSystem/` never depends on `UIImpactFeedbackGenerator` being real.
@@ -68,6 +73,10 @@ final class AppEnvironment {
         self.router = Router()
         self.haptics = haptics
         let flags = LocalFlags(defaults: defaults)
+        let circles = CircleStore(api: api, flags: flags)
+        session.attach(circles)
+        circles.attach(session)
+        self.circles = circles
         #if DEBUG
         // The notification pre-prompt is not part of AC-10's round loop. Marking it handled in
         // the isolated UI-test install keeps that unrelated sheet from changing the tap budget.

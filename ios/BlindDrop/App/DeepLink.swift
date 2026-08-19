@@ -13,14 +13,23 @@ import Foundation
 /// `.onContinueUserActivity` rather than `.onOpenURL`, and is parsed here too (E09-04) — it is
 /// the same destination reached by a different door, and two parsers would be two chances to
 /// disagree about what a code is.
+///
+/// **A circle prefix, since `E19-01`.** `blinddrop://circle/<GROUP_ID>/round/current` names
+/// which circle the round belongs to; the bare `blinddrop://round/current` still means "the
+/// active one", so every link `docs/05` shipped before this slice still resolves exactly as it
+/// did. `docs/01` ADR-011 is why a route needs this at all — a round, its results, and The
+/// Record are each scoped to one circle now, and a link written before the caller held more
+/// than one cannot assume which. `.join` never takes a circle: joining is how you get one, not
+/// a thing that already has one.
 enum DeepLink: Equatable, Sendable {
-    /// `blinddrop://round/current` — today's round, phase-appropriate screen.
-    case round
-    /// `blinddrop://round/current/results` — results for today's round.
-    case results
-    /// `blinddrop://record` — The Record.
-    case record
-    /// `blinddrop://join/<CODE>` — join flow, code prefilled.
+    /// `blinddrop://round/current`, or `blinddrop://circle/<id>/round/current` — today's round,
+    /// phase-appropriate screen. `groupID` is `nil` for "the active circle".
+    case round(groupID: String?)
+    /// `blinddrop://round/current/results`, or with a circle prefix — results for today's round.
+    case results(groupID: String?)
+    /// `blinddrop://record`, or with a circle prefix — The Record.
+    case record(groupID: String?)
+    /// `blinddrop://join/<CODE>` — join flow, code prefilled. Never circle-prefixed.
     case join(code: String)
 
     init?(_ url: URL) {
@@ -30,7 +39,7 @@ enum DeepLink: Equatable, Sendable {
         case Self.scheme:
             // `blinddrop://record` puts "record" in `host` and leaves `path` empty, while
             // `blinddrop://round/current` puts "round" in `host` and "current" in the path.
-            // Both shapes are normalised into one list so the four routes match as written in
+            // Both shapes are normalised into one list so the routes match as written in
             // docs/05 §5 rather than as two special cases.
             parts = []
             if let host = url.host(percentEncoded: false), !host.isEmpty { parts.append(host) }
@@ -51,17 +60,29 @@ enum DeepLink: Equatable, Sendable {
             return nil
         }
 
+        // A circle prefix names which circle the rest of the link belongs to. Stripped here so
+        // every route below is matched exactly as `docs/05` §5 writes it, with the id carried
+        // separately rather than folded into a wider set of path shapes.
+        var groupID: String?
+        if parts.count >= 2, parts[0] == "circle" {
+            let candidate = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !candidate.isEmpty else { return nil }
+            groupID = candidate
+            parts = Array(parts.dropFirst(2))
+        }
+
         switch parts {
         case ["round", "current"]:
-            self = .round
+            self = .round(groupID: groupID)
         case ["round", "current", "results"]:
-            self = .results
+            self = .results(groupID: groupID)
         case ["record"]:
-            self = .record
+            self = .record(groupID: groupID)
         default:
             // Swift has no array-with-binding pattern, so the one route that carries a value
-            // is matched here rather than as a fifth `case`.
-            guard parts.count == 2, parts[0] == "join" else { return nil }
+            // is matched here rather than as a fifth `case`. `.join` is never circle-prefixed —
+            // a circle segment ahead of it is malformed rather than ignored.
+            guard groupID == nil, parts.count == 2, parts[0] == "join" else { return nil }
             // docs/04 §3: invite codes are case-insensitive and whitespace-stripped, so the
             // link normalises here and the join screen never sees a stray form.
             let normalised = parts[1].trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

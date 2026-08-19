@@ -615,7 +615,7 @@ struct OnboardingHarness {
             body: Data(#"{"server_now":"2026-08-10T18:42:07Z","error":{"code":"NO_PROFILE","message":"x"}}"#.utf8)
         )])
 
-        _ = try? await h.api.send(.currentRound)
+        _ = try? await h.api.send(.round("g1"))
 
         #expect(h.session.state == .noProfile)
         #expect(RootDestination(session: h.session.state) == .displayName)
@@ -630,7 +630,7 @@ struct OnboardingHarness {
             body: Data(#"{"server_now":"2026-08-10T18:42:07Z","error":{"code":"NO_GROUP","message":"x"}}"#.utf8)
         )])
 
-        _ = try? await h.api.send(.currentRound)
+        _ = try? await h.api.send(.round("g1"))
 
         #expect(h.session.state == .noGroup)
         #expect(RootDestination(session: h.session.state) == .joinOrCreate)
@@ -647,7 +647,7 @@ struct OnboardingHarness {
             body: Data(#"{"server_now":"2026-08-10T18:42:07Z","error":{"code":"\#(code)","message":"x"}}"#.utf8)
         )])
 
-        _ = try? await h.api.send(.currentRound)
+        _ = try? await h.api.send(.round("g1"))
 
         #expect(h.session.state == .unknown)
     }

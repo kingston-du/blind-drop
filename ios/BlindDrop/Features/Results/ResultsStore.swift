@@ -28,10 +28,15 @@ final class ResultsStore {
     let roundID: String
 
     private let api: APIClient
+    /// Only `standings` needs a circle — `results(roundID:)` resolves its own group server-side
+    /// (`docs/04` §4) — but both loads start together, so a circle that cannot be resolved must
+    /// not hold up the answers (`E19-01`).
+    private let circles: CircleStore
 
-    init(api: APIClient, roundID: String) {
+    init(api: APIClient, roundID: String, circles: CircleStore) {
         self.api = api
         self.roundID = roundID
+        self.circles = circles
     }
 
     /// Loads the answers.
@@ -47,10 +52,14 @@ final class ResultsStore {
         if standings.value == nil { standings = .loading }
 
         async let answers = result(of: .results(roundID: roundID))
-        async let allTime = result(of: Endpoint<StandingsDTO>.standings)
+        async let groupID = circles.resolveActiveID()
 
         state.apply(await answers)
-        standings.apply(await allTime)
+        if let groupID = await groupID {
+            standings.apply(await result(of: Endpoint<StandingsDTO>.standings(groupID)))
+        } else {
+            standings.apply(.failure(circles.state.error ?? .unreadable))
+        }
     }
 
     /// `APIClient.send` throws `APIError` and nothing else — a typed `throws`, so there is no

@@ -17,7 +17,7 @@ struct GroupScreen: View {
         .navigationTitle(Text("group.title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if store == nil { store = GroupStore(api: env.api) }
+            if store == nil { store = GroupStore(api: env.api, circles: env.circles) }
             await store?.load()
         }
     }

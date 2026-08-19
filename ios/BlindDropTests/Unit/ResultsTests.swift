@@ -193,7 +193,9 @@ import Testing
     @Test func theStoreLoadsTheAnswersAndDoesNotReorderThem() async throws {
         let (env, session) = RoundFixture.environment()
         session.arm([try RoundFixture.envelope("results")])
-        let store = ResultsStore(api: env.api, roundID: "c0000000-0000-4000-8000-000000000001")
+        let store = ResultsStore(
+            api: env.api, roundID: "c0000000-0000-4000-8000-000000000001", circles: env.circles
+        )
 
         await store.load()
 
@@ -211,7 +213,7 @@ import Testing
     @Test func aFailedRefreshKeepsTheAnswers() async throws {
         let (env, session) = RoundFixture.environment()
         session.arm([try RoundFixture.envelope("results")])
-        let store = ResultsStore(api: env.api, roundID: "r")
+        let store = ResultsStore(api: env.api, roundID: "r", circles: env.circles)
         await store.load()
 
         session.arm([RoundStub.Response(status: 0, body: Data(), failure: URLError(.notConnectedToInternet))])

@@ -59,6 +59,13 @@ enum RoundFixture {
     static func environment(responses: [RoundStub.Response] = []) -> (AppEnvironment, StubSession) {
         let session = RoundStub.session()
         session.arm(responses)
+        // `CircleStore` calls `GET /groups` before anything group-scoped can resolve an id
+        // (`E19-01`). Every existing fixture-backed test was written for a single circle and
+        // queues its `/groups/{id}` and `/rounds/{id}/current` answers as if that id were
+        // already known — so this stands in for the one circle those tests already assume,
+        // pinned as an **exact** route rather than a substring one so it cannot also answer a
+        // `GET /groups/{id}` request meant for the caller's own queue.
+        session.armExact("/groups", try! defaultCirclesResponse())
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RoundStub.self]
         configuration.httpAdditionalHeaders = [RoundStub.tokenHeader: session.token]
@@ -69,6 +76,21 @@ enum RoundFixture {
             transport: APIClient.makeTransport(configuration)
         )
         return (environment, session)
+    }
+
+    /// The id every fixture-backed test's queued round and group responses are implicitly
+    /// for — `group_current.json`'s own id, so a store resolving through `CircleStore` reaches
+    /// exactly the circle those payloads already describe.
+    static func groupID() throws -> String { try group().id }
+
+    static func defaultCirclesResponse() throws -> RoundStub.Response {
+        let group = try group()
+        let json: [String: Any] = [
+            "circles": [
+                ["id": group.id, "name": group.name, "my_state": "sealed", "needs_action": false],
+            ],
+        ]
+        return envelope(try JSONSerialization.data(withJSONObject: json))
     }
 
     /// A `UserDefaults` nobody else is using, so a flag test cannot leave the runner's own
@@ -162,6 +184,10 @@ final class StubSession: @unchecked Sendable {
 
     private var queue: [RoundStub.Response] = []
     private var routes: [String: RoundStub.Response] = [:]
+    /// Matched by **exact** path rather than substring, and checked before `routes` — the one
+    /// discipline `CircleStore`'s `/groups` needs, since `/groups/{id}` would otherwise also
+    /// match a substring route keyed `"/groups"` (`E19-01`).
+    private var exactRoutes: [String: RoundStub.Response] = [:]
     private var last = RoundStub.Response()
     private var recorded: [URLRequest] = []
     private let lock = NSLock()
@@ -202,6 +228,14 @@ final class StubSession: @unchecked Sendable {
         recorded = []
     }
 
+    /// Pins one exact path to one answer, independent of `arm(_:)`/`arm(routes:)` — it survives
+    /// either, so a fixture set up once at `environment(responses:)` time (`RoundFixture`'s own
+    /// default `/groups` route) is not wiped out by a test's later, unrelated `arm` call.
+    func armExact(_ path: String, _ response: RoundStub.Response) {
+        lock.lock(); defer { lock.unlock() }
+        exactRoutes[path] = response
+    }
+
     var requests: [URLRequest] {
         lock.lock(); defer { lock.unlock() }
         return recorded
@@ -216,8 +250,14 @@ final class StubSession: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         recorded.append(request)
         let path = request.url?.path() ?? ""
+        // `path` carries the functions prefix (`/functions/v1/groups`), which `exactRoutes`'
+        // keys do not — `hasSuffix` is the actual exact match here, and it is still exact
+        // rather than `routes`' substring test: `/groups/{id}` does not end in `/groups`.
+        if let exactKey = exactRoutes.keys.first(where: { path.hasSuffix($0) }) {
+            return exactRoutes[exactKey]!
+        }
         // Prefer the most specific path. Dictionary iteration is intentionally unordered, and
-        // `/groups/current` also matches `/groups/current/record`; taking the first match made
+        // `/groups/{id}` also matches `/groups/{id}/record`; taking the first match made
         // concurrent store tests depend on hash order.
         if let routed = routes
             .filter({ path.contains($0.key) })

@@ -143,7 +143,7 @@ final class SubmitStore {
     /// The `alert`-coloured line under the button (`docs/08` §3.2). Cleared on every new attempt.
     private(set) var sealErrorKey: String?
 
-    /// `PUT /rounds/current/submission`, and nothing else.
+    /// `PUT /rounds/{group_id}/current/submission`, and nothing else.
     ///
     /// - Returns: the submission the server sealed, or `nil` if it refused. The caller runs the
     ///   animation only on a non-`nil` result — *"the seal animation never runs speculatively"*
@@ -154,10 +154,15 @@ final class SubmitStore {
         sealErrorKey = nil
         defer { isSealing = false }
 
+        guard let groupID = await circles.resolveActiveID() else {
+            sealErrorKey = "search.error.offline"
+            return nil
+        }
+
         do {
             // `apple_music_id` rather than the track key: the id is what `docs/04` §4 takes, and
             // the server re-resolves it so the sealed snapshot is the server's, not the client's.
-            return try await api.send(.seal(.appleMusicID(track.appleMusicID)))
+            return try await api.send(.seal(groupID, .appleMusicID(track.appleMusicID)))
         } catch APIError.offline {
             sealErrorKey = "search.error.offline"
         } catch let error {
@@ -171,12 +176,14 @@ final class SubmitStore {
     // MARK: - Wiring
 
     private let api: APIClient
+    private let circles: CircleStore
 
     /// - Parameter previewResults: seeds `results` as already `.loaded`, for a snapshot or a
     ///   preview that needs the browsing layout without a live search running through
     ///   `ImageRenderer`, which never fires the task the debounce would otherwise start.
-    init(api: APIClient, previewResults: [TrackDTO]? = nil) {
+    init(api: APIClient, circles: CircleStore, previewResults: [TrackDTO]? = nil) {
         self.api = api
+        self.circles = circles
         if let previewResults { results = .loaded(previewResults) }
     }
 

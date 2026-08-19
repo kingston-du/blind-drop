@@ -297,29 +297,33 @@ struct RecordTests {
         let store = RecordStore(
             api: env.api,
             spotify: SpotifyExporter(auth: FakeSpotifyAuthorization()),
-            apple: AppleMusicExporter(music: music)
+            apple: AppleMusicExporter(music: music),
+            circles: env.circles
         )
 
         await store.exportToAppleMusic()
 
         #expect(store.appleExport == .failed(.denied))
         #expect(store.spotifyExport == .idle)
-        #expect(session.requests.count == 1)
+        // `GET /groups` (resolving the active circle, `E19-01`) plus the export GET itself.
+        #expect(session.requests.count == 2)
     }
 
     @Test func recordLoadsAt50FiltersOnTheServerAndPrefetchesAtTen() async throws {
         let (env, session) = RoundFixture.environment()
         let firstPage = try recordPage(dayIndexes: [0], nextCursor: "older", entryCount: 12)
+        let groupID = try RoundFixture.groupID()
         session.arm(routes: [
-            "/groups/current/record": RoundFixture.envelope(firstPage),
-            "/groups/current": try RoundFixture.envelope("group_current"),
+            "/groups/\(groupID)/record": RoundFixture.envelope(firstPage),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
         ])
         let spotifyAuth = FakeSpotifyAuthorization()
         let music = FakeAppleMusic()
         let store = RecordStore(
             api: env.api,
             spotify: SpotifyExporter(auth: spotifyAuth),
-            apple: AppleMusicExporter(music: music)
+            apple: AppleMusicExporter(music: music),
+            circles: env.circles
         )
 
         await store.load()

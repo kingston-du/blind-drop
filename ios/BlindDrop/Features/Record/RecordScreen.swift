@@ -290,7 +290,8 @@ struct RecordScreen: View {
         store = RecordStore(
             api: env.api,
             spotify: SpotifyExporter(auth: spotify),
-            apple: AppleMusicExporter()
+            apple: AppleMusicExporter(),
+            circles: env.circles
         )
     }
 }
@@ -316,7 +317,7 @@ private struct RecordResultsScreen: View {
         .background(Palette.paper)
         .toolbar(.visible, for: .navigationBar)
         .task {
-            let built = store ?? ResultsStore(api: env.api, roundID: roundID)
+            let built = store ?? ResultsStore(api: env.api, roundID: roundID, circles: env.circles)
             store = built
             await built.load()
         }

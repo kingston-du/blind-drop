@@ -152,7 +152,7 @@ import Testing
         let (client, clock, _) = Self.makeClient()
         Stub.arm([.init(status: 409, body: Self.failure("NO_GROUP"))])
 
-        await #expect(throws: APIError.noGroup) { try await client.send(.currentRound) }
+        await #expect(throws: APIError.noGroup) { try await client.send(.round("g1")) }
         #expect(clock.now != nil, "a refusal is still evidence about the time")
     }
 
@@ -173,7 +173,7 @@ import Testing
         #expect(me.displayName == "Ana")
         #expect(me.hasGroup)
 
-        let group = try await load("group_current", .currentGroup)
+        let group = try await load("group_current", .group("g1"))
         #expect(group.name == "The Cove")
         #expect(group.timezone == "America/New_York")
         #expect(group.revealHour == 20)
@@ -186,17 +186,17 @@ import Testing
         #expect(results.cards.allSatisfy { $0.eligibleGuesserCount == 7 })
         #expect(results.people.count == 8)
 
-        let standings = try await load("standings", .standings)
+        let standings = try await load("standings", .standings("g1"))
         #expect(standings.roundsPlayed > 0)
         #expect(standings.bestEar.first?.rank == 1)
         #expect(!standings.readability.isEmpty)
 
-        let record = try await load("record", .record())
+        let record = try await load("record", .record("g1"))
         #expect(!record.days.isEmpty)
         #expect(record.days.allSatisfy { !$0.entries.isEmpty })
         #expect(record.nextCursor == nil)
 
-        let spotify = try await load("record_export_spotify", .export(.spotify))
+        let spotify = try await load("record_export_spotify", .export("g1", .spotify))
         #expect(spotify.playlistName.hasSuffix("Blind Drop"))
         #expect(spotify.tracks.allSatisfy { $0.spotifyURI != nil })
 
@@ -221,7 +221,7 @@ import Testing
 
         func round(_ fixture: String) async throws -> RoundDTO {
             Stub.arm([.init(body: Self.envelope(try Self.fixture(fixture)))])
-            return try await client.send(.currentRound)
+            return try await client.send(.round("g1"))
         }
 
         let open = try await round("round_open")
@@ -291,7 +291,7 @@ import Testing
         """
         Stub.arm([.init(body: Self.envelope(Data(leaky.utf8)))])
 
-        let round = try await client.send(.currentRound)
+        let round = try await client.send(.round("g1"))
         guard case .open(nil) = round.phase else {
             Issue.record("a state of `open` decodes as .open whatever else is in the body")
             return
@@ -324,7 +324,7 @@ import Testing
         for (code, status, expected, copyKey) in cases {
             Stub.arm([.init(status: status, body: Self.failure(code))])
             await #expect(throws: expected, "\(code)") {
-                try await client.send(.currentGroup)
+                try await client.send(.group("g1"))
             }
             #expect(expected.copyKey == copyKey, "\(code)")
             #expect(expected.serverCode == code, "\(code)")
@@ -339,12 +339,12 @@ import Testing
 
         Stub.arm([.init(status: 409, body: Self.failure("WRONG_PHASE", extra: #","state":"revealed""#))])
         await #expect(throws: APIError.wrongPhase(state: .revealed)) {
-            try await client.send(.seal(.appleMusicID("1")))
+            try await client.send(.seal("g1", .appleMusicID("1")))
         }
 
         Stub.arm([.init(status: 400, body: Self.failure("INVALID_INPUT", extra: #","details":{"field":"limit"}"#))])
         await #expect(throws: APIError.invalidInput(field: "limit")) {
-            try await client.send(.record(limit: 500))
+            try await client.send(.record("g1", limit: 500))
         }
 
         Stub.arm([.init(
@@ -390,16 +390,16 @@ import Testing
         let (client, _, _) = Self.makeClient()
 
         Stub.arm([.init(failure: URLError(.timedOut))])
-        await #expect(throws: APIError.offline) { try await client.send(.currentRound) }
+        await #expect(throws: APIError.offline) { try await client.send(.round("g1")) }
         #expect(Stub.requestCount == 3, "an idempotent GET retries twice")
 
         Stub.arm([.init(failure: URLError(.timedOut))])
-        await #expect(throws: APIError.offline) { try await client.send(.seal(.appleMusicID("1"))) }
+        await #expect(throws: APIError.offline) { try await client.send(.seal("g1", .appleMusicID("1"))) }
         #expect(Stub.requestCount == 2, "PUT /rounds/current/submission retries once")
 
         Stub.arm([.init(failure: URLError(.timedOut))])
         await #expect(throws: APIError.offline) {
-            try await client.send(.saveGuesses([GuessAssignment(cardNumber: 1, guessedUserID: nil)]))
+            try await client.send(.saveGuesses("g1", [GuessAssignment(cardNumber: 1, guessedUserID: nil)]))
         }
         #expect(Stub.requestCount == 2, "PUT /rounds/current/guesses retries once")
 
@@ -431,11 +431,11 @@ import Testing
         let (client, _, _) = Self.makeClient()
 
         Stub.arm([.init(status: 409, body: Self.failure("WRONG_PHASE", extra: #","state":"open""#))])
-        await #expect(throws: APIError.wrongPhase(state: .open)) { try await client.send(.currentRound) }
+        await #expect(throws: APIError.wrongPhase(state: .open)) { try await client.send(.round("g1")) }
         #expect(Stub.requestCount == 1)
 
         Stub.arm([.init(status: 429, body: Self.failure("RATE_LIMITED"))])
-        await #expect(throws: APIError.rateLimited(retryAfter: nil)) { try await client.send(.currentRound) }
+        await #expect(throws: APIError.rateLimited(retryAfter: nil)) { try await client.send(.round("g1")) }
         #expect(Stub.requestCount == 1)
     }
 
@@ -449,7 +449,7 @@ import Testing
         Stub.arm([.init(body: Self.envelope(try Self.fixture("me")))])
 
         _ = try await client.send(.me)
-        _ = try? await client.send(.leaveGroup)
+        _ = try? await client.send(.leaveGroup("g1"))
 
         #expect(Stub.requestCount == 2)
         for request in Stub.requests {
@@ -477,7 +477,7 @@ import Testing
         let (client, _, _) = Self.makeClient()
         Stub.arm([.init(status: 204)])
 
-        _ = try await client.send(.leaveGroup)
+        _ = try await client.send(.leaveGroup("g1"))
         _ = try await client.send(.registerDevice(token: "abc", environment: "sandbox"))
         _ = try await client.send(.unregisterDevice(token: "abc"))
         _ = try await client.send(.deleteAccount())
@@ -494,12 +494,12 @@ import Testing
             return String(decoding: try encode(), as: UTF8.self)
         }
 
-        #expect(try encoded(Endpoint<SubmissionDTO>.seal(.appleMusicID("1440857781")).body)
+        #expect(try encoded(Endpoint<SubmissionDTO>.seal("g1", .appleMusicID("1440857781")).body)
             == #"{"apple_music_id":"1440857781"}"#)
-        #expect(try encoded(Endpoint<SubmissionDTO>.seal(.isrc("USUM71703861")).body)
+        #expect(try encoded(Endpoint<SubmissionDTO>.seal("g1", .isrc("USUM71703861")).body)
             == #"{"isrc":"USUM71703861"}"#)
 
-        let sheet = try encoded(Endpoint<GuessSheetDTO>.saveGuesses([
+        let sheet = try encoded(Endpoint<GuessSheetDTO>.saveGuesses("g1", [
             GuessAssignment(cardNumber: 1, guessedUserID: "u_ben"),
             GuessAssignment(cardNumber: 2, guessedUserID: nil),
         ]).body)
@@ -520,10 +520,10 @@ import Testing
         let (client, _, _) = Self.makeClient()
         Stub.arm([.init(body: Self.envelope(try Self.fixture("record")))])
 
-        _ = try await client.send(.record(member: "u_ana", cursor: "eyJkIjoiMjAyNi0wOC0wMSJ9", limit: 25))
+        _ = try await client.send(.record("g1", member: "u_ana", cursor: "eyJkIjoiMjAyNi0wOC0wMSJ9", limit: 25))
 
         let url = try #require(Stub.requests.first?.url)
-        #expect(url.path() == "/functions/v1/groups/current/record")
+        #expect(url.path() == "/functions/v1/groups/g1/record")
         let query = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
         #expect(query.contains(URLQueryItem(name: "member", value: "u_ana")))
         #expect(query.contains(URLQueryItem(name: "cursor", value: "eyJkIjoiMjAyNi0wOC0wMSJ9")))

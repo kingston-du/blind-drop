@@ -138,15 +138,21 @@ final class RoundStore {
     private let session: SessionStore
     private let clock: ServerClock
     private let router: Router
+    /// Which circle "today's round" means (`docs/01` ADR-011, `E19-01`). Resolved fresh on
+    /// every `load()` rather than pinned at construction, so a circle switched underneath this
+    /// store (`E19-02`) is picked up on the very next refetch instead of needing a rebuilt store.
+    private let circles: CircleStore
 
-    init(api: APIClient, session: SessionStore, clock: ServerClock, router: Router) {
+    init(api: APIClient, session: SessionStore, clock: ServerClock, router: Router, circles: CircleStore) {
         self.api = api
         self.session = session
         self.clock = clock
         self.router = router
+        self.circles = circles
     }
 
-    /// Loads the round and the group.
+    /// Loads the round and the group, for whichever circle `CircleStore` currently resolves as
+    /// active.
     ///
     /// Concurrently, because they are independent GETs and the launch budget is 90 seconds for the
     /// **whole loop** (`docs/00` §7) — two serial round trips at 8pm on cellular is a spinner
@@ -155,12 +161,19 @@ final class RoundStore {
     ///
     /// A failure keeps whatever is already on screen (`LoadState.apply` → `.stale`), which is the
     /// offline behaviour `docs/08` §10 asks for: the cached phase rendered greyed, with a banner,
-    /// rather than a blank screen.
+    /// rather than a blank screen. A circle list that cannot be resolved at all fails the same
+    /// way — there is no second error path for "we don't know which circle yet".
     func load() async {
         if state.value == nil { state = .loading }
 
-        async let round = result(of: .currentRound)
-        async let group = result(of: .currentGroup)
+        guard let groupID = await circles.resolveActiveID() else {
+            state.apply(.failure(circles.state.error ?? .unreadable))
+            router.consume(session: session.state, roundIsLoaded: state.value != nil)
+            return
+        }
+
+        async let round = result(of: .round(groupID))
+        async let group = result(of: .group(groupID))
 
         switch (await round, await group) {
         case let (.success(round), .success(group)):

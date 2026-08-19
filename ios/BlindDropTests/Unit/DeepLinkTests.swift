@@ -2,15 +2,15 @@ import Foundation
 import Testing
 @testable import BlindDrop
 
-/// `docs/05` §5 lists four `blinddrop://` routes. This suite asserts all four parse, and that
-/// everything else parses to `nil` — a link we do not recognise must do nothing visible rather
-/// than fall back to the round.
+/// `docs/05` §5 lists four `blinddrop://` routes, plus the `E19-01` circle prefix. This suite
+/// asserts all of it parses, and that everything else parses to `nil` — a link we do not
+/// recognise must do nothing visible rather than fall back to the round.
 @Suite struct DeepLinkTests {
 
     @Test func theFourRoutesFromDocs05Parse() {
-        #expect(DeepLink(URL(string: "blinddrop://round/current")!) == .round)
-        #expect(DeepLink(URL(string: "blinddrop://round/current/results")!) == .results)
-        #expect(DeepLink(URL(string: "blinddrop://record")!) == .record)
+        #expect(DeepLink(URL(string: "blinddrop://round/current")!) == .round(groupID: nil))
+        #expect(DeepLink(URL(string: "blinddrop://round/current/results")!) == .results(groupID: nil))
+        #expect(DeepLink(URL(string: "blinddrop://record")!) == .record(groupID: nil))
         #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!) == .join(code: "K7MQ2X"))
     }
 
@@ -29,6 +29,23 @@ import Testing
         #expect(DeepLink(URL(string: "https://blinddrop.app/j/k7mq2x")!) == .join(code: "K7MQ2X"))
         #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!)
                 == DeepLink(URL(string: "https://blinddrop.app/j/K7MQ2X")!))
+    }
+
+    /// `E19-01`: `blinddrop://circle/<id>/…` names which circle the rest of the link belongs
+    /// to. The bare forms above are unchanged — `groupID: nil` still means "the active circle".
+    @Test func acirclePrefixNamesWhichCircleTheLinkBelongsTo() {
+        #expect(DeepLink(URL(string: "blinddrop://circle/g_1/round/current")!)
+                == .round(groupID: "g_1"))
+        #expect(DeepLink(URL(string: "blinddrop://circle/g_1/round/current/results")!)
+                == .results(groupID: "g_1"))
+        #expect(DeepLink(URL(string: "blinddrop://circle/g_1/record")!)
+                == .record(groupID: "g_1"))
+    }
+
+    /// Joining is how a circle is acquired, not a thing that already has one — a circle prefix
+    /// ahead of `join` is malformed rather than silently dropped.
+    @Test func acirclePrefixOnAJoinLinkIsRejected() {
+        #expect(DeepLink(URL(string: "blinddrop://circle/g_1/join/K7MQ2X")!) == nil)
     }
 
     /// `applinks:blinddrop.app` hands the app **every** URL on the domain, so everything that
@@ -56,6 +73,9 @@ import Testing
         "blinddrop://join",                      // no code
         "blinddrop://join/",                     // empty code
         "blinddrop://join/A/B",                  // a code is one path component
+        "blinddrop://circle",                    // no id, no route
+        "blinddrop://circle/",                   // empty id
+        "blinddrop://circle/g_1",                // an id with no route after it
         "http://127.0.0.1:8787/rounds/current",  // the API, not a deep link
     ])
     func malformedOrForeignURLsParseToNil(_ raw: String) {
@@ -71,6 +91,6 @@ import Testing
         let router = Router()
         router.receive(DeepLink(URL(string: "blinddrop://record")!))
         router.receive(DeepLink(URL(string: "blinddrop://nope")!))
-        #expect(router.pending == .record)
+        #expect(router.pending == .record(groupID: nil))
     }
 }

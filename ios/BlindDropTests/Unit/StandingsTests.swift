@@ -90,7 +90,7 @@ import Testing
             "/results": try RoundFixture.envelope("results"),
             "/standings": try RoundFixture.envelope("standings"),
         ])
-        let store = ResultsStore(api: env.api, roundID: "r")
+        let store = ResultsStore(api: env.api, roundID: "r", circles: env.circles)
 
         await store.load()
 
@@ -107,7 +107,7 @@ import Testing
             "/results": try RoundFixture.envelope("results"),
             "/standings": RoundFixture.failure(500, "INTERNAL"),
         ])
-        let store = ResultsStore(api: env.api, roundID: "r")
+        let store = ResultsStore(api: env.api, roundID: "r", circles: env.circles)
 
         await store.load()
 

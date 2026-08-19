@@ -507,8 +507,14 @@ struct RoundScreen: View {
 
     private func prepare() {
         guard store == nil else { return }
-        store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
-        submit = SubmitStore(api: env.api)
+        store = RoundStore(
+            api: env.api,
+            session: env.session,
+            clock: env.clock,
+            router: env.router,
+            circles: env.circles
+        )
+        submit = SubmitStore(api: env.api, circles: env.circles)
         seal = SealAnimation(haptics: env.haptics)
         timer = CountdownTimer(clock: env.clock)
     }
@@ -571,6 +577,11 @@ private struct RevealHost: View {
                 return
             }
             let api = env.api
+            // Captured as a value, not a reference to `CircleStore` itself: `saveGuesses` is
+            // `@Sendable`, and `CircleStore` is `@MainActor`-isolated. Resolving here is free —
+            // `RoundStore` would not have this reveal payload unless the circle list had
+            // already loaded — so this reads the cache rather than making a second request.
+            let groupID = await env.circles.resolveActiveID()
             let built = RevealStore(
                 cards: payload.cards,
                 pool: payload.namePool,
@@ -579,7 +590,8 @@ private struct RevealHost: View {
                 cannotGuessReason: payload.cannotGuessReason,
                 me: me,
                 saveGuesses: { assignments in
-                    try await api.send(.saveGuesses(assignments))
+                    guard let groupID else { throw APIError.offline }
+                    return try await api.send(.saveGuesses(groupID, assignments))
                 },
                 haptics: env.haptics,
                 onLockInSaved: refreshRound
@@ -668,7 +680,7 @@ private struct ResultsHost: View {
             }
         }
         .task(id: "\(roundID)#\(loadToken)") {
-            let built = store ?? ResultsStore(api: env.api, roundID: roundID)
+            let built = store ?? ResultsStore(api: env.api, roundID: roundID, circles: env.circles)
             store = built
             // Made here rather than lazily in `body`: `@State` is not a thing a view mutates
             // while it is being evaluated, and the renderer has to be the *same* one across

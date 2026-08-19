@@ -214,7 +214,7 @@ private let sizes = SnapshotRenderer.typeSizes
     ) -> some View {
         return SubmitScreen(
             context: context,
-            store: SubmitStore(api: Self.offlineClient, previewResults: previewResults),
+            store: SubmitStore(api: Self.offlineClient, circles: Self.offlineCircles, previewResults: previewResults),
             player: PreviewPlayer(),
             timer: timer,
             deadline: deadline,
@@ -229,9 +229,11 @@ private let sizes = SnapshotRenderer.typeSizes
     /// `ImageRenderer` runs no task — so all that matters is that a store can be built without a
     /// server behind it. The environment is the app's own, with its base URL replaced, which is
     /// less machinery than assembling a client by hand and cannot drift from what ships.
-    private static let offlineClient = AppEnvironment(
+    private static let offlineEnvironment = AppEnvironment(
         configuration: AppConfiguration(apiBaseURL: URL(string: "https://snapshot.invalid")!)
-    ).api
+    )
+    private static var offlineClient: APIClient { offlineEnvironment.api }
+    private static var offlineCircles: CircleStore { offlineEnvironment.circles }
 
     private static func submission() throws -> SubmissionDTO {
         SubmissionDTO(track: .ribs, sealedAt: CountdownFixture.serverNow)

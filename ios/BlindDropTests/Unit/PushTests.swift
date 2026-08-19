@@ -133,9 +133,10 @@ import Testing
 
     /// The payload's `deep_link` is parsed by the **same** grammar the URL scheme uses.
     @Test func thepayloadsLinkIsTheSameGrammar() {
-        #expect(PushRouter.link(from: ["deep_link": "blinddrop://round/current"]) == .round)
-        #expect(PushRouter.link(from: ["deep_link": "blinddrop://round/current/results"]) == .results)
-        #expect(PushRouter.link(from: ["deep_link": "blinddrop://record"]) == .record)
+        #expect(PushRouter.link(from: ["deep_link": "blinddrop://round/current"]) == .round(groupID: nil))
+        #expect(PushRouter.link(from: ["deep_link": "blinddrop://round/current/results"])
+                == .results(groupID: nil))
+        #expect(PushRouter.link(from: ["deep_link": "blinddrop://record"]) == .record(groupID: nil))
     }
 
     /// A payload with nothing we recognise does **nothing**, rather than falling back to the round.
@@ -164,7 +165,7 @@ import Testing
     /// all — which is the property that makes "never shortcuts" true rather than merely intended.
     @Test func aresultsPushDoesNotOpenResults() {
         let router = Router()
-        PushRouter.receive(.results, into: router, session: .ready)
+        PushRouter.receive(.results(groupID: nil), into: router, session: .ready)
         #expect(router.path.isEmpty, "nothing is pushed before the round has loaded")
 
         router.consume(session: .ready, roundIsLoaded: true)
@@ -174,7 +175,7 @@ import Testing
     /// The Record is a real destination, and it still waits for the round.
     @Test func arecordPushWaitsForTheRoundAndThenPushes() {
         let router = Router()
-        PushRouter.receive(.record, into: router, session: .ready)
+        PushRouter.receive(.record(groupID: nil), into: router, session: .ready)
         #expect(router.path.isEmpty)
 
         router.consume(session: .ready, roundIsLoaded: true)

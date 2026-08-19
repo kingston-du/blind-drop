@@ -29,12 +29,14 @@ final class RecordStore {
     private let api: APIClient
     private let spotify: SpotifyExporter
     private let apple: AppleMusicExporter
+    private let circles: CircleStore
     private var generation = 0
 
-    init(api: APIClient, spotify: SpotifyExporter, apple: AppleMusicExporter) {
+    init(api: APIClient, spotify: SpotifyExporter, apple: AppleMusicExporter, circles: CircleStore) {
         self.api = api
         self.spotify = spotify
         self.apple = apple
+        self.circles = circles
     }
 
     var days: [RecordDayDTO] { state.value ?? [] }
@@ -53,9 +55,15 @@ final class RecordStore {
         generation += 1
         let requestGeneration = generation
 
-        async let groupResult = result(of: Endpoint<GroupDTO>.currentGroup)
+        guard let groupID = await circles.resolveActiveID() else {
+            guard generation == requestGeneration else { return }
+            state = .failed(circles.state.error ?? .unreadable)
+            return
+        }
+
+        async let groupResult = result(of: Endpoint<GroupDTO>.group(groupID))
         async let recordResult = result(
-            of: Endpoint<RecordDTO>.record(member: selectedMemberID, limit: Self.pageSize)
+            of: Endpoint<RecordDTO>.record(groupID, member: selectedMemberID, limit: Self.pageSize)
         )
         let (loadedGroup, loadedRecord) = await (groupResult, recordResult)
         guard generation == requestGeneration else { return }
@@ -71,8 +79,13 @@ final class RecordStore {
         state = .loading
         nextCursor = nil
         isLoadingMore = false
+        guard let groupID = await circles.resolveActiveID() else {
+            guard generation == requestGeneration else { return }
+            state = .failed(circles.state.error ?? .unreadable)
+            return
+        }
         let loaded = await result(
-            of: Endpoint<RecordDTO>.record(member: memberID, limit: Self.pageSize)
+            of: Endpoint<RecordDTO>.record(groupID, member: memberID, limit: Self.pageSize)
         )
         guard generation == requestGeneration else { return }
         applyFirstPage(loaded)
@@ -87,8 +100,13 @@ final class RecordStore {
 
         isLoadingMore = true
         let requestGeneration = generation
+        guard let groupID = await circles.resolveActiveID() else {
+            isLoadingMore = false
+            return
+        }
         let loaded = await result(
             of: Endpoint<RecordDTO>.record(
+                groupID,
                 member: selectedMemberID,
                 cursor: cursor,
                 limit: Self.pageSize
@@ -108,8 +126,12 @@ final class RecordStore {
     func exportToSpotify() async {
         guard spotifyExport != .working else { return }
         spotifyExport = .working
+        guard let groupID = await circles.resolveActiveID() else {
+            spotifyExport = .failed(.failed)
+            return
+        }
         do {
-            let payload = try await api.send(.export(.spotify))
+            let payload = try await api.send(.export(groupID, .spotify))
             spotifyExport = .succeeded(try await spotify.export(payload))
         } catch {
             spotifyExport = .failed(.failed)
@@ -119,8 +141,12 @@ final class RecordStore {
     func exportToAppleMusic() async {
         guard appleExport != .working else { return }
         appleExport = .working
+        guard let groupID = await circles.resolveActiveID() else {
+            appleExport = .failed(.failed)
+            return
+        }
         do {
-            let payload = try await api.send(.export(.apple))
+            let payload = try await api.send(.export(groupID, .apple))
             appleExport = .succeeded(try await apple.export(payload))
         } catch let exportError as PlaylistExportError {
             appleExport = .failed(exportError)

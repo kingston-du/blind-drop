@@ -65,10 +65,60 @@ async function payload(name: string): Promise<unknown> {
 const rfc3339 = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 function reTime(round: Record<string, unknown>, now: Date): Record<string, unknown> {
+  return reTimeWith(round, OFFSETS[activePhase], now);
+}
+
+function reTimeWith(
+  round: Record<string, unknown>,
+  offsets: [number, number, number],
+  now: Date,
+): Record<string, unknown> {
   if (ANCHOR !== "now") return round;
-  const [o, r, s] = OFFSETS[activePhase];
+  const [o, r, s] = offsets;
   const at = (m: number) => rfc3339(new Date(now.getTime() + m * 60_000));
   return { ...round, opens_at: at(o), reveals_at: at(r), scores_at: at(s) };
+}
+
+// ─── circles — E19-01 ────────────────────────────────────────────────────────
+//
+// `PRIMARY_GROUP_ID` is `payloads/group_current.json`'s own id: every `current`-shaped route
+// above already resolves to this circle, so keying the `:group_id` siblings off it is what
+// makes "nothing changes" true for a test written before this slice. `SECONDARY_GROUP_ID` is
+// `GET /groups`'s static second row (`switcherStateFor`) — a real circle a `:group_id` route
+// can be asked for, distinct from the scripted one `PHASE` moves.
+const PRIMARY_GROUP_ID = "b0000000-0000-4000-8000-000000000001";
+const SECONDARY_GROUP_ID = "b0000000-0000-4000-8000-000000000099";
+
+async function groupPayloadFor(groupId: string): Promise<Record<string, unknown> | null> {
+  if (groupId === PRIMARY_GROUP_ID) return await payload("group_current") as Record<string, unknown>;
+  if (groupId === SECONDARY_GROUP_ID) {
+    const primary = await payload("group_current") as Record<string, unknown>;
+    return {
+      id: SECONDARY_GROUP_ID,
+      name: "Late Night Radio",
+      timezone: "America/New_York",
+      reveal_hour: 21,
+      invite_code: "LN8RADIO",
+      is_admin: false,
+      members: primary.members,
+    };
+  }
+  return null;
+}
+
+/** The secondary circle's round is always the shape `switcherStateFor` claims — `sealed`,
+ *  never moving with `PHASE` — so a `:group_id` route asked for it stays honest about what
+ *  `GET /groups` already said. */
+async function roundPayloadFor(groupId: string): Promise<Record<string, unknown> | null> {
+  if (groupId === PRIMARY_GROUP_ID) {
+    const round = await payload(PHASES[activePhase]) as Record<string, unknown>;
+    return reTime(round, new Date());
+  }
+  if (groupId === SECONDARY_GROUP_ID) {
+    const round = await payload("round_open") as Record<string, unknown>;
+    return reTimeWith(round, OFFSETS.open, new Date());
+  }
+  return null;
 }
 
 // docs/04 §1 — the resource, bare, plus a server clock. On every response.
@@ -216,9 +266,10 @@ async function route(req: Request, url: URL): Promise<Response> {
       ...switcherStateFor(activePhase),
     };
     // A second, static circle so `E19`'s switcher has more than one row to build against
-    // without needing a second phase control. It never moves with `PHASE`/`FIXTURE_CONTROL`.
+    // without needing a second phase control. It never moves with `PHASE`/`FIXTURE_CONTROL`,
+    // and `:group_id` routes answer for it too (`roundPayloadFor`, `groupPayloadFor`).
     const secondary = {
-      id: "b0000000-0000-4000-8000-000000000099",
+      id: SECONDARY_GROUP_ID,
       name: "Late Night Radio",
       my_state: "sealed",
       needs_action: false,
@@ -288,6 +339,85 @@ async function route(req: Request, url: URL): Promise<Response> {
       return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
     }
     return ok(await payload("results"));
+  }
+
+  // ─── `:group_id` — E19-01 ──────────────────────────────────────────────────
+  //
+  // The client no longer calls the `current`-shaped routes above; they are left in place
+  // because nothing forces a fixture to shed compatibility the day the app does. Every route a
+  // named circle needs has a sibling here, keyed by `PRIMARY_GROUP_ID` (the same circle the
+  // `current` routes always resolved to — so a test written before this slice still gets the
+  // same answers) or `SECONDARY_GROUP_ID` (`GET /groups`'s static second row). An id that is
+  // neither is a stranger to both, and gets the same `NOT_FOUND` a real non-member would.
+  const groupOnly = p.match(/^\/groups\/([^/]+)$/);
+  if ((m === "GET" || m === "PATCH") && groupOnly && groupOnly[1] !== "current") {
+    const group = await groupPayloadFor(groupOnly[1]);
+    if (!group) return fail(404, "NOT_FOUND", "That's not available right now.");
+    if (m === "GET") return ok(group);
+    const body = await req.json().catch(() => ({}));
+    return ok({ ...group, ...body, effective_from: "2026-08-12" });
+  }
+  const groupLeave = p.match(/^\/groups\/([^/]+)\/leave$/);
+  if (m === "POST" && groupLeave && groupLeave[1] !== "current") {
+    return (await groupPayloadFor(groupLeave[1])) ? noContent() : fail(404, "NOT_FOUND", "That's not available right now.");
+  }
+  const groupStandings = p.match(/^\/groups\/([^/]+)\/standings$/);
+  if (m === "GET" && groupStandings && groupStandings[1] !== "current") {
+    if (!(await groupPayloadFor(groupStandings[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    return ok(await payload("standings"));
+  }
+  const groupRecord = p.match(/^\/groups\/([^/]+)\/record$/);
+  if (m === "GET" && groupRecord && groupRecord[1] !== "current") {
+    if (!(await groupPayloadFor(groupRecord[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    return ok(await payload("record"));
+  }
+  const groupExport = p.match(/^\/groups\/([^/]+)\/record\/export$/);
+  if (m === "GET" && groupExport && groupExport[1] !== "current") {
+    if (!(await groupPayloadFor(groupExport[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    const svc = url.searchParams.get("service") === "apple" ? "apple" : "spotify";
+    return ok(await payload(`record_export_${svc}`));
+  }
+
+  const roundCurrent = p.match(/^\/rounds\/([^/]+)\/current$/);
+  if (m === "GET" && roundCurrent && roundCurrent[1] !== "current") {
+    const round = await roundPayloadFor(roundCurrent[1]);
+    if (!round) return fail(404, "NOT_FOUND", "That's not available right now.");
+    return ok(round);
+  }
+  const roundSubmission = p.match(/^\/rounds\/([^/]+)\/current\/submission$/);
+  if (m === "PUT" && roundSubmission && roundSubmission[1] !== "current") {
+    const groupId = roundSubmission[1];
+    if (!(await groupPayloadFor(groupId))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    // The secondary circle's row is always `sealed` (`switcherStateFor`) — it never has an
+    // open submission to accept, and there is no scripted test that needs it to.
+    if (groupId !== PRIMARY_GROUP_ID || (activePhase !== "open" && activePhase !== "open_nosub")) {
+      return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
+    }
+    const body = await req.json().catch(() => ({}));
+    if (!body.apple_music_id && !body.spotify_url && !body.isrc) {
+      return fail(400, "INVALID_INPUT", "That's not a song link.");
+    }
+    const t = await payload("track_resolved");
+    return ok({ track: t, sealed_at: rfc3339(new Date()) });
+  }
+  const roundGuesses = p.match(/^\/rounds\/([^/]+)\/current\/guesses$/);
+  if (m === "PUT" && roundGuesses && roundGuesses[1] !== "current") {
+    const groupId = roundGuesses[1];
+    if (!(await groupPayloadFor(groupId))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    if (groupId !== PRIMARY_GROUP_ID || !activePhase.startsWith("revealed")) {
+      return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
+    }
+    if (activePhase === "revealed_nosub") {
+      return fail(403, "NOT_A_SUBMITTER", "You didn't drop a song tonight.");
+    }
+    if (activePhase === "revealed_joinedlate") {
+      return fail(403, "JOINED_LATE", "You joined after the reveal. You're in from tomorrow.");
+    }
+    const body = await req.json().catch(() => ({}));
+    const assignments = (body.assignments ?? []).filter(
+      (a: { guessed_user_id: string | null }) => a.guessed_user_id !== null,
+    );
+    return ok({ assignments, assigned_count: assignments.length, assignable_count: 7 });
   }
 
   if (m === "GET" && p === "/__fixture") {

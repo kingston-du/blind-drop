@@ -115,11 +115,14 @@ import Testing
     /// (`docs/05` §5).
     @Test func loadingFetchesTheRoundAndTheGroup() async throws {
         let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
         stub.arm(routes: [
-            "/rounds/current": try RoundFixture.envelope("round_open"),
-            "/groups/current": try RoundFixture.envelope("group_current"),
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
         ])
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
 
         await store.load()
 
@@ -135,11 +138,14 @@ import Testing
     /// reason `LoadState` has a `.stale` case at all.
     @Test func afailedRefreshKeepsTheLastGoodRound() async throws {
         let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
         stub.arm(routes: [
-            "/rounds/current": try RoundFixture.envelope("round_open"),
-            "/groups/current": try RoundFixture.envelope("group_current"),
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
         ])
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
         await store.load()
 
         stub.arm([RoundStub.Response(failure: URLError(.notConnectedToInternet))])
@@ -153,7 +159,9 @@ import Testing
     /// a loaded one.
     @Test func afirstLoadThatFailsHasNothingToShow() async throws {
         let (env, _) = RoundFixture.environment(responses: [RoundStub.Response(failure: URLError(.timedOut))])
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
 
         await store.load()
 
@@ -179,11 +187,14 @@ import Testing
         let (env, stub) = RoundFixture.environment()
         // An hour before the round opens: the dark hours, on the server's clock.
         let beforeOpen = "2026-08-10T13:00:00Z"
+        let groupID = try RoundFixture.groupID()
         stub.arm(routes: [
-            "/rounds/current": try RoundFixture.envelope("round_open", serverNow: beforeOpen),
-            "/groups/current": try RoundFixture.envelope("group_current", serverNow: beforeOpen),
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open", serverNow: beforeOpen),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current", serverNow: beforeOpen),
         ])
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
         await store.load()
 
         let context = try #require(store.state.value)
@@ -220,22 +231,31 @@ import Testing
     /// unanchored clock. Asserted on both outcomes: a successful load has an anchor, and a failed
     /// one has no context to render with or without one.
     @Test func acontextNeverExistsWithoutAnAnchoredClock() async throws {
-        let (offline, _) = RoundFixture.environment(
+        let (offline, offlineStub) = RoundFixture.environment(
             responses: [RoundStub.Response(failure: URLError(.notConnectedToInternet))]
         )
+        // `environment(responses:)` pre-arms a successful `/groups` so every other fixture-backed
+        // test does not have to think about `CircleStore` at all (`E19-01`) — but *this* test's
+        // whole point is a transport that is down for every request, circles included, so that
+        // default has to be overridden rather than left to anchor the clock on its own.
+        offlineStub.armExact("/groups", RoundStub.Response(failure: URLError(.notConnectedToInternet)))
         let unloaded = RoundStore(
-            api: offline.api, session: offline.session, clock: offline.clock, router: offline.router
+            api: offline.api, session: offline.session, clock: offline.clock, router: offline.router,
+            circles: offline.circles
         )
         await unloaded.load()
         #expect(offline.clock.now == nil, "a transport failure carries no server_now")
         #expect(unloaded.state.value == nil, "and so there is no round to render against it")
 
         let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
         stub.arm(routes: [
-            "/rounds/current": try RoundFixture.envelope("round_open"),
-            "/groups/current": try RoundFixture.envelope("group_current"),
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
         ])
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
         await store.load()
 
         #expect(store.state.value != nil)
@@ -256,11 +276,14 @@ import Testing
         let (env, stub) = RoundFixture.environment()
         // `server_now` a minute after the reveal: the round on the wire still says `open`, because
         // only the server decides that, and the client's job is to notice and ask again.
+        let groupID = try RoundFixture.groupID()
         stub.arm(routes: [
-            "/rounds/current": try RoundFixture.envelope("round_open", serverNow: "2026-08-11T00:01:00Z"),
-            "/groups/current": try RoundFixture.envelope("group_current", serverNow: "2026-08-11T00:01:00Z"),
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open", serverNow: "2026-08-11T00:01:00Z"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current", serverNow: "2026-08-11T00:01:00Z"),
         ])
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
         await store.load()
 
         #expect(store.deadlineHasPassed())

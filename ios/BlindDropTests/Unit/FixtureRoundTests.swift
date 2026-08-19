@@ -49,7 +49,9 @@ struct FixtureRoundTests {
     /// The whole screen's data, from the server the app will actually speak to.
     @Test func theRoundLoadsAgainstTheFixtureServer() async throws {
         let env = try environment()
-        let store = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
 
         await store.load()
 
@@ -75,7 +77,7 @@ struct FixtureRoundTests {
     /// own.
     @Test func searchAnswersInsideTheBudget() async throws {
         let env = try environment()
-        let store = SubmitStore(api: env.api)
+        let store = SubmitStore(api: env.api, circles: env.circles)
 
         let started = ContinuousClock.now
         store.query = "ribs"
@@ -94,7 +96,7 @@ struct FixtureRoundTests {
     /// The paste path against the real route.
     @Test func alinkResolvesAgainstTheFixtureServer() async throws {
         let env = try environment()
-        let store = SubmitStore(api: env.api)
+        let store = SubmitStore(api: env.api, circles: env.circles)
 
         store.pasted = "https://open.spotify.com/track/2QjOHCTQ1JF3zJyfWY7EMU"
         let track = await store.resolve()
@@ -113,8 +115,10 @@ struct FixtureRoundTests {
     /// seen from the other side.
     @Test func sealingCompletesAndTheRoundAdoptsIt() async throws {
         let env = try environment()
-        let round = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
-        let submit = SubmitStore(api: env.api)
+        let round = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        let submit = SubmitStore(api: env.api, circles: env.circles)
         await round.load()
         let track = try #require(await resolvedTrack(submit))
 
@@ -137,8 +141,9 @@ struct FixtureRoundTests {
     @Test func guessesSaveAgainstTheRevealedFixture() async throws {
         guard try await servedFixturePhase() == "revealed" else { return }
         let env = try environment()
+        let groupID = try #require(await env.circles.resolveActiveID())
 
-        let sheet = try await env.api.send(.saveGuesses([
+        let sheet = try await env.api.send(.saveGuesses(groupID, [
             GuessAssignment(cardNumber: 1, guessedUserID: "u_ben"),
             GuessAssignment(cardNumber: 2, guessedUserID: nil),
         ]))
@@ -158,13 +163,15 @@ struct FixtureRoundTests {
     @Test func theAnswersLoadAgainstTheScoredFixture() async throws {
         guard try await servedFixturePhase() == "scored" else { return }
         let env = try environment()
-        let round = RoundStore(api: env.api, session: env.session, clock: env.clock, router: env.router)
+        let round = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
 
         await round.load()
         let context = try #require(round.state.value)
         #expect(context.round.state == .scored)
 
-        let results = ResultsStore(api: env.api, roundID: context.round.id)
+        let results = ResultsStore(api: env.api, roundID: context.round.id, circles: env.circles)
         await results.load()
 
         // The server's order, kept: `card_no` is the shuffle every member sees (`E03-04`).

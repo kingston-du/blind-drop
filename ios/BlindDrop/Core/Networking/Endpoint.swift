@@ -4,8 +4,10 @@ import Foundation
 ///
 /// Every endpoint the app has is a `static` on this type, so the set of requests the client can
 /// make is a list somebody can read in one sitting — and a screen cannot invent a URL. That is
-/// not tidiness: ADR-005 says no route takes a group id, and a codebase where paths are built
-/// at call sites is one where somebody eventually builds `/groups/\(id)/record`.
+/// not tidiness: `docs/01` ADR-011 makes every group-scoped route an authorization surface —
+/// the caller must belong to the named circle — and a codebase where paths were built at call
+/// sites is one where somebody eventually builds `/groups/\(someOtherUsersId)/record` by hand.
+/// `scoped(_:_:_:)` below is the one place a `:group_id` segment is spliced in.
 struct Endpoint<Response: Sendable>: Sendable {
 
     enum Method: String, Sendable {
@@ -17,7 +19,7 @@ struct Endpoint<Response: Sendable>: Sendable {
     }
 
     let method: Method
-    /// The path under the functions base URL, e.g. `/rounds/current`.
+    /// The path under the functions base URL, e.g. `/rounds/{group_id}/current`.
     let path: String
     let query: [URLQueryItem]
     /// Encoded lazily so the endpoint stays `Sendable` without an existential, and so an
@@ -85,6 +87,14 @@ private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignm
 /// Endpoints that answer `204` and have no payload to decode.
 struct NoContent: Decodable, Sendable, Equatable {}
 
+/// Builds a group-scoped path — `/groups/{id}…` or `/rounds/{id}/current…` — from a group id
+/// that has already been resolved. The one place `docs/01` ADR-011's `:group_id` segment is
+/// spliced into a path, so every group-scoped factory below reads as "this route, for this
+/// circle" rather than re-deriving the shape.
+private func scoped(_ base: String, _ groupID: String, _ suffix: String = "") -> String {
+    "\(base)/\(groupID)\(suffix)"
+}
+
 // MARK: - docs/04 §2 — identity
 
 extension Endpoint {
@@ -132,40 +142,60 @@ extension Endpoint {
         .init(.post, "/groups/join", body: json(JoinBody(invite_code: inviteCode)))
     }
 
-    static var currentGroup: Endpoint<GroupDTO> { .init(.get, "/groups/current", retry: .twice) }
+    /// `GET /groups` — one row per circle the caller holds (`docs/04` §3, `E18-02`). The
+    /// switcher's entire data source, and `CircleStore`'s.
+    static var circles: Endpoint<CirclesDTO> { .init(.get, "/groups", retry: .twice) }
 
-    static func updateGroup(name: String?, revealHour: Int?) -> Endpoint<GroupPatchDTO> {
-        .init(.patch, "/groups/current", body: json(PatchGroupBody(name: name, reveal_hour: revealHour)))
+    /// `GET /groups/{group_id}` — a named circle (`docs/01` ADR-011). No `current` form: every
+    /// caller has already resolved a group id through `CircleStore` before it reaches here.
+    static func group(_ groupID: String) -> Endpoint<GroupDTO> {
+        .init(.get, scoped("/groups", groupID), retry: .twice)
     }
 
-    static var leaveGroup: Endpoint<NoContent> { .init(.post, "/groups/current/leave") }
+    static func updateGroup(_ groupID: String, name: String?, revealHour: Int?) -> Endpoint<GroupPatchDTO> {
+        .init(
+            .patch, scoped("/groups", groupID),
+            body: json(PatchGroupBody(name: name, reveal_hour: revealHour))
+        )
+    }
 
-    static var standings: Endpoint<StandingsDTO> {
-        .init(.get, "/groups/current/standings", retry: .twice)
+    static func leaveGroup(_ groupID: String) -> Endpoint<NoContent> {
+        .init(.post, scoped("/groups", groupID, "/leave"))
+    }
+
+    static func standings(_ groupID: String) -> Endpoint<StandingsDTO> {
+        .init(.get, scoped("/groups", groupID, "/standings"), retry: .twice)
     }
 }
 
 // MARK: - docs/04 §4 — the round
 
 extension Endpoint {
-    static var currentRound: Endpoint<RoundDTO> { .init(.get, "/rounds/current", retry: .twice) }
-
-    /// `PUT /rounds/current/submission`. Idempotent by design — the same body twice produces
-    /// one row and the same response — which is what makes retrying it safe (`docs/04` §4).
-    static func seal(_ input: SubmissionInput) -> Endpoint<SubmissionDTO> {
-        .init(.put, "/rounds/current/submission", body: json(input), retry: .once)
+    /// `GET /rounds/{group_id}/current` — today's round, for a named circle.
+    static func round(_ groupID: String) -> Endpoint<RoundDTO> {
+        .init(.get, scoped("/rounds", groupID, "/current"), retry: .twice)
     }
 
-    /// `PUT /rounds/current/guesses` — a whole-sheet upsert; the server diffs. A card sent with
-    /// `null` is an explicit clear; a card left out is untouched (`docs/04` §4).
-    static func saveGuesses(_ assignments: [GuessAssignment]) -> Endpoint<GuessSheetDTO> {
+    /// `PUT /rounds/{group_id}/current/submission`. Idempotent by design — the same body twice
+    /// produces one row and the same response — which is what makes retrying it safe
+    /// (`docs/04` §4).
+    static func seal(_ groupID: String, _ input: SubmissionInput) -> Endpoint<SubmissionDTO> {
+        .init(.put, scoped("/rounds", groupID, "/current/submission"), body: json(input), retry: .once)
+    }
+
+    /// `PUT /rounds/{group_id}/current/guesses` — a whole-sheet upsert; the server diffs. A
+    /// card sent with `null` is an explicit clear; a card left out is untouched (`docs/04` §4).
+    static func saveGuesses(_ groupID: String, _ assignments: [GuessAssignment]) -> Endpoint<GuessSheetDTO> {
         .init(
-            .put, "/rounds/current/guesses",
+            .put, scoped("/rounds", groupID, "/current/guesses"),
             body: json(GuessesBody(assignments: assignments)),
             retry: .once
         )
     }
 
+    /// `GET /rounds/{round_id}/results` — the one round-scoped route that is not group-scoped
+    /// in its path: the server resolves the round's own circle and proves membership of that
+    /// (`docs/04` §4).
     static func results(roundID: String) -> Endpoint<ResultsDTO> {
         .init(.get, "/rounds/\(roundID)/results", retry: .twice)
     }
@@ -220,17 +250,22 @@ struct GuessAssignment: Encodable, Sendable, Equatable {
 // MARK: - docs/04 §5 — The Record
 
 extension Endpoint {
-    static func record(member: String? = nil, cursor: String? = nil, limit: Int? = nil) -> Endpoint<RecordDTO> {
+    static func record(
+        _ groupID: String,
+        member: String? = nil,
+        cursor: String? = nil,
+        limit: Int? = nil
+    ) -> Endpoint<RecordDTO> {
         var query: [URLQueryItem] = []
         if let member { query.append(URLQueryItem(name: "member", value: member)) }
         if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
         if let limit { query.append(URLQueryItem(name: "limit", value: String(limit))) }
-        return .init(.get, "/groups/current/record", query: query, retry: .twice)
+        return .init(.get, scoped("/groups", groupID, "/record"), query: query, retry: .twice)
     }
 
-    static func export(_ service: ExportService) -> Endpoint<ExportDTO> {
+    static func export(_ groupID: String, _ service: ExportService) -> Endpoint<ExportDTO> {
         .init(
-            .get, "/groups/current/record/export",
+            .get, scoped("/groups", groupID, "/record/export"),
             query: [URLQueryItem(name: "service", value: service.rawValue)],
             retry: .twice
         )

@@ -29,22 +29,22 @@ import Testing
 
     @Test func receivingALinkNavigatesNothing() {
         let router = Router()
-        router.receive(.record)
+        router.receive(.record(groupID: nil))
         #expect(router.path.isEmpty)
-        #expect(router.pending == .record)
+        #expect(router.pending == .record(groupID: nil))
     }
 
     @Test func aLinkIsNotConsumedBeforeTheRoundLoads() {
         let router = Router()
-        router.receive(.record)
+        router.receive(.record(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: false)
         #expect(router.path.isEmpty)
-        #expect(router.pending == .record)
+        #expect(router.pending == .record(groupID: nil))
     }
 
     @Test func theRecordIsPushedOnceTheRoundHasLoaded() {
         let router = Router()
-        router.receive(.record)
+        router.receive(.record(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: true)
         #expect(router.path == [.record])
         #expect(router.pending == nil)
@@ -53,7 +53,7 @@ import Testing
     /// A link consumed twice re-pushes The Record every time the round refetches.
     @Test func aLinkIsConsumedExactlyOnce() {
         let router = Router()
-        router.receive(.record)
+        router.receive(.record(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: true)
         router.path = []
         router.consume(session: .ready, roundIsLoaded: true)
@@ -66,7 +66,7 @@ import Testing
     @Test func resultsPopsToTheRootAndPushesNothing() {
         let router = Router()
         router.path = [.settings]
-        router.receive(.results)
+        router.receive(.results(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: true)
         #expect(router.path.isEmpty)
         #expect(router.pending == nil)
@@ -75,7 +75,7 @@ import Testing
     @Test func theRoundLinkPopsToTheRoot() {
         let router = Router()
         router.path = [.record]
-        router.receive(.round)
+        router.receive(.round(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: true)
         #expect(router.path.isEmpty)
     }
@@ -117,11 +117,11 @@ import Testing
     /// alone — the round still has to be there.
     @Test func roundLinksRequireBothAReadySessionAndALoadedRound() {
         let router = Router()
-        router.receive(.record)
+        router.receive(.record(groupID: nil))
         router.consume(session: .signedOut, roundIsLoaded: true)
-        #expect(router.pending == .record)
+        #expect(router.pending == .record(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: false)
-        #expect(router.pending == .record)
+        #expect(router.pending == .record(groupID: nil))
         router.consume(session: .ready, roundIsLoaded: true)
         #expect(router.path == [.record])
     }
