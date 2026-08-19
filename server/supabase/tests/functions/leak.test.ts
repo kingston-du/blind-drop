@@ -189,6 +189,27 @@ Deno.test("golden: GET /groups/current", async () => {
   );
 });
 
+Deno.test("golden: GET /groups (the switcher)", async () => {
+  const { user, group } = await openGroup("Golden Circles");
+  await newMember(group.invite_code as string, "Ben");
+  // A second circle for the same caller, so the capture is genuinely a list and not one entry
+  // that happens to be an array — `E18-01`'s cap is three, well clear of two here.
+  await call("groups", "/", {
+    method: "POST",
+    token: user.token,
+    body: { name: "Golden Circles Two", timezone: zoneWhereLocalHourIs(12) },
+  });
+  const res = await call("groups", "/", { token: user.token });
+  assertEquals(res.status, 200);
+  await assertGolden(
+    "groups_circles",
+    res.body,
+    "GET /groups, `E18-02`. One row per circle the caller holds: `{id, name, my_state, " +
+      "needs_action}` and nothing else — no member count, no submission count, no timestamp " +
+      "that belongs to anyone but the caller.",
+  );
+});
+
 Deno.test("golden: GET /me", async () => {
   const { user } = await openGroup("Golden Me");
   const res = await call("me", "/", { token: user.token });
@@ -469,6 +490,7 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "me DELETE /": null, // 204
     "groups POST /": "groups_current",
     "groups POST /join": "groups_current",
+    "groups GET /": "groups_circles",
     "groups GET /current": "groups_current",
     "groups PATCH /current": "groups_current",
     "groups GET /current/standings": "groups_standings",

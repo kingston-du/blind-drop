@@ -1,0 +1,18 @@
+{
+  "about": "GET /groups, `E18-02`. One row per circle the caller holds: `{id, name, my_state, needs_action}` and nothing else — no member count, no submission count, no timestamp that belongs to anyone but the caller.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "circles"
+  ],
+  "nested": {
+    "circles[]": [
+      "id",
+      "my_state",
+      "name",
+      "needs_action"
+    ]
+  }
+}

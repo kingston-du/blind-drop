@@ -62,7 +62,7 @@ simulator pass applicable.
 
 ### E18-02 — What every circle needs from me right now
 
-**Status:** wip · **Deps:** E18-01 · **Parallel:** no
+**Status:** done · **Deps:** E18-01 · **Parallel:** no
 **Reads:** `docs/04` §2, `docs/02` §2, `CLAUDE.md` §2.1
 **Touches:** `server/supabase/functions/groups/`, `server/supabase/tests/functions/`,
 `ios/Fixtures/`
@@ -79,12 +79,35 @@ counts, no member counts, no "3 of 6 have dropped", no activity, no timestamps t
 somebody else acts. `CLAUDE.md` §2.1 applies per circle, and a payload whose *length* varies
 with participation fails it just as surely as one that names names.
 
-- [ ] One endpoint returning, per circle: id, name, the caller's own state, and whether that
+- [x] One endpoint returning, per circle: id, name, the caller's own state, and whether that
       state needs action
-- [ ] Nothing in the payload varies with anyone else's participation during `open` — asserted,
+- [x] Nothing in the payload varies with anyone else's participation during `open` — asserted,
       by a golden fixture, the way `E04-03` did it
-- [ ] Ordering left to the client; the server states facts, not priorities
-- [ ] The fixture server grows the same route so `E19` has something to build against
+- [x] Ordering left to the client; the server states facts, not priorities
+- [x] The fixture server grows the same route so `E19` has something to build against
+
+`GET /groups` — one row per active circle, `{id, name, my_state, needs_action}`, `my_state` one
+of `drop | sealed | guess | answers | voided`. `circleCallerState` (`groups/index.ts`) mirrors
+`rounds/index.ts`'s `mySubmission`/`cannotGuessReason` semantics rather than reusing
+`currentRoundResponse`, which loads a card list and guess sheet far past what a switcher row
+needs. `activeMemberships` (new, `_shared/auth.ts`) is `requireDefaultMembership` without the
+`.limit(1)` — same `joined_at`/`id` tie-break, so "oldest" means the same thing everywhere.
+
+Review caught three real issues in the first pass, all fixed: a circle with no round yet for
+today (created after its own `reveal_hour` had already passed — `ensure_rounds()` never creates
+a round whose reveal is already behind it) threw a bare `Error` and 500'd the *entire* request
+instead of just that row; a demo circle's state went stale because only `ensure_rounds()` was
+reused from `rounds/index.ts`, never `demo_tick()`; and calling `ensure_rounds()` per circle
+inside the `Promise.all` fired its whole-database sweep up to three times concurrently for one
+request. Fixed: a circle with nothing to report yet is left out of the list rather than failing
+the request (documented in `docs/04` §3, with a test); demo circles now tick before their row is
+read; `ensure_rounds()` runs at most once per request via a shared trigger. Two tests added
+alongside the fixes (joined-late, and the reveal-hour-passed omission), plus the golden-shape
+assertion now goes through `circleSummaryFields()` instead of a hand-typed key list.
+
+Verified: `npm run test:db` (632/632), `npm run test:functions` (245/245, including the new
+`circle_switcher.test.ts`), `npm run audit:leak` (AC-1 satisfied, timing r ≈ −0.10),
+`node scripts/lint.mjs` clean. Server-only; no simulator pass applicable.
 
 ---
 

@@ -271,6 +271,47 @@ export function roundFields(): readonly string[] {
   ];
 }
 
+// ─── the switcher — docs/04 §3, docs/02 §2, `E18-02` ─────────────────────────
+
+/**
+ * The caller's own next move in one circle. `docs/11` names these `Drop a song`, `Sealed`,
+ * `Guess` and `Answers`; `voided` has no UI copy of its own in that set because there is
+ * nothing to do about a round that never revealed — it is here so the state machine stays
+ * total rather than forcing a caller to reuse `answers` for a round that produced none.
+ */
+export type CallerCircleState = "drop" | "sealed" | "guess" | "answers" | "voided";
+
+/**
+ * One row of `GET /groups` (`E18-02`) — the entire payload the switcher gets, and
+ * deliberately the entire payload it needs.
+ *
+ * **The key set is exactly `{id, name, my_state, needs_action}` and it does not grow with how
+ * many other members have done anything.** No submission count, no member count, no "N of M
+ * assigned", nothing timestamped by somebody else's action — the same rule `RoundDTO` enforces
+ * for one circle, applied across every circle the caller holds (CLAUDE.md §2.1). `my_state`
+ * and `needs_action` are both derived from rows keyed by the caller's own id: their own
+ * submission, their own guess sheet, never anyone else's.
+ */
+export interface CircleSummaryDTO {
+  id: string;
+  name: string;
+  my_state: CallerCircleState;
+  needs_action: boolean;
+}
+
+export function circleSummaryDTO(
+  group: { id: string; name: string },
+  myState: CallerCircleState,
+  needsAction: boolean,
+): CircleSummaryDTO {
+  return { id: group.id, name: group.name, my_state: myState, needs_action: needsAction };
+}
+
+/** The exact key set of a `CircleSummaryDTO`, for the golden-file test. */
+export function circleSummaryFields(): readonly string[] {
+  return ["id", "name", "my_state", "needs_action"];
+}
+
 // ─── the reveal — docs/04 §4, docs/02 §3 ─────────────────────────────────────
 
 /**

@@ -2,6 +2,8 @@
 //
 //   POST  /groups                              create a group, become its admin
 //   POST  /groups/join                         join by invite code
+//   GET   /groups                              every circle the caller holds, and their own
+//                                               next move in each (`E18-02`) — the switcher
 //   GET   /groups/current                      the group and its roster — oldest circle
 //   GET   /groups/:group_id                    the same, for a named circle
 //   PATCH /groups/current                      admin only; name and reveal_hour
@@ -35,9 +37,11 @@ import {
   str,
 } from "../_shared/http.ts";
 import {
+  activeMemberships,
   enforceRateLimit,
   ipBucket,
   type MemberCtx,
+  type ProfileCtx,
   requireAdmin,
   requireDefaultMembership,
   requireMembership,
@@ -46,6 +50,8 @@ import {
 } from "../_shared/auth.ts";
 import { type Db, dbFailure, isCircleLimitReached, isUniqueViolation } from "../_shared/db.ts";
 import {
+  type CallerCircleState,
+  circleSummaryDTO,
   earStandingDTO,
   type ExportTrackDTO,
   exportDTO,
@@ -65,7 +71,7 @@ import {
   standingsDTO,
 } from "../_shared/dto.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
-import { localDate, nextDate, serverNow } from "../_shared/time.ts";
+import { localDate, nextDate, type RoundState, serverNow } from "../_shared/time.ts";
 
 interface GroupRow {
   id: string;
@@ -137,6 +143,170 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
   const today = localDate(group.timezone, serverNow());
   if (!data) return today;
   return data.local_date >= today ? nextDate(data.local_date) : today;
+}
+
+// ─── the switcher — docs/04 §3, docs/02 §2, `E18-02` ─────────────────────────
+// One request, answering for every circle the caller holds: its name, and the caller's own
+// next move in it. Nothing here is shaped by anyone else's participation — every query below
+// is keyed by the caller's own `user_id`, the same discipline `rounds/index.ts`'s header
+// documents for the single-circle routes.
+
+/**
+ * The caller's own state in one circle's round today, and whether it needs them to do
+ * something about it, or `null` if this circle has nothing to report yet. `docs/11` calls the
+ * four live states `Drop a song`, `Sealed`, `Guess` and `Answers`; `voided` is a fifth answer
+ * for a round that revealed nothing; see `CallerCircleState`.
+ *
+ * Deliberately not `currentRound`/`currentRoundResponse` from `rounds/index.ts`: those load a
+ * card list, a name pool and a full guess sheet, which is far more than a switcher row needs
+ * and — for up to `E18-01`'s cap of circles, all resolved for one request — real cost to skip.
+ *
+ * `ensureRounds` is a caller-supplied, request-scoped once-only trigger rather than an
+ * unconditional `db.rpc("ensure_rounds")` here: that RPC sweeps every group in the database
+ * (`0004_round_lifecycle.sql`), not just this one, so calling it once per circle that happens
+ * to be missing today's round would fire the whole sweep up to ADR-011's cap times,
+ * concurrently, for a single request. `myCirclesResponse` builds one and hands it to every
+ * circle; only the first miss actually runs it.
+ *
+ * `null` covers the one circle a sweep still cannot produce a row for: `ensure_rounds()`
+ * refuses to create a round whose reveal has already passed for the day it would cover
+ * (`0004_round_lifecycle.sql`'s `where d.reveals_at > v_now`), which is exactly what happens to
+ * a circle created after its own `reveal_hour` — there is a round for tomorrow, and genuinely
+ * none for today. `GET /rounds/current` answers that with a scoped `NOT_FOUND` for the one
+ * circle asked about; the switcher cannot 404 one row out of a list, so it leaves the circle
+ * out rather than failing the whole request over a single member's gap. `docs/04`'s example
+ * still lists the circle by id from `activeMemberships`, so a caller that later paginates or
+ * counts membership separately is not misled — only the switcher row is missing, briefly.
+ *
+ * Demo-group ticking (`demo_tick`) is included, unlike `ensure_rounds`: `rounds/index.ts` runs
+ * it before every read because `tick_rounds()` never advances a demo round on its own
+ * (`20260815090500_demo_lifecycle.sql`), and skipping it here would leave a demo circle's row
+ * stuck at whatever it last was until its own screen was opened directly.
+ */
+async function circleCallerState(
+  db: Db,
+  member: { groupId: string; userId: string; joinedAt: string; timezone: string; isDemo: boolean },
+  ensureRounds: () => Promise<void>,
+): Promise<{ myState: CallerCircleState; needsAction: boolean } | null> {
+  const today = localDate(member.timezone, serverNow());
+
+  const loadRound = async () => {
+    const { data, error } = await db
+      .from("rounds")
+      .select("id, state, reveals_at, card_order")
+      .eq("group_id", member.groupId)
+      .eq("local_date", today)
+      .maybeSingle();
+    if (error) throw dbFailure("groups.myCircles.round", error);
+    return data as
+      | { id: string; state: RoundState; reveals_at: string; card_order: string[] | null }
+      | null;
+  };
+
+  if (member.isDemo) {
+    const { error } = await db.rpc("demo_tick", { p_group_id: member.groupId });
+    if (error) throw dbFailure("groups.myCircles.demo_tick", error);
+  }
+
+  let round = await loadRound();
+  if (!round && !member.isDemo) {
+    await ensureRounds();
+    round = await loadRound();
+  }
+  if (!round) return null;
+
+  if (round.state === "voided") return { myState: "voided", needsAction: false };
+  if (round.state === "scored") return { myState: "answers", needsAction: false };
+
+  // Left: `open` and `revealed`, and both need the same fact — did the caller submit tonight?
+  // One row, keyed by `(round_id, user_id)`, exactly as `rounds/index.ts`'s `mySubmission` is.
+  const { data: submission, error: submissionError } = await db
+    .from("submissions")
+    .select("id")
+    .eq("round_id", round.id)
+    .eq("user_id", member.userId)
+    .maybeSingle();
+  if (submissionError) throw dbFailure("groups.myCircles.submission", submissionError);
+
+  if (round.state === "open") {
+    return submission
+      ? { myState: "sealed", needsAction: false }
+      : { myState: "drop", needsAction: true };
+  }
+
+  // revealed. `joinedLate` mirrors `rounds/index.ts`'s `cannotGuessReason`: joining after the
+  // reveal means having no submission either, so a member who cannot guess always lands here
+  // with `needs_action: false` — there is nothing for them to do about a sheet they were never
+  // eligible to fill in.
+  const joinedLate =
+    new Date(member.joinedAt).getTime() >= new Date(round.reveals_at).getTime();
+  if (joinedLate || !submission) return { myState: "guess", needsAction: false };
+
+  const { count, error: guessError } = await db
+    .from("guesses")
+    .select("submission_id", { count: "exact", head: true })
+    .eq("round_id", round.id)
+    .eq("guesser_id", member.userId);
+  if (guessError) throw dbFailure("groups.myCircles.guesses", guessError);
+
+  const eligible = Math.max((round.card_order ?? []).length - 1, 0);
+  return { myState: "guess", needsAction: (count ?? 0) < eligible };
+}
+
+/**
+ * `GET /groups`'s whole body. Ordering is left to the client (`E18-02`'s checklist) — this
+ * returns the caller's circles oldest-active-first, the same stable order `activeMemberships`
+ * already establishes, and states no priority of its own.
+ */
+async function myCirclesResponse(ctx: ProfileCtx): Promise<Response> {
+  const memberships = await activeMemberships(ctx);
+  if (memberships.length === 0) return ok({ circles: [] });
+
+  const groupIds = memberships.map((m) => m.groupId);
+  const { data: groups, error } = await ctx.db
+    .from("groups")
+    .select("id, name, timezone, is_demo")
+    .in("id", groupIds);
+  if (error) throw dbFailure("groups.myCircles.groups", error);
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+
+  // Shared across every circle in this request — see `circleCallerState`'s doc comment for why
+  // a plain `db.rpc("ensure_rounds")` per circle would be a system-wide sweep run several times.
+  let ensureRoundsOnce: Promise<void> | null = null;
+  const ensureRounds = (): Promise<void> => {
+    if (!ensureRoundsOnce) {
+      ensureRoundsOnce = (async () => {
+        const { error } = await ctx.db.rpc("ensure_rounds");
+        if (error) throw dbFailure("groups.myCircles.ensure_rounds", error);
+      })();
+    }
+    return ensureRoundsOnce;
+  };
+
+  const rows = await Promise.all(
+    memberships.map(async (membership) => {
+      const group = groupById.get(membership.groupId);
+      if (!group) {
+        throw new Error(
+          `groups.myCircles.group: membership names group ${membership.groupId}, which has no row`,
+        );
+      }
+      const state = await circleCallerState(
+        ctx.db,
+        {
+          groupId: group.id,
+          userId: ctx.userId,
+          joinedAt: membership.joinedAt,
+          timezone: group.timezone,
+          isDemo: group.is_demo === true,
+        },
+        ensureRounds,
+      );
+      return state && circleSummaryDTO(group, state.myState, state.needsAction);
+    }),
+  );
+
+  return ok({ circles: rows.filter((row) => row !== null) });
 }
 
 // ─── standings — docs/04 §4, docs/02 §4.2, §4.5 ──────────────────────────────
@@ -702,6 +872,12 @@ serveFunction("groups", {
     if (joinError) throw dbFailure("groups.join", joinError);
 
     return ok(groupDTO(group, false, await roster(ctx.db, group.id)));
+  },
+
+  // ─── the switcher ──────────────────────────────────────────────────────────
+  "GET /": async (req, route) => {
+    const ctx = await requireProfile(await requireUser(req, route));
+    return myCirclesResponse(ctx);
   },
 
   // ─── current ───────────────────────────────────────────────────────────────

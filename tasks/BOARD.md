@@ -2,7 +2,9 @@
 
 Conventions: [`tasks/README.md`](README.md). Statuses: `todo` · `wip` · `blocked` · `done`.
 
-`E18-01` closed 2026-08-18, unblocking `E18-02` and `E18-03` (parallel to each other).
+`E18-01` closed 2026-08-18, unblocking `E18-02` and `E18-03` (parallel to each other). `E18-02`
+closed 2026-08-19 — `GET /groups`, the switcher's data source — leaving `E18-03` and `E19-01`
+(now unblocked on the server side) open.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` remains open — a batch attempt on all four slices ran out of
@@ -274,7 +276,7 @@ replacement inherits.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E18-01 A user may hold several circles | done | E17-10 | no | AC-1 |
-| E18-02 What every circle needs from me right now | wip | E18-01 | no | AC-1 |
+| E18-02 What every circle needs from me right now | done | E18-01 | no | AC-1 |
 | E18-03 The same song, twice, in one evening | todo | E18-01 | vs E18-02 | — |
 
 ## E19 — Multi-circle: the app holds more than one · [file](E19-circles-app.md)

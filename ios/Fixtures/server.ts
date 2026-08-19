@@ -208,6 +208,23 @@ async function route(req: Request, url: URL): Promise<Response> {
   if (m === "DELETE" && p === "/me") return noContent();
   if (m === "POST" && p === "/devices") return noContent();
 
+  if (m === "GET" && p === "/groups") {
+    const group = await payload("group_current") as Record<string, unknown>;
+    const primary = {
+      id: group.id as string,
+      name: group.name as string,
+      ...switcherStateFor(activePhase),
+    };
+    // A second, static circle so `E19`'s switcher has more than one row to build against
+    // without needing a second phase control. It never moves with `PHASE`/`FIXTURE_CONTROL`.
+    const secondary = {
+      id: "b0000000-0000-4000-8000-000000000099",
+      name: "Late Night Radio",
+      my_state: "sealed",
+      needs_action: false,
+    };
+    return ok({ circles: [primary, secondary] });
+  }
   if (m === "GET" && p === "/groups/current") return ok(await payload("group_current"));
   if (m === "POST" && p === "/groups") return ok(await payload("group_current"));
   if (m === "POST" && p === "/groups/join") {
@@ -285,6 +302,27 @@ function currentState(): string {
   if (activePhase.startsWith("open")) return "open";
   if (activePhase.startsWith("revealed")) return "revealed";
   return activePhase;
+}
+
+/** `GET /groups`'s per-circle state (`E18-02`), mapped off the same `PHASE` the round fixtures
+ *  already key off — so switching phase through `__fixture/phase` moves this row too, the way
+ *  a real reveal or score would. */
+function switcherStateFor(phase: Phase): { my_state: string; needs_action: boolean } {
+  switch (phase) {
+    case "open":
+      return { my_state: "sealed", needs_action: false };
+    case "open_nosub":
+      return { my_state: "drop", needs_action: true };
+    case "revealed":
+      return { my_state: "guess", needs_action: true };
+    case "revealed_nosub":
+    case "revealed_joinedlate":
+      return { my_state: "guess", needs_action: false };
+    case "scored":
+      return { my_state: "answers", needs_action: false };
+    case "voided":
+      return { my_state: "voided", needs_action: false };
+  }
 }
 
 Deno.serve({ port: PORT, onListen: ({ port }) => {

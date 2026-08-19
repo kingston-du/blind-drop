@@ -162,6 +162,42 @@ optional, default `20`, range `18..21`. Creator becomes `admin`. Returns the gro
 Case-insensitive, whitespace stripped. Returns the group DTO. Fails `NOT_FOUND`,
 `CIRCLE_LIMIT_REACHED` (ADR-011's cap), or `ALREADY_IN_GROUP` (already active in this one).
 
+### `GET /groups` — the switcher (`E18-02`)
+
+One row per circle the caller currently holds, oldest-active-first. This is the entire payload
+the switcher needs and deliberately the entire payload it gets:
+
+```jsonc
+{ "data": { "circles": [
+  { "id": "g_…", "name": "The Cove", "my_state": "drop", "needs_action": true },
+  { "id": "g_…", "name": "Late Night Radio", "my_state": "sealed", "needs_action": false }
+]}}
+```
+
+- `my_state` is one of `drop | sealed | guess | answers | voided` — the caller's own next move
+  in that circle's round today, never anyone else's. `drop`/`sealed`/`guess`/`answers` are
+  `docs/11`'s **Drop a song** / **Sealed** / **Guess** / **Answers**; `voided` has no copy of
+  its own because there is nothing to do about a round that revealed nothing.
+- `needs_action` is `true` only for `drop` (nothing submitted yet) and for `guess` while the
+  caller is an eligible, incomplete guesser. It is always `false` for `sealed`, `answers`, and
+  `voided`, and for `guess` when the caller joined after the reveal or never submitted — there
+  is nothing they can do about either.
+- **Nothing here varies with anyone else's participation.** No member count, no submission
+  count, no "N of M assigned", no timestamp derived from somebody else's activity — the same
+  rule `GET /rounds/current` enforces for one circle (CLAUDE.md §2.1), applied across every
+  circle the caller holds. A circle with one other submitter and a circle with none of its
+  members having submitted anything serialise to exactly the same shape.
+- Ordering is oldest-active-first and states no priority: the client decides whether
+  needs-action circles sort first (`E19-02`), not this endpoint.
+- An empty list (`{"circles": []}`) is a valid answer, not an error — a caller who belongs to
+  no circle at all.
+- A circle can be briefly absent from the list even for an active member: `ensure_rounds()`
+  never creates a round whose reveal has already passed for the day it would cover, so a circle
+  founded after its own `reveal_hour` has a round for tomorrow and genuinely none for today. The
+  circle still exists and its membership is untouched — it reappears once tomorrow's round is
+  live. `GET /groups/{group_id}` and everything else about the circle answers normally in the
+  meantime; only this list's row for it is missing.
+
 ### `GET /groups/current`
 
 ```jsonc

@@ -167,6 +167,41 @@ export function requireAdmin(ctx: MemberCtx): MemberCtx {
   return ctx;
 }
 
+/** One of the caller's own active memberships — the shape `activeMemberships` returns, before
+ *  a group has been joined onto it. */
+export interface OwnMembership {
+  readonly groupId: string;
+  readonly role: "member" | "admin";
+  readonly joinedAt: string;
+}
+
+/**
+ * Every circle the caller currently belongs to (`E18-02`), oldest first — same ordering as
+ * `requireDefaultMembership`, just not cut off at one.
+ *
+ * No `.limit()`: ADR-011's cap keeps this small (three today), and ordering by `joined_at`
+ * then `id` is what makes "oldest" a stable, well-defined answer rather than whatever order
+ * Postgres felt like handing back. An empty result is not an error here — a caller with no
+ * circle at all is a valid (if unreachable in the shipped app) state for the list endpoint to
+ * describe, unlike `requireDefaultMembership`, which the `current`-shaped routes need a group
+ * from and so throws `NO_GROUP` instead.
+ */
+export async function activeMemberships(ctx: ProfileCtx): Promise<OwnMembership[]> {
+  const { data, error } = await ctx.db
+    .from("memberships")
+    .select("id, group_id, role, joined_at")
+    .eq("user_id", ctx.userId)
+    .is("left_at", null)
+    .order("joined_at", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) throw dbFailure("activeMemberships", error);
+  return data.map((row) => ({
+    groupId: row.group_id,
+    role: row.role,
+    joinedAt: row.joined_at,
+  }));
+}
+
 // ─── 4. phase ────────────────────────────────────────────────────────────────
 
 /** The round's stored state is the authority — never a comparison against the clock. A round
