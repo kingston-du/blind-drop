@@ -53,6 +53,24 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// `E26-03`: the browsing layout above the results, with the results themselves absent from
+    /// the picture — not clipped, absent. `rows(_:)` is a `ScrollView`, and `ImageRenderer` does
+    /// not draw `ScrollView` content at all (`docs/13`'s snapshot harness has five other traps
+    /// like it). So this golden cannot show a row; what it proves is everything above one:
+    /// `submit.subhead` is gone once there is something to show, `search.results` sits directly
+    /// under the field, and nothing overlaps or truncates at `.accessibility5` on an SE.
+    /// **The row itself was confirmed on-device** — iPhone 17 at `.accessibility5`, typing
+    /// "red": the subhead disappeared and the first row's artwork and preview control appeared
+    /// immediately under the field, which is the golden's own headline-and-field arrangement
+    /// with the keyboard now real instead of absent.
+    @Test(arguments: devices, sizes)
+    func submitBrowsing(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        try verify(named: "Submit-browsing", device, size) { context, timer in
+            Self.submitScreen(context: context, timer: timer, deadline: context.round.revealsAt,
+                              isBeforeOpen: false, previewResults: [.ribs, .motionSickness])
+        }
+    }
+
     // MARK: - Sealed (`docs/08` §4)
 
     /// The landed card, the status line, the countdown, and **Replace song**. Hidden by default
@@ -191,11 +209,12 @@ private let sizes = SnapshotRenderer.typeSizes
         context: RoundContext,
         timer: CountdownTimer,
         deadline: Date,
-        isBeforeOpen: Bool
+        isBeforeOpen: Bool,
+        previewResults: [TrackDTO]? = nil
     ) -> some View {
         return SubmitScreen(
             context: context,
-            store: SubmitStore(api: Self.offlineClient),
+            store: SubmitStore(api: Self.offlineClient, previewResults: previewResults),
             player: PreviewPlayer(),
             timer: timer,
             deadline: deadline,
