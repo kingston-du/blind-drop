@@ -7,9 +7,10 @@ closed 2026-08-19 — `GET /groups`, the switcher's data source — leaving `E18
 (now unblocked on the server side) open.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
-rather than silently skipped). `E26` remains open — a batch attempt on all four slices ran out of
-budget before any of them produced usable work (`E26-01` partial and non-compiling,
-`E26-02`/`E26-03`/`E26-04` untouched); all four are back to `todo`.
+rather than silently skipped). `E26` remains open — an earlier batch attempt on all four slices
+ran out of budget before any of them produced usable work. `E26-02` closed 2026-08-19, recovered
+from a worktree left uncommitted by that earlier attempt's session cutoffs; `E26-01`, `E26-03`
+and `E26-04` are still `todo`.
 
 `E00`–`E13`, `E15`, `E16-01` and **all of `E17`** are done, as are `E14-01`, `E14-02` and
 `E14-04`.
@@ -19,8 +20,11 @@ behind the goldens, three of the nine slices were not doing what their own check
 and `CLAUDE.md` §5's re-record recipe was itself wrong. What was found and what was done about it
 is in [E17's *What E17-10 actually found*](E17-polish-pass.md). The call sheet's drag-vs-tap
 regression this note originally flagged is fixed (2026-08-18, plus an accessibility regression
-the same fix introduced), but the *committing* drag — crossing the threshold, not just the
-springback — still has no automated test driving it. `E26-02` should still close that gap.
+the same fix introduced). The *committing* drag — crossing the threshold, not just the
+springback — now has one: `E26-02` extracted the decision into `CallSheetDetent.resolved` and
+pinned it with `CallSheetDetentTests` (both directions, the exact-threshold edge, the floor).
+Driving it live on a real device or simulator is still open — see `E26-02`'s entry for what was
+tried and why it stayed out of reach this pass.
 
 `E14-03`, `E14-05` and `E16-02` need a physical iPhone and the owner; none can be closed from
 the simulator. They are not blocking the beta work.
@@ -341,7 +345,7 @@ Only what does not belong to another slice. Everything else is fixed on the scre
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E26-01 Results, laid out for the numbers it produces, and playable | wip | E17-10 | **yes** | AC-9 |
-| E26-02 Guessing, without the fidget | wip | E17-10 | **yes** | — |
+| E26-02 Guessing, without the fidget | done | E17-10 | **yes** | — |
 | E26-03 Searching for a song with a keyboard in the way | wip | E17-10 | **yes** | — |
 | E26-04 The clock hits zero and the screen does not follow | wip | E17-10 | **yes** | AC-2 |
 
@@ -393,6 +397,6 @@ Investigation only. Each ends in a recommendation, not code.
 | E23 notifications | 1 / 3 |
 | E24 leaderboard + profiles | 0 / 2 |
 | E25 insights | 0 / 2 |
-| E26 UI polish | 0 / 4 |
+| E26 UI polish | 1 / 4 |
 | E27 spikes | 5 / 5 |
-| **Beta total** | **8 / 28** |
+| **Beta total** | **9 / 28** |
