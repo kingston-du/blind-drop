@@ -65,6 +65,31 @@ Four faults on the same screen, plus one thing it never had:
 > lands, it belongs in a Reveal-scoped follow-up, not folded into a Results slice by file
 > proximity in a sentence.
 
+> **Open question:** *"Song titles read as clipped even when short"* — diagnosed on device, and
+> the honest answer is **both halves of the either/or the task poses, at once**. Truncation was
+> firing at 100% with nothing tried smaller first (fixed: `.minimumScaleFactor(0.8)`, matching
+> the share-card headline's own precedent), *and* the answer-card row genuinely has too little
+> width for an ordinary title below `.accessibility1` (not fixed: that is `docs/12` §1's reflow,
+> out of this slice's `Touches`).
+>
+> Measured against the worked example already in this file's own diagram, *"Motion Sickness"*,
+> which is also `results.json` card 07: on the SE at `.large` the title column left beside the
+> 44pt number, the 76pt artwork and the 44pt corner menu is roughly 70–80pt, and the title wants
+> something like double that even at 80% scale. Tried 0.7 and 0.6 by hand against the golden
+> before settling back on 0.8 — neither bought a meaningfully different result, because the gap
+> is proportional to font size and closing it needs a scale near 0.5, past comfortable legibility
+> for body text. So `Results-8-SE-large` still shows *"Motion Si…"* — better than the pre-fix
+> *"Motion…"*, not a title that now fits.
+>
+> Picking the interpretation most protective of the actual defect: `.minimumScaleFactor(0.8)` is
+> the correct, bounded fix for "truncating too eagerly" and stays. The checklist item is ticked
+> against that half — truncation now only fires after a real attempt to shrink, which is the bug
+> as filed — while the remaining truncation on the narrowest device is named here as a real,
+> known limit rather than claimed away in a code comment nobody would go back and check against a
+> screenshot. Recovering it needs the row's width back (moving or shrinking the corner menu, or
+> bringing `docs/12` §1's stacked reflow down from `.accessibility1`), which is a layout decision
+> for whoever owns that reflow threshold, not a `Text` modifier — a follow-up, not this slice.
+
 - [ ] 100% readability renders inside the share card, with a golden pinning it
 - [ ] Every percentage 0–100 laid out correctly
 - [ ] Anonymous results clear the call sheet at both detents
