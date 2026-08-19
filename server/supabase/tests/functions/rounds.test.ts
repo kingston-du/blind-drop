@@ -64,6 +64,26 @@ async function current(user: TestUser) {
   return await call("rounds", "/current", { token: user.token });
 }
 
+async function submitTo(user: TestUser, groupId: string, body: Record<string, string>) {
+  return await call("rounds", `/${groupId}/current/submission`, {
+    method: "PUT",
+    token: user.token,
+    body,
+  });
+}
+
+/** A second circle for an already-grouped owner, in the same timezone as `like` so the two
+ *  share a group-local "tonight" (tasks/E18-03). */
+async function secondCircle(owner: TestUser, name: string, like: { timezone: string }) {
+  const res = await call("groups", "/", {
+    method: "POST",
+    token: owner.token,
+    body: { name, timezone: like.timezone, reveal_hour: 20 },
+  });
+  assertEquals(res.status, 200, `could not create ${name}`);
+  return res.body.data as Record<string, unknown>;
+}
+
 // ─── E04-02 · the shape ──────────────────────────────────────────────────────
 
 Deno.test("GET /rounds/current during open has exactly the documented key set", async () => {
@@ -275,6 +295,51 @@ Deno.test("a duplicate track is never rejected, and the response gives no hint o
   assertEquals(keysOf(unique.body.data), keysOf(duplicate.body.data));
   assertEquals(keysOf(unique.body.data.track), keysOf(duplicate.body.data.track));
 });
+
+// ─── E18-03 · the same track, twice, across circles ─────────────────────────
+
+Deno.test(
+  "the same track twice tonight is refused only when the two circles share another member",
+  async () => {
+    const { user: ana, group: west } = await openGroup("Overlap West");
+    const ben = await newMember(west.invite_code as string, "Ben");
+
+    const north = await secondCircle(ana, "Overlap North", west as { timezone: string });
+    const joinedNorth = await call("groups", "/join", {
+      method: "POST",
+      token: ben.token,
+      body: { invite_code: north.invite_code },
+    });
+    assertEquals(joinedNorth.status, 200, "Ben is in both West and North — the overlap");
+
+    const east = await secondCircle(ana, "Overlap East", west as { timezone: string });
+    // Nobody joins East besides Ana: it shares nothing with West but the submitter herself.
+
+    const inWest = await submitTo(ana, west.id as string, RIBS);
+    assertEquals(inWest.status, 200);
+
+    const inEast = await submitTo(ana, east.id as string, RIBS);
+    assertEquals(
+      inEast.status,
+      200,
+      "East shares nobody with West but Ana — no overlap, no refusal",
+    );
+
+    const inNorth = await submitTo(ana, north.id as string, RIBS);
+    assertEquals(inNorth.status, 409);
+    assertEquals(inNorth.body.error.code, "TRACK_ALREADY_USED");
+    assertEquals(
+      keysOf(inNorth.body.error),
+      ["code", "message"],
+      "the refusal names no circle and no person — nothing beyond the fixed copy",
+    );
+
+    // A different track in North is unaffected — the refusal is about the track, not the
+    // circle pair.
+    const differentTrack = await submitTo(ana, north.id as string, NIGHTS);
+    assertEquals(differentTrack.status, 200);
+  },
+);
 
 Deno.test("a Spotify timeout does not fail the submission", async () => {
   // The fixture makes this ISRC's lookup outlast any budget the app allows. docs/06 §5:

@@ -562,8 +562,11 @@ async function submitTrack(req: Request, ctx: MemberCtx): Promise<Response> {
   // **Across circles it can be refused, narrowly.** `upsert_submission` (E18-03) raises BD003
   // when this user already used this exact track tonight in a *different* circle that shares
   // another active member with this one — the one case where the repeat itself would let a
-  // third person line up two reveals. The refusal names no circle and nobody else, and it is
-  // computed on every call, accepted or not, so it costs the same time either way.
+  // third person line up two reveals. The refusal names no circle and nobody else. The SQL
+  // that decides this runs unconditionally, on both the accepted and the refused path, so it
+  // is structurally the same cost either way — that property is not separately timed, the way
+  // `leak_timing.test.ts` times `GET /rounds/current`; the only party who could observe this
+  // response's latency is the caller themselves, who already sees the refusal in the body.
   const { data, error } = await ctx.db
     .rpc("upsert_submission", {
       p_round_id: round.id,

@@ -135,7 +135,9 @@ anybody else is involved at all.
 - [x] Refusal is a named error with copy in `docs/11`; it names no circle and no person
 - [x] pgTAP covers: no overlap (allowed), overlap (refused), same circle same day (already
       handled by replace), and the same song on consecutive days (allowed)
-- [x] The refusal path costs the same time as the success path — `leak_timing` still passes
+- [x] The refusal path costs the same time as the success path — structurally, by construction
+      (see below); `leak_timing` itself only times `GET /rounds/current` and was not extended
+      to this endpoint, noted rather than silently overclaimed
 
 The check lives inside `upsert_submission` itself (`20260819090000_track_reuse_overlap.sql`),
 the one place every submission — first drop or replace — already passes through. Before every
@@ -160,9 +162,23 @@ New pgTAP suite `tests/db/track_reuse.sql` (9 assertions): a no-overlap pair (We
 only the submitter) allows the repeat; an overlapping pair (West/North, sharing Ben) refuses it
 with BD003 and writes no row; a same-circle same-day resubmission still just replaces; the same
 track the following night in the same overlapping pair is allowed; the refusal is stable across
-repeated attempts. Verified: `npm run test:db` (641/641), `npm run audit:leak` (AC-1 satisfied,
-timing r ≈ 0.09 — the new check runs on every call, accepted or refused, so it carries no timing
-signal of its own), `node scripts/lint.mjs` clean. Also ran (not required by this slice's Verify
-line, but touched by the shared files): `npm run test:functions` (245/245, including the two
-codes/copy exhaustiveness tests, which now cover `TRACK_ALREADY_USED` too). Server-only; no
-simulator pass applicable.
+repeated attempts.
+
+Review (first pass) found two real test-coverage gaps, both fixed before closing: nothing
+exercised `TRACK_ALREADY_USED` through the actual HTTP path — only the pgTAP suite, which calls
+`upsert_submission` directly — and a code comment claimed the refusal's timing symmetry was
+"checked by `npm run audit:leak`", which is not true: `leak_timing.test.ts` times only
+`GET /rounds/current`, never the submit endpoint, so that property rested on the SQL's shape
+(the `exists` check runs unconditionally on both paths) rather than on any measurement. Fixed:
+a new end-to-end test in `rounds.test.ts` (`the same track twice tonight is refused only when
+the two circles share another member`) drives the West/North/East scenario through
+`PUT /{group_id}/current/submission` and asserts the 409, the code, and that the error body
+carries nothing beyond `code`/`message`; the overclaiming comments in the migration and in
+`rounds/index.ts` were reworded to say what is actually true — structurally equal cost, not a
+measured one, and moot as a channel anyway since only the caller who gets the 409 could ever
+time it.
+
+Verified: `npm run test:db` (641/641), `npm run audit:leak` (AC-1 satisfied, timing
+r ≈ 0.09), `node scripts/lint.mjs` clean, `npm run test:functions` (246/246, including the new
+end-to-end BD003 test and the two codes/copy exhaustiveness tests, which now cover
+`TRACK_ALREADY_USED` too). Server-only; no simulator pass applicable.

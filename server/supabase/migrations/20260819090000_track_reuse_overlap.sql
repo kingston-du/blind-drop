@@ -40,9 +40,10 @@ begin
   -- BD003: refused only when the repeat would actually deanonymise somebody — same
   -- `track_key`, same group-local night, a *different* circle, and at least one other person
   -- who is an active member of both circles and could therefore read both reveals. This query
-  -- runs unconditionally, on both the accepted and the refused path, so a refusal costs
-  -- exactly what a success costs (docs/14 §2's timing-channel rule, checked by
-  -- `npm run audit:leak`).
+  -- runs unconditionally, on both the accepted and the refused path, so it is structurally the
+  -- same cost either way (docs/14 §2). Not separately timed the way `leak_timing.test.ts`
+  -- times `GET /rounds/current` — the only party who can observe this call's latency is the
+  -- caller themselves, who already sees the refusal in the response body.
   if exists (
     select 1
     from public.submissions s
