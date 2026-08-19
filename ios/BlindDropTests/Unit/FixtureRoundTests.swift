@@ -68,6 +68,28 @@ struct FixtureRoundTests {
         #expect(env.clock.now != nil, "every response anchors the clock")
     }
 
+    /// `E19-02`: picking a circle in the switcher re-scopes `RoundStore` to it, against the real
+    /// second circle `E19-01` added to the fixture server for exactly this — a real `:group_id`
+    /// route the client did not have to invent a payload for.
+    @Test func selectingACircleReScopesTheRoundToIt() async throws {
+        let env = try environment()
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value?.group.name == "The Cove")
+
+        // `Fixtures/server.ts`'s `SECONDARY_GROUP_ID` — a static second circle answered by every
+        // `:group_id` route regardless of which `PHASE` the server was started with.
+        env.circles.select("b0000000-0000-4000-8000-000000000099")
+        store.invalidate()
+        #expect(store.state.value == nil, "the previous circle is off screen before the refetch")
+
+        await store.load()
+
+        #expect(store.state.value?.group.name == "Late Night Radio")
+    }
+
     /// **AC-10's search budget** (`E10-02`): a query returns results in under 400ms.
     ///
     /// Measured around the client's own call, which is what the user waits on — the debounce sits

@@ -187,6 +187,20 @@ final class RoundStore {
         router.consume(session: session.state, roundIsLoaded: state.value != nil)
     }
 
+    /// The active circle just changed underneath this store (`E19-02`). Clears to `.loading`
+    /// rather than leaving the previous circle's round on screen for the length of the refetch
+    /// that follows.
+    ///
+    /// `load()`'s own "keep the stale value" behaviour (`LoadState.apply` → `.stale`) is right
+    /// for an ordinary refresh, where what is being shown does not change — and wrong here,
+    /// where it does: a card tapped in that window belongs to the circle just switched **away**
+    /// from, and `SubmitStore`/`RevealStore` resolve `circles.resolveActiveID()` fresh at the
+    /// moment of the tap, so an action taken against the old round would silently land on the
+    /// new circle. Clearing first removes the window rather than racing it.
+    func invalidate() {
+        state = .loading
+    }
+
     /// The caller has just sealed a song, and the server said so.
     ///
     /// Adopting the response rather than refetching is what makes the sheet dismiss onto an

@@ -134,6 +134,29 @@ import Testing
         #expect(env.clock.now != nil, "every response anchors the clock")
     }
 
+    /// `E19-02`: switching circles has to remove the previous one from screen **before** the
+    /// refetch, not race it — the opposite of `afailedRefreshKeepsTheLastGoodRound` below, which
+    /// is right for an ordinary refresh precisely because nothing about *what* is being shown
+    /// has changed there.
+    @Test func invalidateClearsTheRoundRatherThanHoldingIt() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        stub.arm(routes: [
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
+        ])
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value != nil)
+
+        store.invalidate()
+
+        #expect(store.state.value == nil)
+        #expect(store.state.isLoading)
+    }
+
     /// A failed refresh keeps what is on screen and says so — `docs/08` §10's offline row, and the
     /// reason `LoadState` has a `.stale` case at all.
     @Test func afailedRefreshKeepsTheLastGoodRound() async throws {

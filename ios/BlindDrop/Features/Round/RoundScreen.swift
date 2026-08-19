@@ -50,6 +50,9 @@ struct RoundScreen: View {
     /// The how-to sheet (`docs/08` §2, §8). Reachable from every phase through the same
     /// `[?]` in `RoundHeader`, and — like Search — a sheet rather than a fourth `Route`.
     @State private var isShowingHowTo = false
+    /// The switcher (`E19-02`). Reachable from every phase through the group's own name in
+    /// `RoundHeader`, and — like Search and How to play — a sheet rather than a fourth `Route`.
+    @State private var isShowingSwitcher = false
     /// Bumped when the countdown elapses and when the app returns to the foreground. One
     /// `.task(id:)` does the loading, so the work is structured and cancels with the screen
     /// (`docs/13` §6) rather than being an unstructured `Task` per event.
@@ -117,7 +120,9 @@ struct RoundScreen: View {
                         groupName: headerName(store),
                         dateHeadline: store.state.value?.dateHeadline,
                         path: $router.path,
-                        showHowTo: { isShowingHowTo = true }
+                        showHowTo: { isShowingHowTo = true },
+                        openSwitcher: openSwitcher,
+                        otherCircleNeedsAction: circleSwitcher(store).otherNeedsAction
                     ) {
                         badge(store: store, timer: timer)
                     }
@@ -174,6 +179,16 @@ struct RoundScreen: View {
             HowToSheet(
                 revealHour: store.state.value?.group.revealHour ?? RevealHour.default,
                 close: { isShowingHowTo = false }
+            )
+        }
+        // `E19-02`. `rows` is already ordered — needs-action circles first — so this view only
+        // ever renders `CircleSwitcher`'s answer, never re-derives it.
+        .sheet(isPresented: $isShowingSwitcher) {
+            CircleSwitcherSheet(
+                rows: circleSwitcher(store).rows,
+                activeID: store.state.value?.group.id,
+                select: { switchCircle(to: $0, store: store) },
+                close: { isShowingSwitcher = false }
             )
         }
     }
@@ -469,6 +484,37 @@ struct RoundScreen: View {
         return context.group.name
     }
 
+    /// The switcher's own read of the caller's circles, against whichever one is on screen
+    /// (`E19-02`). `env.circles` is already loaded by the time a `RoundContext` exists —
+    /// `RoundStore.load()` cannot resolve a `groupID` without it — so this never triggers a
+    /// fetch of its own.
+    private func circleSwitcher(_ store: RoundStore) -> CircleSwitcher {
+        CircleSwitcher(circles: env.circles.circles, activeID: store.state.value?.group.id)
+    }
+
+    /// Opens the switcher and refreshes `env.circles` behind it (`E19-02`).
+    ///
+    /// `resolveActiveID()`'s own "already loaded" gate exists so three stores resolving the
+    /// active circle on one launch share a request — right for that, and wrong for the row
+    /// states this sheet is about to show, which would otherwise never update again for the rest
+    /// of the session. `CircleStore.load()` has no such gate, so this always asks.
+    private func openSwitcher() {
+        isShowingSwitcher = true
+        Task { await env.circles.load() }
+    }
+
+    /// A row was picked in the switcher (`E19-02`). Persists the choice, clears the round
+    /// **before** the refetch rather than after — see `RoundStore.invalidate()` — and reloads.
+    /// Every group-scoped store resolves its own `groupID` fresh at the top of its own call, so
+    /// nothing here needs rebuilding: `store.load()` picking up the new circle is the entire
+    /// re-scope.
+    private func switchCircle(to id: String, store: RoundStore) {
+        isShowingSwitcher = false
+        env.circles.select(id)
+        store.invalidate()
+        loadToken += 1
+    }
+
     /// The status badge in the corner: what the round is doing, and when it stops doing it.
     ///
     /// Only the two amber phases carry one. The reveal and the results draw their own headers
@@ -741,6 +787,15 @@ struct RoundHeader<Badge: View>: View {
     /// Opens **How to play** (`docs/08` §2, §8). On every phase, next to the menu — the same
     /// place the `[?]` sits everywhere else it appears.
     let showHowTo: () -> Void
+    /// Opens the switcher (`E19-02`). The group's name is the control; kept always reachable
+    /// (rather than only once there is a second circle) because `E20` hangs "Start a group" off
+    /// the same sheet, and a control that appears and disappears as circles come and go is a
+    /// worse habit to teach than one extra tap the one-circle case does not strictly need.
+    let openSwitcher: () -> Void
+    /// Whether some circle **other than** the one on screen wants the caller's attention — the
+    /// small mark beside the name. Never about *this* circle: the badge in the corner already
+    /// says what it is doing.
+    var otherCircleNeedsAction: Bool = false
     /// What the round is doing, in the corner. Empty on the phases that draw their own.
     @ViewBuilder let badge: Badge
 
@@ -749,12 +804,16 @@ struct RoundHeader<Badge: View>: View {
         dateHeadline: String? = nil,
         path: Binding<[Route]>,
         showHowTo: @escaping () -> Void,
+        openSwitcher: @escaping () -> Void,
+        otherCircleNeedsAction: Bool = false,
         @ViewBuilder badge: () -> Badge = { EmptyView() }
     ) {
         self.groupName = groupName
         self.dateHeadline = dateHeadline
         self._path = path
         self.showHowTo = showHowTo
+        self.openSwitcher = openSwitcher
+        self.otherCircleNeedsAction = otherCircleNeedsAction
         self.badge = badge()
     }
 
@@ -793,11 +852,34 @@ struct RoundHeader<Badge: View>: View {
             VStack(alignment: .leading, spacing: Space.xs) {
                 HStack(alignment: .center, spacing: Space.sm) {
                     if let groupName {
-                        Text(verbatim: groupName)
-                            .typeStyle(.bodyLStrong)
-                            .foregroundStyle(Palette.ink)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                        Button(action: openSwitcher) {
+                            HStack(spacing: Space.xxs) {
+                                Text(verbatim: groupName)
+                                    .typeStyle(.bodyLStrong)
+                                    .foregroundStyle(Palette.ink)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Image(systemName: "chevron.down")
+                                    .font(Font(Typography.uiFont(.label)))
+                                    .foregroundStyle(Palette.inkDim)
+                                // Small enough to ignore (`E19-02`) — the mark is that another
+                                // circle wants attention, never that this one does.
+                                Circle()
+                                    .fill(Palette.inkDim)
+                                    .frame(width: Space.xs, height: Space.xs)
+                                    .opacity(otherCircleNeedsAction ? 1 : 0)
+                            }
+                            .minimumTouchTarget()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            Copy.A11y.switcherOpener(
+                                groupName: groupName,
+                                otherNeedsAction: otherCircleNeedsAction
+                            )
+                        )
+                        .accessibilityHint(Copy.A11y.switcherOpenerHint)
+                        .accessibilityAddTraits(.isButton)
                     }
                     Spacer(minLength: Space.sm)
                     HelpButton(action: showHowTo)

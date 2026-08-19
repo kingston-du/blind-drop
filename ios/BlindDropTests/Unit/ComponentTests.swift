@@ -129,6 +129,10 @@ import Testing
             "a11y.namechip", "a11y.namechip.unassigned", "a11y.namechip.assigned",
             "a11y.guess.assigned", "a11y.preview.play", "a11y.preview.stop",
             "a11y.track", "a11y.track.hint", "a11y.readability",
+            "switcher.title", "switcher.state.drop", "switcher.state.sealed",
+            "switcher.state.guess", "switcher.state.answers", "switcher.state.voided",
+            "a11y.switcher.opener.hint", "a11y.switcher.opener.otherNeedsAction",
+            "a11y.switcher.row", "a11y.switcher.row.hint", "a11y.switcher.attention",
             "howto.title", "howto.intro",
             "howto.step1.title", "howto.step1.body",
             "howto.step2.title", "howto.step2.body",
@@ -225,5 +229,29 @@ import Testing
         #expect(!sealed.contains("of"))
         let countdown = Copy.A11y.countdown(CountdownDisplay(remaining: 60, form: .precise), until: .reveal)
         #expect(!countdown.contains("of"))
+    }
+
+    // MARK: - The switcher (`E19-02`)
+
+    @Test func aSwitcherRowAnnouncesNameThenState() {
+        let label = Copy.A11y.switcherRow(name: "The Cove", state: "Sealed", needsAction: false)
+        #expect(label == "The Cove. Sealed.")
+    }
+
+    /// The third sentence is the VoiceOver channel for the row's small mark — appended, not a
+    /// third placeholder, so a circle that does not need attention never carries a silent
+    /// "false" through the format.
+    @Test func aSwitcherRowThatNeedsActionAddsAThirdSentence() {
+        let label = Copy.A11y.switcherRow(name: "The Cove", state: "Drop a song", needsAction: true)
+        #expect(label == "The Cove. Drop a song. Wants your attention.")
+    }
+
+    @Test func theHeaderOpenerIsJustTheGroupNameWhenNothingElseNeedsIt() {
+        #expect(Copy.A11y.switcherOpener(groupName: "The Cove", otherNeedsAction: false) == "The Cove")
+    }
+
+    @Test func theHeaderOpenerNamesAnotherCircleWantingAttention() {
+        let label = Copy.A11y.switcherOpener(groupName: "The Cove", otherNeedsAction: true)
+        #expect(label == "The Cove Another group wants your attention.")
     }
 }

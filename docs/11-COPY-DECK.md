@@ -75,6 +75,49 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 
 ---
 
+## The switcher
+
+| Key | String |
+|---|---|
+| `switcher.title` | Your groups |
+| `switcher.state.drop` | Drop a song |
+| `switcher.state.sealed` | Sealed |
+| `switcher.state.guess` | Guess |
+| `switcher.state.answers` | Answers |
+| `switcher.state.voided` | Voided |
+| `a11y.switcher.opener.hint` | Double-tap to see all your groups |
+| `a11y.switcher.opener.otherNeedsAction` | Another group wants your attention. |
+| `a11y.switcher.row` | %@. %@. |
+| `a11y.switcher.row.hint` | Double-tap to switch to this group |
+| `a11y.switcher.attention` | Wants your attention. |
+
+`E19-02`. The group's name in the header (`08-SCREEN-SPECS.md` §2, §6, since E17-09) becomes the
+control that opens this sheet. Its accessibility label is the group's own name — the visible
+`Text` a `Button` wraps, unchanged — with `a11y.switcher.opener.hint` naming what tapping it
+does; there is no separate "Switch group" label to keep in sync with the name beside it. When
+some circle other than the one on screen wants attention, `a11y.switcher.opener.otherNeedsAction`
+is a second sentence appended to that label — the VoiceOver channel for the small mark beside
+the name, since `docs/12` §3 requires the mark not be colour-only and here it is not even
+colour: a fact stated twice, once to the eye and once to the ear.
+
+The five state words are a row's entire second column — `switcher.state.drop` reads the same as
+`submit.action` and `switcher.state.sealed` the same as `sealed.badge` because they are naming
+the same fact, but they are separate keys: a row is not a button and is not a badge, and a
+future change to either of those two would have no business silently reading through into this
+sheet's rows. `switcher.state.voided` is not one of the epic's four — `CircleState` (`docs/04`
+§3) has a fifth case, an evening the caller's circle voided outright, and a row still has to
+say something.
+
+Nothing here names a member count, a submission count, or how many of a circle's people have
+dropped — the same leak the round's own screens refuse (`CLAUDE.md` §2.1). A "needs your
+attention" row sorts first with no visible heading; `a11y.switcher.attention` is the fact for a
+VoiceOver user in place of the sighted reader's small mark, appended as its own sentence after
+`a11y.switcher.row`'s name-and-state pair — two localized reads joined, the same shape
+`Copy.A11y.result(...)` already uses for a results card's own optional second sentence — rather
+than drawn as a second line. The row is still just a name and a state.
+
+---
+
 ## Track links
 
 | Key | String |

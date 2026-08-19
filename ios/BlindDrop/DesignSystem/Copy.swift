@@ -97,6 +97,14 @@ enum Copy {
         string("band.\(band.rawValue)")
     }
 
+    // MARK: - The switcher
+
+    /// A switcher row's entire second column (`E19-02`, `docs/11` §The switcher) — `CircleState`'s
+    /// raw value is the key suffix, the same trick `band(_:)` above plays on `ReadabilityBand`.
+    static func switcherState(_ state: CircleState) -> String {
+        string("switcher.state.\(state.rawValue)")
+    }
+
     // MARK: - Results
 
     /// *"4 of 7 got it"*, and the two ends of that range which get their own sentence
@@ -250,6 +258,28 @@ enum Copy {
         /// alone would be a rank with extra steps.
         static func readability(percent: Int, band: ReadabilityBand) -> String {
             format("a11y.readability", percent, Copy.band(band))
+        }
+
+        /// One switcher row (`E19-02`): the group's name, its state, and — only when the group
+        /// wants the caller's attention — a third sentence naming that. Two localized reads
+        /// joined rather than a third placeholder in `a11y.switcher.row`, the same shape
+        /// `result(...)` above uses for a results card's own optional second sentence: a group
+        /// that does not need attention should not carry a silent "false" through the format.
+        static func switcherRow(name: String, state: String, needsAction: Bool) -> String {
+            let base = format("a11y.switcher.row", name, state)
+            guard needsAction else { return base }
+            return "\(base) \(string("a11y.switcher.attention"))"
+        }
+
+        static let switcherOpenerHint = string("a11y.switcher.opener.hint")
+        static let switcherRowHint = string("a11y.switcher.row.hint")
+
+        /// The header's own label plus, when some *other* circle wants attention, a second
+        /// sentence saying so — the VoiceOver channel for the small mark beside the group's
+        /// name (`docs/12` §3: colour, and here presence, is never the only channel).
+        static func switcherOpener(groupName: String, otherNeedsAction: Bool) -> String {
+            guard otherNeedsAction else { return groupName }
+            return "\(groupName) \(string("a11y.switcher.opener.otherNeedsAction"))"
         }
     }
 }

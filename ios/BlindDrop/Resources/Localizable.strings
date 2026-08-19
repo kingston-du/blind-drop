@@ -82,6 +82,20 @@
 
 "menu.title" = "Menu";
 
+/* ── The switcher (docs/11 §The switcher) ───────────────────────────────────── */
+
+"switcher.title" = "Your groups";
+"switcher.state.drop" = "Drop a song";
+"switcher.state.sealed" = "Sealed";
+"switcher.state.guess" = "Guess";
+"switcher.state.answers" = "Answers";
+"switcher.state.voided" = "Voided";
+"a11y.switcher.opener.hint" = "Double-tap to see all your groups";
+"a11y.switcher.opener.otherNeedsAction" = "Another group wants your attention.";
+"a11y.switcher.row" = "%@. %@.";
+"a11y.switcher.row.hint" = "Double-tap to switch to this group";
+"a11y.switcher.attention" = "Wants your attention.";
+
 /* ── Track links (docs/11 §Track links) ─────────────────────────────────────── */
 
 "link.apple" = "Apple Music";
