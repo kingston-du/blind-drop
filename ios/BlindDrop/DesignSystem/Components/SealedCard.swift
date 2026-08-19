@@ -41,6 +41,13 @@ struct SealedCard: View {
     /// control, which ends it the same as a lift. A plain callback, not owned state: the bit this
     /// drives has to survive being cleared by events that never touch this view.
     var onHoldChange: (Bool) -> Void = { _ in }
+    /// Latches once a single continuous touch has drifted past the target and ended the hold —
+    /// so wandering back within the radius before lifting does not reopen it. `docs/08` §4 lists
+    /// "drag out" alongside release as one of the ways a hold **ends**, not a boundary a finger
+    /// can cross back and forth across; without this, `onChanged` fires on every sample, and a
+    /// finger hovering near the edge flickers the reveal open and shut. Reset only by `onEnded`,
+    /// which is the one signal that a fresh touch-down is what comes next.
+    @State private var hasLeftTarget = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
@@ -96,13 +103,22 @@ struct SealedCard: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    guard !hasLeftTarget else { return }
                     let distance = hypot(
                         value.location.x - value.startLocation.x,
                         value.location.y - value.startLocation.y
                     )
-                    onHoldChange(distance <= Layout.minimumTouchTarget)
+                    if distance <= Layout.minimumTouchTarget {
+                        onHoldChange(true)
+                    } else {
+                        hasLeftTarget = true
+                        onHoldChange(false)
+                    }
                 }
-                .onEnded { _ in onHoldChange(false) }
+                .onEnded { _ in
+                    hasLeftTarget = false
+                    onHoldChange(false)
+                }
         )
     }
 }
