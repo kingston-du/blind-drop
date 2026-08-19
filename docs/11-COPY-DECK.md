@@ -172,6 +172,7 @@ word beside it repeated a fact the countdown already carries.
 |---|---|
 | `sealed.status` | Sealed until %@. |
 | `sealed.badge` | Sealed |
+| `sealed.peek` | Hold to peek |
 | `sealed.opens.label` | Opens in |
 | `sealed.company` | Come back for the reveal to see today's drops. |
 | `sealed.countdown.label` | until reveal |
@@ -183,6 +184,10 @@ word beside it repeated a fact the countdown already carries.
 | `push.permission.skip` | Not now |
 
 `sealed.status` takes the group's reveal time, e.g. "Sealed until 8:00."
+
+`sealed.peek` replaces the title and artist in place, in the same spot, until the card is held
+(`E22-01`). VoiceOver never sees it — the sealed card's own label always names the title and
+artist, held or not, which is the non-gesture path to the same information.
 
 ---
 

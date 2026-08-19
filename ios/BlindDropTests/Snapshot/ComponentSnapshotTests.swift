@@ -91,9 +91,22 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// Hidden — the default (`docs/08` §4, `E22-01`): **Hold to peek** in place of the title and
+    /// artist, the cover still down over the artwork.
     @Test(arguments: devices, sizes) func sealedCard(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "SealedCard", device, size) {
             SealedCard(track: .ribs, groupInitial: "H", remaining: "02:01:05")
+        }
+    }
+
+    /// Peeking: a finger held down, the cover out of the way, the title and artist showing —
+    /// `docs/08` §4's other state. `.large` and `.accessibility5` rather than the full matrix,
+    /// since the hidden card above already covers the six-way grid and what a peek adds is the
+    /// two-line title/artist block, whose worst case is the narrowest device at the largest type.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func sealedCardPeeking(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "SealedCard-peeking", device, size) {
+            SealedCard(track: .ribs, groupInitial: "H", remaining: "02:01:05", isPeeking: true)
         }
     }
 

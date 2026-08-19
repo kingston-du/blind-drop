@@ -55,12 +55,23 @@ private let sizes = SnapshotRenderer.typeSizes
 
     // MARK: - Sealed (`docs/08` §4)
 
-    /// The landed card, the status line, the countdown, and **Replace song**. Nothing else.
+    /// The landed card, the status line, the countdown, and **Replace song**. Hidden by default
+    /// (`E22-01`): the title and artist are **Hold to peek** until a finger holds the card.
     @Test(arguments: devices, sizes)
     func sealed(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         try verify(named: "Sealed", device, size) { context, timer in
             SealedScreen(context: context, submission: try! Self.submission(), timer: timer,
                          replace: {})
+        }
+    }
+
+    /// The whole screen while held — `docs/08` §4's other state, seeded through the initialiser
+    /// that exists for exactly this: there is no live gesture for `ImageRenderer` to drive.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func sealedPeeking(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        try verify(named: "Sealed-peeking", device, size) { context, timer in
+            SealedScreen(context: context, submission: try! Self.submission(), timer: timer,
+                         replace: {}, isPeekingForSnapshot: true)
         }
     }
 

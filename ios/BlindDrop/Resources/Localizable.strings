@@ -149,6 +149,7 @@
 
 "sealed.status" = "Sealed until %@.";
 "sealed.badge" = "Sealed";
+"sealed.peek" = "Hold to peek";
 "sealed.opens.label" = "Opens in";
 "sealed.company" = "Come back for the reveal to see today's drops.";
 "sealed.countdown.label" = "until reveal";

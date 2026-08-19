@@ -9,7 +9,17 @@ import SwiftUI
 /// sealed card exists.
 ///
 /// It announces itself as one thing (`docs/12` §2: `.image` + `.staticText`, `a11y.sealed`).
-/// Nothing on it is interactive; **Replace song** is the screen's, not the card's.
+/// `Replace song` is still the screen's, not the card's — but the card is no longer a pure
+/// picture. **Hold to peek** (`docs/08` §4, `E22-01`) lives here, because it is a hold on
+/// *exactly* the region that used to show the title and artist plainly: this is one over a
+/// shoulder, and the cover reads better when it is actually covering something. `isPeeking`
+/// governs both the cover's own opacity and whether that region shows the song or the prompt;
+/// `SealedScreen` is what turns a finger into that bit, because it also has to be able to clear
+/// it from events this card cannot see — the app backgrounding, the switcher appearing, a call
+/// arriving. VoiceOver needs none of this: `a11y.sealed` below announces the title and artist
+/// regardless of `isPeeking`, which is the non-gesture path `docs/12` §5 requires, and a normal
+/// touch simply cannot reach it while VoiceOver is running — the OS routes the touch to VoiceOver
+/// first, and focusing the card is all it takes to hear the same words this hold shows.
 struct SealedCard: View {
     let track: TrackDTO
     /// The group's initial, printed in the stamp.
@@ -24,6 +34,13 @@ struct SealedCard: View {
     /// `docs/09` §5. Passed in rather than read from the environment so a snapshot can render both
     /// paths' end states and compare them.
     var reducedMotion: Bool = false
+    /// Whether a finger is currently down on **Hold to peek**. `false` — hidden — by default:
+    /// title, artist and artwork all wait for a hold (`docs/08` §4, `E22-01`).
+    var isPeeking: Bool = false
+    /// Fires the instant a hold on **Hold to peek** begins or ends — including a drag off the
+    /// control, which ends it the same as a lift. A plain callback, not owned state: the bit this
+    /// drives has to survive being cleared by events that never touch this view.
+    var onHoldChange: (Bool) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
@@ -31,21 +48,10 @@ struct SealedCard: View {
                 track: track,
                 groupInitial: groupInitial,
                 phase: phase,
-                reducedMotion: reducedMotion
+                reducedMotion: reducedMotion,
+                isPeeking: isPeeking
             )
-            // `docs/08` §4: the user's own title and artist **are** shown beneath the cover,
-            // small — *"it is their song and hiding it from them is theatre, not security."*
-            // Small is `bodyM` for both; the title keeps `ink` so the two lines are told apart
-            // by more than being adjacent.
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(verbatim: track.title)
-                    .typeStyle(.displayS)
-                    .foregroundStyle(Palette.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: track.artist)
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.inkDim)
-            }
+            peekableMetadata
         }
         // White, with the amber only in the border and in what is stamped on the cover. A card
         // washed amber edge to edge would make the whole screen amber, and the accent is meant
@@ -56,6 +62,48 @@ struct SealedCard: View {
             Copy.A11y.sealed(title: track.title, artist: track.artist, remaining: remaining)
         )
         .accessibilityAddTraits([.isImage, .isStaticText])
+    }
+
+    /// `docs/08` §4: held, the title and artist show plainly, small, in `inkDim` — never a leak,
+    /// since it is the caller's own song, but no longer drawn for anyone glancing at the screen.
+    /// Hidden, this exact region *is* **Hold to peek** — same frame, same minimum touch target,
+    /// so the gesture's target does not depend on which state is drawn inside it.
+    private var peekableMetadata: some View {
+        Group {
+            if isPeeking {
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    Text(verbatim: track.title)
+                        .typeStyle(.displayS)
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: track.artist)
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.inkDim)
+                }
+            } else {
+                Text("sealed.peek")
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.inkDim)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
+        .contentShape(Rectangle())
+        // A raw `DragGesture` rather than `onLongPressGesture`: reveals **on touch-down**, with
+        // no minimum duration to wait out — `docs/08` §4 says "exactly as long as a finger is
+        // down", not "as long as a finger is down past a threshold". Distance from the finger's
+        // own start, not the view's bounds, is what turns a drag off the control into the same
+        // release a lift is (`docs/12` §5's drag-and-drop-free reading, applied to this one).
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let distance = hypot(
+                        value.location.x - value.startLocation.x,
+                        value.location.y - value.startLocation.y
+                    )
+                    onHoldChange(distance <= Layout.minimumTouchTarget)
+                }
+                .onEnded { _ in onHoldChange(false) }
+        )
     }
 }
 
@@ -74,6 +122,10 @@ struct SealedArtwork: View {
     /// §3.2); the card's own artwork fills the card's width instead.
     var size: CGFloat = Layout.Artwork.confirm
     var fillsWidth: Bool = true
+    /// While `true`, the cover gets out of the way of the artwork beneath it (`docs/08` §4,
+    /// `E22-01`). `ConfirmScreen` never sets this — it shows the song plainly, before there is
+    /// anything sealed to peek through, and dismisses the instant the seal itself lands.
+    var isPeeking: Bool = false
 
     var body: some View {
         ArtworkView(track, size: size, fillsWidth: fillsWidth)
@@ -86,6 +138,12 @@ struct SealedArtwork: View {
                     cover
                         .frame(height: proxy.size.height)
                         .seal(phase, as: .cover(height: proxy.size.height), reducedMotion: reducedMotion)
+                        // The one opacity the seal timeline does not own. It multiplies onto
+                        // `SealEffect`'s own `coverOpacity` (1 at rest) rather than replacing it,
+                        // so nothing here has to know whether a seal ever ran — and it is a plain
+                        // `.opacity`, not `withAnimation`, which is what makes a release
+                        // instant: nothing animates a value nobody wrapped in `withAnimation`.
+                        .opacity(isPeeking ? 0 : 1)
                 }
             }
             .overlay(alignment: .bottomTrailing) { stamp }
