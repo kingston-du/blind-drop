@@ -15,6 +15,31 @@ enum NamePoolLayout: Equatable, Sendable {
 enum CallSheetDetent: Equatable, Sendable {
     case peek
     case open
+
+    /// Where a drag release lands the detent — the decision `GuessSheet`'s `dragGesture` makes,
+    /// pulled out as a free function so it is directly testable.
+    ///
+    /// **Crossing `threshold` on projected velocity commits**, not raw distance travelled: a
+    /// short, fast flick can predict well past the threshold while `translation` itself is still
+    /// small, and that is the gesture this exists to recognise — `DragGesture.Value.finalize()`
+    /// (`predictedEndTranslation`) is UIKit's decelerated projection of where the pan would land,
+    /// the same quantity a scroll view uses to decide whether to keep coasting. A release that
+    /// does not cross it is **non-committing** and returns `current` unchanged, which is what
+    /// tells the caller to spring the sheet back rather than flip its detent.
+    static func resolved(
+        from current: CallSheetDetent,
+        predictedEndTranslation: CGFloat,
+        collapseDistance: CGFloat
+    ) -> CallSheetDetent {
+        let threshold = max(Space.xxl, collapseDistance * 0.25)
+        if current == .open, predictedEndTranslation > threshold {
+            return .peek
+        }
+        if current == .peek, predictedEndTranslation < -threshold {
+            return .open
+        }
+        return current
+    }
 }
 
 /// The guess apparatus pinned under the flight (`docs/08` §6): the name pool, the progress line,
@@ -174,12 +199,13 @@ struct GuessSheet: View {
                     withAnimation(Motion.CallSheet.spring) { dragOffset = 0 }
                     return
                 }
-                let projected = value.predictedEndTranslation.height
-                let threshold = max(Space.xxl, collapseDistance * 0.25)
-                if detent == .open, projected > threshold {
-                    setDetent(.peek)
-                } else if detent == .peek, projected < -threshold {
-                    setDetent(.open)
+                let resolved = CallSheetDetent.resolved(
+                    from: detent,
+                    predictedEndTranslation: value.predictedEndTranslation.height,
+                    collapseDistance: collapseDistance
+                )
+                if resolved != detent {
+                    setDetent(resolved)
                 }
                 // `.animation(_:value:)` on the body is keyed to `detent`, so a drag that *does*
                 // cross the threshold gets its spring for free when `setDetent` changes it above.

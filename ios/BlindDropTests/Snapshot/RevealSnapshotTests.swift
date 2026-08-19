@@ -103,6 +103,21 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// `E26-02`'s open question: a pool small enough to hold more chips than it has. Three names
+    /// is the case a scaled minimum width is most likely to look wrong in — a row that could fit
+    /// five 72-point pills instead draws three, and the question is whether that reads as a
+    /// deliberately short row or as a layout that forgot to fill itself. `.accessibility5` moves
+    /// it into the two-column grid, where three chips leave the grid's last row holding a single
+    /// pill next to empty space rather than a ragged one.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func guessSheetThreeMembers(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "GuessSheet-3", device, size) {
+            GuessSheet(store: RevealFixture.store(cardCount: 6, myCardNumber: 4, poolSize: 3,
+                                                  guesses: [1: "Cal"]))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size), typeSize: size)
+        }
+    }
+
     /// The non-submitter's sheet. **Disabled, not hidden** (`docs/08` §6): the pool is still
     /// there, dimmed, and the button is replaced by the line that says why. The whole point is
     /// that the user sees exactly what they missed, so the golden has to show a pool.
