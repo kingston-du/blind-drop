@@ -313,6 +313,11 @@ struct GuessSheet: View {
                 .contentShape(Rectangle())
                 .gesture(dragGesture)
                 .onTapGesture { toggleDetent() }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel(Text(
+                    detent == .open ? "reveal.callsheet.collapse" : "reveal.callsheet.expand"
+                ))
+                .accessibilityAction { toggleDetent() }
         }
         .background {
             GeometryReader { proxy in
@@ -435,12 +440,8 @@ struct GuessSheet: View {
             }
         }
         // The pool keeps its own vertical/horizontal scroll gestures. The header's transparent
-        // surface above is the stable, full-width drag handle.
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(Text(
-            detent == .open ? "reveal.callsheet.collapse" : "reveal.callsheet.expand"
-        ))
-        .accessibilityAction { toggleDetent() }
+        // surface above is the stable, full-width drag handle and carries the collapse/expand
+        // accessibility affordance — the pool itself is just names, not a toggle.
     }
 
     @ViewBuilder private func snapshotPool(layout: NamePoolLayout) -> some View {
