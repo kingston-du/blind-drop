@@ -298,7 +298,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E22-01 Hold to peek | todo | E17-10 | **yes, vs everything** | AC-1 |
+| E22-01 Hold to peek | wip | E17-10 | **yes, vs everything** | AC-1 |
 
 ## E23 — Notifications, working and verified · [file](E23-notifications.md)
 

@@ -16,7 +16,31 @@ struct SealedScreen: View {
     var didReplace = false
     let replace: () -> Void
 
+    @Environment(\.scenePhase) private var scenePhase
+    /// **Hold to peek** (`docs/08` §4, `E22-01`): `true` for exactly as long as a finger is down.
+    /// This screen owns the bit rather than `SealedCard`, because it also has to be able to clear
+    /// it from events the card cannot see on its own — leaving the screen, the app backgrounding,
+    /// the switcher appearing. The initialiser's `isPeekingForSnapshot` is the one way a test
+    /// seeds this to `true` without a live gesture to drive it.
+    @State private var isPeeking: Bool
+
     private let accent = PhaseAccent.sealed
+
+    init(
+        context: RoundContext,
+        submission: SubmissionDTO,
+        timer: CountdownTimer,
+        didReplace: Bool = false,
+        replace: @escaping () -> Void,
+        isPeekingForSnapshot: Bool = false
+    ) {
+        self.context = context
+        self.submission = submission
+        self.timer = timer
+        self.didReplace = didReplace
+        self.replace = replace
+        _isPeeking = State(initialValue: isPeekingForSnapshot)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xl) {
@@ -24,7 +48,14 @@ struct SealedScreen: View {
                 SealedCard(
                     track: submission.track,
                     groupInitial: context.groupInitial,
-                    remaining: Copy.countdown(timer.display)
+                    remaining: Copy.countdown(timer.display),
+                    isPeeking: isPeeking,
+                    // A press begins in the ordinary way; a release goes through `reseal()`, the
+                    // same no-animation path every other way a hold ends uses, so a release is
+                    // never the one that behaves differently.
+                    onHoldChange: { holding in
+                        if holding { isPeeking = true } else { reseal() }
+                    }
                 )
                 // The cover's upper-right is empty — the stamp lands lower-right (`docs/09` §2)
                 // — so the one compact service menu belongs there. It stays outside
@@ -48,6 +79,30 @@ struct SealedScreen: View {
             OutlineButton("sealed.replace", action: replace)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // A peek that survives the app going to the background is a screenshot in the app
+        // switcher with the song in it (`E22-01`). `scenePhase` is the one signal every one of
+        // those failure modes shares — the switcher appearing, backgrounding, a call arriving —
+        // because each of them leaves it something other than `.active`. Leaving this screen at
+        // all (a phase change under it, the header menu pushing a route) is the other way, which
+        // `scenePhase` cannot see and `.onDisappear` can. Both go through `reseal()`, which forces
+        // no-animation explicitly rather than relying on nothing nearby happening to animate:
+        // this is the one bit in the app that must never be caught inside someone else's
+        // `withAnimation`.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { reseal() }
+        }
+        .onDisappear { reseal() }
+    }
+
+    /// Puts the cover back down and hides the metadata again, **immediately** — `docs/08` §4: *"an
+    /// animated close is a few frames of the answer, which is the thing being prevented."*
+    /// `Transaction.disablesAnimations` rather than a plain assignment, so this is true regardless
+    /// of whatever transaction happens to be open when one of `reseal()`'s callers fires.
+    private func reseal() {
+        guard isPeeking else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { isPeeking = false }
     }
 
     /// *"Sealed until 8:00."*, or *"Sealed again."* after a replacement (`docs/11`).

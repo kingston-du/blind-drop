@@ -182,6 +182,7 @@ Accent: **amber**.
 │  │ ░░  cover over art ░░ │  │   amberDeep border, cover over artwork,
 │  │ ░░░░░░░░░░░░░ ⊛ ░░░░░ │  │   amberDeep stamp lower-right
 │  └───────────────────────┘  │
+│       Hold to peek          │   bodyM, inkDim — title/artist while held
 │                             │
 │      Sealed until 8:00.     │   bodyL, amberText
 │                             │
@@ -192,8 +193,23 @@ Accent: **amber**.
 └─────────────────────────────┘
 ```
 
-- The user's own track title and artist **are** shown beneath the cover, small, in `inkDim` —
-  it is their song and hiding it from them is theatre, not security.
+**Amended by `E22-01`.** The title and artist used to sit under the cover in plain view, on the
+reasoning that hiding them from their own owner was theatre, not security — true of the *group*,
+but this is one over a shoulder, and a cover reads better when it is actually covering something.
+So, now:
+
+- Both the artwork (already under the cover) and the title/artist beneath it are **hidden by
+  default**. The title/artist's spot is taken by **Hold to peek**, `sealed.peek`
+  (`11-COPY-DECK.md`), in the same place, at the same minimum size.
+- Held, both come back — exactly as long as the finger is down. Released, dragged off the
+  control, or the screen leaves the foreground for any reason (navigation, the app
+  backgrounding, the app switcher appearing, a call arriving), it reseals **immediately, with no
+  animation**: a closing cover is allowed to take a moment; a peek that lingers into a
+  screenshot is not.
+- VoiceOver needs no hold. The sealed card's own accessibility label always names the title and
+  artist, peeking or not — the non-gesture path `12-ACCESSIBILITY.md` §5 requires, and a normal
+  touch cannot reach the hold at all while VoiceOver is running, since the OS routes it to
+  VoiceOver first.
 - **Replace song** reopens search. Replacing is never penalised, never announced, and the
   replaced-song count is never displayed. After replacing, the seal animation runs again.
 - The countdown ticks from `ServerClock`. At zero it refetches; it does not transition

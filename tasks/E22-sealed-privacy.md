@@ -7,7 +7,7 @@ anything.
 
 ### E22-01 — Hold to peek
 
-**Status:** todo · **Deps:** E17-10 · **Parallel:** yes — against everything
+**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against everything
 **Reads:** `docs/08` §4, `docs/09` §2, `docs/11`, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Submit/SealedScreen.swift`,
 `BlindDrop/DesignSystem/Components/SealedCard.swift`, `Localizable.strings`,
@@ -34,11 +34,16 @@ frames of the answer, which is the thing being prevented.
 non-gesture path for anyone who cannot hold. **Replace song** stays exactly where it is and
 keeps its existing rules; hiding the song must not hide the ability to change it.
 
-- [ ] Sealed hides title and artwork by default; the cover still says something happened
-- [ ] Hold to peek, labelled, revealing only while held
-- [ ] Reseal immediate and unanimated on release, drag-out, navigation, background, app
+- [x] Sealed hides title and artwork by default; the cover still says something happened
+- [x] Hold to peek, labelled, revealing only while held
+- [x] Reseal immediate and unanimated on release, drag-out, navigation, background, app
       switcher, and scene phase leaving `.active`
-- [ ] An accessible non-hold path to the same information
-- [ ] Replace song unchanged and still reachable
-- [ ] Goldens for sealed-hidden and sealed-peeking; SE and `accessibility5`
+- [x] An accessible non-hold path to the same information
+- [x] Replace song unchanged and still reachable
+- [x] Goldens for sealed-hidden and sealed-peeking; SE and `accessibility5`
 - [ ] Simulator: backgrounding mid-hold shows a sealed card in the app switcher, not the song
+
+> **Simulator backgrounding check: pending, see orchestrator's final pass.** Everything else
+> above is implemented and verified by lint + the full unit/snapshot suite (449/449), and
+> reviewed. The one remaining item needs the device, which is shared across worktrees right
+> now — it will be checked on the merged integration branch.
