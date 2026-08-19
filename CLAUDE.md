@@ -251,8 +251,8 @@ uncommitted work you did not write. Never discard, revert, or stash a change you
 
 - the behaviour being completed, in one sentence
 - for UI work: the interaction, what changes on screen, how it is presented and navigated to,
-  the edge cases that matter (empty, error, `accessibility5`, SE width, keyboard), and
-  **what you will look at in the simulator**
+  the edge cases that matter (empty, error, keyboard), and **what you will look at in the
+  simulator**
 - the systems affected
 - the verification you will run
 - any parallel investigation you are launching
@@ -290,9 +290,17 @@ log stays out of this context. Then, for any slice a user can see:
 
 1. Build and install onto a booted simulator, launch, and navigate to the affected flow.
 2. Exercise it — tap, type, dismiss the keyboard, background and foreground the app.
-3. Screenshot the changed states and **look at them**. Check the SE width and a large Dynamic
-   Type size where layout is at stake.
+3. Screenshot the changed states and **look at them**.
 4. Fix what you find, then re-run whatever the fix touched.
+
+**Device matrix, for now.** One device — iPhone 17 — for the simulator pass, and the standard
+snapshot matrix (already SE + 15 Pro Max × large/accessibility sizes) for the automated goldens,
+since those are cheap, already written, and catch real regressions for free. What is *not*
+required per slice right now: a manual SE and `accessibility5` simulator pass. That is an
+owner call, for external-testing speed — an individual epic's **Verify** line may still name SE
+or `accessibility5` from when it was written; this overrides it. Bring the full device sweep
+back before release (`E14-05`), and sooner for any slice where the owner flags real layout risk
+at small width or large type.
 
 Say precisely what you verified. "Visually verified" means you looked at a screenshot of it.
 If you could not run something, name it as unverified — a silent gap is worse than a known one.
