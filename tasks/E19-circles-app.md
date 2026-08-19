@@ -16,7 +16,7 @@ makes it true.
 
 ### E19-01 — Every screen knows which circle it is showing
 
-**Status:** todo · **Deps:** E18-01, E18-02 · **Parallel:** no — it moves shared infrastructure
+**Status:** wip · **Deps:** E18-01, E18-02 · **Parallel:** no — it moves shared infrastructure
 **Reads:** `docs/13` §2–§5, `docs/01` ADR-011
 **Touches:** `BlindDrop/Core/Networking/`, `BlindDrop/Features/*/`(stores), `BlindDrop/App/`
 **Verify:** `./ios/scripts/lint.sh`; full unit + snapshot; `verify-fixture.sh` for the round and

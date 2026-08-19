@@ -294,7 +294,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E19-01 Every screen knows which circle it is showing | todo | E18-01, E18-02 | no | AC-1, AC-10 |
+| E19-01 Every screen knows which circle it is showing | wip | E18-01, E18-02 | no | AC-1, AC-10 |
 | E19-02 The switcher | todo | E19-01 | no | — |
 | E19-03 A notification opens the circle it came from | todo | E19-02, E23-01 | no | — |
 
