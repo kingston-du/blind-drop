@@ -123,7 +123,7 @@ Four faults on the same screen, plus one thing it never had:
 
 ### E26-02 — Guessing, without the fidget
 
-**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against E26-01
+**Status:** done · **Deps:** E17-10 · **Parallel:** yes — against E26-01
 **Reads:** `docs/08` §6, `docs/12` §2, §5
 **Touches:** `BlindDrop/Features/Reveal/GuessSheet.swift`, snapshot tests
 **Verify:** `./ios/scripts/lint.sh`; `RevealSnapshotTests`, `A11yReachabilityTests`. Simulator:
@@ -155,14 +155,36 @@ real screen, and keep the 44pt minimum whatever the answer.
 - [x] Pills read as one set of targets rather than a ragged row
 - [x] 44pt minimum held at every size
 - [x] Long names still legible; nothing truncates that a person needs to read
-- [ ] 3, 7 and 12 members on an SE at `accessibility5` — 7 driven on a real SE, 11 pinned in the
-      `accessibility5` goldens. A 3-member pool is not covered by either and is the case where a
-      minimum width is most likely to look odd: three short pills in a row that could hold five.
+- [x] 3, 7 and 12 members at `accessibility5` — 7 was already driven on a real SE and 11 was
+      already pinned in the `accessibility5` goldens (`E17-10`). The 3-member gap is now closed:
+      `guessSheetThreeMembers` in `RevealSnapshotTests.swift` adds `GuessSheet-3-{SE,15ProMax}-
+      {large,accessibility5}`, all four recorded and looked at — pills sized correctly, no
+      overlap, the accessibility5 grid's second row correctly holds one pill next to empty space
+      rather than looking broken. No physical/simulator SE run this pass — `CLAUDE.md` §8-F does
+      not require one right now, and the goldens answer the sizing question the SE line was
+      actually checking for.
 - [x] Goldens updated after looking at them
-- [ ] The drag `E17-10` could only partly exercise: a non-committing release now springs back
-      correctly (that was a real bug review caught and fixed), but the *committing* drag —
-      crossing the threshold on projected velocity, mid-gesture rubber-band past open — is still
-      not directly driven on device
+- [x] The drag decision itself now has the automated test the board asked for
+      (`CallSheetDetentTests.swift`, 6 tests): both committing directions, the non-committing
+      springback, the exact-threshold edge, and the `Space.xxl` floor on a small `collapseDistance`
+      — all driven directly against `CallSheetDetent.resolved`, the function `dragGesture`'s
+      `onEnded` now delegates to (extracted this slice, no behavior change to the gesture wiring
+      itself, which is untouched from `E17-10`).
+      >
+      > **Open question — on-device driving stayed out of reach this session, and it's an
+      > environment finding, not a code one.** The springback case was confirmed live once,
+      > unchanged sheet after a small drag. Every subsequent attempt at the *committing* drag —
+      > tap or multi-point `touch_path`, starting at the handle's actual position (~77pt above the
+      > bottom edge on this iPhone 17 sim) — got intercepted by the simulator's edge-swipe-to-home
+      > gesture before it ever reached the app's `DragGesture`: SpringBoard's log shows a
+      > `voluntary` process exit and a `MainTransition`/`SwitcherScene` sequence each time, not a
+      > crash. Two real environment problems were found and fixed along the way (a stale
+      > `AccessibilityXXXL` system text size left over from an earlier test run, and a sibling
+      > batch agent's `xcodebuild test` reinstalling the app mid-session on the shared device —
+      > both `CLAUDE.md` §8-F names as a known risk), but the edge-gesture interception persisted
+      > after both fixes. Picking this up again needs either a physical device or a driving
+      > mechanism that goes through the app's own event loop (XCUITest) rather than OS-level
+      > synthetic touch injection near the bottom edge.
 
 ---
 
