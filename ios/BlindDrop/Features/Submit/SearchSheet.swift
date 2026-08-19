@@ -30,7 +30,9 @@ struct SearchSheet: View {
             accent: accent,
             isFieldFocused: $isFieldFocused,
             choose: choose,
-            header: { header },
+            // Nothing here to give up while browsing — the sheet's header is only the modal
+            // title and the close button, not `SubmitScreen`'s headline-and-subhead pair.
+            header: { _ in header },
             footer: { EmptyView() }
         )
         .padding(.horizontal, Layout.screenInset)

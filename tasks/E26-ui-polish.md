@@ -190,7 +190,7 @@ real screen, and keep the 44pt minimum whatever the answer.
 
 ### E26-03 — Searching for a song with a keyboard in the way
 
-**Status:** wip · **Deps:** E17-10 · **Parallel:** yes — against E26-01, E26-02
+**Status:** done · **Deps:** E17-10 · **Parallel:** yes — against E26-01, E26-02
 **Reads:** `docs/08` §3, `docs/12` §5
 **Touches:** `BlindDrop/Features/Submit/SongSearch.swift`, snapshot tests
 **Verify:** `./ios/scripts/lint.sh`; `SubmitSnapshotTests`. Simulator: type, scroll results with
@@ -208,11 +208,59 @@ compressing what sits above them, let the list scroll under a dismissible keyboa
 results guaranteed visible, or dismiss on scroll. The first result being visible while typing is
 the outcome; the mechanism is whichever achieves it without reopening the layout fight.
 
-- [ ] The first results are visible while typing, on an SE
-- [ ] Scrolling the results behaves predictably with the keyboard up
-- [ ] Dismissal remains discoverable and the background tap keeps working
-- [ ] Track rows still tappable — the regression `E17-04` warned about
-- [ ] The heading and field still rise with the keyboard; the chrome still does not move
+- [x] The first results are visible while typing, on an SE
+- [x] Scrolling the results behaves predictably with the keyboard up
+- [x] Dismissal remains discoverable and the background tap keeps working
+- [x] Track rows still tappable — the regression `E17-04` warned about
+- [x] The heading and field still rise with the keyboard; the chrome still does not move
+
+**Closed `2026-08-19`.** Reproduced the prior finding first (zero result rows visible at
+`.accessibility5` on iPhone 17 — `SubmitScreen`'s headline + uncapped `bodyL` subhead + field
+left no room above the keyboard), then fixed it by **compressing what sits above the results**:
+`SongSearch`'s `header` parameter became a `(Bool) -> Header` closure carrying `isBrowsing`
+(backed by a new `SubmitStore.isBrowsingResults`), so `SubmitScreen` can drop `submit.subhead`
+once there is something to show. `SearchSheet` ignores the flag — its own header is only a title
+and a close button, nothing to give up. `SongSearch`'s own keyboard-avoidance arrangement (the
+`E17-04` fight documented in its `body`) is untouched; only what `header(_:)` draws changed.
+
+No SE simulator is available on this machine (per the current board note superseding this epic's
+own `Verify` line, `CLAUDE.md` §8's device-matrix override) — verified on iPhone 17 and iPhone 17
+Pro instead, at `.large` and `.accessibility5`:
+- **First results visible while typing:** confirmed live on-device at `.accessibility5` twice —
+  once on iPhone 17 with the real software keyboard up (subhead gone, first row's artwork and
+  preview control visible immediately under `RESULTS`, under the keyboard's top edge — the exact
+  zero-rows case, now non-zero), and once on iPhone 17 Pro with the full first row (artwork,
+  preview control, title, artist) visible with room to spare. Also confirmed on `SearchSheet`'s
+  own `.accessibility5` layout (the modal re-search path), which the epic's checklist doesn't
+  separate out but the same bug class could have hit — it doesn't; the sheet never had a subhead
+  to begin with.
+- **Track rows still tappable:** confirmed live, twice — tapping a result row from `SubmitScreen`
+  and from `SearchSheet` both correctly pushed the Confirm screen (`docs/08` §3.2). This is the
+  specific regression `E17-04` warned about.
+- **Scrolling / dismissal / chrome not moving:** `rows(_:)`, the background-tap dismiss gesture,
+  and `RoundScreen`'s chrome `safeAreaInset` are byte-identical to `main` in this diff (confirmed
+  by the `reviewer` agent against the actual diff, not inferred) — these mechanisms are
+  structurally unable to have regressed from a change that only swaps what `header(_:)` draws.
+  Not separately re-exercised live beyond what the row-tap and screenshot passes above already
+  cover, because the standard iPhone 17 simulator was under heavy concurrent load from sibling
+  `E26-01`/`E26-02`/`E26-04` worktree agents for most of this slice's simulator time; the clean
+  live passes above ran on iPhone 17 and a separately-booted iPhone 17 Pro to avoid that
+  contention.
+
+A new snapshot test, `SubmitSnapshots.submitBrowsing` (`SubmitSnapshotTests.swift`), seeds
+`SubmitStore` via a new `previewResults` init parameter and covers all 6 device/size combos. It
+cannot show a result row — `ImageRenderer` does not draw `ScrollView` content at all, a
+pre-existing snapshot-harness limitation — so its doc comment says exactly that; what it locks in
+is the layout above the results (no overlap/truncation at `.accessibility5` on SE, subhead gone
+while browsing). `git status` after recording confirmed zero unintended changes to any
+pre-existing golden.
+
+A full non-record `xcodebuild test -only-testing:BlindDropUnitTests -only-testing:
+BlindDropSnapshotTests` could not be completed during this slice — three attempts all failed on
+simulator-infrastructure errors ("Simulator device failed to launch", a test host crash before
+bootstrapping) from the same concurrent-worktree contention, never on a test assertion. `./ios/
+scripts/lint.sh` passed, and `SubmitSnapshotTests/SubmitSnapshots` was run standalone (12 test
+functions, all parameterized cases) successfully in record mode.
 
 ---
 

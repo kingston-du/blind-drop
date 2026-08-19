@@ -11,6 +11,15 @@ import SwiftUI
 /// first keystroke there is nothing under it worth reserving space for, and a field pinned to
 /// the top of an empty screen reads as a toolbar rather than as the one thing to do. Once rows
 /// exist they take the space, because at that point the list is the screen.
+///
+/// **`E26-03`: the browsing flag reaches `header` too.** At `.accessibility5` `SubmitScreen`'s
+/// full headline-and-subhead pair, stacked under the round's own chrome and above a field that
+/// has grown to fit its own scaled text, was tall enough on its own to push every result row
+/// under the keyboard — reproduced on iPhone 17 as *zero* rows visible while typing. `header` is
+/// a closure rather than a plain `View` so its one caller with something to give up
+/// (`SubmitScreen`'s subhead) can drop it once there is something worth the room instead — the
+/// keyboard-avoidance arrangement this file already fought for (see `body` below) is untouched;
+/// only what `header` chooses to draw changes.
 struct SongSearch<Header: View, Footer: View>: View {
     let store: SubmitStore
     let player: PreviewPlayer
@@ -18,8 +27,9 @@ struct SongSearch<Header: View, Footer: View>: View {
     let accent: PhaseAccent
     var isFieldFocused: FocusState<Bool>.Binding
     let choose: (TrackDTO) -> Void
-    /// What sits above the field. The headline, usually.
-    @ViewBuilder let header: Header
+    /// What sits above the field. The headline, usually. Takes whether results are being
+    /// browsed, so a caller with a subhead to spare can give the results the room back.
+    @ViewBuilder let header: (Bool) -> Header
     /// What sits under it while there is nothing to show.
     @ViewBuilder let footer: Footer
 
@@ -37,10 +47,9 @@ struct SongSearch<Header: View, Footer: View>: View {
     var addsGapBeforePaste: Bool = false
 
     /// Whether anything has come back to look at. `.idle` and an empty result set are the same
-    /// screen: a field, and room under it.
-    private var isBrowsing: Bool {
-        !(store.results.value ?? []).isEmpty
-    }
+    /// screen: a field, and room under it. `SubmitStore.isBrowsingResults` is the one definition;
+    /// `header(_:)` below is how a host gets the answer, rather than rederiving it itself.
+    private var isBrowsing: Bool { store.isBrowsingResults }
 
     /// Whether the link box has been asked for.
     ///
@@ -81,7 +90,7 @@ struct SongSearch<Header: View, Footer: View>: View {
                 Spacer(minLength: Space.none)
                     .frame(maxHeight: topGapCap ?? .infinity)
             }
-            header
+            header(isBrowsing)
             field
             if isBrowsing {
                 results

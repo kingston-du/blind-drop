@@ -27,6 +27,14 @@ final class SubmitStore {
     /// opinions about what you should drop."* No suggestions, no trending, no recents.
     private(set) var results: LoadState<[TrackDTO]> = .idle
 
+    /// Whether anything has come back to look at. `.idle` and an empty result set are the same
+    /// screen: a field, and room under it. `SongSearch` reads this and hands the answer down to
+    /// its `header` closure (`E26-03`), so a host with something to give up while browsing —
+    /// `SubmitScreen`'s subhead — does not need its own copy of the same check.
+    var isBrowsingResults: Bool {
+        !(results.value ?? []).isEmpty
+    }
+
     /// The copy key for a failed search (`docs/11` — `search.error`, `search.error.offline`), or
     /// `nil`. Distinct from `results.error` because the two failures read differently: offline is
     /// *"nothing can be dropped right now"*, and an upstream outage still leaves the paste path.
@@ -164,8 +172,12 @@ final class SubmitStore {
 
     private let api: APIClient
 
-    init(api: APIClient) {
+    /// - Parameter previewResults: seeds `results` as already `.loaded`, for a snapshot or a
+    ///   preview that needs the browsing layout without a live search running through
+    ///   `ImageRenderer`, which never fires the task the debounce would otherwise start.
+    init(api: APIClient, previewResults: [TrackDTO]? = nil) {
         self.api = api
+        if let previewResults { results = .loaded(previewResults) }
     }
 
     /// Drops the in-flight search. Called when the sheet closes — a request whose screen has gone
