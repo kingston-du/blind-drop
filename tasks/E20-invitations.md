@@ -73,7 +73,7 @@ invited them, accept or not — never the sign-up flow they have already complet
 
 ### E20-03 — Invitations in the switcher, and the push that gets you there
 
-**Status:** todo · **Deps:** E20-02, E23-01 · **Parallel:** no
+**Status:** wip · **Deps:** E20-02, E23-01 · **Parallel:** no
 **Reads:** `docs/05` §2, §3, `CLAUDE.md` §2.6, `docs/11`
 **Touches:** `server/supabase/functions/`, `BlindDrop/Features/`, `Localizable.strings`,
 `docs/05-JOBS-AND-NOTIFICATIONS.md`, `docs/11-COPY-DECK.md`
