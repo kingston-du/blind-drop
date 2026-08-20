@@ -59,7 +59,7 @@ and then gets out of the way — the second group should cost a few taps, not a 
 defaults from the device and is fixed at creation, so it is stated rather than asked.
 
 Then invitations, immediately, because a group with one person in it is not a group yet.
-**People you've played with** lists people sharing a circle with the user already: a shortcut,
+**People you've played with** lists people sharing a group with the user already: a shortcut,
 ordered by nothing cleverer than recency, with no counts and no profiles attached. Alongside it,
 the invite link, which is the path for anyone not on it.
 
@@ -71,7 +71,7 @@ invited them, accept or not — never the sign-up flow they have already complet
 - [ ] People you've played with, derived from shared groups, no standalone list
 - [ ] Invite link works for new users (landing page) and existing users (Join screen)
 - [ ] ADR-011's cap refused clearly at both create and accept
-- [ ] Creation reachable when the user has no circle at all — the onboarding path still works
+- [ ] Creation reachable when the user has no group at all — the onboarding path still works
 
 ---
 
