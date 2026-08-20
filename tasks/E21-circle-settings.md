@@ -59,7 +59,7 @@ someone discover it tonight.
 
 ### E21-02 — Who is in charge
 
-**Status:** todo · **Deps:** E21-01 · **Parallel:** no
+**Status:** wip · **Deps:** E21-01 · **Parallel:** no
 **Reads:** `docs/03` §2, `docs/14` §2
 **Touches:** `server/supabase/functions/groups/`, `server/supabase/tests/`,
 `BlindDrop/Features/Settings/`

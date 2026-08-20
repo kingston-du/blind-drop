@@ -328,7 +328,7 @@ replacement inherits.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E21-01 The circle's own screen | done | E19-02 | vs E20, E24 | — |
-| E21-02 Who is in charge | todo | E21-01 | no | — |
+| E21-02 Who is in charge | wip | E21-01 | no | — |
 
 ## E22 — Sealed-song privacy · [file](E22-sealed-privacy.md)
 
