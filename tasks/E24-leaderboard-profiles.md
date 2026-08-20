@@ -17,7 +17,7 @@ different room, and the numbers only mean anything against the people who produc
 
 ### E24-01 — Best Ear
 
-**Status:** wip · **Deps:** E18-01 · **Parallel:** yes — against E20, E21
+**Status:** done · **Deps:** E18-01 · **Parallel:** yes — against E20, E21
 **Reads:** `docs/02` §4, `docs/08` §9, `docs/11`, `docs/12` §2
 **Touches:** `BlindDrop/Features/Settings/GroupScreen.swift`,
 `BlindDrop/Features/Results/StandingsView.swift`, `Localizable.strings`, snapshot tests
@@ -32,12 +32,12 @@ The small-sample problem is real from day one: a circle three rounds old ranked 
 is noise presented as a standing. Show what the number rests on, or hold the ranking until it
 means something. Do not print a confident percentage over four data points.
 
-- [ ] Members ranked by all-time Ear within the circle
-- [ ] Readability shown, not ranked, not accented
-- [ ] Names open profiles; rows are real controls with proper traits
-- [ ] Thin history handled honestly rather than rounded
-- [ ] Admin controls present and secondary
-- [ ] Ties resolved deterministically and identically everywhere
+- [x] Members ranked by all-time Ear within the circle
+- [x] Readability shown, not ranked, not accented
+- [x] Names open profiles; rows are real controls with proper traits
+- [x] Thin history handled honestly rather than rounded
+- [x] Admin controls present and secondary
+- [x] Ties resolved deterministically and identically everywhere
 
 ---
 

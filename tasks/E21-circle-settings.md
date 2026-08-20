@@ -11,7 +11,7 @@ and the beta actually needs. `groups.timezone` is immutable after creation by de
 
 ### E21-01 — The circle's own screen
 
-**Status:** wip · **Deps:** E19-02 · **Parallel:** yes — against E20, E24
+**Status:** done · **Deps:** E19-02 · **Parallel:** yes — against E20, E24
 **Reads:** `docs/02` §1, `docs/04` §3, `docs/08` §9, §10, `docs/11`, `docs/12` §2
 **Touches:** `BlindDrop/Features/Settings/`, `BlindDrop/Resources/Localizable.strings`,
 `docs/11-COPY-DECK.md`, snapshot tests
@@ -31,13 +31,13 @@ Renaming and changing the reveal hour are admin-only, server-enforced, and the r
 effect on the next round that has not been created yet — say so on screen rather than letting
 someone discover it tonight.
 
-- [ ] Rename, admin only, server-enforced and not merely hidden
-- [ ] Reveal hour 18–21, admin only, with when it takes effect stated
-- [ ] Members listed with their role; the list is `E24-01`'s leaderboard once that lands
-- [ ] Leave, for everyone, confirmed, honest about consequences
-- [ ] A member sees no disabled admin controls
-- [ ] Timezone shown, not editable, with the reason
-- [ ] The last admin cannot leave a circle with members still in it without the role passing on
+- [x] Rename, admin only, server-enforced and not merely hidden
+- [x] Reveal hour 18–21, admin only, with when it takes effect stated
+- [x] Members listed with their role; the list is `E24-01`'s leaderboard once that lands
+- [x] Leave, for everyone, confirmed, honest about consequences
+- [x] A member sees no disabled admin controls
+- [x] Timezone shown, not editable, with the reason
+- [x] The last admin cannot leave a circle with members still in it without the role passing on
 
 > **Open question:** the checklist requires that the last admin cannot leave a circle with
 > members still in it without the role passing on, but no promote or remove mechanism exists

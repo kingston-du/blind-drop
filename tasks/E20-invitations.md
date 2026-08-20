@@ -13,7 +13,7 @@ member: the pending state is real, and everything downstream must ignore it.
 
 ### E20-01 — Pending invitations
 
-**Status:** wip · **Deps:** E18-01 · **Parallel:** yes — against E21, E24
+**Status:** done · **Deps:** E18-01 · **Parallel:** yes — against E21, E24
 **Reads:** `docs/02` §2, §4, `docs/03` §2, `docs/14` §2
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/groups/`,
 `server/supabase/tests/`, `ios/Fixtures/`
@@ -32,13 +32,13 @@ slice: not the table, the audit of everything the table touches.
 Invite codes keep working. They are how a link invites someone who has no account yet, and
 `E09-04` already ships the landing page for them.
 
-- [ ] Invitations as their own state, distinct from membership, with an inviter and an outcome
-- [ ] Accepting creates the membership atomically and respects ADR-011's cap
-- [ ] pgTAP proves a pending user affects nothing: name pool, minimum of three, `card_order`,
+- [x] Invitations as their own state, distinct from membership, with an inviter and an outcome
+- [x] Accepting creates the membership atomically and respects ADR-011's cap
+- [x] pgTAP proves a pending user affects nothing: name pool, minimum of three, `card_order`,
       standings, scoring, notification audience
-- [ ] Declining and expiry are terminal and re-invitable
-- [ ] Invite codes unchanged; rate limits still cover both paths
-- [ ] The fixture server grows the routes
+- [x] Declining and expiry are terminal and re-invitable
+- [x] Invite codes unchanged; rate limits still cover both paths
+- [x] The fixture server grows the routes
 
 ---
 
