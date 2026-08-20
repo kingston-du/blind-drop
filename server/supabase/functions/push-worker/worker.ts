@@ -27,12 +27,16 @@ export const PUSH_MAX_ATTEMPTS = 5;
 
 export interface ClaimedNotification {
   id: string;
-  round_id: string;
+  /** Present for scheduled round notifications; direct invitations have no round. */
+  round_id: string | null;
+  /** Present only for the recipient-specific `invite` kind. */
+  invitation_id: string | null;
   kind: NotificationKind;
   audience: string[];
   attempts: number;
-  reveals_at: string;
-  scores_at: string;
+  reveals_at: string | null;
+  scores_at: string | null;
+  invitation_expires_at: string | null;
 }
 
 export interface PushDevice {
@@ -73,18 +77,34 @@ function parseInstant(value: string, field: string): Date {
   return instant;
 }
 
-export function notificationDeepLink(kind: NotificationKind): string {
-  return kind === "results" ? "blinddrop://round/current/results" : "blinddrop://round/current";
+export function notificationDeepLink(row: ClaimedNotification): string {
+  if (row.kind === "invite") {
+    if (!row.invitation_id) throw new Error("invite outbox row has no invitation id");
+    return `blinddrop://invite/${row.invitation_id}`;
+  }
+  return row.kind === "results" ? "blinddrop://round/current/results" : "blinddrop://round/current";
 }
 
 /** The APNs expiration is the end of the phase the alert describes. */
 export function notificationExpiration(row: ClaimedNotification): number {
-  if (row.kind === "nudge") {
-    return Math.floor(parseInstant(row.reveals_at, "reveals_at").getTime() / 1_000);
+  if (row.kind === "invite") {
+    return Math.floor(parseInstant(row.invitation_expires_at ?? "", "invitation_expires_at").getTime() / 1_000);
   }
-  const scoresAt = parseInstant(row.scores_at, "scores_at").getTime();
+  if (row.kind === "nudge") {
+    return Math.floor(parseInstant(row.reveals_at ?? "", "reveals_at").getTime() / 1_000);
+  }
+  const scoresAt = parseInstant(row.scores_at ?? "", "scores_at").getTime();
   const expiresAt = row.kind === "results" ? scoresAt + RESULTS_LIFETIME_MS : scoresAt;
   return Math.floor(expiresAt / 1_000);
+}
+
+function notificationCollapseID(row: ClaimedNotification): string {
+  if (row.kind === "invite") {
+    if (!row.invitation_id) throw new Error("invite outbox row has no invitation id");
+    return `invite:${row.invitation_id}`;
+  }
+  if (!row.round_id) throw new Error("round notification outbox row has no round id");
+  return `${row.round_id}:${row.kind}`;
 }
 
 /** Builds the exact request sent to Apple. Kept pure so headers and payload are testable. */
@@ -98,7 +118,7 @@ export function apnsRequest(
   const host = device.environment === "production"
     ? "https://api.push.apple.com"
     : "https://api.sandbox.push.apple.com";
-  const deepLink = notificationDeepLink(row.kind);
+  const deepLink = notificationDeepLink(row);
 
   return new Request(`${host}/3/device/${encodeURIComponent(device.apns_token)}`, {
     method: "POST",
@@ -109,7 +129,7 @@ export function apnsRequest(
       "apns-topic": topic,
       "apns-push-type": "alert",
       "apns-priority": "10",
-      "apns-collapse-id": `${row.round_id}:${row.kind}`,
+      "apns-collapse-id": notificationCollapseID(row),
       "apns-expiration": String(notificationExpiration(row)),
     },
     body: JSON.stringify({
@@ -119,7 +139,7 @@ export function apnsRequest(
         "interruption-level": "active",
       },
       kind: row.kind,
-      round_id: row.round_id,
+      ...(row.round_id === null ? {} : { round_id: row.round_id }),
       deep_link: deepLink,
     }),
   });
@@ -217,12 +237,16 @@ async function claim(db: Db, claimId: string): Promise<ClaimedNotification[]> {
   if (error) throw dbFailure("claim_notification_outbox", error);
   return (data ?? []).map((row: Record<string, unknown>) => ({
     id: String(row.id),
-    round_id: String(row.round_id),
+    round_id: typeof row.round_id === "string" ? row.round_id : null,
+    invitation_id: typeof row.invitation_id === "string" ? row.invitation_id : null,
     kind: row.kind as NotificationKind,
     audience: audience(row.audience),
     attempts: Number(row.attempts),
-    reveals_at: String(row.reveals_at),
-    scores_at: String(row.scores_at),
+    reveals_at: typeof row.reveals_at === "string" ? row.reveals_at : null,
+    scores_at: typeof row.scores_at === "string" ? row.scores_at : null,
+    invitation_expires_at: typeof row.invitation_expires_at === "string"
+      ? row.invitation_expires_at
+      : null,
   }));
 }
 

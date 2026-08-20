@@ -1,7 +1,7 @@
 -- schema.sql — tasks/E01-01. Every table, column type, and index in docs/03 §2 exists.
 begin;
 set search_path = public, extensions, tests;
-select plan(133);
+select plan(137);
 
 -- ─── extensions (docs/03 §2, 0001) ───────────────────────────────────────────
 select has_extension('pgcrypto', 'pgcrypto is installed (gen_random_uuid)');
@@ -14,7 +14,7 @@ select enum_has_labels('public', 'round_state',
        array['open','revealed','scored','voided'], 'round_state has the docs/02 §2 states');
 select has_enum('public', 'notif_kind', 'notif_kind enum exists');
 select enum_has_labels('public', 'notif_kind',
-       array['nudge','reveal','results','void'], 'notif_kind has the docs/11 kinds');
+       array['nudge','reveal','results','void','invite'], 'notif_kind has the docs/11 kinds');
 
 -- ─── the nine tables ─────────────────────────────────────────────────────────
 select has_table('public', t, format('table %I exists', t))
@@ -114,13 +114,16 @@ select has_index('public','devices','devices_token', 'devices devices_token');
 select index_is_unique('public','devices','devices_token', 'devices devices_token');
 select has_index('public','devices','devices_user_active', 'devices devices_user_active');
 
--- ─── notification outbox — the unique index IS the idempotency guarantee ─────
+-- ─── notification outbox — scheduled rounds and direct invitations ───────────
 select has_column('public','notification_outbox', c, format('notification_outbox.%I', c))
 from unnest(array['id','round_id','kind','audience','enqueued_at','sent_at','attempts',
-                  'last_error']) as c;
+                  'last_error','invitation_id']) as c;
 select has_index('public','notification_outbox','notification_outbox_once', 'notification_outbox notification_outbox_once');
 select index_is_unique('public','notification_outbox','notification_outbox_once', 'notification_outbox notification_outbox_once');
 select has_index('public','notification_outbox','notification_outbox_pending', 'notification_outbox notification_outbox_pending');
+select has_index('public','notification_outbox','notification_outbox_invitation_once', 'notification_outbox notification_outbox_invitation_once');
+select index_is_unique('public','notification_outbox','notification_outbox_invitation_once', 'notification_outbox notification_outbox_invitation_once');
+select has_check('public','notification_outbox', 'notification_outbox source is exactly one round or invitation');
 
 -- ─── track_links ─────────────────────────────────────────────────────────────
 select has_column('public','track_links', c, format('track_links.%I', c))

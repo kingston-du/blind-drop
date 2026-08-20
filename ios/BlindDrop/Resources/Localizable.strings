@@ -93,6 +93,7 @@
 "switcher.state.guess" = "Guess";
 "switcher.state.answers" = "Answers";
 "switcher.state.voided" = "Voided";
+"switcher.invites" = "Invites";
 "a11y.switcher.opener.hint" = "Double-tap to see all your groups";
 "a11y.switcher.opener.otherNeedsAction" = "Another group wants your attention.";
 "a11y.switcher.row" = "%@. %@.";
@@ -318,7 +319,7 @@
 "results.spectrum.high" = "Easy to read";
 "results.standings.title" = "All time";
 "results.standings.rounds" = "%lld rounds";
-"results.standings.row" = "Ear %lld · Read %lld";
+"results.standings.row" = "Ear %lld · Read %@";
 "results.standings.ear" = "Best ear";
 "results.standings.ear.detail" = "%lld correct";
 "results.standings.readability" = "How readable";

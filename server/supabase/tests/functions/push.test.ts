@@ -19,6 +19,7 @@ import {
   call,
   newGroupOwner,
   newMember,
+  newNamedUser,
   SERVICE_KEY,
   tickRoundsAt,
   zoneWhereLocalHourIs,
@@ -41,11 +42,13 @@ Deno.env.set("APNS_TOPIC", "com.blinddrop.fixture");
 const row: ClaimedNotification = {
   id: "00000000-0000-4000-8000-000000000001",
   round_id: "00000000-0000-4000-8000-000000000002",
+  invitation_id: null,
   kind: "reveal",
   audience: ["00000000-0000-4000-8000-000000000003"],
   attempts: 1,
   reveals_at: "2026-08-11T20:00:00Z",
   scores_at: "2026-08-11T22:00:00Z",
+  invitation_expires_at: null,
 };
 const device: PushDevice = {
   id: "00000000-0000-4000-8000-000000000004",
@@ -64,7 +67,7 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
   assertEquals(request.headers.get("apns-priority"), "10");
   assertEquals(request.headers.get("apns-collapse-id"), `${row.round_id}:reveal`);
   assertEquals(request.headers.get("apns-expiration"), String(notificationExpiration(row)));
-  assertEquals(notificationExpiration(row), Date.parse(row.scores_at) / 1_000);
+  assertEquals(notificationExpiration(row), Date.parse(row.scores_at!) / 1_000);
 
   assertEquals(await request.json(), {
     aps: {
@@ -80,13 +83,35 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
   const results = { ...row, kind: "results" as const };
   assertEquals(
     notificationExpiration(results),
-    (Date.parse(row.scores_at) + 12 * 60 * 60 * 1_000) / 1_000,
+    (Date.parse(row.scores_at!) + 12 * 60 * 60 * 1_000) / 1_000,
   );
   const resultsBody = await apnsRequest(results, device, "jwt", "topic").json();
   assertEquals(resultsBody.deep_link, "blinddrop://round/current/results");
 
   const nudge = { ...row, kind: "nudge" as const };
-  assertEquals(notificationExpiration(nudge), Date.parse(row.reveals_at) / 1_000);
+  assertEquals(notificationExpiration(nudge), Date.parse(row.reveals_at!) / 1_000);
+
+  const invitation: ClaimedNotification = {
+    ...row,
+    round_id: null,
+    invitation_id: "00000000-0000-4000-8000-000000000005",
+    kind: "invite",
+    reveals_at: null,
+    scores_at: null,
+    invitation_expires_at: "2026-08-25T20:00:00Z",
+  };
+  const invitationRequest = apnsRequest(invitation, device, "jwt", "topic");
+  assertEquals(invitationRequest.headers.get("apns-collapse-id"), `invite:${invitation.invitation_id}`);
+  assertEquals(notificationExpiration(invitation), Date.parse(invitation.invitation_expires_at!) / 1_000);
+  assertEquals(await invitationRequest.json(), {
+    aps: {
+      alert: { title: "Blind Drop", body: "You have a group invite." },
+      sound: "default",
+      "interruption-level": "active",
+    },
+    kind: "invite",
+    deep_link: `blinddrop://invite/${invitation.invitation_id}`,
+  });
 });
 
 Deno.test("device sends are bounded at sixteen", async () => {
@@ -141,6 +166,103 @@ async function clearPending(exceptId?: string): Promise<void> {
     body: { sent_at: new Date().toISOString(), claimed_at: null, claim_id: null },
   });
 }
+
+interface InvitationOutboxRow {
+  id: string;
+  invitation_id: string;
+  audience: string[];
+  sent_at: string | null;
+}
+
+async function invitationOutboxFor(userID: string): Promise<InvitationOutboxRow[]> {
+  const rows = (await serviceRequest(
+    "notification_outbox?select=id,invitation_id,audience,sent_at&kind=eq.invite",
+  )).body as InvitationOutboxRow[];
+  return rows.filter((row) => row.audience.includes(userID));
+}
+
+// ─── E20-03 · direct-invitation deliveries ───────────────────────────────────
+
+Deno.test("invitations enqueue one budgeted delivery and coalesce before it sends", async () => {
+  await clearPending();
+  const recipient = await newNamedUser("Invite Recipient");
+  const first = await newGroupOwner("First Inviter");
+  const second = await newGroupOwner("Second Inviter");
+
+  const firstInvite = await call("groups", "/current/invitations", {
+    method: "POST",
+    token: first.user.token,
+    body: { user_id: recipient.id },
+  });
+  assertEquals(firstInvite.status, 200);
+  const secondInvite = await call("groups", "/current/invitations", {
+    method: "POST",
+    token: second.user.token,
+    body: { user_id: recipient.id },
+  });
+  assertEquals(secondInvite.status, 200);
+
+  const coalesced = await invitationOutboxFor(recipient.id);
+  assertEquals(coalesced.length, 1, "several pending invitations become one delivery");
+  assertEquals(
+    coalesced[0].invitation_id,
+    firstInvite.body.data.id,
+    "the one prompt opens a real pending invitation; the switcher lists the other",
+  );
+  assertEquals(coalesced[0].sent_at, null);
+
+  // A sent notification consumes one of the same rolling 24-hour slots as all round kinds.
+  // Make three such events against different circles, settling each one as the fixture APNs
+  // worker would, then prove a fourth direct invitation remains silent.
+  await clearPending();
+  for (const label of ["Budget Two", "Budget Three"]) {
+    const inviter = await newGroupOwner(label);
+    const invite = await call("groups", "/current/invitations", {
+      method: "POST",
+      token: inviter.user.token,
+      body: { user_id: recipient.id },
+    });
+    assertEquals(invite.status, 200);
+    await clearPending();
+  }
+  const fourth = await newGroupOwner("Budget Four");
+  const fourthInvite = await call("groups", "/current/invitations", {
+    method: "POST",
+    token: fourth.user.token,
+    body: { user_id: recipient.id },
+  });
+  assertEquals(fourthInvite.status, 200, "the invitation itself is never refused by push budget");
+  assertEquals(
+    (await invitationOutboxFor(recipient.id)).length,
+    3,
+    "the fourth invitation does not become a fourth delivery in the rolling day",
+  );
+});
+
+Deno.test("an invite delivery points to its recipient-owned invitation", async () => {
+  await clearPending();
+  const recipient = await newNamedUser("Push Invitee");
+  const { user: inviter } = await newGroupOwner("Push Inviter");
+  const deviceToken = await registerDevice(recipient.token);
+  const invitation = await call("groups", "/current/invitations", {
+    method: "POST",
+    token: inviter.token,
+    body: { user_id: recipient.id },
+  });
+  assertEquals(invitation.status, 200);
+
+  const observed: Request[] = [];
+  const drained = await drainPushOutbox(serviceClient(), async (request) => {
+    observed.push(request);
+    return { ok: true, status: 200, text: async () => "" };
+  });
+  assertEquals(drained.claimed, 1);
+  assertEquals(new URL(observed[0].url).pathname.endsWith(deviceToken), true);
+  const payload = await observed[0].json();
+  assertEquals(payload.kind, "invite");
+  assertEquals(payload.deep_link, `blinddrop://invite/${invitation.body.data.id}`);
+  assertEquals("round_id" in payload, false, "direct invitations do not pretend to have a round");
+});
 
 Deno.test("claim leases are disjoint, crash-safe, and sent_at follows APNs", async () => {
   await clearPending();

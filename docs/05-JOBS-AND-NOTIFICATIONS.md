@@ -90,8 +90,10 @@ Three layers, all required:
 1. **Guarded transition.** Every state change is
    `update rounds set state = <new> where id = $1 and state = <expected>` and the code
    branches on the affected row count. A second run affects zero rows and does nothing.
-2. **Outbox unique key.** `unique (round_id, kind)` on `notification_outbox`. Enqueue is
-   `on conflict do nothing`. A retried transaction cannot create a second notification.
+2. **Outbox unique key.** Scheduled alerts use `unique (round_id, kind)` on
+   `notification_outbox`; a direct invitation is keyed by its invitation id. Enqueue is
+   idempotent, and concurrent pending invitations for one recipient share the one unsent invite
+   delivery. A retried transaction cannot create a second notification.
 3. **Send marker.** The worker claims rows with
    `update … set attempts = attempts + 1 where sent_at is null … returning *` inside a
    transaction using `for update skip locked`, sends, then sets `sent_at`. A crash between
@@ -102,14 +104,19 @@ Transition and enqueue happen in **one transaction**. Never enqueue first.
 
 ---
 
-## 3. The three notifications
+## 3. The round notifications and invitations
 
 > **Amended by the owner — ADR-011, `CLAUDE.md` §2.6.** The budget is now three *deliveries*
 > per user per day across **all** their circles, grouped where they coincide; it did not grow
 > with the circle count. The kinds below are unchanged and `invite` joins them in `E20-03`.
 > `E23-02` brings this section in line. Until it lands, what follows is what the code does.
 
-Exactly three per day, maximum. This app earns trust by being quiet.
+Three deliveries per user in a rolling 24-hour window, maximum, across every circle. This app
+earns trust by being quiet. Round transitions make the four kinds below; `invite` is the one
+prompt kind, created with a direct invitation rather than by `tick_rounds()`. Its enqueue path
+counts every existing delivery for the recipient and coalesces invitations waiting to send, so a
+person invited to several circles together receives one notification. `E23-02` finishes the
+same cross-circle grouping for coincident scheduled round deliveries.
 
 | # | When | Audience | Title / body | Deep link |
 |---|---|---|---|---|
@@ -121,14 +128,19 @@ Plus one conditional, replacing #1:
 
 | — | `reveals_at`, when `S < 3` | all active members | *Not enough drops tonight. Nothing revealed.* | `blinddrop://round/current` |
 
-That is the complete list. **No** streak reminders, **no** "your friend just posted", **no**
-re-engagement nags, **no** "someone dropped a song". Adding a fourth notification is a
-product change requiring the owner, not an agent.
+| Kind | When | Audience | Title / body | Deep link |
+|---|---|---|---|---|
+| `invite` | direct invitation created | that invitation's recipient | *You have a group invite.* | `blinddrop://invite/<INVITATION_ID>` |
 
-### The nudge is the only targeted one
+That is the complete closed set. **No** streak reminders, **no** "your friend just posted", **no**
+re-engagement nags, **no** "someone dropped a song". Adding a sixth notification is a product
+change requiring the owner, not an agent.
 
-Notification #3 goes only to non-submitters. This is the single behaviourally-targeted push
-and it must never reach someone who has already submitted. Two consequences:
+### The nudge is the only phase-targeted one
+
+Notification #3 goes only to non-submitters. This is the single phase-targeted push and it must
+never reach someone who has already submitted. (An `invite` is necessarily addressed to its own
+recipient, but says nothing about a round.) Two consequences:
 
 - The audience is resolved **at enqueue time** (`reveals_at − 2h`) and frozen into
   `notification_outbox.audience`. Someone who submits at `−1h55m` still receives it. That is

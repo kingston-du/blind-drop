@@ -210,9 +210,19 @@ enum ResultsSnapshotFixture {
     /// `SubmitSnapshots` carries its own loader.
     static let results: ResultsDTO = decoded("results")
 
-    /// The group's all-time lists — seven in Best Ear and eight in readability, because Ivy has
-    /// dropped nothing yet and so appears in neither ranking she has no numbers for.
-    static let standings: StandingsDTO = decoded("standings")
+    /// The group's all-time lists, with Fay's readability deliberately absent. She is in Best
+    /// Ear because she guesses, but has never dropped a song to be read; the row must render
+    /// `Read —`, never `Read 0%`. The normal standings matrix rather than a special one carries
+    /// this case so the product's default table continues to picture the honest absence.
+    static let standings: StandingsDTO = {
+        var json = payload("standings")
+        json["readability"] = (json["readability"] as? [[String: Any]] ?? []).filter {
+            $0["user_id"] as? String != "a0000000-0000-4000-8000-000000000006"
+        }
+        return try! JSONDecoder.api.decode(
+            StandingsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)
+        )
+    }()
 
     /// The same standings with every name at `DisplayName.maximumLength`.
     ///

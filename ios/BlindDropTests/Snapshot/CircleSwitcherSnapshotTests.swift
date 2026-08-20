@@ -27,6 +27,16 @@ private let devices = SnapshotRenderer.Device.matrix
         ]
     }
 
+    private var invitations: [InvitationDTO] {
+        [
+            InvitationDTO(
+                id: "c0000000-0000-4000-8000-000000000001",
+                group: InvitationGroupDTO(id: "g-invite", name: "After Hours"),
+                invitedBy: MemberDTO(userID: "ana", displayName: "Ana")
+            ),
+        ]
+    }
+
     @Test(arguments: devices, [DynamicTypeSize.large, .accessibility1, .accessibility5])
     func threeCirclesOneNeedingAction(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         let sheet = CircleSwitcherSheet(
@@ -48,6 +58,21 @@ private let devices = SnapshotRenderer.Device.matrix
         verify(named: "CircleSwitcher-one", device, size) { sheet.snapshotContent(typeSize: size) }
     }
 
+    /// Pending invitations are deliberately a separate headed section rather than a fourth
+    /// circle row: the recipient has not joined yet, and the two available actions must still
+    /// fit at the largest supported type size.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func pendingInvitation(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        let sheet = CircleSwitcherSheet(
+            rows: threeCircles,
+            activeID: "The Cove",
+            select: { _ in },
+            invitations: invitations,
+            close: {}
+        )
+        verify(named: "CircleSwitcher-invite", device, size) { sheet.snapshotContent(typeSize: size) }
+    }
+
     private func verify(
         named name: String,
         _ device: SnapshotRenderer.Device,
@@ -55,7 +80,11 @@ private let devices = SnapshotRenderer.Device.matrix
         sourceLocation: SourceLocation = #_sourceLocation,
         @ViewBuilder content: () -> some View
     ) {
-        let image = SnapshotRenderer.image(of: content(), device: device, typeSize: size)
+        // The sheet loads invitations through the shared environment in production. Keep the
+        // bare snapshot content equally complete; ImageRenderer does not run its `.task`.
+        let image = SnapshotRenderer.image(
+            of: content().environment(AppEnvironment()), device: device, typeSize: size
+        )
         SnapshotRenderer.verify(
             image,
             named: "\(name)-\(device.name)-\(size.snapshotName)",

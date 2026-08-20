@@ -85,6 +85,7 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `switcher.state.guess` | Guess |
 | `switcher.state.answers` | Answers |
 | `switcher.state.voided` | Voided |
+| `switcher.invites` | Invites |
 | `a11y.switcher.opener.hint` | Double-tap to see all your groups |
 | `a11y.switcher.opener.otherNeedsAction` | Another group wants your attention. |
 | `a11y.switcher.row` | %@. %@. |
@@ -328,7 +329,7 @@ Never state how many people did drop.
 | `results.spectrum.high` | Easy to read |
 | `results.standings.title` | All time |
 | `results.standings.rounds` | %lld rounds |
-| `results.standings.row` | Ear %lld · Read %lld |
+| `results.standings.row` | Ear %lld · Read %@ |
 | `results.standings.ear` | Best ear |
 | `results.standings.ear.detail` | %lld correct |
 | `results.standings.readability` | How readable |
@@ -506,9 +507,11 @@ singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%
 | `results` | Blind Drop | Answers are in. |
 | `nudge` | Blind Drop | Two hours to drop. |
 | `void` | Blind Drop | Not enough drops tonight. Nothing revealed. |
+| `invite` | Blind Drop | You have a group invite. |
 
-Four kinds, at most three delivered to any one person on any one day (`reveal` and `void` are
-mutually exclusive). The nudge never reaches anyone who has already dropped.
+Five kinds, at most three deliveries to any one person in any rolling 24-hour window (`reveal`
+and `void` are mutually exclusive). The nudge never reaches anyone who has already dropped;
+an `invite` is one recipient's pending invitation, never a membership or a group activity signal.
 
 ---
 

@@ -1,4 +1,4 @@
-// _shared/apns.ts — APNs authentication and the four permitted alerts. docs/05 §2, §4.
+// _shared/apns.ts — APNs authentication and the five permitted alerts. docs/05 §2, §4.
 // tasks/E06-01.
 //
 // This module signs only the provider JWT and owns the product-approved alert copy. Sending,
@@ -59,16 +59,17 @@ export function resetApnsToken(): void {
   signing = null;
 }
 
-export type NotificationKind = "nudge" | "reveal" | "results" | "void";
+export type NotificationKind = "invite" | "nudge" | "reveal" | "results" | "void";
 
 const BODIES: Readonly<Record<NotificationKind, string>> = {
+  invite: "You have a group invite.",
   nudge: "Two hours to drop.",
   reveal: "Tonight's drop is open.",
   results: "Answers are in.",
   void: "Not enough drops tonight. Nothing revealed.",
 };
 
-/** The only four notification alerts the product permits. */
+/** The only five notification alerts the product permits. */
 export function notificationAlert(kind: NotificationKind): { title: "Blind Drop"; body: string } {
   return { title: "Blind Drop", body: BODIES[kind] };
 }

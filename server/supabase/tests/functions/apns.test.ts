@@ -77,7 +77,8 @@ Deno.test("a cold concurrent batch signs one APNs JWT", async () => {
   assertEquals(new Set(tokens).size, 1);
 });
 
-Deno.test("the four APNs alerts are the approved copy, verbatim", () => {
+Deno.test("the five APNs alerts are the approved copy, verbatim", () => {
+  assertEquals(notificationAlert("invite"), { title: "Blind Drop", body: "You have a group invite." });
   assertEquals(notificationAlert("nudge"), { title: "Blind Drop", body: "Two hours to drop." });
   assertEquals(notificationAlert("reveal"), {
     title: "Blind Drop",

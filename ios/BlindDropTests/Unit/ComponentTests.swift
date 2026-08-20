@@ -131,6 +131,7 @@ import Testing
             "a11y.track", "a11y.track.hint", "a11y.readability",
             "switcher.title", "switcher.state.drop", "switcher.state.sealed",
             "switcher.state.guess", "switcher.state.answers", "switcher.state.voided",
+            "switcher.invites",
             "a11y.switcher.opener.hint", "a11y.switcher.opener.otherNeedsAction",
             "a11y.switcher.row", "a11y.switcher.row.hint", "a11y.switcher.attention",
             "howto.title", "howto.intro",

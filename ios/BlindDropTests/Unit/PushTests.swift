@@ -141,6 +141,9 @@ import Testing
         // prefix the URL scheme does (`docs/05` §5).
         #expect(PushRouter.link(from: ["deep_link": "blinddrop://circle/g_1/round/current"])
                 == .round(groupID: "g_1"))
+        #expect(PushRouter.link(from: [
+            "deep_link": "blinddrop://invite/c0000000-0000-4000-8000-000000000001",
+        ]) == .invitation(id: "c0000000-0000-4000-8000-000000000001"))
     }
 
     /// A payload with nothing we recognise does **nothing**, rather than falling back to the round.

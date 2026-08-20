@@ -135,13 +135,14 @@ struct StandingRowContent: View {
             .frame(maxWidth: isStacked ? .infinity : nil, alignment: .leading)
     }
 
-    /// *"EAR 78 · READ 62"* — both numbers, in the apparatus voice, so neither reads as the
-    /// score. The middot is a separator, not copy.
+    /// *"EAR 78 · READ 62"* — the ear number and readability value (or an honest *"—"* when
+    /// it does not apply), in the apparatus voice, so neither reads as the score. The middot is
+    /// a separator, not copy.
     private var numbers: some View {
         SectionLabel(verbatim: Copy.format(
             "results.standings.row",
             ScoringFormat.percentValue(standing.earAllTime),
-            ScoringFormat.percentValue(readability?.readabilityAllTime ?? 0)
+            ScoringFormat.percent(readability?.readabilityAllTime)
         ))
         .fixedSize()
     }

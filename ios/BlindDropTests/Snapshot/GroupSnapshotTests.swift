@@ -36,7 +36,9 @@ private let sizes = SnapshotRenderer.typeSizes
     /// is the same rule, asserted on the type; this is the same rule, drawn).
     @Test(arguments: devices, sizes)
     func twelveMembersWithATie(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
-        verify(named: "Group-twelve-tied", device, size) {
+        // At 3×, the wide accessibility-five case is over ImageIO's simulator PNG limit. The
+        // fixed raster cap preserves its layout at a representable scale.
+        verify(named: "Group-twelve-tied", device, size, maximumPixelCount: 7_000_000) {
             GroupFixture.content(group: GroupFixture.twelveMembers, standings: GroupFixture.twelveRanked)
         }
     }
@@ -55,10 +57,13 @@ private let sizes = SnapshotRenderer.typeSizes
         named name: String,
         _ device: SnapshotRenderer.Device,
         _ size: DynamicTypeSize,
+        maximumPixelCount: Int? = nil,
         sourceLocation: SourceLocation = #_sourceLocation,
         @ViewBuilder content: () -> some View
     ) {
-        let image = SnapshotRenderer.image(of: content(), device: device, typeSize: size)
+        let image = SnapshotRenderer.image(
+            of: content(), device: device, typeSize: size, maximumPixelCount: maximumPixelCount
+        )
         SnapshotRenderer.verify(
             image,
             named: "\(name)-\(device.name)-\(size.snapshotName)",
@@ -140,6 +145,8 @@ enum GroupFixture {
 
     /// Twelve members, fourteen rounds, and a tie at second place — the two people on `0.68`
     /// share rank 2 and nobody is rank 3, the same shape `StandingsTests` pins at the DTO level.
+    /// Its deliberately empty readability list makes every rendered standing row exercise the
+    /// unavailable *"Read —"* form.
     static let twelveRanked: StandingsDTO = {
         // Sorted descending by rate before ranking — competition ranking (ties share a rank,
         // the next rank skips) only means what it says when it is computed over an order that

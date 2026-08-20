@@ -20,6 +20,17 @@ struct CircleSwitcherSheet: View {
     let select: (String) -> Void
     let startGroup: () -> Void
     let close: () -> Void
+    /// A successful in-place accept joins this circle and then uses the same switch path as a
+    /// picked circle row. The sheet owns the invitation request; the routed screen owns the
+    /// round invalidation that follows a circle change.
+    let acceptInvitation: (String) -> Void
+
+    @Environment(AppEnvironment.self) private var env
+    /// Loaded independently of the circles: pending invitations are not memberships and must
+    /// never be folded into `CircleStore`'s list. Supplying an initial value lets snapshot tests
+    /// render the real section without a network task.
+    @State private var invitations: [InvitationDTO]
+    @State private var invitationsFailure: String?
 
     /// Explicit because `typeSizeOverride` below is `fileprivate` — left off the synthesized
     /// memberwise init, that property would otherwise pull the *whole* init down to `fileprivate`
@@ -29,12 +40,16 @@ struct CircleSwitcherSheet: View {
         activeID: String?,
         select: @escaping (String) -> Void,
         startGroup: @escaping () -> Void = {},
+        invitations: [InvitationDTO] = [],
+        acceptInvitation: @escaping (String) -> Void = { _ in },
         close: @escaping () -> Void
     ) {
         self.rows = rows
         self.activeID = activeID
         self.select = select
         self.startGroup = startGroup
+        _invitations = State(initialValue: invitations)
+        self.acceptInvitation = acceptInvitation
         self.close = close
     }
 
@@ -85,6 +100,7 @@ struct CircleSwitcherSheet: View {
             .presentationDetents([.height(measuredHeight)])
             .presentationCornerRadius(Radius.sheet)
             .presentationDragIndicator(.visible)
+            .task { await loadInvitations() }
     }
 
     /// Exposed bare for the snapshot suite, the same shape `HowToSheet.snapshotContent` takes —
@@ -107,7 +123,29 @@ struct CircleSwitcherSheet: View {
                     }
                 }
             }
+            invitationSection
             OutlineButton("switcher.startGroup", action: startGroup)
+        }
+    }
+
+    @ViewBuilder private var invitationSection: some View {
+        // Unlike the needs-action ordering above, an invitation is not a circle yet. It earns a
+        // heading precisely because sorting it into the membership list would make that fact
+        // unclear. An empty successful response draws nothing — an "empty invites" card would
+        // be a useless second empty state in an otherwise ordinary switcher.
+        if !invitations.isEmpty {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                SectionLabel("switcher.invites")
+                VStack(spacing: Space.sm) {
+                    ForEach(invitations) { invitation in
+                        invitationRow(invitation)
+                    }
+                }
+            }
+        } else if let invitationsFailure {
+            Text(LocalizedStringKey(invitationsFailure))
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.alert)
         }
     }
 
@@ -177,5 +215,91 @@ struct CircleSwitcherSheet: View {
         )
         .accessibilityHint(Copy.A11y.switcherRowHint)
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func invitationRow(_ invitation: InvitationDTO) -> some View {
+        SwitcherInvitationRow(
+            invitation: invitation,
+            accept: { id in acceptInvitation(id) },
+            decline: { id in invitations.removeAll { $0.id == id } }
+        )
+    }
+
+    private func loadInvitations() async {
+        do {
+            invitations = try await env.api.send(Endpoint<InvitationsDTO>.invitations).invitations
+            invitationsFailure = nil
+        } catch let error as APIError {
+            invitationsFailure = error.copyKey
+        } catch {
+            invitationsFailure = APIError.unreadable.copyKey
+        }
+    }
+}
+
+/// One invitation in the switcher. It deliberately owns its own request state: a slow accept
+/// must not disable the unrelated circles or a second invitation, and a declined row vanishes
+/// without closing the sheet it came from.
+private struct SwitcherInvitationRow: View {
+    let invitation: InvitationDTO
+    let accept: (String) -> Void
+    let decline: (String) -> Void
+
+    @Environment(AppEnvironment.self) private var env
+    @State private var failure: String?
+    @State private var isWorking = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text(verbatim: invitation.group.name)
+                .typeStyle(.bodyLStrong)
+                .foregroundStyle(Palette.ink)
+            Text(verbatim: Copy.format("group.join.by", invitation.invitedBy.displayName))
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.inkDim)
+            if let failure {
+                Text(LocalizedStringKey(failure))
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.alert)
+            }
+            VStack(spacing: Space.xs) {
+                PrimaryButton("group.join.action", fill: .neutral, isEnabled: !isWorking) {
+                    Task { await acceptInvitation() }
+                }
+                OutlineButton("group.join.decline") { Task { await declineInvitation() } }
+                    .disabled(isWorking)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .rowSurface()
+    }
+
+    private func acceptInvitation() async {
+        isWorking = true
+        failure = nil
+        defer { isWorking = false }
+        do {
+            let group = try await env.api.send(.acceptInvitation(invitation.id))
+            await env.circles.load()
+            accept(group.id)
+        } catch let error as APIError {
+            failure = error.copyKey
+        } catch {
+            failure = APIError.unreadable.copyKey
+        }
+    }
+
+    private func declineInvitation() async {
+        isWorking = true
+        failure = nil
+        defer { isWorking = false }
+        do {
+            _ = try await env.api.send(.declineInvitation(invitation.id))
+            decline(invitation.id)
+        } catch let error as APIError {
+            failure = error.copyKey
+        } catch {
+            failure = APIError.unreadable.copyKey
+        }
     }
 }

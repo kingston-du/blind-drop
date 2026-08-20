@@ -71,7 +71,10 @@ enum SnapshotRenderer {
         of view: some View,
         device: Device = .iPhoneSE,
         typeSize: DynamicTypeSize,
-        colorScheme: ColorScheme = .light
+        colorScheme: ColorScheme = .light,
+        /// Used only by an unusually tall, accessibility-size golden whose PNG exceeds
+        /// ImageIO's simulator encoder limit. It changes raster density, not layout.
+        maximumPixelCount: Int? = nil
     ) -> UIImage {
         let width = device.width
         let scale = device.scale
@@ -99,15 +102,32 @@ enum SnapshotRenderer {
             .background(Palette.paper)
             .fixedSize(horizontal: false, vertical: true)
 
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = scale
-        renderer.proposedSize = ProposedViewSize(width: width, height: nil)
-        renderer.isOpaque = true
-        guard let image = renderer.uiImage else {
+        func render(scale: CGFloat) -> UIImage? {
+            let renderer = ImageRenderer(content: content)
+            renderer.scale = scale
+            renderer.proposedSize = ProposedViewSize(width: width, height: nil)
+            renderer.isOpaque = true
+            return renderer.uiImage
+        }
+
+        guard let image = render(scale: scale) else {
             Issue.record("ImageRenderer produced no image — the view failed to lay out")
             return UIImage()
         }
-        return image
+        guard let cgImage = image.cgImage else { return image }
+        let pixels = cgImage.width * cgImage.height
+        guard let maximumPixelCount, pixels > maximumPixelCount else { return image }
+
+        // Re-render at the largest scale ImageIO can encode. The source view keeps its fixed
+        // proposed width and Dynamic Type environment, so this changes pixel density only.
+        let constrainedScale = scale * sqrt(
+            CGFloat(maximumPixelCount) / CGFloat(pixels)
+        )
+        guard let constrained = render(scale: constrainedScale) else {
+            Issue.record("ImageRenderer produced no constrained image — the view failed to lay out")
+            return UIImage()
+        }
+        return constrained
     }
 
     // MARK: - Comparison
@@ -384,38 +404,16 @@ enum SnapshotRenderer {
         .deletingLastPathComponent()   // …/BlindDropTests
         .appending(path: "__Snapshots__")
 
-    /// PNG bytes for a render, encoded straight off the `CGImage`.
+    /// Writes a render as PNG straight from the `CGImage`.
     ///
     /// **Not `UIImage.pngData()`.** That path allocates a second full-size buffer, and the tall
     /// goldens in this suite are tall enough for that to matter: a screen at `.accessibility5`
     /// on the wide device is over eleven million pixels, and `pngData()` fails on it with a zlib
     /// error and a nil return — which reads as "the image is broken" when the image is fine and
-    /// only the encoder ran out of room. `CGImageDestination` writes from the image it is given.
-    private static func pngData(_ image: UIImage) -> Data? {
-        guard let cgImage = image.cgImage else { return nil }
-        let data = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(
-            data, UTType.png.identifier as CFString, 1, nil
-        ) else { return nil }
-        CGImageDestinationAddImage(destination, cgImage, nil)
-        guard CGImageDestinationFinalize(destination) else { return nil }
-        return data as Data
-    }
-
+    /// only the encoder ran out of room. Writing `CGImageDestination` directly to a temporary
+    /// file also avoids an in-memory `Data` allocation for the encoded result; once it is valid,
+    /// it replaces the old golden so a failed encode cannot erase reviewable evidence.
     private static func write(_ image: UIImage, to url: URL, sourceLocation: SourceLocation) {
-        guard let data = pngData(image) else {
-            // The dimensions are part of the message because the only way this fails in practice
-            // is a render that got enormous, and "could not encode" on its own sends you looking
-            // at the encoder instead of at the screen that grew.
-            Issue.record(
-                """
-                Could not encode \(url.lastPathComponent) at \
-                \(image.cgImage?.width ?? 0)×\(image.cgImage?.height ?? 0)px
-                """,
-                sourceLocation: sourceLocation
-            )
-            return
-        }
         // swift-testing runs these in parallel, so several snapshots reach a missing
         // `__Snapshots__` at once. `withIntermediateDirectories: true` is idempotent about a
         // directory that already exists but not about one appearing mid-call, so the loser of
@@ -424,11 +422,44 @@ enum SnapshotRenderer {
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true
         )
+        let temporaryURL = url.deletingLastPathComponent().appending(
+            path: ".\(UUID().uuidString).\(url.lastPathComponent)"
+        )
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+        guard let cgImage = image.cgImage,
+              let destination = CGImageDestinationCreateWithURL(
+                  temporaryURL as CFURL, UTType.png.identifier as CFString, 1, nil
+              ) else {
+            reportEncodingFailure(image, url: url, sourceLocation: sourceLocation)
+            return
+        }
+        CGImageDestinationAddImage(destination, cgImage, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            reportEncodingFailure(image, url: url, sourceLocation: sourceLocation)
+            return
+        }
         do {
-            try data.write(to: url)
+            if FileManager.default.fileExists(atPath: url.path) {
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: temporaryURL)
+            } else {
+                try FileManager.default.moveItem(at: temporaryURL, to: url)
+            }
         } catch {
             Issue.record("Could not write \(url.path): \(error)", sourceLocation: sourceLocation)
         }
+    }
+
+    private static func reportEncodingFailure(_ image: UIImage, url: URL, sourceLocation: SourceLocation) {
+        // The dimensions are part of the message because the only way this fails in practice is
+        // a render that got enormous, and "could not encode" alone sends you looking at the
+        // encoder instead of at the screen that grew.
+        Issue.record(
+            """
+            Could not encode \(url.lastPathComponent) at \
+            \(image.cgImage?.width ?? 0)×\(image.cgImage?.height ?? 0)px
+            """,
+            sourceLocation: sourceLocation
+        )
     }
 
     private static func percentage(_ fraction: Double) -> String {

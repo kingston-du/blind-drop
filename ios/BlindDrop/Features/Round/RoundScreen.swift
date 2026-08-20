@@ -214,6 +214,7 @@ struct RoundScreen: View {
                     isShowingSwitcher = false
                     isStartingGroup = true
                 },
+                acceptInvitation: { switchCircle(to: $0, store: store) },
                 close: { isShowingSwitcher = false }
             )
         }

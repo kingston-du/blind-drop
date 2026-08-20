@@ -144,6 +144,9 @@ select set_eq(
        -- E20-01 (20260819100000). Pending invitations: create, accept (atomic with the
        -- membership insert, through the same circle-cap trigger above), decline.
        ('create_invitation'::information_schema.sql_identifier),
+       -- E20-03. Called from create_invitation() to make the invitation and its budgeted
+       -- notification one transaction; it is not exposed to either client-facing role.
+       ('enqueue_invitation_notification'::information_schema.sql_identifier),
        ('accept_invitation'::information_schema.sql_identifier),
        ('decline_invitation'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
