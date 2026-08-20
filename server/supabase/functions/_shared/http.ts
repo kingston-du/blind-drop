@@ -70,19 +70,19 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
   },
   ALREADY_IN_GROUP: {
     status: 409,
-    message: "You're already in that circle.",
+    message: "You're already in that group.",
     copyKey: "error.alreadyingroup",
   },
   // BD004's insert half — a *live* pending invitation to this pair already exists (E20-01).
   // Re-inviting after a decline or an expiry is fine; this is only the still-pending case.
   ALREADY_INVITED: {
     status: 409,
-    message: "They already have an invitation to this circle.",
+    message: "They already have an invitation to this group.",
     copyKey: "error.alreadyinvited",
   },
   CIRCLE_LIMIT_REACHED: {
     status: 409,
-    message: "You're already in three circles. Leave one to join another.",
+    message: "You're already in three groups. Leave one to join another.",
     copyKey: "error.circlelimitreached",
   },
   // Names no circle, no person, nothing beyond the caller's own history — the leak this

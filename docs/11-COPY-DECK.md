@@ -90,6 +90,7 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `a11y.switcher.row` | %@. %@. |
 | `a11y.switcher.row.hint` | Double-tap to switch to this group |
 | `a11y.switcher.attention` | Wants your attention. |
+| `switcher.startGroup` | + Start a group |
 
 `E19-02`. The group's name in the header (`08-SCREEN-SPECS.md` §2, §6, since E17-09) becomes the
 control that opens this sheet. Its accessibility label is the group's own name — the visible
@@ -115,6 +116,36 @@ VoiceOver user in place of the sighted reader's small mark, appended as its own 
 `a11y.switcher.row`'s name-and-state pair — two localized reads joined, the same shape
 `Copy.A11y.result(...)` already uses for a results card's own optional second sentence — rather
 than drawn as a second line. The row is still just a name and a state.
+
+---
+
+## Starting a group
+
+| Key | String |
+|---|---|
+| `group.start.title` | Start a group |
+| `group.start.name.placeholder` | Group name |
+| `group.start.timezone` | Timezone |
+| `group.start.timezone.help` | Set from this device. It can't be changed later. |
+| `group.start.hour` | Reveal at |
+| `group.start.hour.help` | Songs open ten hours before. Answers land two hours after. |
+| `group.start.action` | Create group |
+| `group.invite.title` | Fill the group |
+| `group.invite.help` | Invite people you already play with, or send the link to someone new. |
+| `group.invite.people` | People you've played with |
+| `group.invite.empty` | Nobody from another group is here yet. The link works for anyone. |
+| `group.invite.action` | Invite |
+| `group.invite.link` | Invite link |
+| `group.invite.share` | Share invite |
+| `group.invite.done` | Go to the group |
+| `group.join.title` | Join this group? |
+| `group.join.by` | %@ invited you. |
+| `group.join.action` | Join group |
+| `group.join.decline` | Decline |
+
+The timezone is stated, not asked, for a second group: it defaults from the device at creation
+and stays fixed. `group.invite.people` is a shortcut derived from shared active memberships;
+it is not a social graph, and the list carries no counts, profiles, or activity.
 
 ---
 
@@ -457,8 +488,8 @@ singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%
 | `error.roundvoided` | `ROUND_VOIDED` | Not enough drops tonight. Nothing revealed. |
 | `error.trackalreadyused` | `TRACK_ALREADY_USED` | You already used this today. |
 | `error.alreadyingroup` | `ALREADY_IN_GROUP` | You're already in that circle. |
-| `error.alreadyinvited` | `ALREADY_INVITED` | They already have an invitation to this circle. |
-| `error.circlelimitreached` | `CIRCLE_LIMIT_REACHED` | You're already in three circles. Leave one to join another. |
+| `error.alreadyinvited` | `ALREADY_INVITED` | They already have an invitation to this group. |
+| `error.circlelimitreached` | `CIRCLE_LIMIT_REACHED` | You're already in three groups. Leave one to join another. |
 | `error.notadmin` | `NOT_ADMIN` | Only the group's admin can change that. |
 | `error.lastadmin` | `LAST_ADMIN_MUST_TRANSFER` | You're the only admin here. This circle needs another one before you can leave. |
 | `error.ratelimited` | `RATE_LIMITED` | Slow down a second. |

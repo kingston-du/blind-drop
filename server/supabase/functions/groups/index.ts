@@ -7,6 +7,7 @@
 //   GET   /groups/invitations                    the caller's own pending invitations, any circle
 //   POST  /groups/invitations/:invitation_id/accept   accept — creates the membership (E20-01)
 //   POST  /groups/invitations/:invitation_id/decline  decline — terminal, re-invitable
+//   GET   /groups/people-you-played-with             caller's shared-group people, newest first
 //   GET   /groups                              every circle the caller holds, and their own
 //                                               next move in each (`E18-02`) — the switcher
 //   GET   /groups/current                      the group and its roster — oldest circle
@@ -71,6 +72,7 @@ import {
   groupDTO,
   groupPatchDTO,
   invitationDTO,
+  knownPersonDTO,
   type MemberDTO,
   memberDTO,
   type ReadabilityBand,
@@ -974,6 +976,56 @@ async function declineInvitation(ctx: ProfileCtx, invitationId: string): Promise
   return noContent();
 }
 
+/** `GET /groups/people-you-played-with` — the short invite list after creating a group.
+ *
+ * This is deliberately derived on the server. A client has neither the membership dates needed
+ * for recency nor permission to turn every roster it has ever fetched into a durable people
+ * list. The response is identities only: it says someone shares a group with the caller, not
+ * how many groups, when they joined, or what either person did in a round. */
+async function peopleYouPlayedWith(ctx: ProfileCtx): Promise<Response> {
+  const { data: mine, error: mineError } = await ctx.db
+    .from("memberships")
+    .select("group_id")
+    .eq("user_id", ctx.userId)
+    .is("left_at", null);
+  if (mineError) throw dbFailure("groups.people.mine", mineError);
+  const groupIds = mine.map((row) => row.group_id as string);
+  if (groupIds.length === 0) return ok({ people: [] });
+
+  const { data: shared, error: sharedError } = await ctx.db
+    .from("memberships")
+    .select("user_id, joined_at")
+    .in("group_id", groupIds)
+    .neq("user_id", ctx.userId)
+    .is("left_at", null);
+  if (sharedError) throw dbFailure("groups.people.shared", sharedError);
+  if (shared.length === 0) return ok({ people: [] });
+
+  // Keep only each person's most recent shared membership. The date never leaves the server;
+  // it is a sort key, not a new social graph or an activity signal.
+  const newestByUser = new Map<string, string>();
+  for (const row of shared) {
+    const userID = row.user_id as string;
+    const joinedAt = row.joined_at as string;
+    if ((newestByUser.get(userID) ?? "") < joinedAt) newestByUser.set(userID, joinedAt);
+  }
+  const ids = [...newestByUser.keys()];
+  const { data: profiles, error: profilesError } = await ctx.db
+    .from("profiles")
+    .select("id, display_name")
+    .in("id", ids);
+  if (profilesError) throw dbFailure("groups.people.profiles", profilesError);
+
+  const people = profiles
+    .map((profile) => ({
+      person: knownPersonDTO({ user_id: profile.id, display_name: profile.display_name }),
+      newest: newestByUser.get(profile.id) ?? "",
+    }))
+    .sort((a, b) => b.newest.localeCompare(a.newest) || a.person.display_name.localeCompare(b.person.display_name))
+    .map((entry) => entry.person);
+  return ok({ people });
+}
+
 const MAX_INVITE_ATTEMPTS = 5;
 
 // docs/04 §8: `POST /groups/join` is limited to 10/hour per user and, additionally, 30/hour
@@ -1215,6 +1267,10 @@ serveFunction("groups", {
   "GET /invitations": async (req, route) => {
     const ctx = await requireProfile(await requireUser(req, route));
     return myInvitationsResponse(ctx);
+  },
+  "GET /people-you-played-with": async (req, route) => {
+    const ctx = await requireProfile(await requireUser(req, route));
+    return peopleYouPlayedWith(ctx);
   },
   "POST /invitations/:invitation_id/accept": async (req, route, params) => {
     const ctx = await requireProfile(await requireUser(req, route));

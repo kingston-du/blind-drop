@@ -35,6 +35,10 @@ enum APIError: Error, Equatable, Sendable {
     case invalidInput(field: String?)
     /// 409. ADR-005: one group per user.
     case alreadyInGroup
+    /// 409. The caller already sent this person a live direct invitation.
+    case alreadyInvited
+    /// 409. ADR-011: no more than three active groups.
+    case circleLimitReached
     /// 403. A group settings change by somebody who is not the admin.
     case notAdmin
     /// 409. The caller is the circle's only admin and other active members remain —
@@ -80,6 +84,8 @@ extension APIError {
         case .roundVoided: "ROUND_VOIDED"
         case .invalidInput: "INVALID_INPUT"
         case .alreadyInGroup: "ALREADY_IN_GROUP"
+        case .alreadyInvited: "ALREADY_INVITED"
+        case .circleLimitReached: "CIRCLE_LIMIT_REACHED"
         case .notAdmin: "NOT_ADMIN"
         case .lastAdminMustTransfer: "LAST_ADMIN_MUST_TRANSFER"
         case .rateLimited: "RATE_LIMITED"
@@ -106,6 +112,8 @@ extension APIError {
         case .roundVoided: "error.roundvoided"
         case .invalidInput: "error.invalidinput"
         case .alreadyInGroup: "error.alreadyingroup"
+        case .alreadyInvited: "error.alreadyinvited"
+        case .circleLimitReached: "error.circlelimitreached"
         case .notAdmin: "error.notadmin"
         case .lastAdminMustTransfer: "error.lastadmin"
         case .rateLimited: "error.ratelimited"
@@ -134,6 +142,8 @@ extension APIError {
         case "ROUND_VOIDED": self = .roundVoided
         case "INVALID_INPUT": self = .invalidInput(field: field)
         case "ALREADY_IN_GROUP": self = .alreadyInGroup
+        case "ALREADY_INVITED": self = .alreadyInvited
+        case "CIRCLE_LIMIT_REACHED": self = .circleLimitReached
         case "NOT_ADMIN": self = .notAdmin
         case "LAST_ADMIN_MUST_TRANSFER": self = .lastAdminMustTransfer
         case "RATE_LIMITED": self = .rateLimited(retryAfter: retryAfter)

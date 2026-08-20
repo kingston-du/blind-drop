@@ -125,6 +125,19 @@ import Testing
         #expect(router.pendingInviteCode == "K7MQ2X")
     }
 
+    @Test func aDirectInvitationWaitsForAnAuthenticatedProfileThenOpens() {
+        let router = Router()
+        let id = "c0000000-0000-4000-8000-000000000001"
+        router.receive(.invitation(id: id))
+
+        router.consume(session: .signedOut, roundIsLoaded: false)
+        #expect(router.pending == .invitation(id: id))
+
+        router.consume(session: .ready, roundIsLoaded: false)
+        #expect(router.pending == nil)
+        #expect(router.pendingInvitationID == id)
+    }
+
     /// A round-scoped link received while signed out must not act on the next session change
     /// alone — the round still has to be there.
     @Test func roundLinksRequireBothAReadySessionAndALoadedRound() {

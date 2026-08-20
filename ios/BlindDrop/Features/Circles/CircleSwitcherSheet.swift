@@ -18,6 +18,7 @@ struct CircleSwitcherSheet: View {
     let rows: [CircleSummaryDTO]
     let activeID: String?
     let select: (String) -> Void
+    let startGroup: () -> Void
     let close: () -> Void
 
     /// Explicit because `typeSizeOverride` below is `fileprivate` — left off the synthesized
@@ -27,11 +28,13 @@ struct CircleSwitcherSheet: View {
         rows: [CircleSummaryDTO],
         activeID: String?,
         select: @escaping (String) -> Void,
+        startGroup: @escaping () -> Void = {},
         close: @escaping () -> Void
     ) {
         self.rows = rows
         self.activeID = activeID
         self.select = select
+        self.startGroup = startGroup
         self.close = close
     }
 
@@ -104,6 +107,7 @@ struct CircleSwitcherSheet: View {
                     }
                 }
             }
+            OutlineButton("switcher.startGroup", action: startGroup)
         }
     }
 

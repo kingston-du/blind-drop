@@ -82,6 +82,7 @@ private struct CreateGroupBody: Encodable, Sendable {
 }
 private struct JoinBody: Encodable, Sendable { let invite_code: String }
 private struct PatchGroupBody: Encodable, Sendable { let name: String?; let reveal_hour: Int? }
+private struct InvitePersonBody: Encodable, Sendable { let user_id: String }
 private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignment] }
 
 /// Endpoints that answer `204` and have no payload to decode.
@@ -165,6 +166,26 @@ extension Endpoint {
 
     static func standings(_ groupID: String) -> Endpoint<StandingsDTO> {
         .init(.get, scoped("/groups", groupID, "/standings"), retry: .twice)
+    }
+
+    static var peopleYouPlayedWith: Endpoint<KnownPeopleDTO> {
+        .init(.get, "/groups/people-you-played-with", retry: .twice)
+    }
+
+    static func invitePerson(_ userID: String, to groupID: String) -> Endpoint<InvitationDTO> {
+        .init(.post, scoped("/groups", groupID, "/invitations"), body: json(InvitePersonBody(user_id: userID)))
+    }
+
+    static var invitations: Endpoint<InvitationsDTO> {
+        .init(.get, "/groups/invitations", retry: .twice)
+    }
+
+    static func acceptInvitation(_ invitationID: String) -> Endpoint<GroupDTO> {
+        .init(.post, "/groups/invitations/\(invitationID)/accept")
+    }
+
+    static func declineInvitation(_ invitationID: String) -> Endpoint<NoContent> {
+        .init(.post, "/groups/invitations/\(invitationID)/decline")
     }
 }
 

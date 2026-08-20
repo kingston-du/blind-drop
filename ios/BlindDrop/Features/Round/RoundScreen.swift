@@ -53,6 +53,9 @@ struct RoundScreen: View {
     /// The switcher (`E19-02`). Reachable from every phase through the group's own name in
     /// `RoundHeader`, and — like Search and How to play — a sheet rather than a fourth `Route`.
     @State private var isShowingSwitcher = false
+    /// The creation-and-invitation flow starts from the switcher but is its own sheet: a form
+    /// needs keyboard room and must not distort the switcher's measured detent.
+    @State private var isStartingGroup = false
     /// Bumped when the countdown elapses and when the app returns to the foreground. One
     /// `.task(id:)` does the loading, so the work is structured and cancels with the screen
     /// (`docs/13` §6) rather than being an unstructured `Task` per event.
@@ -207,8 +210,15 @@ struct RoundScreen: View {
                 rows: circleSwitcher(store).rows,
                 activeID: store.state.value?.group.id,
                 select: { switchCircle(to: $0, store: store) },
+                startGroup: {
+                    isShowingSwitcher = false
+                    isStartingGroup = true
+                },
                 close: { isShowingSwitcher = false }
             )
+        }
+        .sheet(isPresented: $isStartingGroup) {
+            StartGroupSheet()
         }
     }
 

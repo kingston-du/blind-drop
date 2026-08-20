@@ -12,6 +12,8 @@ import Testing
         #expect(DeepLink(URL(string: "blinddrop://round/current/results")!) == .results(groupID: nil))
         #expect(DeepLink(URL(string: "blinddrop://record")!) == .record(groupID: nil))
         #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(URL(string: "blinddrop://invite/c0000000-0000-4000-8000-000000000001")!)
+                == .invitation(id: "c0000000-0000-4000-8000-000000000001"))
     }
 
     /// docs/04 §3: invite codes are case-insensitive and whitespace-stripped. The fixture
@@ -29,6 +31,8 @@ import Testing
         #expect(DeepLink(URL(string: "https://blinddrop.app/j/k7mq2x")!) == .join(code: "K7MQ2X"))
         #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!)
                 == DeepLink(URL(string: "https://blinddrop.app/j/K7MQ2X")!))
+        #expect(DeepLink(URL(string: "https://blinddrop.app/i/c0000000-0000-4000-8000-000000000001")!)
+                == .invitation(id: "c0000000-0000-4000-8000-000000000001"))
     }
 
     /// `E19-01`: `blinddrop://circle/<id>/…` names which circle the rest of the link belongs
@@ -56,6 +60,7 @@ import Testing
         "https://blinddrop.app/j",                // no code
         "https://blinddrop.app/j/",               // empty code
         "https://blinddrop.app/j/A/B",            // a code is one path component
+        "https://blinddrop.app/i/not-a-uuid",     // direct invitation ids are UUIDs
         "https://blinddrop.app/privacy",          // some other page on the domain
         "https://blinddrop.app/record",           // a scheme route's name, on the web host
         "https://evil.example/j/K7MQ2X",          // the right shape, the wrong domain

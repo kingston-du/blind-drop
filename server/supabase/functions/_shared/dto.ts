@@ -152,6 +152,18 @@ export function invitationDTO(row: {
   };
 }
 
+/** A person the caller knows through an active shared group. This is intentionally only an
+ * identity: no membership date, group count, profile, or participation facts cross this
+ * boundary. `E20-02` orders this server-side by the newest shared membership. */
+export interface KnownPersonDTO {
+  user_id: string;
+  display_name: string;
+}
+
+export function knownPersonDTO(row: { user_id: string; display_name: string }): KnownPersonDTO {
+  return { user_id: row.user_id, display_name: row.display_name };
+}
+
 // ─── tracks — docs/06 §2 ─────────────────────────────────────────────────────
 
 /**

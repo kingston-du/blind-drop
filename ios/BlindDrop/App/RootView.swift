@@ -82,6 +82,18 @@ struct RootView: View {
             // A `.join` link does not wait on a round — joining is a session-level concern.
             env.router.consume(session: env.session.state, roundIsLoaded: false)
         }
+        // Join links are session-level work, so they do not wait for a round reload. Round and
+        // Record links remain pending here and are consumed by `RoundStore` only after it has a
+        // server-authorized context to render.
+        .onChange(of: env.router.pending) { _, pending in
+            guard pending != nil else { return }
+            env.router.consume(session: env.session.state, roundIsLoaded: false)
+        }
+        .onChange(of: env.session.state) { _, state in
+            // A direct invitation received while signed out survives Apple sign-in and naming;
+            // this is the first point it can be proved against the recipient's account.
+            env.router.consume(session: state, roundIsLoaded: false)
+        }
         .onChange(of: scenePhase) { _, phase in
             // docs/13 §5 rule 5: the monotonic anchor does not advance while the device is
             // asleep, so any background period leaves it stale. Invalidate on the way back in;
@@ -92,6 +104,18 @@ struct RootView: View {
                 // natural, bounded retry point and the button above remains available while the
                 // app stays foregrounded.
                 if env.session.loadFailure != nil { loadToken += 1 }
+            }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { env.router.pendingInvitationID != nil },
+                set: { if !$0 { env.router.clearPendingInvitation() } }
+            )
+        ) {
+            if let id = env.router.pendingInvitationID {
+                InvitationJoinSheet(invitationID: id) {
+                    env.router.clearPendingInvitation()
+                }
             }
         }
     }

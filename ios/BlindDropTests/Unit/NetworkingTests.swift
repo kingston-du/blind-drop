@@ -314,6 +314,8 @@ import Testing
             ("JOINED_LATE", 403, .joinedLate, "error.joinedlate"),
             ("ROUND_VOIDED", 409, .roundVoided, "error.roundvoided"),
             ("ALREADY_IN_GROUP", 409, .alreadyInGroup, "error.alreadyingroup"),
+            ("ALREADY_INVITED", 409, .alreadyInvited, "error.alreadyinvited"),
+            ("CIRCLE_LIMIT_REACHED", 409, .circleLimitReached, "error.circlelimitreached"),
             ("NOT_ADMIN", 403, .notAdmin, "error.notadmin"),
             ("UPSTREAM_UNAVAILABLE", 502, .upstreamUnavailable, "error.upstream"),
             ("REAUTHENTICATION_REQUIRED", 409, .reauthenticationRequired, "settings.delete.reauth"),

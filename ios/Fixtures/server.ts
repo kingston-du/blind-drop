@@ -314,6 +314,16 @@ async function route(req: Request, url: URL): Promise<Response> {
     return ok({ circles: [primary, secondary] });
   }
   if (m === "GET" && p === "/groups/current") return ok(await payload("group_current"));
+  if (m === "GET" && p === "/groups/people-you-played-with") {
+    const group = await payload("group_current") as Record<string, unknown>;
+    const members = (group.members as Array<Record<string, unknown>>) ?? [];
+    const me = (await payload("me")) as Record<string, unknown>;
+    return ok({
+      people: members
+        .filter((member) => member.user_id !== me.user_id)
+        .map((member) => ({ user_id: member.user_id, display_name: member.display_name })),
+    });
+  }
   if (m === "POST" && p === "/groups") return ok(await payload("group_current"));
   if (m === "POST" && p === "/groups/join") {
     const body = await req.json().catch(() => ({}));

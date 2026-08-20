@@ -76,3 +76,12 @@ enum InviteCode {
         URL(string: "https://\(DeepLink.inviteHost)/j/\(normalise(code))")
     }
 }
+
+/// A direct invitation has a recipient-specific identifier. Unlike a six-character group code,
+/// it lets an existing signed-in person see exactly which group and person invited them before
+/// accepting; the server still proves that identifier belongs to the caller.
+enum InvitationLink {
+    static func url(for invitationID: String) -> URL? {
+        URL(string: "https://\(DeepLink.inviteHost)/i/\(invitationID)")
+    }
+}

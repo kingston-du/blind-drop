@@ -74,6 +74,8 @@
 "error.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "error.roundvoided" = "Not enough drops tonight. Nothing revealed.";
 "error.alreadyingroup" = "You're already in a group. Leave it first.";
+"error.alreadyinvited" = "They already have an invitation to this group.";
+"error.circlelimitreached" = "You're already in three groups. Leave one to join another.";
 "error.notadmin" = "Only the group's admin can change that.";
 "error.lastadmin" = "You're the only admin here. This circle needs another one before you can leave.";
 "error.ratelimited" = "Slow down a second.";
@@ -96,6 +98,29 @@
 "a11y.switcher.row" = "%@. %@.";
 "a11y.switcher.row.hint" = "Double-tap to switch to this group";
 "a11y.switcher.attention" = "Wants your attention.";
+"switcher.startGroup" = "+ Start a group";
+
+/* ── Starting a group (docs/11) ───────────────────────────────────────────── */
+
+"group.start.title" = "Start a group";
+"group.start.name.placeholder" = "Group name";
+"group.start.timezone" = "Timezone";
+"group.start.timezone.help" = "Set from this device. It can't be changed later.";
+"group.start.hour" = "Reveal at";
+"group.start.hour.help" = "Songs open ten hours before. Answers land two hours after.";
+"group.start.action" = "Create group";
+"group.invite.title" = "Fill the group";
+"group.invite.help" = "Invite people you already play with, or send the link to someone new.";
+"group.invite.people" = "People you've played with";
+"group.invite.empty" = "Nobody from another group is here yet. The link works for anyone.";
+"group.invite.action" = "Invite";
+"group.invite.link" = "Invite link";
+"group.invite.share" = "Share invite";
+"group.invite.done" = "Go to the group";
+"group.join.title" = "Join this group?";
+"group.join.by" = "%@ invited you.";
+"group.join.action" = "Join group";
+"group.join.decline" = "Decline";
 
 /* ── Track links (docs/11 §Track links) ─────────────────────────────────────── */
 

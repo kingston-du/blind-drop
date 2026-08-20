@@ -23,6 +23,8 @@ final class Router {
 
     /// Set from a consumed `.join` link so `JoinOrCreateScreen` (E09-03) can prefill the code.
     private(set) var pendingInviteCode: String?
+    /// A recipient-specific invitation (`E20-02`) waiting for its short accept/decline sheet.
+    private(set) var pendingInvitationID: String?
 
     /// `nil` in, nothing happens — `DeepLink.init?` returns `nil` for anything we do not
     /// recognise, and an unrecognised link must not clear a good pending one.
@@ -51,6 +53,17 @@ final class Router {
                 break
             }
 
+        case let .invitation(id):
+            switch session {
+            case .ready, .noGroup:
+                pendingInvitationID = id
+                pending = nil
+            case .unknown, .signedOut, .noProfile:
+                // A direct invitation names an account, so authentication and naming must come
+                // first. It remains pending until the server can prove the recipient owns it.
+                break
+            }
+
         // `groupID` is not acted on here. By the time `consume` runs, `resolvePendingCircle`
         // has already switched the active circle (or dropped the link if it named one we do
         // not hold) — this switch only decides where in the path a *held* circle's round lands.
@@ -74,6 +87,10 @@ final class Router {
     /// screen later does not re-prefill a code the user cleared on purpose.
     func clearPendingInviteCode() {
         pendingInviteCode = nil
+    }
+
+    func clearPendingInvitation() {
+        pendingInvitationID = nil
     }
 
     /// A person's own tap in the switcher (`E19-02`) discards whatever a deep link was still

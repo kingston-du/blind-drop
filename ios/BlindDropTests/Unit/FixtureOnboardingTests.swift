@@ -98,4 +98,24 @@ struct FixtureOnboardingTests {
         await store.finish()
         #expect(env.session.state == .ready)
     }
+
+    /// `E20-02`: the list and direct invitation both cross the real envelope and DTO boundary.
+    /// It intentionally asserts no membership activity fields: this is a shortcut for inviting,
+    /// not a people directory.
+    @Test func peopleAndDirectInvitationsCompleteAgainstTheFixtureServer() async throws {
+        let (_, env) = try store()
+        let people = try await env.api.send(Endpoint<KnownPeopleDTO>.peopleYouPlayedWith).people
+        let ben = try #require(people.first(where: { $0.displayName == "Ben" }))
+        #expect(people.allSatisfy { !$0.displayName.isEmpty })
+
+        let invitation = try await env.api.send(.invitePerson(
+            ben.id, to: "b0000000-0000-4000-8000-000000000001"
+        ))
+        #expect(invitation.group.name == "The Cove")
+        #expect(invitation.invitedBy.displayName == "Ana")
+        #expect(InvitationLink.url(for: invitation.id)?.path.hasPrefix("/i/") == true)
+
+        let mine = try await env.api.send(Endpoint<InvitationsDTO>.invitations).invitations
+        #expect(mine.contains(where: { $0.id == invitation.id }))
+    }
 }

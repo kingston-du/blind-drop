@@ -31,6 +31,8 @@ enum DeepLink: Equatable, Sendable {
     case record(groupID: String?)
     /// `blinddrop://join/<CODE>` — join flow, code prefilled. Never circle-prefixed.
     case join(code: String)
+    /// `blinddrop://invite/<UUID>` — a direct, pending invitation for an existing account.
+    case invitation(id: String)
 
     /// The circle a link names, or `nil` for "the active one" — `.join` never has one
     /// (`E19-03`). What `Router.resolvePendingCircle(against:)` reads to decide whether a
@@ -38,7 +40,7 @@ enum DeepLink: Equatable, Sendable {
     var groupID: String? {
         switch self {
         case let .round(groupID), let .results(groupID), let .record(groupID): groupID
-        case .join: nil
+        case .join, .invitation: nil
         }
     }
 
@@ -63,8 +65,12 @@ enum DeepLink: Equatable, Sendable {
             // place a code is parsed.
             guard url.host(percentEncoded: false) == Self.inviteHost else { return nil }
             let path = url.pathComponents.filter { $0 != "/" }
-            guard path.count == 2, path[0] == Self.invitePath else { return nil }
-            parts = ["join", path[1]]
+            guard path.count == 2 else { return nil }
+            switch path[0] {
+            case Self.invitePath: parts = ["join", path[1]]
+            case Self.directInvitePath: parts = ["invite", path[1]]
+            default: return nil
+            }
 
         default:
             return nil
@@ -92,7 +98,14 @@ enum DeepLink: Equatable, Sendable {
             // Swift has no array-with-binding pattern, so the one route that carries a value
             // is matched here rather than as a fifth `case`. `.join` is never circle-prefixed —
             // a circle segment ahead of it is malformed rather than ignored.
-            guard groupID == nil, parts.count == 2, parts[0] == "join" else { return nil }
+            guard groupID == nil, parts.count == 2 else { return nil }
+            if parts[0] == "invite" {
+                let id = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard UUID(uuidString: id) != nil else { return nil }
+                self = .invitation(id: id)
+                return
+            }
+            guard parts[0] == "join" else { return nil }
             // docs/04 §3: invite codes are case-insensitive and whitespace-stripped, so the
             // link normalises here and the join screen never sees a stray form.
             let normalised = parts[1].trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -111,4 +124,6 @@ enum DeepLink: Equatable, Sendable {
 
     /// The single path segment the invite link uses: `/j/<CODE>`.
     static let invitePath = "j"
+    /// Recipient-specific direct invitations (`E20-02`).
+    static let directInvitePath = "i"
 }

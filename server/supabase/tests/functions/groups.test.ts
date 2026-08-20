@@ -1,7 +1,7 @@
 // groups.test.ts — tasks/E02-03. docs/04 §3, docs/02 §1, docs/14 §3, §4.
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { call, keysOf, newGroupOwner, newNamedUser, newUser } from "./_harness.ts";
+import { call, keysOf, newGroupOwner, newMember, newNamedUser, newUser } from "./_harness.ts";
 
 const groups = (path: string, opts: Parameters<typeof call>[2] = {}) => call("groups", path, opts);
 
@@ -83,6 +83,17 @@ Deno.test("POST /groups allows a second circle for someone with an active member
   });
   assertEquals(res.status, 200);
   assertEquals(res.body.data.name, "Another Cove");
+});
+
+Deno.test("GET /groups/people-you-played-with returns shared people and no social graph", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  const ben = await newMember(String(group.invite_code), "Ben");
+
+  const res = await groups("/people-you-played-with", { token: ana.token });
+
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.people, [{ user_id: ben.id, display_name: "Ben" }]);
+  assertEquals(keysOf(res.body.data.people[0]), ["display_name", "user_id"]);
 });
 
 // ─── join ────────────────────────────────────────────────────────────────────
