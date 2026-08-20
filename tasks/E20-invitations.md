@@ -44,7 +44,7 @@ Invite codes keep working. They are how a link invites someone who has no accoun
 
 ### E20-02 — Starting a circle, and filling it
 
-**Status:** todo · **Deps:** E20-01, E19-02 · **Parallel:** no
+**Status:** wip · **Deps:** E20-01, E19-02 · **Parallel:** no
 **Reads:** `docs/08` §1, `docs/11`, `docs/12` §2
 **Touches:** `BlindDrop/Features/Onboarding/`, the switcher, `Localizable.strings`,
 `docs/11-COPY-DECK.md`, snapshot tests
