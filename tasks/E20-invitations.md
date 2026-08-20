@@ -73,7 +73,7 @@ invited them, accept or not — never the sign-up flow they have already complet
 
 ### E20-03 — Invitations in the switcher, and the push that gets you there
 
-**Status:** wip · **Deps:** E20-02, E23-01 · **Parallel:** no
+**Status:** done · **Deps:** E20-02, E23-01 · **Parallel:** no
 **Reads:** `docs/05` §2, §3, `CLAUDE.md` §2.6, `docs/11`
 **Touches:** `server/supabase/functions/`, `BlindDrop/Features/`, `Localizable.strings`,
 `docs/05-JOBS-AND-NOTIFICATIONS.md`, `docs/11-COPY-DECK.md`
@@ -93,8 +93,8 @@ person invited to three circles at once gets one notification.
 
 `CLAUDE.md` §2.6 already carries the amendment. Update `docs/05` §3 to match.
 
-- [ ] Invites section below the circles, with a heading, accept and decline in place
-- [ ] `invite` added to the closed set of kinds, with the budget rule enforced in code
-- [ ] Several invitations at once coalesce into one delivery
-- [ ] The push deep-links to the invitation itself, cold and warm
-- [ ] `docs/05` §3 updated; the count assertions there still hold
+- [x] Invites section below the circles, with a heading, accept and decline in place
+- [x] `invite` added to the closed set of kinds, with the budget rule enforced in code
+- [x] Several invitations at once coalesce into one delivery
+- [x] The push deep-links to the invitation itself, cold and warm
+- [x] `docs/05` §3 updated; the count assertions there still hold

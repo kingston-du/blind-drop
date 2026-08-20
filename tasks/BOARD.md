@@ -321,7 +321,7 @@ replacement inherits.
 |---|---|---|---|---|
 | E20-01 Pending invitations | done | E18-01 | vs E21, E24 | AC-3, AC-5 |
 | E20-02 Starting a group, and filling it | done | E20-01, E19-02 | no | — |
-| E20-03 Invitations in the switcher, and the push | wip | E20-02, E23-01 | no | AC-3 |
+| E20-03 Invitations in the switcher, and the push | done | E20-02, E23-01 | no | AC-3 |
 
 ## E21 — Circle settings and roles · [file](E21-circle-settings.md)
 
@@ -415,7 +415,7 @@ Investigation only. Each ends in a recommendation, not code.
 |---|---|
 | E18 circles: server | 3 / 3 |
 | E19 circles: the app | 2 / 3 |
-| E20 invitations | 0 / 3 |
+| E20 invitations | 3 / 3 |
 | E21 circle settings | 0 / 2 |
 | E22 sealed privacy | 1 / 1 |
 | E23 notifications | 1 / 3 |
