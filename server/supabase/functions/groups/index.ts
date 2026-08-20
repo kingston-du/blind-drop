@@ -659,7 +659,7 @@ async function standingsForGroup(ctx: MemberCtx): Promise<Response> {
   const byId = new Map(rows.map((row) => [row.user_id, row]));
   const present = members
     .map((member) => ({ member, row: byId.get(member.user_id) }))
-    .filter((entry): entry is { member: MemberDTO; row: StandingRow } => entry.row !== undefined);
+    .filter((entry): entry is { member: RosterMemberDTO; row: StandingRow } => entry.row !== undefined);
 
   // A member with no ear at all — every round they played, they assigned nothing — is absent
   // from Best Ear rather than ranked last with a dash. docs/02 §4.1 draws that line for a

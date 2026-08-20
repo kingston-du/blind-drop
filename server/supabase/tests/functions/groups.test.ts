@@ -23,7 +23,7 @@ Deno.test("POST /groups creates the group and makes the creator its admin", asyn
   assertEquals(res.body.data.timezone, "America/New_York");
   assertEquals(res.body.data.reveal_hour, 19);
   assertEquals(res.body.data.is_admin, true);
-  assertEquals(res.body.data.members, [{ user_id: owner.id, display_name: "Ana" }]);
+  assertEquals(res.body.data.members, [{ user_id: owner.id, display_name: "Ana", role: "admin" }]);
   assertEquals(res.body.data.invite_code.length, 6);
 });
 
@@ -322,7 +322,7 @@ Deno.test("POST /groups/current/leave is a 204, and the live token then gets NO_
 
   // And the group carries on without them.
   const remaining = await groups("/current", { token: user.token });
-  assertEquals(remaining.body.data.members, [{ user_id: user.id, display_name: "Ana" }]);
+  assertEquals(remaining.body.data.members, [{ user_id: user.id, display_name: "Ana", role: "admin" }]);
 });
 
 Deno.test("the sole admin cannot leave while other active members remain — E21-01", async () => {

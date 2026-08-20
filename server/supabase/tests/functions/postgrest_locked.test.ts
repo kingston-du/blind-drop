@@ -244,12 +244,12 @@ Deno.test("an ex-member's still-valid token gets NO_GROUP", async () => {
     body: { apple_music_id: "1440765580" },
   });
 
-  await call("groups", "/current/leave", { method: "POST", token: user.token });
+  await call("groups", "/current/leave", { method: "POST", token: ben.token });
 
   // The token is untouched and still valid — docs/14 §5 is about what a *valid* token can
   // reach after the membership behind it ends.
   for (const [fn, path] of [["rounds", "/current"], ["groups", "/current"]] as const) {
-    const res = await call(fn, path, { token: user.token });
+    const res = await call(fn, path, { token: ben.token });
     assertEquals(res.status, 409, `${fn}${path}`);
     assertEquals(res.body.error.code, "NO_GROUP");
     assert(!JSON.stringify(res.body).includes("Nights"), "and it carries nothing from the group");
