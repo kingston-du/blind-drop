@@ -513,6 +513,15 @@ import Testing
         #expect(try encoded(Endpoint<NoContent>.deleteAccount(authorizationCode: "fresh-code").body)
             == #"{"apple_authorization_code":"fresh-code"}"#)
         #expect(Endpoint<NoContent>.deleteAccount().body == nil, "non-Apple deletion has no body")
+        #expect(try encoded(Endpoint<GroupDTO>.updateMemberRole("u_ben", in: "g1", role: "admin").body)
+            == #"{"role":"admin"}"#)
+
+        let roleEndpoint = Endpoint<GroupDTO>.updateMemberRole("u_ben", in: "g1", role: "admin")
+        #expect(roleEndpoint.method == .patch)
+        #expect(roleEndpoint.path == "/groups/g1/members/u_ben")
+        let removeEndpoint = Endpoint<NoContent>.removeMember("u_ben", from: "g1")
+        #expect(removeEndpoint.method == .delete)
+        #expect(removeEndpoint.path == "/groups/g1/members/u_ben")
     }
 
     /// Query parameters land on the URL, which is what makes `?member=` and the cursor work at

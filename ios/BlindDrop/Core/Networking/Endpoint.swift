@@ -82,6 +82,7 @@ private struct CreateGroupBody: Encodable, Sendable {
 }
 private struct JoinBody: Encodable, Sendable { let invite_code: String }
 private struct PatchGroupBody: Encodable, Sendable { let name: String?; let reveal_hour: Int? }
+private struct MemberRoleBody: Encodable, Sendable { let role: String }
 private struct InvitePersonBody: Encodable, Sendable { let user_id: String }
 private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignment] }
 
@@ -162,6 +163,18 @@ extension Endpoint {
 
     static func leaveGroup(_ groupID: String) -> Endpoint<NoContent> {
         .init(.post, scoped("/groups", groupID, "/leave"))
+    }
+
+    static func updateMemberRole(_ userID: String, in groupID: String, role: String) -> Endpoint<GroupDTO> {
+        .init(
+            .patch,
+            scoped("/groups", groupID, "/members/\(userID)"),
+            body: json(MemberRoleBody(role: role))
+        )
+    }
+
+    static func removeMember(_ userID: String, from groupID: String) -> Endpoint<NoContent> {
+        .init(.delete, scoped("/groups", groupID, "/members/\(userID)"))
     }
 
     static func standings(_ groupID: String) -> Endpoint<StandingsDTO> {

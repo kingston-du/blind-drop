@@ -104,7 +104,7 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
   // regardless of what any client does or omits.
   LAST_ADMIN_MUST_TRANSFER: {
     status: 409,
-    message: "You're the only admin here. This circle needs another one before you can leave.",
+    message: "You're the only admin here. This circle needs another one first.",
     copyKey: "error.lastadmin",
   },
   RATE_LIMITED: { status: 429, message: "Slow down a second.", copyKey: "error.ratelimited" },

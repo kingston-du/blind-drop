@@ -355,6 +355,94 @@ Deno.test("a sole admin with no other active members may still leave — E21-01"
   assertEquals(after.body.error.code, "NO_GROUP");
 });
 
+// ─── roles — E21-02 ─────────────────────────────────────────────────────────
+
+Deno.test("an admin can promote and demote an active member — E21-02", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  const ben = await newMember(String(group.invite_code), "Ben");
+
+  const promoted = await groups(`/${group.id}/members/${ben.id}`, {
+    method: "PATCH",
+    token: ana.token,
+    body: { role: "admin" },
+  });
+  assertEquals(promoted.status, 200);
+  assertEquals(promoted.body.data.members.map((m: { role: string }) => m.role), ["admin", "admin"]);
+
+  const demoted = await groups(`/${group.id}/members/${ana.id}`, {
+    method: "PATCH",
+    token: ana.token,
+    body: { role: "member" },
+  });
+  assertEquals(demoted.status, 200);
+  assertEquals(demoted.body.data.is_admin, false);
+  assertEquals(demoted.body.data.members.map((m: { role: string }) => m.role), ["member", "admin"]);
+});
+
+Deno.test("role changes and removals are admin-only and scoped to an active member — E21-02", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  const ben = await newMember(String(group.invite_code), "Ben");
+  const cara = await newNamedUser("Cara");
+
+  const denied = await groups(`/${group.id}/members/${ana.id}`, {
+    method: "PATCH",
+    token: ben.token,
+    body: { role: "member" },
+  });
+  assertEquals(denied.status, 403);
+  assertEquals(denied.body.error.code, "NOT_ADMIN");
+
+  const outside = await groups(`/${group.id}/members/${cara.id}`, {
+    method: "DELETE",
+    token: ana.token,
+  });
+  assertEquals(outside.status, 404);
+  assertEquals(outside.body.error.code, "NOT_FOUND");
+
+  const invalid = await groups(`/${group.id}/members/${ben.id}`, {
+    method: "PATCH",
+    token: ana.token,
+    body: { role: "owner" },
+  });
+  assertEquals(invalid.status, 400);
+  assertEquals(invalid.body.error.details, { field: "role" });
+});
+
+Deno.test("the last admin cannot demote or remove themselves while members remain — E21-02", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  await newMember(String(group.invite_code), "Ben");
+
+  const demoted = await groups(`/${group.id}/members/${ana.id}`, {
+    method: "PATCH",
+    token: ana.token,
+    body: { role: "member" },
+  });
+  assertEquals(demoted.status, 409);
+  assertEquals(demoted.body.error.code, "LAST_ADMIN_MUST_TRANSFER");
+
+  const removed = await groups(`/${group.id}/members/${ana.id}`, {
+    method: "DELETE",
+    token: ana.token,
+  });
+  assertEquals(removed.status, 409);
+  assertEquals(removed.body.error.code, "LAST_ADMIN_MUST_TRANSFER");
+});
+
+Deno.test("an admin can remove another member without rewriting the active roster — E21-02", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  const ben = await newMember(String(group.invite_code), "Ben");
+
+  const removed = await groups(`/${group.id}/members/${ben.id}`, { method: "DELETE", token: ana.token });
+  assertEquals(removed.status, 204);
+
+  const roster = await groups(`/${group.id}`, { token: ana.token });
+  assertEquals(roster.status, 200);
+  assertEquals(roster.body.data.members, [{ user_id: ana.id, display_name: "Ana", role: "admin" }]);
+  const fromBen = await groups(`/${group.id}`, { token: ben.token });
+  assertEquals(fromBen.status, 404);
+  assertEquals(fromBen.body.error.code, "NOT_FOUND");
+});
+
 Deno.test("leaving frees the one-group rule, and rejoining is allowed", async () => {
   const { group } = await newGroupOwner("Ana");
   const ben = await newNamedUser("Ben");

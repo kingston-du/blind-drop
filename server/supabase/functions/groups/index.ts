@@ -23,6 +23,8 @@
 //   GET   /groups/:group_id/record/export?service=  the same, for a named circle
 //   POST  /groups/current/leave                set left_at
 //   POST  /groups/:group_id/leave              the same, for a named circle
+//   PATCH /groups/:group_id/members/:user_id   admin only; promote or demote an active member
+//   DELETE /groups/:group_id/members/:user_id  admin only; remove an active member
 //
 // **Every `:group_id` route proves membership of that id before it does anything else**
 // (`requireMembership`, ADR-011) — a non-member gets the same `NOT_FOUND` a fabricated id
@@ -817,6 +819,91 @@ async function leaveGroup(ctx: MemberCtx): Promise<Response> {
   return noContent();
 }
 
+// ─── roles — E21-02 ─────────────────────────────────────────────────────────
+// A membership's role is circle governance, not round participation. Changing it or ending
+// it only touches the active membership row; submissions and guesses are historical facts and
+// deliberately stay where they are. A round already on the books therefore keeps its cards,
+// attribution and scoring intact.
+
+interface ActiveMembershipRow {
+  user_id: string;
+  role: "member" | "admin";
+}
+
+async function activeMember(db: Db, groupId: string, userId: string): Promise<ActiveMembershipRow> {
+  const { data, error } = await db
+    .from("memberships")
+    .select("user_id, role")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .is("left_at", null)
+    .maybeSingle();
+  if (error) throw dbFailure("groups.member", error);
+  if (!data) throw new ApiError("NOT_FOUND");
+  return data as ActiveMembershipRow;
+}
+
+async function activeAdminCount(db: Db, groupId: string): Promise<number> {
+  const { count, error } = await db
+    .from("memberships")
+    .select("user_id", { count: "exact", head: true })
+    .eq("group_id", groupId)
+    .eq("role", "admin")
+    .is("left_at", null);
+  if (error) throw dbFailure("groups.member.adminCount", error);
+  return count ?? 0;
+}
+
+async function setMemberRole(req: Request, ctx: MemberCtx, userId: string): Promise<Response> {
+  const body = await parseBody(req, { role: str({ pattern: /^(member|admin)$/ }) });
+  const member = await activeMember(ctx.db, ctx.groupId, userId);
+  const role = body.role as "member" | "admin";
+
+  // A lone admin may leave an otherwise empty circle, but may never demote themselves out of
+  // it: the circle would remain, with nobody able to administer it or appoint a successor.
+  if (member.role === "admin" && role === "member" && await activeAdminCount(ctx.db, ctx.groupId) <= 1) {
+    throw new ApiError("LAST_ADMIN_MUST_TRANSFER");
+  }
+
+  if (member.role !== role) {
+    const { error } = await ctx.db
+      .from("memberships")
+      .update({ role })
+      .eq("group_id", ctx.groupId)
+      .eq("user_id", userId)
+      .is("left_at", null);
+    if (error) throw dbFailure("groups.member.role", error);
+  }
+
+  // `ctx.role` was read before the update. Replace it when the caller changed their own role so
+  // the returned DTO is truthful and the app removes admin controls immediately.
+  return ok(await currentGroupDTO({ ...ctx, role: userId === ctx.userId ? role : ctx.role }));
+}
+
+async function removeMember(ctx: MemberCtx, userId: string): Promise<Response> {
+  const member = await activeMember(ctx.db, ctx.groupId, userId);
+  if (member.role === "admin" && await activeAdminCount(ctx.db, ctx.groupId) <= 1) {
+    const { count, error } = await ctx.db
+      .from("memberships")
+      .select("user_id", { count: "exact", head: true })
+      .eq("group_id", ctx.groupId)
+      .is("left_at", null);
+    if (error) throw dbFailure("groups.member.rosterCount", error);
+    // Match leave exactly: a sole admin may close an otherwise empty circle, but cannot strand
+    // other active members without an admin.
+    if ((count ?? 0) > 1) throw new ApiError("LAST_ADMIN_MUST_TRANSFER");
+  }
+
+  const { error } = await ctx.db
+    .from("memberships")
+    .update({ left_at: new Date().toISOString() })
+    .eq("group_id", ctx.groupId)
+    .eq("user_id", userId)
+    .is("left_at", null);
+  if (error) throw dbFailure("groups.member.remove", error);
+  return noContent();
+}
+
 // ─── invitations — E20-01, docs/02 §2 (the invite-code path is unchanged and untouched) ─────
 //
 // A second door into a circle, for someone the inviter already knows the account of — the
@@ -1250,6 +1337,20 @@ serveFunction("groups", {
       params.group_id,
     );
     return leaveGroup(ctx);
+  },
+
+  // ─── roles — E21-02 ───────────────────────────────────────────────────────
+  "PATCH /:group_id/members/:user_id": async (req, route, params) => {
+    const ctx = requireAdmin(
+      await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
+    );
+    return setMemberRole(req, ctx, params.user_id);
+  },
+  "DELETE /:group_id/members/:user_id": async (req, route, params) => {
+    const ctx = requireAdmin(
+      await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
+    );
+    return removeMember(ctx, params.user_id);
   },
 
   // ─── invitations — E20-01 ────────────────────────────────────────────────────

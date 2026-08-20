@@ -60,9 +60,10 @@ someone discover it tonight.
 ### E21-02 — Who is in charge
 
 **Status:** wip · **Deps:** E21-01 · **Parallel:** no
-**Reads:** `docs/03` §2, `docs/14` §2
+**Reads:** `docs/03` §2, `docs/04` §3, `docs/11`, `docs/14` §2
 **Touches:** `server/supabase/functions/groups/`, `server/supabase/tests/`,
-`BlindDrop/Features/Settings/`
+`BlindDrop/Features/Settings/`, `BlindDrop/Core/Networking/`,
+`BlindDrop/Resources/Localizable.strings`, `docs/04-API-CONTRACT.md`, `docs/11-COPY-DECK.md`
 **Verify:** `npm run test:functions`; `./ios/scripts/lint.sh`; unit tests. Simulator: promote
 and remove, from both roles.
 

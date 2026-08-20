@@ -64,7 +64,7 @@ client switches on it. Never put a raw DB error in `message`.
 | `ALREADY_IN_GROUP` | 409 | The caller is already an active member of the circle named (`POST /groups/join`) |
 | `CIRCLE_LIMIT_REACHED` | 409 | ADR-011 — the caller already holds the cap's worth of active circles (`POST /groups`, `POST /groups/join`) |
 | `NOT_ADMIN` | 403 | Group settings change by a non-admin |
-| `LAST_ADMIN_MUST_TRANSFER` | 409 | `tasks/E21-01` — the caller is the circle's sole active admin and other active members remain; leaving would strand them under no admin |
+| `LAST_ADMIN_MUST_TRANSFER` | 409 | The mutation would leave the circle without an active admin |
 | `RATE_LIMITED` | 429 | See §8 |
 | `UPSTREAM_UNAVAILABLE` | 502 | Apple Music / Spotify failure |
 | `REAUTHENTICATION_REQUIRED` | 409 | Account deletion needs a fresh Apple authorization code |
@@ -254,6 +254,24 @@ the check only fires when leaving would strand other members under no admin at a
 unreachable through the shipped app today (there is no promote or remove until `E21-02`), and
 enforced regardless, the same way `NOT_ADMIN` is not conditioned on the client actually hiding
 the control it guards.
+
+### `PATCH /groups/{group_id}/members/{user_id}` — admin only
+
+```jsonc
+{ "role": "admin" }
+```
+
+Promotes an active member to `admin`, or changes an admin back to `member`. Returns the group
+DTO with the active roster. The target must be an active member of the named circle; inactive,
+unknown, and out-of-circle ids all answer `NOT_FOUND`. A change that would leave the circle with
+no active admin fails `LAST_ADMIN_MUST_TRANSFER` (409).
+
+### `DELETE /groups/{group_id}/members/{user_id}` — admin only
+
+Sets the target's `left_at` and returns `204`. Historical submissions, guesses, results, and
+scores remain; no existing round is rewritten. The target must be an active member of the named
+circle, with the same `NOT_FOUND` handling as the role route. Removing the sole admin while
+other active members remain fails `LAST_ADMIN_MUST_TRANSFER` (409).
 
 ---
 

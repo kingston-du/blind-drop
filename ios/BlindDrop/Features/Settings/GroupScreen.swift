@@ -43,12 +43,16 @@ struct GroupScreen: View {
                 isThinHistory: store.isThinHistory,
                 isSaving: store.isSaving,
                 isLeaving: store.isLeaving,
+                isManagingMember: store.isManagingMember,
                 errorKey: store.errorKey,
                 revealHourEffectiveFrom: store.revealHourEffectiveFrom,
+                currentUserID: env.session.user?.userID,
                 select: { selectedMember = $0 },
                 onRetryStandings: { await store.load() },
                 onSaveName: { await store.rename(to: $0) },
                 onPickRevealHour: { await store.setRevealHour($0) },
+                onSetRole: { member, role in await store.setRole(role, for: member.userID) },
+                onRemove: { member in await store.remove(member.userID) },
                 onLeave: {
                     guard await store.leave() else { return false }
                     env.router.path = []
@@ -70,18 +74,23 @@ struct GroupDetailView: View {
     var isThinHistory = false
     var isSaving = false
     var isLeaving = false
+    var isManagingMember = false
     var errorKey: String?
     var revealHourEffectiveFrom: String?
+    var currentUserID: String?
     var select: (MemberDTO) -> Void = { _ in }
     var onRetryStandings: () async -> Void = {}
     var onSaveName: (String) async -> Bool = { _ in true }
     var onPickRevealHour: (Int) async -> Bool = { _ in true }
+    var onSetRole: (MemberDTO, String) async -> Bool = { _, _ in true }
+    var onRemove: (MemberDTO) async -> Bool = { _ in true }
     var onLeave: () async -> Bool = { true }
 
     @State private var nameField = ""
     @State private var nameDirty = false
     @State private var didSaveName = false
     @State private var confirmsLeaving = false
+    @State private var memberToRemove: MemberDTO?
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -105,6 +114,15 @@ struct GroupDetailView: View {
             Button("group.leave.confirm.action", role: .destructive) { Task { _ = await onLeave() } }
             Button("settings.cancel", role: .cancel) {}
         } message: { Text("group.leave.confirm.body") }
+        .alert(Text(verbatim: Copy.format("group.member.remove.confirm.title", memberToRemove?.displayName ?? "")), isPresented: removalConfirmation) {
+            Button("group.member.remove.confirm.action", role: .destructive) {
+                guard let memberToRemove else { return }
+                Task { _ = await onRemove(memberToRemove) }
+            }
+            Button("settings.cancel", role: .cancel) {}
+        } message: {
+            Text(verbatim: Copy.format("group.member.remove.confirm.body", memberToRemove?.displayName ?? ""))
+        }
     }
 
     @ViewBuilder private var nameSection: some View {
@@ -146,17 +164,24 @@ struct GroupDetailView: View {
             } else if isThinHistory {
                 Text("group.standings.thin").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
                 ForEach(group.members) { member in
-                    MemberRosterRow(member: member, select: { select(member) })
+                    MemberRosterRow(member: member, actions: memberActions(for: member),
+                                    managementDisabled: isManagingMember || isSaving, select: { select(member) },
+                                    manage: { manage($0, member: member) })
                 }
             } else {
                 ForEach(bestEar) { standing in
                     if let member = group.members.first(where: { $0.userID == standing.userID }) {
                         MemberStandingRow(member: member, standing: standing,
-                                          readability: readabilityByUserID[standing.userID], select: { select(member) })
+                                          readability: readabilityByUserID[standing.userID],
+                                          actions: memberActions(for: member),
+                                          managementDisabled: isManagingMember || isSaving, select: { select(member) },
+                                          manage: { manage($0, member: member) })
                     }
                 }
                 ForEach(rosterMembers) { member in
-                    MemberRosterRow(member: member, select: { select(member) })
+                    MemberRosterRow(member: member, actions: memberActions(for: member),
+                                    managementDisabled: isManagingMember || isSaving, select: { select(member) },
+                                    manage: { manage($0, member: member) })
                 }
             }
         }
@@ -164,6 +189,34 @@ struct GroupDetailView: View {
 
     private var rosterMembers: [MemberDTO] {
         bestEar.isEmpty && unrankedMembers.isEmpty ? group.members : unrankedMembers
+    }
+
+    private var removalConfirmation: Binding<Bool> {
+        Binding(get: { memberToRemove != nil }, set: { if !$0 { memberToRemove = nil } })
+    }
+
+    private func memberActions(for member: MemberDTO) -> [MemberManagementAction] {
+        guard group.isAdmin else { return [] }
+        let isCurrentUser = member.userID == currentUserID
+        let adminCount = group.members.filter(\.isAdmin).count
+        var actions: [MemberManagementAction] = []
+        if member.isAdmin {
+            if adminCount > 1 { actions.append(.demote) }
+        } else {
+            actions.append(.promote)
+        }
+        // Leaving is the caller's explicit, already-confirmed removal flow. Every other active
+        // member can be removed here; the server enforces the same rule against stale clients.
+        if !isCurrentUser { actions.append(.remove) }
+        return actions
+    }
+
+    private func manage(_ action: MemberManagementAction, member: MemberDTO) {
+        switch action {
+        case .promote: Task { _ = await onSetRole(member, "admin") }
+        case .demote: Task { _ = await onSetRole(member, "member") }
+        case .remove: memberToRemove = member
+        }
     }
 
     private var details: some View {
@@ -212,39 +265,84 @@ struct GroupDetailView: View {
     }
 }
 
+enum MemberManagementAction: String, Identifiable {
+    case promote, demote, remove
+
+    var id: String { rawValue }
+    var titleKey: LocalizedStringKey {
+        switch self {
+        case .promote: "group.member.promote"
+        case .demote: "group.member.demote"
+        case .remove: "group.member.remove"
+        }
+    }
+}
+
 struct MemberStandingRow: View {
     let member: MemberDTO
     let standing: EarStandingDTO
     let readability: ReadabilityStandingDTO?
+    var actions: [MemberManagementAction] = []
+    var managementDisabled = false
     let select: () -> Void
+    var manage: (MemberManagementAction) -> Void = { _ in }
     var body: some View {
-        Button(action: select) {
-            VStack(alignment: .leading, spacing: Space.xs) {
-                StandingRowContent(standing: standing, readability: readability)
-                Text(member.isAdmin ? "group.role.admin" : "group.role.member")
-                    .typeStyle(.caption).foregroundStyle(Palette.inkDim)
+        HStack(spacing: Space.sm) {
+            Button(action: select) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    StandingRowContent(standing: standing, readability: readability)
+                    Text(member.isAdmin ? "group.role.admin" : "group.role.member")
+                        .typeStyle(.caption).foregroundStyle(Palette.inkDim)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).rowSurface()
+            .buttonStyle(.plain).accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(standing: standing, readability: readability)))
+            .accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
+            if !actions.isEmpty { MemberActionMenu(actions: actions, disabled: managementDisabled, manage: manage) }
         }
-        .buttonStyle(.plain).accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(standing: standing, readability: readability)))
-        .accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
+        .rowSurface()
     }
 }
 
 struct MemberRosterRow: View {
     let member: MemberDTO
+    var actions: [MemberManagementAction] = []
+    var managementDisabled = false
     let select: () -> Void
+    var manage: (MemberManagementAction) -> Void = { _ in }
     var body: some View {
-        Button(action: select) {
-            HStack {
-                Text(verbatim: member.displayName).typeStyle(.bodyL).foregroundStyle(Palette.ink)
-                Spacer(minLength: Space.sm)
-                Text(member.isAdmin ? "group.role.admin" : "group.role.member").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+        HStack(spacing: Space.sm) {
+            Button(action: select) {
+                HStack {
+                    Text(verbatim: member.displayName).typeStyle(.bodyL).foregroundStyle(Palette.ink)
+                    Spacer(minLength: Space.sm)
+                    Text(member.isAdmin ? "group.role.admin" : "group.role.member").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).rowSurface()
+            .buttonStyle(.plain).accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
+            if !actions.isEmpty { MemberActionMenu(actions: actions, disabled: managementDisabled, manage: manage) }
         }
-        .buttonStyle(.plain).accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
+        .rowSurface()
+    }
+}
+
+struct MemberActionMenu: View {
+    let actions: [MemberManagementAction]
+    let disabled: Bool
+    let manage: (MemberManagementAction) -> Void
+
+    var body: some View {
+        Menu {
+            ForEach(actions) { action in
+                Button(action.titleKey, role: action == .remove ? .destructive : nil) { manage(action) }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle").foregroundStyle(Palette.inkDim).minimumTouchTarget()
+        }
+        .accessibilityLabel(Text("group.member.actions"))
+        .disabled(disabled)
     }
 }
 

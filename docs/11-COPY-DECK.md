@@ -420,7 +420,14 @@ either must be able to happen without the other.
 | `group.leave.confirm.title` | Leave this circle? |
 | `group.leave.confirm.body` | Your songs and guesses stay in its history. You can rejoin later with an invite. |
 | `group.leave.confirm.action` | Leave |
-| `error.lastadmin` | You're the only admin here. This circle needs another one before you can leave. |
+| `group.member.actions` | Member actions |
+| `group.member.promote` | Make admin |
+| `group.member.demote` | Make member |
+| `group.member.remove` | Remove from circle |
+| `group.member.remove.confirm.title` | Remove %@? |
+| `group.member.remove.confirm.body` | Their songs and guesses stay in this circle's history. |
+| `group.member.remove.confirm.action` | Remove |
+| `error.lastadmin` | You're the only admin here. This circle needs another one first. |
 | `group.standings.thin` | Not enough rounds yet to rank anyone. |
 | `group.admin` | Admin |
 | `group.profile.placeholder` | Profile coming soon. |
@@ -492,7 +499,7 @@ singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%
 | `error.alreadyinvited` | `ALREADY_INVITED` | They already have an invitation to this group. |
 | `error.circlelimitreached` | `CIRCLE_LIMIT_REACHED` | You're already in three groups. Leave one to join another. |
 | `error.notadmin` | `NOT_ADMIN` | Only the group's admin can change that. |
-| `error.lastadmin` | `LAST_ADMIN_MUST_TRANSFER` | You're the only admin here. This circle needs another one before you can leave. |
+| `error.lastadmin` | `LAST_ADMIN_MUST_TRANSFER` | You're the only admin here. This circle needs another one first. |
 | `error.ratelimited` | `RATE_LIMITED` | Slow down a second. |
 | `error.upstream` | `UPSTREAM_UNAVAILABLE` | The music catalog isn't answering. Try again in a minute. |
 | `error.nogroup` | `NO_GROUP` | You're not in a group yet. |

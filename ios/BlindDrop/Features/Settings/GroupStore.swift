@@ -8,6 +8,7 @@ final class GroupStore {
     private(set) var standings: LoadState<StandingsDTO> = .idle
     private(set) var isSaving = false
     private(set) var isLeaving = false
+    private(set) var isManagingMember = false
     private(set) var errorKey: String?
     private(set) var revealHourEffectiveFrom: String?
 
@@ -101,6 +102,37 @@ final class GroupStore {
             _ = try await api.send(.leaveGroup(groupID))
             await circles.load()
             return true
+        } catch {
+            errorKey = error.copyKey
+            return false
+        }
+    }
+
+    func setRole(_ role: String, for userID: String) async -> Bool {
+        guard let groupID = group?.id, !isManagingMember else { return false }
+        isManagingMember = true
+        errorKey = nil
+        defer { isManagingMember = false }
+        do {
+            state = .loaded(try await api.send(.updateMemberRole(userID, in: groupID, role: role)))
+            return true
+        } catch {
+            errorKey = error.copyKey
+            return false
+        }
+    }
+
+    func remove(_ userID: String) async -> Bool {
+        guard let groupID = group?.id, !isManagingMember else { return false }
+        isManagingMember = true
+        errorKey = nil
+        defer { isManagingMember = false }
+        do {
+            _ = try await api.send(.removeMember(userID, from: groupID))
+            // A removal returns 204 so its own historical data cannot accidentally become a
+            // roster payload. Reload the two independent group-screen reads instead.
+            await load()
+            return state.value != nil
         } catch {
             errorKey = error.copyKey
             return false

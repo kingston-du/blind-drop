@@ -169,6 +169,13 @@
 "group.leave.confirm.title" = "Leave this circle?";
 "group.leave.confirm.body" = "Your songs and guesses stay in its history. You can rejoin later with an invite.";
 "group.leave.confirm.action" = "Leave";
+"group.member.actions" = "Member actions";
+"group.member.promote" = "Make admin";
+"group.member.demote" = "Make member";
+"group.member.remove" = "Remove from circle";
+"group.member.remove.confirm.title" = "Remove %@?";
+"group.member.remove.confirm.body" = "Their songs and guesses stay in this circle's history.";
+"group.member.remove.confirm.action" = "Remove";
 "group.standings.thin" = "Not enough rounds yet to rank anyone.";
 "group.admin" = "Admin";
 "group.profile.placeholder" = "Profile coming soon.";
