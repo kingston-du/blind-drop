@@ -161,7 +161,7 @@ the rendered output rather than trusting green tests:
    parameter instead of trusting the environment. Every `-accessibility1`/`-accessibility5` golden
    from before this fix was silently the `.large` layout and had to be deleted and re-recorded.
 
-The bug bug #2 was hiding: below `.accessibility1` a name and a state word share one line
+Bug #2 was hiding: below `.accessibility1` a name and a state word share one line
 (`TrackRow`'s own threshold and shape), and above it a name long enough to matter — "Late Night
 Radio" — truncated to four characters (`Late…`) fighting a state word on the same line at
 `accessibility5`, which is exactly the `docs/12` §1 "nothing truncates" failure the size exists
@@ -170,8 +170,22 @@ to disk as the "golden" and the suite was green. Fixed by stacking the row (name
 at `.accessibility1` and up, the same threshold `TrackRow.content` already uses for its own
 two-line accessibility layout.
 
+The `reviewer` agent found a third, more interesting one, in the diff rather than in a
+screenshot: `RoundStore.load()`'s round/group requests are cancelled when `.task(id: loadToken)`
+restarts on a switch, but Swift's task cancellation is cooperative — a response that had already
+fully arrived when cancellation was requested completes normally regardless, so a slow, late
+response for the circle the caller just switched **away** from could still reach `state.apply`
+and silently revert the screen to the wrong circle, with no error and no visible cause. Fixed by
+guarding the apply behind `circles.activeGroupID == groupID`: a response for a circle no longer
+active is dropped, and the load for the circle actually on screen supplies its own answer. Two
+smaller findings from the same pass: picking the circle already active in the switcher ran the
+full `invalidate()` + reload path for no reason, flashing the skeleton to redraw the exact thing
+already showing — `switchCircle` now no-ops past closing the sheet in that case; and the
+one-circle snapshot had never exercised its own extreme (longest name, largest size) — switched
+its fixture to "Late Night Radio" and added `.accessibility5`, regenerating six goldens.
+
 Verified: `./ios/scripts/lint.sh` clean; unit 417/417 (including new `CircleSwitcherTests` and
-the switcher's `AccessibilityCopyTests` additions); snapshot 65/65 (10 new `CircleSwitcher`
+the switcher's `AccessibilityCopyTests` additions); snapshot 65/65 (12 `CircleSwitcher`
 goldens, each looked at, not just diffed); `verify-fixture.sh` for `FixtureRoundTests` (7/7,
 including `selectingACircleReScopesTheRoundToIt` against the real second circle `E19-01` put in
 the fixture server for this). Per `CLAUDE.md` §8 F's device-matrix override, the manual SE and
