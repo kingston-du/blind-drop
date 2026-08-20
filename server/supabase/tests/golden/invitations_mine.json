@@ -1,0 +1,27 @@
+{
+  "about": "GET /groups/invitations — the caller's own pending invitations, across every circle. One entry per invitation, same shape as the create response (E20-01).",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "invitations"
+  ],
+  "nested": {
+    "invitations[]": [
+      "created_at",
+      "expires_at",
+      "group",
+      "id",
+      "invited_by"
+    ],
+    "invitations[].group": [
+      "id",
+      "name"
+    ],
+    "invitations[].invited_by": [
+      "display_name",
+      "user_id"
+    ]
+  }
+}

@@ -34,6 +34,7 @@ const TABLES = [
   "notification_outbox",
   "track_links",
   "rate_limit_events",
+  "invitations",
 ] as const;
 
 async function restGet(table: string, token: string, query = "select=*"): Promise<Response> {

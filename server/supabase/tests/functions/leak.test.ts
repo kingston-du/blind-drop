@@ -24,6 +24,7 @@ import {
   mintToken,
   newGroupOwner,
   newMember,
+  newNamedUser,
   newUser,
   type TestUser,
   tickRounds,
@@ -207,6 +208,44 @@ Deno.test("golden: GET /groups (the switcher)", async () => {
     "GET /groups, `E18-02`. One row per circle the caller holds: `{id, name, my_state, " +
       "needs_action}` and nothing else — no member count, no submission count, no timestamp " +
       "that belongs to anyone but the caller.",
+  );
+});
+
+Deno.test("golden: POST /groups/current/invitations", async () => {
+  // E20-01. The invitee is a real account with no membership anywhere — this route's whole
+  // point is that a pending invitation is not a roster entry.
+  const { user } = await openGroup("Golden Invite");
+  const invitee = await newNamedUser("Invitee");
+  const res = await call("groups", "/current/invitations", {
+    method: "POST",
+    token: user.token,
+    body: { user_id: invitee.id },
+  });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  await assertGolden(
+    "invitation",
+    res.body,
+    "POST /groups/current/invitations. `{id, group:{id,name}, invited_by:{user_id," +
+      "display_name}, created_at, expires_at}` — no roster, no round, nothing about the " +
+      "circle beyond its own name (E20-01).",
+  );
+});
+
+Deno.test("golden: GET /groups/invitations", async () => {
+  const { user } = await openGroup("Golden Invite Mine");
+  const invitee = await newNamedUser("Invitee");
+  await call("groups", "/current/invitations", {
+    method: "POST",
+    token: user.token,
+    body: { user_id: invitee.id },
+  });
+  const res = await call("groups", "/invitations", { token: invitee.token });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  await assertGolden(
+    "invitations_mine",
+    res.body,
+    "GET /groups/invitations — the caller's own pending invitations, across every circle. " +
+      "One entry per invitation, same shape as the create response (E20-01).",
   );
 });
 
@@ -510,6 +549,14 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups GET /:group_id/record": "groups_record",
     "groups GET /:group_id/record/export": "groups_record_export",
     "groups POST /:group_id/leave": null, // 204
+    // E20-01. Pending invitations, distinct from membership — see the two captures above.
+    "groups POST /current/invitations": "invitation",
+    "groups POST /:group_id/invitations": "invitation",
+    "groups GET /invitations": "invitations_mine",
+    // Same DTO shape `POST /groups/join` already answers with — accepting is a second door
+    // into the same "you're in" response, not a new shape.
+    "groups POST /invitations/:invitation_id/accept": "groups_current",
+    "groups POST /invitations/:invitation_id/decline": null, // 204
     "rounds GET /current": "round_open",
     "rounds PUT /current/submission": "submission",
     // Reachable only once the round is `revealed`, which is to say only once the blind window

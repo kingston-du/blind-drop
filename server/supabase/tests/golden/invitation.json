@@ -1,0 +1,24 @@
+{
+  "about": "POST /groups/current/invitations. `{id, group:{id,name}, invited_by:{user_id,display_name}, created_at, expires_at}` — no roster, no round, nothing about the circle beyond its own name (E20-01).",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "created_at",
+    "expires_at",
+    "group",
+    "id",
+    "invited_by"
+  ],
+  "nested": {
+    "group": [
+      "id",
+      "name"
+    ],
+    "invited_by": [
+      "display_name",
+      "user_id"
+    ]
+  }
+}

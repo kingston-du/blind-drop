@@ -36,6 +36,10 @@ export const CIRCLE_LIMIT_REACHED = "BD002";
  *  this track_key tonight in a different circle that shares another active member with this
  *  one. tasks/E18-03, docs/02 §3. */
 export const TRACK_ALREADY_USED = "BD003";
+/** `accept_invitation` / `decline_invitation` (`20260819100000_invitations.sql`) — the
+ *  invitation named does not exist for this caller, or is no longer pending (already
+ *  resolved, or lazily expired on this attempt). tasks/E20-01. */
+export const INVITATION_GONE = "BD004";
 
 export function isUniqueViolation(error: PostgrestError | null): boolean {
   return error?.code === UNIQUE_VIOLATION;
@@ -47,6 +51,10 @@ export function isCircleLimitReached(error: PostgrestError | null): boolean {
 
 export function isTrackAlreadyUsed(error: PostgrestError | null): boolean {
   return error?.code === TRACK_ALREADY_USED;
+}
+
+export function isInvitationGone(error: PostgrestError | null): boolean {
+  return error?.code === INVITATION_GONE;
 }
 
 /**
