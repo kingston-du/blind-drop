@@ -26,6 +26,7 @@ export type ErrorCode =
   | "CIRCLE_LIMIT_REACHED"
   | "TRACK_ALREADY_USED"
   | "NOT_ADMIN"
+  | "LAST_ADMIN_MUST_TRANSFER"
   | "RATE_LIMITED"
   | "UPSTREAM_UNAVAILABLE"
   | "REAUTHENTICATION_REQUIRED"
@@ -95,6 +96,16 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
     status: 403,
     message: "Only the group's admin can change that.",
     copyKey: "error.notadmin",
+  },
+  // `E21-01`'s open question: the last admin cannot leave a circle with members still in it
+  // without the role passing on. No promote or remove exists yet (`E21-02`), so this is
+  // unreachable through this app's own UI today — a solo admin's only active membership has no
+  // one to hand the role to and no way to demote themselves — but the server enforces it
+  // regardless of what any client does or omits.
+  LAST_ADMIN_MUST_TRANSFER: {
+    status: 409,
+    message: "You're the only admin here. This circle needs another one before you can leave.",
+    copyKey: "error.lastadmin",
   },
   RATE_LIMITED: { status: 429, message: "Slow down a second.", copyKey: "error.ratelimited" },
   UPSTREAM_UNAVAILABLE: {

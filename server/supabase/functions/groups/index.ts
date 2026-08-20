@@ -80,6 +80,8 @@ import {
   recordDTO,
   type RecordEntryDTO,
   recordEntryDTO,
+  type RosterMemberDTO,
+  rosterMemberDTO,
   standingsDTO,
 } from "../_shared/dto.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
@@ -94,16 +96,18 @@ interface GroupRow {
 }
 const GROUP_COLUMNS = "id, name, timezone, reveal_hour, invite_code";
 
-/** The active roster: `user_id` and `display_name`, and deliberately nothing else. No
- *  `joined_at` (docs/14 §3), no counts, no ordering derived from activity. */
-async function roster(db: Db, groupId: string): Promise<MemberDTO[]> {
+/** The active roster: `user_id`, `display_name` and `role` — the last is `E21-01`'s addition,
+ *  static circle governance rather than participation, so it carries none of `joined_at`'s
+ *  leak risk (docs/14 §3). Still no counts, no ordering derived from activity. */
+async function roster(db: Db, groupId: string): Promise<RosterMemberDTO[]> {
   const { data: memberships, error: membershipError } = await db
     .from("memberships")
-    .select("user_id")
+    .select("user_id, role")
     .eq("group_id", groupId)
     .is("left_at", null);
   if (membershipError) throw dbFailure("groups.roster.memberships", membershipError);
 
+  const roleByUserId = new Map(memberships.map((m) => [m.user_id as string, m.role as "member" | "admin"]));
   const ids = memberships.map((m) => m.user_id);
   if (ids.length === 0) return [];
 
@@ -115,7 +119,13 @@ async function roster(db: Db, groupId: string): Promise<MemberDTO[]> {
     .order("id", { ascending: true });
   if (profileError) throw dbFailure("groups.roster.profiles", profileError);
 
-  return profiles.map((p) => memberDTO({ user_id: p.id, display_name: p.display_name }));
+  return profiles.map((p) =>
+    rosterMemberDTO({
+      user_id: p.id,
+      display_name: p.display_name,
+      role: roleByUserId.get(p.id) ?? "member",
+    })
+  );
 }
 
 async function loadGroup(db: Db, groupId: string): Promise<GroupRow> {
@@ -768,8 +778,33 @@ async function exportForGroup(req: Request, ctx: MemberCtx): Promise<Response> {
  *  preserved (docs/03 §6). The next request naming this circle gets `NOT_FOUND`; the next
  *  request through the `current` compat routes falls to whichever circle is now oldest.
  *  Scoped to `ctx.groupId` specifically — leaving one circle must never end active membership
- *  in another (ADR-011: circles do not interact). */
+ *  in another (ADR-011: circles do not interact).
+ *
+ *  **`E21-01`'s open question, resolved here:** the last admin may not leave a circle that
+ *  still has other active members, because there would be no one left to change its settings
+ *  or — once `E21-02` lands — promote a successor. Enforced server-side (`LAST_ADMIN_MUST_TRANSFER`)
+ *  rather than only hidden in a client, the same way `NOT_ADMIN` is: a stale or tampered client
+ *  gets the same refusal. Today this is unreachable through the app's own UI — there is no
+ *  promote or remove yet (`E21-02`), so a solo admin genuinely has no way to arrange for
+ *  someone else to hold the role first — but the guard is defensive and forward-looking rather
+ *  than something to add only once `E21-02` makes it reachable. A sole admin of a circle they
+ *  are the only active member of may still leave: there is nobody left to strand. */
 async function leaveGroup(ctx: MemberCtx): Promise<Response> {
+  if (ctx.role === "admin") {
+    const { data: activeMembers, error: rosterError } = await ctx.db
+      .from("memberships")
+      .select("user_id, role")
+      .eq("group_id", ctx.groupId)
+      .is("left_at", null);
+    if (rosterError) throw dbFailure("groups.leave.roster", rosterError);
+
+    const others = activeMembers.filter((m) => m.user_id !== ctx.userId);
+    const anotherAdminRemains = others.some((m) => m.role === "admin");
+    if (others.length > 0 && !anotherAdminRemains) {
+      throw new ApiError("LAST_ADMIN_MUST_TRANSFER");
+    }
+  }
+
   const { error } = await ctx.db
     .from("memberships")
     .update({ left_at: new Date().toISOString() })
@@ -983,7 +1018,7 @@ serveFunction("groups", {
         const group = data as GroupRow;
         return ok(
           groupDTO(group, true, [
-            memberDTO({ user_id: ctx.userId, display_name: ctx.displayName }),
+            rosterMemberDTO({ user_id: ctx.userId, display_name: ctx.displayName, role: "admin" }),
           ]),
         );
       }

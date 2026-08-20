@@ -64,6 +64,7 @@ client switches on it. Never put a raw DB error in `message`.
 | `ALREADY_IN_GROUP` | 409 | The caller is already an active member of the circle named (`POST /groups/join`) |
 | `CIRCLE_LIMIT_REACHED` | 409 | ADR-011 — the caller already holds the cap's worth of active circles (`POST /groups`, `POST /groups/join`) |
 | `NOT_ADMIN` | 403 | Group settings change by a non-admin |
+| `LAST_ADMIN_MUST_TRANSFER` | 409 | `tasks/E21-01` — the caller is the circle's sole active admin and other active members remain; leaving would strand them under no admin |
 | `RATE_LIMITED` | 429 | See §8 |
 | `UPSTREAM_UNAVAILABLE` | 502 | Apple Music / Spotify failure |
 | `REAUTHENTICATION_REQUIRED` | 409 | Account deletion needs a fresh Apple authorization code |
@@ -210,8 +211,8 @@ the switcher needs and deliberately the entire payload it gets:
   "invite_code": "K7MQ2X",
   "is_admin": true,
   "members": [
-    { "user_id": "u_…", "display_name": "Ana" },
-    { "user_id": "u_…", "display_name": "Ben" }
+    { "user_id": "u_…", "display_name": "Ana", "role": "admin" },
+    { "user_id": "u_…", "display_name": "Ben", "role": "member" }
   ]
 }}
 ```
@@ -220,6 +221,12 @@ the switcher needs and deliberately the entire payload it gets:
 the group, not who has submitted. It carries no timestamps beyond nothing at all: do **not**
 add `joined_at` to this DTO. During `open`, a `joined_at` that changed today plus a missing
 name in tonight's pool is an inference channel.
+
+`role` (`E21-01`) is `"member"` or `"admin"` — static circle governance, not participation, so
+it carries none of `joined_at`'s leak risk and is safe in every phase the same way the roster
+itself is. It appears **only** here: `name_pool`, a results card's `owner`, and a Record
+entry all reuse the same member shape without it, and their own golden tests hold them to
+`{user_id, display_name}` exactly.
 
 ### `PATCH /groups/current` — admin only
 
@@ -238,6 +245,15 @@ leaving one must never touch another's membership row. Returns `204`. Pre-`E19`,
 `current` alias resolving to the caller's oldest circle, the client returns to the join/create
 screen exactly as it did under ADR-005 — that behaviour is unaffected by this ADR by
 construction, since today's app only ever has the one circle to lose.
+
+**`E21-01`.** The circle's sole active admin may not leave while other active members remain —
+there would be no one left to change its settings or, once `E21-02` lands, promote a successor.
+Fails `LAST_ADMIN_MUST_TRANSFER` (409) instead. A sole admin who is also the only active member
+may still leave, and any admin leaving a circle that has another active admin is unaffected —
+the check only fires when leaving would strand other members under no admin at all. This is
+unreachable through the shipped app today (there is no promote or remove until `E21-02`), and
+enforced regardless, the same way `NOT_ADMIN` is not conditioned on the client actually hiding
+the control it guards.
 
 ---
 

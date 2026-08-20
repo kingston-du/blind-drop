@@ -27,12 +27,26 @@ struct UserDTO: Decodable, Sendable, Equatable {
 struct MemberDTO: Decodable, Sendable, Equatable, Identifiable, Hashable {
     let userID: String
     let displayName: String
+    /// `"member"` or `"admin"` — present only on `GroupDTO.members` (`docs/04` §3, `E21-01`).
+    /// Every other place this type is decoded (`name_pool`, a results card's `owner`, a Record
+    /// entry) never sends this key, and an absent key decodes an `Optional` to `nil` for free —
+    /// no custom `init(from:)` needed to keep those payloads exactly the shape `docs/04`
+    /// documents for them.
+    let role: String?
+
+    init(userID: String, displayName: String, role: String? = nil) {
+        self.userID = userID
+        self.displayName = displayName
+        self.role = role
+    }
 
     var id: String { userID }
+    var isAdmin: Bool { role == "admin" }
 
     enum CodingKeys: String, CodingKey {
         case userID = "user_id"
         case displayName = "display_name"
+        case role
     }
 }
 

@@ -17,7 +17,7 @@ RootView
 │   ├─ RevealScreen          revealed
 │   └─ ResultsScreen         scored
 ├─ RecordScreen              pushed, always reachable
-├─ GroupScreen               pushed, read-only active roster
+├─ GroupScreen               pushed, roster + admin settings + leave
 └─ SettingsScreen            pushed, profile and account actions
 ```
 
@@ -424,10 +424,25 @@ Reachable from the header menu in every phase. An archive, not a feed.
 
 ## 9. Group
 
-Pushed from the header menu. A read-only screen with the group name and a simple list of
-active members. It deliberately carries no submitted state, role, join date, invite code, or
-administrative controls. `GET /groups/current` is already safe in every round phase and is
-the only data source.
+Pushed from the header menu (`E21-01`). Its own name, when it reveals, who is in it and their
+role, its timezone, and how to leave. It still carries no submitted state, join date, or invite
+code — those stay outside this screen's data source, `GET /groups/{group_id}`, which is safe in
+every round phase.
+
+**Admin sees more, not different.** Renaming and the reveal-hour picker are absent for a member,
+not shown disabled — a wall of greyed-out controls tells a member what they cannot have, and
+that is not the point. Both are `PATCH /groups/{group_id}`, admin-enforced server-side
+(`NOT_ADMIN`), so a member never sees them regardless of what a stale or tampered client would
+try. The reveal hour states when a change actually lands (`03-DATA-MODEL.md` §4: the first
+round not yet created, never tonight's) rather than leaving that to be discovered later.
+Timezone is shown to everyone, plainly stated as fixed at creation — it is never a control.
+
+Leaving is available to everyone and is the one destructive action here, so it is behind a
+confirmation naming what stays (`11-COPY-DECK.md`'s `group.leave.confirm.*`): songs and guesses
+remain in the circle's history, and the caller can rejoin later with an invite. The circle's
+sole active admin cannot leave while other active members remain (`04-API-CONTRACT.md` §3,
+`LAST_ADMIN_MUST_TRANSFER`) — unreachable through this app's own UI until `E21-02` gives it a
+way to promote or remove anyone, and enforced server-side regardless.
 
 ## 10. Settings
 

@@ -86,6 +86,17 @@ struct RoundScreen: View {
             .onChange(of: env.router.pending) { _, pending in
                 if pending != nil { loadToken += 1 }
             }
+            // `E21-01`: leaving the active circle changes `activeGroupID` out from under this
+            // screen — `GroupStore.leave()` refreshes `CircleStore` and pops back to here, but
+            // nothing else tells this screen its round is now for a circle the caller left.
+            // `switchCircle(to:store:)` already invalidates explicitly for its own tap; this is
+            // the same reasoning, reached a different way and only when the id actually moved —
+            // `nil` guards the very first run, where there is nothing yet to compare against.
+            .onChange(of: env.circles.activeGroupID) { old, new in
+                guard old != nil, new != old else { return }
+                store?.invalidate()
+                loadToken += 1
+            }
     }
 
     @ViewBuilder private var content: some View {

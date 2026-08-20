@@ -75,6 +75,7 @@
 "error.roundvoided" = "Not enough drops tonight. Nothing revealed.";
 "error.alreadyingroup" = "You're already in a group. Leave it first.";
 "error.notadmin" = "Only the group's admin can change that.";
+"error.lastadmin" = "You're the only admin here. This circle needs another one before you can leave.";
 "error.ratelimited" = "Slow down a second.";
 "error.upstream" = "The music catalog isn't answering. Try again in a minute.";
 
@@ -127,6 +128,20 @@
 "group.title" = "Group";
 "group.members" = "Members";
 "group.loading" = "Loading the group.";
+"group.role.admin" = "Admin";
+"group.name.label" = "Group name";
+"group.name.help" = "Everyone in the circle sees this.";
+"group.name.save" = "Save name";
+"group.name.saved" = "Saved.";
+"group.revealhour.label" = "Reveal hour";
+"group.revealhour.help" = "A change applies from the next round that hasn't been created yet — never tonight's.";
+"group.revealhour.effective" = "Starts %@.";
+"group.timezone.label" = "Timezone";
+"group.timezone.help" = "Set when the circle was created. It can't be changed.";
+"group.leave" = "Leave circle";
+"group.leave.confirm.title" = "Leave this circle?";
+"group.leave.confirm.body" = "Your songs and guesses stay in its history. You can rejoin later with an invite.";
+"group.leave.confirm.action" = "Leave";
 
 /* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
 
