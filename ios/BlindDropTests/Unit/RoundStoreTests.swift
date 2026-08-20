@@ -157,6 +157,119 @@ import Testing
         #expect(store.state.isLoading)
     }
 
+    /// `E19-03`: a pending deep link naming a **different, held** circle is switched to and
+    /// loaded in the same call — no second reload, and the switch is answered by this request
+    /// rather than by a follow-up nobody would have triggered.
+    @Test func loadingSwitchesToAPendingLinksCircle() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        let otherID = "b0000000-0000-4000-8000-000000000099"
+        stub.armExact("/groups", RoundFixture.envelope(try! JSONSerialization.data(withJSONObject: [
+            "circles": [
+                ["id": groupID, "name": "The Cove", "my_state": "sealed", "needs_action": false],
+                ["id": otherID, "name": "Late Night Radio", "my_state": "sealed", "needs_action": false],
+            ],
+        ])))
+        // A second group payload, distinct from `group_current.json`'s "The Cove" — otherwise a
+        // switch that silently never happened and one that did would decode to the same name.
+        let otherGroup: [String: Any] = [
+            "id": otherID, "name": "Late Night Radio", "timezone": "America/New_York",
+            "reveal_hour": 21, "invite_code": "Q7MQ2X", "is_admin": false, "members": [Any](),
+        ]
+        stub.arm(routes: [
+            "/rounds/\(otherID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(otherID)": RoundFixture.envelope(try! JSONSerialization.data(withJSONObject: otherGroup)),
+        ])
+        env.router.receive(.round(groupID: otherID))
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+
+        await store.load()
+
+        #expect(env.circles.activeGroupID == otherID)
+        #expect(store.state.value?.group.name == "Late Night Radio", "the switched-to circle's own round landed")
+        // `resolvePendingCircle` acts as soon as the circle is valid — it does not wait on
+        // `Router.consume`'s own `session == .ready` gate, which this stub environment never
+        // reaches (no `GET /me` here). That gate, and the pending-clearing it produces once
+        // satisfied, is `RouterTests`' and `PushTests`' job, not this one's.
+        #expect(env.router.pending?.groupID == otherID)
+    }
+
+    /// **The race review caught**: a pending link switches the store to circle C, and before
+    /// that link is actually *consumed* (cleared), the caller makes their own explicit choice in
+    /// the switcher — a **different**, third circle. That manual switch has to be the last word.
+    /// Before the fix, `resolvePendingCircle` only cleared `pending` when the named circle was
+    /// unheld; a held one stayed pending until `Router.consume` got to it, so the very next
+    /// `load()` — the one the manual switch itself triggers — found the stale link still
+    /// pending, still valid, and quietly switched back to C, discarding what the caller just
+    /// picked. `RoundScreen.switchCircle` now calls `Router.clearPending()` itself, which is
+    /// what this asserts: once that happens, a subsequent load never reasserts the old link.
+    @Test func amanualSwitchWinsOverAStillPendingLink() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        let linkedID = "b0000000-0000-4000-8000-000000000099"
+        let manualID = "c0000000-0000-4000-8000-000000000042"
+        stub.armExact("/groups", RoundFixture.envelope(try! JSONSerialization.data(withJSONObject: [
+            "circles": [
+                ["id": groupID, "name": "The Cove", "my_state": "sealed", "needs_action": false],
+                ["id": linkedID, "name": "Late Night Radio", "my_state": "sealed", "needs_action": false],
+                ["id": manualID, "name": "Third Circle", "my_state": "sealed", "needs_action": false],
+            ],
+        ])))
+        func groupPayload(_ id: String, _ name: String) -> RoundStub.Response {
+            RoundFixture.envelope(try! JSONSerialization.data(withJSONObject: [
+                "id": id, "name": name, "timezone": "America/New_York",
+                "reveal_hour": 21, "invite_code": "Q7MQ2X", "is_admin": false, "members": [Any](),
+            ]))
+        }
+        stub.arm(routes: [
+            "/rounds/\(linkedID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(linkedID)": groupPayload(linkedID, "Late Night Radio"),
+            "/rounds/\(manualID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(manualID)": groupPayload(manualID, "Third Circle"),
+        ])
+        env.router.receive(.round(groupID: linkedID))
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value?.group.name == "Late Night Radio", "the link's switch landed first")
+        #expect(env.router.pending != nil, "not yet consumed — the stub session is never `.ready`")
+
+        // The caller's own choice, exactly as `RoundScreen.switchCircle` makes it.
+        env.circles.select(manualID)
+        env.router.clearPending()
+        store.invalidate()
+        await store.load()
+
+        #expect(env.circles.activeGroupID == manualID)
+        #expect(store.state.value?.group.name == "Third Circle", "the manual switch, not the stale link, wins")
+        #expect(env.router.pending == nil, "nothing left to reassert on the next load")
+    }
+
+    /// The same link, naming a circle the caller has left or never joined, fails gracefully: the
+    /// active circle's own round loads exactly as it would have with no link at all, and nothing
+    /// is pushed for a circle that does not resolve to anything real.
+    @Test func loadingDropsAPendingLinkForACircleNotHeld() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        stub.arm(routes: [
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
+        ])
+        env.router.receive(.round(groupID: "some-circle-the-caller-left"))
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+
+        await store.load()
+
+        #expect(env.circles.activeGroupID == groupID, "the active circle is unchanged")
+        #expect(store.state.value?.group.name == "The Cove")
+        #expect(env.router.pending == nil, "dropped rather than left to be retried forever")
+    }
+
     /// A failed refresh keeps what is on screen and says so — `docs/08` §10's offline row, and the
     /// reason `LoadState` has a `.stale` case at all.
     @Test func afailedRefreshKeepsTheLastGoodRound() async throws {

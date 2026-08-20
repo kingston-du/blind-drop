@@ -32,6 +32,16 @@ enum DeepLink: Equatable, Sendable {
     /// `blinddrop://join/<CODE>` — join flow, code prefilled. Never circle-prefixed.
     case join(code: String)
 
+    /// The circle a link names, or `nil` for "the active one" — `.join` never has one
+    /// (`E19-03`). What `Router.resolvePendingCircle(against:)` reads to decide whether a
+    /// pending link needs a switch before it can be applied.
+    var groupID: String? {
+        switch self {
+        case let .round(groupID), let .results(groupID), let .record(groupID): groupID
+        case .join: nil
+        }
+    }
+
     init?(_ url: URL) {
         var parts: [String]
 

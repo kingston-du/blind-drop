@@ -78,6 +78,14 @@ struct RoundScreen: View {
                 // the refetch that re-anchors it.
                 if phase == .active { loadToken += 1 }
             }
+            // `E19-03`: a notification tapped while this screen is already up — no background
+            // period, so `scenePhase` never changes — needs its own reload. Cold and warm
+            // launch are covered by `.task(id:)`'s first run and the `scenePhase` case above;
+            // this is the one they miss. Firing only on `nil → non-nil` means a link already
+            // consumed (cleared back to `nil`) cannot re-trigger itself.
+            .onChange(of: env.router.pending) { _, pending in
+                if pending != nil { loadToken += 1 }
+            }
     }
 
     @ViewBuilder private var content: some View {
@@ -513,10 +521,16 @@ struct RoundScreen: View {
     /// exists to remove a *different* circle's round from view while the new one loads, and
     /// running that for the circle already showing would flash the skeleton and spend a round
     /// trip to redraw the exact thing already on screen.
+    ///
+    /// Clears any pending deep link too (`E19-03` review): a person's own tap here is an
+    /// explicit choice, and it is the last word — a link still "owed" its navigation from an
+    /// in-flight load for a *different* circle must not be left to reassert itself and quietly
+    /// switch back the moment that load lands.
     private func switchCircle(to id: String, store: RoundStore) {
         isShowingSwitcher = false
         guard id != store.state.value?.group.id else { return }
         env.circles.select(id)
+        env.router.clearPending()
         store.invalidate()
         loadToken += 1
     }

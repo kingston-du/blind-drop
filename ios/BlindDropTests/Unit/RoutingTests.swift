@@ -34,6 +34,18 @@ import Testing
         #expect(router.pending == .record(groupID: nil))
     }
 
+    /// `E19-03` review: a person's own tap in the switcher is the last word — it discards
+    /// whatever a deep link was still asking for rather than letting the link reassert itself.
+    @Test func clearPendingDropsAnOutstandingLink() {
+        let router = Router()
+        router.receive(.round(groupID: "g_1"))
+        #expect(router.pending != nil)
+
+        router.clearPending()
+
+        #expect(router.pending == nil)
+    }
+
     @Test func aLinkIsNotConsumedBeforeTheRoundLoads() {
         let router = Router()
         router.receive(.record(groupID: nil))
@@ -131,5 +143,83 @@ import Testing
     @Test func thePathHasExactlyThreeDestinations() {
         #expect(Route.allCases.count == 3)
         #expect(Set(Route.allCases) == [.record, .group, .settings])
+    }
+}
+
+/// `Router.resolvePendingCircle(against:)` — `E19-03`. Switching to a link's named circle
+/// **before** landing on it, and failing gracefully when the caller does not hold that circle.
+@MainActor
+@Suite struct ResolvePendingCircleTests {
+
+    private func circlesResponse(_ ids: [String]) -> RoundStub.Response {
+        let json: [String: Any] = [
+            "circles": ids.map { ["id": $0, "name": $0, "my_state": "sealed", "needs_action": false] },
+        ]
+        return RoundFixture.envelope(try! JSONSerialization.data(withJSONObject: json))
+    }
+
+    /// A link naming a circle the caller holds, other than the active one, switches to it.
+    @Test func switchesToAHeldCircleTheLinkNames() async throws {
+        let (env, stub) = RoundFixture.environment()
+        stub.armExact("/groups", circlesResponse(["a", "b"]))
+        _ = await env.circles.resolveActiveID()
+        #expect(env.circles.activeGroupID == "a", "the server's own oldest-active-first order")
+
+        env.router.receive(.record(groupID: "b"))
+        env.router.resolvePendingCircle(against: env.circles)
+
+        #expect(env.circles.activeGroupID == "b")
+        #expect(env.router.pending == .record(groupID: "b"), "the link itself is untouched — only navigated once `consume` runs")
+    }
+
+    /// A link naming a circle the caller has left, or never joined, fails gracefully: dropped,
+    /// same as a link this app does not recognise at all — never a guess at a fallback circle.
+    @Test func dropsALinkNamingACircleTheCallerDoesNotHold() async throws {
+        let (env, stub) = RoundFixture.environment()
+        stub.armExact("/groups", circlesResponse(["a", "b"]))
+        _ = await env.circles.resolveActiveID()
+
+        env.router.receive(.round(groupID: "some-circle-the-caller-left"))
+        env.router.resolvePendingCircle(against: env.circles)
+
+        #expect(env.circles.activeGroupID == "a", "no switch happened")
+        #expect(env.router.pending == nil, "and the link is gone rather than left to be guessed at later")
+    }
+
+    /// A link naming the circle already active is a no-op — nothing to switch, nothing dropped.
+    @Test func noOpsWhenTheLinkNamesTheAlreadyActiveCircle() async throws {
+        let (env, stub) = RoundFixture.environment()
+        stub.armExact("/groups", circlesResponse(["a", "b"]))
+        _ = await env.circles.resolveActiveID()
+
+        env.router.receive(.round(groupID: "a"))
+        env.router.resolvePendingCircle(against: env.circles)
+
+        #expect(env.circles.activeGroupID == "a")
+        #expect(env.router.pending == .round(groupID: "a"))
+    }
+
+    /// A bare link — no circle prefix — never touches the active circle.
+    @Test func abareLinkNeverSwitches() async throws {
+        let (env, stub) = RoundFixture.environment()
+        stub.armExact("/groups", circlesResponse(["a", "b"]))
+        _ = await env.circles.resolveActiveID()
+
+        env.router.receive(.round(groupID: nil))
+        env.router.resolvePendingCircle(against: env.circles)
+
+        #expect(env.circles.activeGroupID == "a")
+        #expect(env.router.pending == .round(groupID: nil))
+    }
+
+    /// Nothing pending is nothing to resolve.
+    @Test func nothingPendingIsANoOp() async throws {
+        let (env, stub) = RoundFixture.environment()
+        stub.armExact("/groups", circlesResponse(["a"]))
+        _ = await env.circles.resolveActiveID()
+
+        env.router.resolvePendingCircle(against: env.circles)
+
+        #expect(env.circles.activeGroupID == "a")
     }
 }

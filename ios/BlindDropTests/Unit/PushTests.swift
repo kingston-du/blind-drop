@@ -137,6 +137,10 @@ import Testing
         #expect(PushRouter.link(from: ["deep_link": "blinddrop://round/current/results"])
                 == .results(groupID: nil))
         #expect(PushRouter.link(from: ["deep_link": "blinddrop://record"]) == .record(groupID: nil))
+        // `E19-03`: a reveal or results push for a non-active circle carries the same circle
+        // prefix the URL scheme does (`docs/05` §5).
+        #expect(PushRouter.link(from: ["deep_link": "blinddrop://circle/g_1/round/current"])
+                == .round(groupID: "g_1"))
     }
 
     /// A payload with nothing we recognise does **nothing**, rather than falling back to the round.

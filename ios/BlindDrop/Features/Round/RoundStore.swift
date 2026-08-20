@@ -166,7 +166,27 @@ final class RoundStore {
     func load() async {
         if state.value == nil { state = .loading }
 
-        guard let groupID = await circles.resolveActiveID() else {
+        // Resolving the circle list first is needed for two things below: the default active
+        // circle, and — `E19-03` — validating a pending deep link's own circle before acting
+        // on it.
+        guard (await circles.resolveActiveID()) != nil else {
+            state.apply(.failure(circles.state.error ?? .unreadable))
+            router.consume(session: session.state, roundIsLoaded: state.value != nil)
+            return
+        }
+
+        // A pending link may name a specific circle (`docs/05` §5). Resolved here, before the
+        // fetch below, so a switch is not a second load — this call already asks for whichever
+        // circle the link named, once `resolvePendingCircle` has validated it. Clearing to
+        // `.loading` on an actual switch is `invalidate()`'s own reasoning: the previous
+        // circle's round must not sit on screen for the length of this refetch.
+        let previousActiveID = circles.activeGroupID
+        router.resolvePendingCircle(against: circles)
+        if circles.activeGroupID != previousActiveID {
+            invalidate()
+        }
+
+        guard let groupID = circles.activeGroupID else {
             state.apply(.failure(circles.state.error ?? .unreadable))
             router.consume(session: session.state, roundIsLoaded: state.value != nil)
             return

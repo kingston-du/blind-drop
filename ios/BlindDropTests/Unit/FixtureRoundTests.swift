@@ -90,6 +90,29 @@ struct FixtureRoundTests {
         #expect(store.state.value?.group.name == "Late Night Radio")
     }
 
+    /// `E19-03`: a deep link naming the real second circle switches `RoundStore` to it inside
+    /// **one** `load()` call — no manual `circles.select` + `invalidate()`, the way the switcher
+    /// itself needs (`E19-02`'s own test above). This is what a tapped notification actually
+    /// does: name a circle and let the next load resolve it.
+    @Test func adeepLinkForAnotherCircleSwitchesInsideLoad() async throws {
+        let env = try environment()
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value?.group.name == "The Cove")
+
+        env.router.receive(.round(groupID: "b0000000-0000-4000-8000-000000000099"))
+
+        await store.load()
+
+        #expect(store.state.value?.group.name == "Late Night Radio")
+        // `resolvePendingCircle` — the switch itself — runs unconditionally; `Router.consume`'s
+        // own `session == .ready` gate (untouched by this environment, which never signs in) is
+        // `RouterTests`' and `PushTests`' job, not this one's.
+        #expect(env.router.pending?.groupID == "b0000000-0000-4000-8000-000000000099")
+    }
+
     /// **AC-10's search budget** (`E10-02`): a query returns results in under 400ms.
     ///
     /// Measured around the client's own call, which is what the user waits on — the debounce sits
