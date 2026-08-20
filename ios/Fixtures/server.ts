@@ -121,6 +121,43 @@ async function roundPayloadFor(groupId: string): Promise<Record<string, unknown>
   return null;
 }
 
+// ─── invitations — E20-01 ─────────────────────────────────────────────────────
+// Pending, distinct from membership, exactly as the server's `invitations` table is: nothing
+// here ever writes to `group_current.json`'s `members`, so a UI test that accepts or declines
+// still sees the same roster it always did.
+
+interface FixtureInvitation {
+  id: string;
+  group: { id: string; name: string };
+  invited_by: { user_id: string; display_name: string };
+  created_at: string;
+  expires_at: string;
+}
+
+const fixtureInvitations: FixtureInvitation[] = [];
+let invitationSeq = 0;
+
+async function createInvitation(groupId: string, body: Record<string, unknown>): Promise<Response> {
+  const group = await groupPayloadFor(groupId);
+  if (!group) return fail(404, "NOT_FOUND", "That's not available right now.");
+  const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
+  if (!userId) return fail(400, "INVALID_INPUT", "Check that and try again.", { field: "user_id" });
+
+  const me = (await payload("me")) as Record<string, unknown>;
+  const now = new Date();
+  const expires = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  invitationSeq += 1;
+  const invitation: FixtureInvitation = {
+    id: `c0000000-0000-4000-8000-${String(invitationSeq).padStart(12, "0")}`,
+    group: { id: group.id as string, name: group.name as string },
+    invited_by: { user_id: me.user_id as string, display_name: me.display_name as string },
+    created_at: rfc3339(now),
+    expires_at: rfc3339(expires),
+  };
+  fixtureInvitations.push(invitation);
+  return ok(invitation);
+}
+
 // docs/04 §1 — the resource, bare, plus a server clock. On every response.
 function ok(data: unknown, status = 200): Response {
   return new Response(
@@ -300,6 +337,32 @@ async function route(req: Request, url: URL): Promise<Response> {
     return ok(await payload(`record_export_${svc}`));
   }
 
+  // ─── invitations — E20-01 ────────────────────────────────────────────────────
+  // In-memory, not scripted by `PHASE`: a pending invitation is new state a fixture-backed
+  // test creates and resolves itself, the same way `refreshCounter` tracks its own thing.
+  if (m === "POST" && p === "/groups/current/invitations") {
+    const body = await req.json().catch(() => ({}));
+    return createInvitation(PRIMARY_GROUP_ID, body);
+  }
+  if (m === "GET" && p === "/groups/invitations") {
+    return ok({ invitations: fixtureInvitations });
+  }
+  const invitationAccept = p.match(/^\/groups\/invitations\/([^/]+)\/accept$/);
+  if (m === "POST" && invitationAccept) {
+    const idx = fixtureInvitations.findIndex((i) => i.id === invitationAccept[1]);
+    if (idx === -1) return fail(404, "NOT_FOUND", "That's not available right now.");
+    const [invitation] = fixtureInvitations.splice(idx, 1);
+    const group = (await groupPayloadFor(invitation.group.id)) ?? (await payload("group_current"));
+    return ok(group);
+  }
+  const invitationDecline = p.match(/^\/groups\/invitations\/([^/]+)\/decline$/);
+  if (m === "POST" && invitationDecline) {
+    const idx = fixtureInvitations.findIndex((i) => i.id === invitationDecline[1]);
+    if (idx === -1) return fail(404, "NOT_FOUND", "That's not available right now.");
+    fixtureInvitations.splice(idx, 1);
+    return noContent();
+  }
+
   if (m === "GET" && p === "/rounds/current") {
     const round = await payload(PHASES[activePhase]) as Record<string, unknown>;
     return ok(reTime(round, new Date()));
@@ -376,6 +439,11 @@ async function route(req: Request, url: URL): Promise<Response> {
     if (!(await groupPayloadFor(groupExport[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");
     const svc = url.searchParams.get("service") === "apple" ? "apple" : "spotify";
     return ok(await payload(`record_export_${svc}`));
+  }
+  const groupInvite = p.match(/^\/groups\/([^/]+)\/invitations$/);
+  if (m === "POST" && groupInvite && groupInvite[1] !== "current") {
+    const body = await req.json().catch(() => ({}));
+    return createInvitation(groupInvite[1], body);
   }
 
   const roundCurrent = p.match(/^\/rounds\/([^/]+)\/current$/);

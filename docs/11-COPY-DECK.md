@@ -438,6 +438,7 @@ singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%
 | `error.roundvoided` | `ROUND_VOIDED` | Not enough drops tonight. Nothing revealed. |
 | `error.trackalreadyused` | `TRACK_ALREADY_USED` | You already used this today. |
 | `error.alreadyingroup` | `ALREADY_IN_GROUP` | You're already in that circle. |
+| `error.alreadyinvited` | `ALREADY_INVITED` | They already have an invitation to this circle. |
 | `error.circlelimitreached` | `CIRCLE_LIMIT_REACHED` | You're already in three circles. Leave one to join another. |
 | `error.notadmin` | `NOT_ADMIN` | Only the group's admin can change that. |
 | `error.ratelimited` | `RATE_LIMITED` | Slow down a second. |

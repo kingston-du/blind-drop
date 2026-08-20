@@ -5,7 +5,11 @@
 -- tests/functions/postgrest_locked.test.ts; what is provable in SQL is proved here.
 begin;
 set search_path = public, extensions, tests;
-select plan(61);
+-- Table count and every `unnest(array[...])` table list below grew by one for
+-- `public.invitations` (E20-01, `20260819100000_invitations.sql`) — four new assertions: one
+-- more row apiece in the two `pg_class`-driven RLS-enabled/forced checks (automatic, no array
+-- to edit) and one more row apiece in the two hand-enumerated read-denial checks below.
+select plan(65);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -21,8 +25,8 @@ order by c.relname;
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'),
-  12,
-  'exactly twelve tables in public — nothing has been added without a doc change');
+  13,
+  'exactly thirteen tables in public — nothing has been added without a doc change');
 
 -- ─── zero policies. Not "the right policies". Zero. ──────────────────────────
 select is_empty($$
@@ -91,7 +95,10 @@ select set_eq(
        ('pilot_cohorts', 'SELECT'), ('pilot_cohorts', 'INSERT'),
        ('pilot_cohorts', 'UPDATE'), ('pilot_cohorts', 'DELETE'),
        ('round_submitter_counts', 'SELECT'), ('guess_results', 'SELECT'),
-       ('round_scores', 'SELECT'), ('standings', 'SELECT') $$,
+       ('round_scores', 'SELECT'), ('standings', 'SELECT'),
+       -- E20-01 (20260819100000). No DELETE: an invitation only ever moves forward to a
+       -- terminal status; nothing removes the row.
+       ('invitations', 'SELECT'), ('invitations', 'INSERT'), ('invitations', 'UPDATE') $$,
   'service_role has exactly the table and view verbs used by Edge Functions');
 
 select set_eq(
@@ -133,7 +140,12 @@ select set_eq(
        -- ADR-011 (20260818090000). No Edge Function calls this directly — it is granted
        -- because `enforce_circle_cap`'s trigger body calls it, which is a real function call
        -- charged to the DML role's own privileges, unlike the trigger's own dispatch.
-       ('active_circle_cap'::information_schema.sql_identifier) $$,
+       ('active_circle_cap'::information_schema.sql_identifier),
+       -- E20-01 (20260819100000). Pending invitations: create, accept (atomic with the
+       -- membership insert, through the same circle-cap trigger above), decline.
+       ('create_invitation'::information_schema.sql_identifier),
+       ('accept_invitation'::information_schema.sql_identifier),
+       ('decline_invitation'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
 
 select is_empty($$
@@ -161,7 +173,7 @@ select throws_ok(
          format('authenticated cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts','demo_companions']) as t,
+                  'pilot_cohorts','demo_companions','invitations']) as t,
      lateral (select set_config('role', 'authenticated', true)) as _;
 reset role;
 
@@ -172,7 +184,7 @@ select throws_ok(
          format('anon cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts','demo_companions']) as t,
+                  'pilot_cohorts','demo_companions','invitations']) as t,
      lateral (select set_config('role', 'anon', true)) as _;
 reset role;
 

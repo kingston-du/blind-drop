@@ -100,6 +100,36 @@ export function groupPatchDTO(group: GroupDTO, effectiveFrom: string | null): Gr
   };
 }
 
+// ─── invitations — E20-01 ─────────────────────────────────────────────────────
+//
+// A pending invitation, distinct from membership: an inviter, an outcome, and the circle it
+// names. Deliberately carries nothing about the circle's roster or its round — accepting it
+// is the only way to see any of that, exactly like the invite-code path.
+
+export interface InvitationDTO {
+  id: string;
+  group: { id: string; name: string };
+  invited_by: MemberDTO;
+  created_at: string;
+  expires_at: string;
+}
+
+export function invitationDTO(row: {
+  id: string;
+  group: { id: string; name: string };
+  invitedBy: MemberDTO;
+  createdAt: string;
+  expiresAt: string;
+}): InvitationDTO {
+  return {
+    id: row.id,
+    group: { id: row.group.id, name: row.group.name },
+    invited_by: row.invitedBy,
+    created_at: rfc3339(new Date(row.createdAt)),
+    expires_at: rfc3339(new Date(row.expiresAt)),
+  };
+}
+
 // ─── tracks — docs/06 §2 ─────────────────────────────────────────────────────
 
 /**

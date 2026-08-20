@@ -22,6 +22,7 @@ export type ErrorCode =
   | "ROUND_VOIDED"
   | "INVALID_INPUT"
   | "ALREADY_IN_GROUP"
+  | "ALREADY_INVITED"
   | "CIRCLE_LIMIT_REACHED"
   | "TRACK_ALREADY_USED"
   | "NOT_ADMIN"
@@ -70,6 +71,13 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
     status: 409,
     message: "You're already in that circle.",
     copyKey: "error.alreadyingroup",
+  },
+  // BD004's insert half — a *live* pending invitation to this pair already exists (E20-01).
+  // Re-inviting after a decline or an expiry is fine; this is only the still-pending case.
+  ALREADY_INVITED: {
+    status: 409,
+    message: "They already have an invitation to this circle.",
+    copyKey: "error.alreadyinvited",
   },
   CIRCLE_LIMIT_REACHED: {
     status: 409,

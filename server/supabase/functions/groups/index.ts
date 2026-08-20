@@ -2,6 +2,11 @@
 //
 //   POST  /groups                              create a group, become its admin
 //   POST  /groups/join                         join by invite code
+//   POST  /groups/current/invitations           invite a user_id to the caller's default circle
+//   POST  /groups/:group_id/invitations          the same, for a named circle
+//   GET   /groups/invitations                    the caller's own pending invitations, any circle
+//   POST  /groups/invitations/:invitation_id/accept   accept — creates the membership (E20-01)
+//   POST  /groups/invitations/:invitation_id/decline  decline — terminal, re-invitable
 //   GET   /groups                              every circle the caller holds, and their own
 //                                               next move in each (`E18-02`) — the switcher
 //   GET   /groups/current                      the group and its roster — oldest circle
@@ -48,7 +53,13 @@ import {
   requireProfile,
   requireUser,
 } from "../_shared/auth.ts";
-import { type Db, dbFailure, isCircleLimitReached, isUniqueViolation } from "../_shared/db.ts";
+import {
+  type Db,
+  dbFailure,
+  isCircleLimitReached,
+  isInvitationGone,
+  isUniqueViolation,
+} from "../_shared/db.ts";
 import {
   type CallerCircleState,
   circleSummaryDTO,
@@ -59,6 +70,7 @@ import {
   type GroupDTO,
   groupDTO,
   groupPatchDTO,
+  invitationDTO,
   type MemberDTO,
   memberDTO,
   type ReadabilityBand,
@@ -768,6 +780,165 @@ async function leaveGroup(ctx: MemberCtx): Promise<Response> {
   return noContent();
 }
 
+// ─── invitations — E20-01, docs/02 §2 (the invite-code path is unchanged and untouched) ─────
+//
+// A second door into a circle, for someone the inviter already knows the account of — the
+// invite-code door above stays exactly as it was, for someone who has none yet. Pending
+// invitations are their own state (`public.invitations`, distinct from `memberships`), so
+// every reader of `memberships` elsewhere in this file and in `rounds/index.ts` needs no
+// change: a pending invitee has no membership row and is invisible to the name pool, the
+// minimum-of-three, `card_order`, standings, scoring and every push audience by construction.
+
+const INVITE_LIMIT_PER_USER = 20;
+const ONE_HOUR_IN_SECONDS = 60 * 60;
+
+/** Invites `user_id` — a real, distinct account — to `ctx.groupId`. Any active member may
+ *  invite, not only the admin; there is no admin-only gate in this slice (E21 owns roles). */
+async function inviteMember(req: Request, ctx: MemberCtx): Promise<Response> {
+  // Charged before the body is even parsed, same discipline as `POST /groups/join`: every
+  // attempt costs the same, so the quota itself never becomes an oracle for who has an
+  // account (docs/14 §8).
+  await enforceRateLimit(
+    ctx.db,
+    `invite:u:${ctx.userId}`,
+    INVITE_LIMIT_PER_USER,
+    ONE_HOUR_IN_SECONDS,
+  );
+
+  const body = await parseBody(req, { user_id: str({ min: 1, max: 64 }) });
+  if (!UUID.test(body.user_id)) throw new ApiError("INVALID_INPUT", { field: "user_id" });
+  if (body.user_id === ctx.userId) throw new ApiError("INVALID_INPUT", { field: "user_id" });
+
+  const { data: existing, error: membershipError } = await ctx.db
+    .from("memberships")
+    .select("id")
+    .eq("group_id", ctx.groupId)
+    .eq("user_id", body.user_id)
+    .is("left_at", null)
+    .maybeSingle();
+  if (membershipError) throw dbFailure("groups.invite.membership", membershipError);
+  if (existing) throw new ApiError("ALREADY_IN_GROUP");
+
+  // The invited id must name a real profile. An unknown id gets the same INVALID_INPUT a
+  // malformed one gets — distinguishing them would be an account-existence oracle, the same
+  // reasoning `POST /groups/join` already applies to invite codes (docs/14 §8).
+  const { data: invitedProfile, error: profileError } = await ctx.db
+    .from("profiles")
+    .select("id")
+    .eq("id", body.user_id)
+    .maybeSingle();
+  if (profileError) throw dbFailure("groups.invite.profile", profileError);
+  if (!invitedProfile) throw new ApiError("INVALID_INPUT", { field: "user_id" });
+
+  const { data, error } = await ctx.db.rpc("create_invitation", {
+    p_group: ctx.groupId,
+    p_invited_by: ctx.userId,
+    p_invited_user: body.user_id,
+  });
+  if (isUniqueViolation(error)) throw new ApiError("ALREADY_INVITED");
+  if (error) throw dbFailure("groups.invite", error);
+
+  const row = data as { id: string; created_at: string; expires_at: string };
+  const group = await loadGroup(ctx.db, ctx.groupId);
+  return ok(
+    invitationDTO({
+      id: row.id,
+      group: { id: group.id, name: group.name },
+      invitedBy: memberDTO({ user_id: ctx.userId, display_name: ctx.displayName }),
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+    }),
+  );
+}
+
+/**
+ * `GET /groups/invitations` — every circle the caller has been invited to and has not yet
+ * answered, oldest first. `expires_at > now` is filtered here rather than left to the client:
+ * a lazily-expired row is filtered exactly like a genuinely absent one until something tries
+ * to act on it (`accept_invitation`/`decline_invitation` do the actual state flip).
+ *
+ * Nothing here is shaped by anyone else's participation in a round — this reads
+ * `invitations`, `groups` and `profiles` only, never a round, a submission or a guess.
+ */
+async function myInvitationsResponse(ctx: ProfileCtx): Promise<Response> {
+  const { data: rows, error } = await ctx.db
+    .from("invitations")
+    .select("id, group_id, invited_by, created_at, expires_at")
+    .eq("invited_user", ctx.userId)
+    .eq("status", "pending")
+    .gt("expires_at", serverNow().toISOString())
+    .order("created_at", { ascending: true });
+  if (error) throw dbFailure("groups.myInvitations", error);
+  if (rows.length === 0) return ok({ invitations: [] });
+
+  const groupIds = [...new Set(rows.map((r) => r.group_id as string))];
+  const inviterIds = [...new Set(rows.map((r) => r.invited_by as string))];
+
+  const [{ data: groups, error: groupsError }, { data: profiles, error: profilesError }] =
+    await Promise.all([
+      ctx.db.from("groups").select("id, name").in("id", groupIds),
+      ctx.db.from("profiles").select("id, display_name").in("id", inviterIds),
+    ]);
+  if (groupsError) throw dbFailure("groups.myInvitations.groups", groupsError);
+  if (profilesError) throw dbFailure("groups.myInvitations.profiles", profilesError);
+
+  const groupById = new Map(groups.map((g) => [g.id as string, g]));
+  const profileById = new Map(profiles.map((p) => [p.id as string, p]));
+
+  const invitations = rows.map((row) => {
+    const group = groupById.get(row.group_id as string);
+    const inviter = profileById.get(row.invited_by as string);
+    return invitationDTO({
+      id: row.id,
+      // Both lookups come from foreign keys this row could not exist without — `on delete
+      // cascade` on both `group_id` and `invited_by` (`20260819100000_invitations.sql`), so
+      // the fallback below is unreachable in practice and only keeps this from throwing.
+      group: { id: row.group_id, name: group?.name ?? "" },
+      invitedBy: memberDTO({ user_id: row.invited_by, display_name: inviter?.display_name ?? "" }),
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+    });
+  });
+
+  return ok({ invitations });
+}
+
+/** `POST /groups/invitations/:invitation_id/accept` — atomic with the membership insert
+ *  (`accept_invitation`, ADR-011's cap included), and answers with the same `GroupDTO` shape
+ *  `POST /groups/join` does, so the client's "you're in" screen does not need a second shape. */
+async function acceptInvitation(ctx: ProfileCtx, invitationId: string): Promise<Response> {
+  if (!UUID.test(invitationId)) throw new ApiError("NOT_FOUND");
+
+  const { data, error } = await ctx.db.rpc("accept_invitation", {
+    p_invitation: invitationId,
+    p_user: ctx.userId,
+  });
+  if (isInvitationGone(error)) throw new ApiError("NOT_FOUND");
+  if (isCircleLimitReached(error)) throw new ApiError("CIRCLE_LIMIT_REACHED");
+  if (isUniqueViolation(error)) throw new ApiError("ALREADY_IN_GROUP");
+  if (error) throw dbFailure("groups.invitations.accept", error);
+
+  const outcome = data as { outcome: "accepted" | "expired"; group_id?: string };
+  if (outcome.outcome !== "accepted" || !outcome.group_id) throw new ApiError("NOT_FOUND");
+  const group = await loadGroup(ctx.db, outcome.group_id);
+  return ok(groupDTO(group, false, await roster(ctx.db, group.id)));
+}
+
+/** `POST /groups/invitations/:invitation_id/decline` — terminal, and re-invitable: the next
+ *  `create_invitation` for this pair inserts cleanly, because this row is no longer pending. */
+async function declineInvitation(ctx: ProfileCtx, invitationId: string): Promise<Response> {
+  if (!UUID.test(invitationId)) throw new ApiError("NOT_FOUND");
+
+  const { data, error } = await ctx.db.rpc("decline_invitation", {
+    p_invitation: invitationId,
+    p_user: ctx.userId,
+  });
+  if (isInvitationGone(error)) throw new ApiError("NOT_FOUND");
+  if (error) throw dbFailure("groups.invitations.decline", error);
+  if (data !== "declined") throw new ApiError("NOT_FOUND");
+  return noContent();
+}
+
 const MAX_INVITE_ATTEMPTS = 5;
 
 // docs/04 §8: `POST /groups/join` is limited to 10/hour per user and, additionally, 30/hour
@@ -777,7 +948,6 @@ const MAX_INVITE_ATTEMPTS = 5;
 // signing up more users.
 const JOIN_LIMIT_PER_USER = 10;
 const JOIN_LIMIT_PER_IP = 30;
-const ONE_HOUR_IN_SECONDS = 60 * 60;
 
 serveFunction("groups", {
   // ─── create ────────────────────────────────────────────────────────────────
@@ -993,5 +1163,30 @@ serveFunction("groups", {
       params.group_id,
     );
     return leaveGroup(ctx);
+  },
+
+  // ─── invitations — E20-01 ────────────────────────────────────────────────────
+  "POST /current/invitations": async (req, route) => {
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return inviteMember(req, ctx);
+  },
+  "POST /:group_id/invitations": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return inviteMember(req, ctx);
+  },
+  "GET /invitations": async (req, route) => {
+    const ctx = await requireProfile(await requireUser(req, route));
+    return myInvitationsResponse(ctx);
+  },
+  "POST /invitations/:invitation_id/accept": async (req, route, params) => {
+    const ctx = await requireProfile(await requireUser(req, route));
+    return acceptInvitation(ctx, params.invitation_id);
+  },
+  "POST /invitations/:invitation_id/decline": async (req, route, params) => {
+    const ctx = await requireProfile(await requireUser(req, route));
+    return declineInvitation(ctx, params.invitation_id);
   },
 });
