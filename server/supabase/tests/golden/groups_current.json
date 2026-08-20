@@ -16,6 +16,7 @@
   "nested": {
     "members[]": [
       "display_name",
+      "role",
       "user_id"
     ]
   }

@@ -49,6 +49,28 @@ export function memberDTO(row: { user_id: string; display_name: string }): Membe
   };
 }
 
+/**
+ * A roster row, specifically — `MemberDTO` plus which of the two roles they hold (`E21-01`,
+ * docs/04 §3). Its own type rather than widening `MemberDTO` itself: `MemberDTO` is also
+ * `name_pool`'s shape, a results card's `owner`, and a Record entry, and each of those routes'
+ * golden tests assert an exact key set that does not include `role`. A member's role is static
+ * circle governance, not participation — safe in every phase the same way the roster itself is
+ * (docs/04 §3) — but it belongs only on the one response that is actually about the roster.
+ */
+export interface RosterMemberDTO extends MemberDTO {
+  role: "member" | "admin";
+}
+
+export function rosterMemberDTO(
+  row: { user_id: string; display_name: string; role: "member" | "admin" },
+): RosterMemberDTO {
+  return {
+    user_id: row.user_id,
+    display_name: row.display_name,
+    role: row.role,
+  };
+}
+
 export interface GroupDTO {
   id: string;
   name: string;
@@ -56,13 +78,13 @@ export interface GroupDTO {
   reveal_hour: number;
   invite_code: string;
   is_admin: boolean;
-  members: MemberDTO[];
+  members: RosterMemberDTO[];
 }
 
 export function groupDTO(
   group: { id: string; name: string; timezone: string; reveal_hour: number; invite_code: string },
   isAdmin: boolean,
-  members: MemberDTO[],
+  members: RosterMemberDTO[],
 ): GroupDTO {
   return {
     id: group.id,

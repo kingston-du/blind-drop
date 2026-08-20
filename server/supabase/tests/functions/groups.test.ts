@@ -148,7 +148,7 @@ Deno.test("a bad code and a valid-but-unusable code are the same NOT_FOUND", asy
 
 // ─── current ─────────────────────────────────────────────────────────────────
 
-Deno.test("GET /groups/current carries user_id and display_name only — docs/14 §3", async () => {
+Deno.test("GET /groups/current carries user_id, display_name and role only — docs/14 §3", async () => {
   const { user: owner, group } = await newGroupOwner("Ana");
   const ben = await newNamedUser("Ben");
   await groups("/join", {
@@ -164,12 +164,19 @@ Deno.test("GET /groups/current carries user_id and display_name only — docs/14
   for (const member of res.body.data.members) {
     // No joined_at. A joined_at that changed today, plus a missing name in tonight's pool,
     // is an inference channel — and nothing else about participation belongs here either.
-    assertEquals(keysOf(member), ["display_name", "user_id"]);
+    // `role` (E21-01) is static circle governance, not participation, so it is the one
+    // exception to that rule.
+    assertEquals(keysOf(member), ["display_name", "role", "user_id"]);
   }
   assertEquals(res.body.data.members.map((m: { display_name: string }) => m.display_name), [
     "Ana",
     "Ben",
   ]);
+  // The creator is the admin; the joiner is a member — E21-01.
+  assertEquals(
+    res.body.data.members.map((m: { role: string }) => m.role),
+    ["admin", "member"],
+  );
 
   // The joiner sees the same group, and is not its admin.
   const fromBen = await groups("/current", { token: ben.token });
@@ -305,6 +312,36 @@ Deno.test("POST /groups/current/leave is a 204, and the live token then gets NO_
   // And the group carries on without them.
   const remaining = await groups("/current", { token: user.token });
   assertEquals(remaining.body.data.members, [{ user_id: user.id, display_name: "Ana" }]);
+});
+
+Deno.test("the sole admin cannot leave while other active members remain — E21-01", async () => {
+  const { user: owner, group } = await newGroupOwner("Ana");
+  const ben = await newNamedUser("Ben");
+  await groups("/join", {
+    method: "POST",
+    token: ben.token,
+    body: { invite_code: group.invite_code },
+  });
+
+  const res = await groups("/current/leave", { method: "POST", token: owner.token });
+  assertEquals(res.status, 409);
+  assertEquals(res.body.error.code, "LAST_ADMIN_MUST_TRANSFER");
+
+  // Refused, not partially applied: the admin's membership is still active.
+  const still = await groups("/current", { token: owner.token });
+  assertEquals(still.body.data.id, group.id);
+  assertEquals(still.body.data.is_admin, true);
+});
+
+Deno.test("a sole admin with no other active members may still leave — E21-01", async () => {
+  const { user } = await newGroupOwner("Ana");
+
+  const res = await groups("/current/leave", { method: "POST", token: user.token });
+  assertEquals(res.status, 204);
+
+  const after = await groups("/current", { token: user.token });
+  assertEquals(after.status, 409);
+  assertEquals(after.body.error.code, "NO_GROUP");
 });
 
 Deno.test("leaving frees the one-group rule, and rejoining is allowed", async () => {

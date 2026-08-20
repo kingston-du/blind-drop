@@ -37,6 +37,10 @@ enum APIError: Error, Equatable, Sendable {
     case alreadyInGroup
     /// 403. A group settings change by somebody who is not the admin.
     case notAdmin
+    /// 409. The caller is the circle's only admin and other active members remain —
+    /// `E21-01`'s open question. Unreachable from this app's own UI today (there is no promote
+    /// or remove yet, `E21-02`), but enforced server-side regardless.
+    case lastAdminMustTransfer
     /// 429, with the `Retry-After` header where the server sent one.
     case rateLimited(retryAfter: TimeInterval?)
     /// 502. Apple Music or Spotify is not answering.
@@ -77,6 +81,7 @@ extension APIError {
         case .invalidInput: "INVALID_INPUT"
         case .alreadyInGroup: "ALREADY_IN_GROUP"
         case .notAdmin: "NOT_ADMIN"
+        case .lastAdminMustTransfer: "LAST_ADMIN_MUST_TRANSFER"
         case .rateLimited: "RATE_LIMITED"
         case .upstreamUnavailable: "UPSTREAM_UNAVAILABLE"
         case .reauthenticationRequired: "REAUTHENTICATION_REQUIRED"
@@ -102,6 +107,7 @@ extension APIError {
         case .invalidInput: "error.invalidinput"
         case .alreadyInGroup: "error.alreadyingroup"
         case .notAdmin: "error.notadmin"
+        case .lastAdminMustTransfer: "error.lastadmin"
         case .rateLimited: "error.ratelimited"
         case .upstreamUnavailable: "error.upstream"
         case .reauthenticationRequired, .reauthenticationFailed: "settings.delete.reauth"
@@ -129,6 +135,7 @@ extension APIError {
         case "INVALID_INPUT": self = .invalidInput(field: field)
         case "ALREADY_IN_GROUP": self = .alreadyInGroup
         case "NOT_ADMIN": self = .notAdmin
+        case "LAST_ADMIN_MUST_TRANSFER": self = .lastAdminMustTransfer
         case "RATE_LIMITED": self = .rateLimited(retryAfter: retryAfter)
         case "UPSTREAM_UNAVAILABLE": self = .upstreamUnavailable
         case "REAUTHENTICATION_REQUIRED": self = .reauthenticationRequired

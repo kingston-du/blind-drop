@@ -373,6 +373,21 @@ either must be able to happen without the other.
 | `group.title` | Group |
 | `group.members` | Members |
 | `group.loading` | Loading the group. |
+| `group.role.admin` | Admin |
+| `group.name.label` | Group name |
+| `group.name.help` | Everyone in the circle sees this. |
+| `group.name.save` | Save name |
+| `group.name.saved` | Saved. |
+| `group.revealhour.label` | Reveal hour |
+| `group.revealhour.help` | A change applies from the next round that hasn't been created yet — never tonight's. |
+| `group.revealhour.effective` | Starts %@. |
+| `group.timezone.label` | Timezone |
+| `group.timezone.help` | Set when the circle was created. It can't be changed. |
+| `group.leave` | Leave circle |
+| `group.leave.confirm.title` | Leave this circle? |
+| `group.leave.confirm.body` | Your songs and guesses stay in its history. You can rejoin later with an invite. |
+| `group.leave.confirm.action` | Leave |
+| `error.lastadmin` | You're the only admin here. This circle needs another one before you can leave. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |
 | `settings.name` | Display name |
@@ -440,6 +455,7 @@ singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%
 | `error.alreadyingroup` | `ALREADY_IN_GROUP` | You're already in that circle. |
 | `error.circlelimitreached` | `CIRCLE_LIMIT_REACHED` | You're already in three circles. Leave one to join another. |
 | `error.notadmin` | `NOT_ADMIN` | Only the group's admin can change that. |
+| `error.lastadmin` | `LAST_ADMIN_MUST_TRANSFER` | You're the only admin here. This circle needs another one before you can leave. |
 | `error.ratelimited` | `RATE_LIMITED` | Slow down a second. |
 | `error.upstream` | `UPSTREAM_UNAVAILABLE` | The music catalog isn't answering. Try again in a minute. |
 | `error.nogroup` | `NO_GROUP` | You're not in a group yet. |

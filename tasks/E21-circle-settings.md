@@ -39,6 +39,22 @@ someone discover it tonight.
 - [ ] Timezone shown, not editable, with the reason
 - [ ] The last admin cannot leave a circle with members still in it without the role passing on
 
+> **Open question:** the checklist requires that the last admin cannot leave a circle with
+> members still in it without the role passing on, but no promote or remove mechanism exists
+> yet — that is `E21-02`. Today an admin has no way to demote themselves and no way to appoint
+> a second admin, so "the last admin tries to leave a circle that still has other members" is
+> unreachable through this app's own UI. Resolved the protective way (`CLAUDE.md` §1): the
+> server enforces the rule anyway, in `leaveGroup()` (`server/supabase/functions/groups/index.ts`),
+> failing with a new `LAST_ADMIN_MUST_TRANSFER` (409) instead of a bare `left_at` update when the
+> caller is the circle's sole active admin and other active members remain. This is defensive
+> and forward-looking rather than dead code: it is exactly the guard `E21-02`'s promote/remove
+> work will make reachable, and building it now means that slice inherits an already-tested rule
+> instead of writing one under time pressure. Covered by a Deno test in
+> `server/supabase/tests/functions/groups.test.ts` and documented in `docs/04-API-CONTRACT.md`
+> §3 and its error-code table. The client-side copy (`error.lastadmin`) is plain and honest if
+> ever hit, with no bespoke UI flow — matching the instruction that this needed no more than that
+> until `E21-02` makes it reachable.
+
 ---
 
 ### E21-02 — Who is in charge
