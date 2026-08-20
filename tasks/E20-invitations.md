@@ -44,15 +44,11 @@ Invite codes keep working. They are how a link invites someone who has no accoun
 
 ### E20-02 — Starting a group, and filling it
 
-**Status:** blocked · **Deps:** E20-01, E19-02 · **Parallel:** no
+**Status:** done · **Deps:** E20-01, E19-02 · **Parallel:** no
 **Reads:** `docs/08` §1, `docs/11`, `docs/12` §2
 **Touches:** `BlindDrop/Features/Onboarding/`, the switcher, `Localizable.strings`,
 `docs/11-COPY-DECK.md`, snapshot tests
 **Verify:** `./ios/scripts/lint.sh`; unit + snapshot; `verify-fixture.sh` onboarding.
-
-> **Blocked:** `npm run test:functions -- groups` cannot run because the local
-> `supabase_db_blind-drop` container is unhealthy (`LegacyStatusDbNotReadyError`). Server lint
-> and `deno check` pass; restore the local stack and run the function suite before closing.
 
 **`+ Start a group`** at the foot of the switcher. Creation asks for a name and the schedule,
 and then gets out of the way — the second group should cost a few taps, not a form. Timezone
@@ -66,12 +62,12 @@ the invite link, which is the path for anyone not on it.
 An existing user opening an invite link lands on a short Join screen — the group's name, who
 invited them, accept or not — never the sign-up flow they have already completed.
 
-- [ ] `+ Start a group` in the switcher; creation is name plus schedule, then invitations
-- [ ] Timezone stated, not asked; reveal hour defaulted sensibly and adjustable
-- [ ] People you've played with, derived from shared groups, no standalone list
-- [ ] Invite link works for new users (landing page) and existing users (Join screen)
-- [ ] ADR-011's cap refused clearly at both create and accept
-- [ ] Creation reachable when the user has no group at all — the onboarding path still works
+- [x] `+ Start a group` in the switcher; creation is name plus schedule, then invitations
+- [x] Timezone stated, not asked; reveal hour defaulted sensibly and adjustable
+- [x] People you've played with, derived from shared groups, no standalone list
+- [x] Invite link works for new users (landing page) and existing users (Join screen)
+- [x] ADR-011's cap refused clearly at both create and accept
+- [x] Creation reachable when the user has no group at all — the onboarding path still works
 
 ---
 
