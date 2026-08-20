@@ -14,8 +14,15 @@ listing the caller's circles (name and state, needs-action ones first, no visibl
 picking one calls `CircleStore.select(_:)` and re-scopes `RoundStore` via a new `invalidate()`
 that clears to `.loading` before the refetch rather than racing it. Two real bugs surfaced by
 actually looking at the rendered output rather than trusting green tests, both fixed before
-closing — see the epic file's entry for both. `E19-03` is next, now unblocked (it also needs
-`E23-01`, already done). `E23-02` is open on the server side.
+closing — see the epic file's entry for both. `E19-03` closed 2026-08-19 too — a deep link's
+circle prefix (parsed since `E19-01`) now actually switches: a new
+`Router.resolvePendingCircle(against:)`, called from `RoundStore.load()` before it resolves the
+active id, switches to a held circle or drops the link if the caller does not hold it.
+`RoundScreen` gained an `.onChange(of: env.router.pending)` to cover the one gap cold/warm launch
+already handled for free — a notification tapped while the round screen is already up. A race the
+reviewer caught (a manual switcher pick racing a still-in-flight link-driven switch could silently
+revert to the link) was fixed before closing with a new `Router.clearPending()`, called by the
+switcher's own selection. `E23-02` is open on the server side.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` — a first batch attempt on all four slices ran out of budget
@@ -306,7 +313,7 @@ replacement inherits.
 |---|---|---|---|---|
 | E19-01 Every screen knows which circle it is showing | done | E18-01, E18-02 | no | AC-1, AC-10 |
 | E19-02 The switcher | done | E19-01 | no | — |
-| E19-03 A notification opens the circle it came from | todo | E19-02, E23-01 | no | — |
+| E19-03 A notification opens the circle it came from | done | E19-02, E23-01 | no | — |
 
 ## E20 — Circle creation and invitations · [file](E20-invitations.md)
 

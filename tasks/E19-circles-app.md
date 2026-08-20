@@ -205,7 +205,7 @@ golden suite rather than re-demonstrated live, since the fixture's second circle
 
 ### E19-03 — A notification opens the circle it came from
 
-**Status:** todo · **Deps:** E19-02, E23-01 · **Parallel:** no
+**Status:** done · **Deps:** E19-02, E23-01 · **Parallel:** no
 **Reads:** `docs/05` §2, `docs/13` §9
 **Touches:** `BlindDrop/App/DeepLink.swift`, `BlindDrop/App/Router.swift`,
 `BlindDrop/Core/Push/PushRouter.swift`, unit tests
@@ -218,7 +218,57 @@ into whatever was on screen. Cold launch, warm launch, and already-open all have
 `Router` already refuses to apply a deep link before the round loads, which is the correct
 instinct and gets harder here: the target circle's round may not be loaded at all.
 
-- [ ] Payloads carry the circle; the parser is total and rejects malformed input safely
-- [ ] Tapping switches circle and lands on the right phase, from cold, warm, and foreground
-- [ ] A link naming a circle the user has left, or never joined, fails gracefully
-- [ ] Phase gates still hold — a deep link can never open a screen the phase forbids
+- [x] Payloads carry the circle; the parser is total and rejects malformed input safely
+- [x] Tapping switches circle and lands on the right phase, from cold, warm, and foreground
+- [x] A link naming a circle the user has left, or never joined, fails gracefully
+- [x] Phase gates still hold — a deep link can never open a screen the phase forbids
+
+`DeepLink`'s circle prefix and `PushRouter`'s payload parsing were already total from `E19-01` —
+this slice's own addition is `DeepLink.groupID`, a one-line accessor so `Router` (and, below,
+`RoundStore`) can read a link's target circle without re-deriving the switch statement.
+
+The actual switch lives in a new `Router.resolvePendingCircle(against: CircleStore)`, called by
+`RoundStore.load()` **before** it resolves which circle "today's round" means — not inside
+`Router.consume`, which the epic's own E19-01 note already flagged as out of scope for that
+method. A pending link naming a circle the caller does not hold — left, or never joined — is
+dropped there and then: `pending = nil`, no switch, the active circle's own round loads exactly
+as if there had been no link, the same "do nothing rather than guess" rule `DeepLink.init?`
+already applies to a link the app does not recognise at all. A link naming a **held**, different
+circle calls `circles.select(_:)` and `RoundStore.load()` invalidates (`state = .loading`) before
+the fetch, the same reasoning `E19-02`'s `invalidate()` argues: the previous circle's round must
+not sit on screen for the length of the refetch. One `load()` call answers the switch — no second
+reload needed for cold or warm launch.
+
+**Foreground was the gap the other two didn't cover.** Cold and warm launch already had a natural
+trigger to re-run `RoundStore.load()` — the first `.task(id: loadToken)` run, and `RoundScreen`'s
+existing `scenePhase == .active` handler respectively — but a notification tapped while the round
+screen is already up changes neither. `RoundScreen` now also bumps `loadToken` on
+`.onChange(of: env.router.pending)` when a new link arrives, which is exactly the missing trigger
+and nothing more: `resolvePendingCircle` runs unconditionally inside every `load()`, so this only
+needed to guarantee a load happens, not to decide what it does.
+
+**A race the reviewer caught, fixed before closing.** `resolvePendingCircle` switches the active
+circle as soon as a pending link's is valid, but does not itself clear `pending` — that link is
+still "owed" its navigation, consumed later by `Router.consume` once `session == .ready` and the
+round has loaded. Left alone, a person opening the switcher (`E19-02`) and picking a **third**
+circle while the link's own fetch was still in flight would find the stale link still pending on
+the very next load — the one their own tap triggers — and silently switch back to it, discarding
+the choice they had just made, with no error and no visible cause. Fixed the way the review
+suggested: a manual switch is not a hint, it is the last word, so `RoundScreen.switchCircle` now
+calls a new `Router.clearPending()` itself before invalidating and reloading.
+
+Verified: `./ios/scripts/lint.sh` clean; unit 427/427 (new: `DeepLinkTests`' existing circle-prefix
+coverage was already sufficient and untouched; `PushTests` gained one circle-prefixed payload
+case; `RoutingTests` gained `ResolvePendingCircleTests` — five cases — plus
+`clearPendingDropsAnOutstandingLink`; `RoundStoreTests` gained three `load()`-level cases,
+including the race fix); snapshot 65/65 (untouched by this slice, re-run to confirm); fixture
+`FixtureRoundTests` 8/8, including a new case switching to the real second circle via a deep link
+inside one `load()` call, against the real fixture server rather than a stub. Simulator: launched
+against the fixture server with a clean install (default active circle, "The Cove"); confirmed
+`xcrun simctl openurl` with a circle-prefixed link and `xcrun simctl push` with one both reach the
+app's `UNWillPresentNotificationAction`/scene-open path per the device log, but this session's
+simulator-control tooling could not tap through the resulting system-owned "Open in…" dialog or
+notification banner to complete a live cold/warm/foreground tap-through — noted as unverified
+live rather than papered over. The underlying mechanism those taps would exercise (parsing,
+gating, the switch itself, and the race fix) is covered end to end by the unit and fixture suites
+above, including against the real fixture server.
