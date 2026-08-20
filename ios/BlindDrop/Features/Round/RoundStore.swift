@@ -174,13 +174,26 @@ final class RoundStore {
 
         async let round = result(of: .round(groupID))
         async let group = result(of: .group(groupID))
-
+        let outcome: Result<RoundContext, APIError>
         switch (await round, await group) {
         case let (.success(round), .success(group)):
-            state.apply(.success(RoundContext(round: round, group: group)))
+            outcome = .success(RoundContext(round: round, group: group))
         case let (.failure(error), _), let (_, .failure(error)):
-            state.apply(.failure(error))
+            outcome = .failure(error)
         }
+
+        // The caller switched to a **different** circle while this request was in flight
+        // (`E19-02` review). `.task(id: loadToken)` cancels the old task on a switch, and
+        // cancellation usually reaches these requests before they finish — but not always: a
+        // response that had already fully arrived when cancellation was requested completes
+        // normally regardless, and applying it here would silently revert the screen to the
+        // circle the caller just switched *away* from, with no error and no visible cause.
+        // `circles.activeGroupID` is the caller's most recent choice; a mismatch means the
+        // circle this request answers for is not the one on screen, and the load that is for
+        // the current circle will make its own call here with its own answer.
+        guard circles.activeGroupID == groupID else { return }
+
+        state.apply(outcome)
 
         // `docs/05` §5: a deep link is applied only **after** the round has loaded, so it can
         // never land on a phase that is not current. This is the "roundIsLoaded" half of that.

@@ -508,8 +508,14 @@ struct RoundScreen: View {
     /// Every group-scoped store resolves its own `groupID` fresh at the top of its own call, so
     /// nothing here needs rebuilding: `store.load()` picking up the new circle is the entire
     /// re-scope.
+    ///
+    /// The circle already on screen is a no-op past closing the sheet (review): `invalidate()`
+    /// exists to remove a *different* circle's round from view while the new one loads, and
+    /// running that for the circle already showing would flash the skeleton and spend a round
+    /// trip to redraw the exact thing already on screen.
     private func switchCircle(to id: String, store: RoundStore) {
         isShowingSwitcher = false
+        guard id != store.state.value?.group.id else { return }
         env.circles.select(id)
         store.invalidate()
         loadToken += 1

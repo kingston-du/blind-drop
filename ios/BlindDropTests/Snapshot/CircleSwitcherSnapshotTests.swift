@@ -36,11 +36,14 @@ private let devices = SnapshotRenderer.Device.matrix
     }
 
     /// The one-circle case (`docs/08`: *"suits one circle as well as three"*) — no needs-action
-    /// mark, and the only row is also the active one.
-    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility1])
+    /// mark, and the only row is also the active one. Includes `.accessibility5` (review): the
+    /// longest name at the largest size is the combination most likely to break the sheet's
+    /// measured-height math, and it is the one the three-circle set's own `.accessibility5`
+    /// cases do not stand in for — one row measures differently than three.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility1, .accessibility5])
     func oneCircle(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         let sheet = CircleSwitcherSheet(
-            rows: [circle("The Cove")], activeID: "The Cove", select: { _ in }, close: {}
+            rows: [circle("Late Night Radio")], activeID: "Late Night Radio", select: { _ in }, close: {}
         )
         verify(named: "CircleSwitcher-one", device, size) { sheet.snapshotContent(typeSize: size) }
     }
