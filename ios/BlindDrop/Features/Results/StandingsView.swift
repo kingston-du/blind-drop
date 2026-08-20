@@ -65,22 +65,37 @@ private struct StandingRow: View {
     /// song of theirs in a round has an ear and no readability, and a zero would be a lie.
     let readability: ReadabilityStandingDTO?
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
-
     var body: some View {
-        row
+        StandingRowContent(standing: standing, readability: readability)
             .padding(.horizontal, Layout.rowInset + Space.xs)
             .padding(.vertical, Layout.rowInset)
             // One stop per person. The rank, the name and the numbers are one fact about one
             // member, and four swipes to hear it is three too many (`docs/12` §2).
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(verbatim: announcement))
+            .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(
+                standing: standing, readability: readability
+            )))
             .accessibilityAddTraits(.isStaticText)
     }
+}
 
-    @ViewBuilder private var row: some View {
+/// The rank, the name and the two numbers, undressed — no padding, no accessibility wrapper,
+/// no trait. `StandingRow` above wraps this as static text for the all-time table; `GroupScreen`
+/// (`E24-01`) wraps the identical layout in a `Button`, because the same fact about the same
+/// person is a row to read in one place and a row to tap in the other, and the numbers, the
+/// rank and the tie-break must not diverge between the two — there is exactly one place this
+/// layout is drawn.
+struct StandingRowContent: View {
+    let standing: EarStandingDTO
+    /// `nil` when the readability list does not carry this person — someone who has never had a
+    /// song of theirs in a round has an ear and no readability, and a zero would be a lie.
+    let readability: ReadabilityStandingDTO?
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
+
+    var body: some View {
         if isStacked {
             VStack(alignment: .leading, spacing: Space.xs) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.md) {
@@ -131,7 +146,10 @@ private struct StandingRow: View {
         .fixedSize()
     }
 
-    private var announcement: String {
+    /// The row's whole fact, in one sentence — what both wrapping views hand VoiceOver, whether
+    /// as the entire label (`StandingRow`) or as the shared half of one (`GroupScreen`'s row
+    /// adds its own hint, not a second label).
+    static func announcement(standing: EarStandingDTO, readability: ReadabilityStandingDTO?) -> String {
         let ear = "\(standing.displayName). \(Copy.format("results.standings.ear.detail", standing.earCorrectTotal))"
         guard let readability else { return ear }
         return "\(ear) \(Copy.A11y.readability(percent: ScoringFormat.percentValue(readability.readabilityAllTime), band: readability.band))"

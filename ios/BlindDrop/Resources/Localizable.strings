@@ -129,6 +129,7 @@
 "group.members" = "Members";
 "group.loading" = "Loading the group.";
 "group.role.admin" = "Admin";
+"group.role.member" = "Member";
 "group.name.label" = "Group name";
 "group.name.help" = "Everyone in the circle sees this.";
 "group.name.save" = "Save name";
@@ -142,6 +143,9 @@
 "group.leave.confirm.title" = "Leave this circle?";
 "group.leave.confirm.body" = "Your songs and guesses stay in its history. You can rejoin later with an invite.";
 "group.leave.confirm.action" = "Leave";
+"group.standings.thin" = "Not enough rounds yet to rank anyone.";
+"group.admin" = "Admin";
+"group.profile.placeholder" = "Profile coming soon.";
 
 /* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
 
@@ -346,6 +350,7 @@
 "a11y.track" = "%@ by %@";
 "a11y.record.track" = "%@ by %@. Dropped by %@.";
 "a11y.track.hint" = "Double-tap to choose this song";
+"a11y.group.row.hint" = "Double-tap to open their profile";
 "a11y.readability" = "Readability %lld percent. %@.";
 "a11y.invite.code" = "Your invite code is %@.";
 "a11y.seal.done" = "Sealed.";
