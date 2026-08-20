@@ -373,6 +373,9 @@ either must be able to happen without the other.
 | `group.title` | Group |
 | `group.members` | Members |
 | `group.loading` | Loading the group. |
+| `group.standings.thin` | Not enough rounds yet to rank anyone. |
+| `group.admin` | Admin |
+| `group.profile.placeholder` | Profile coming soon. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |
 | `settings.name` | Display name |
@@ -489,6 +492,7 @@ Not visible copy, but user-facing. See `12-ACCESSIBILITY.md` for where each is a
 | `a11y.preview.stop` | Stop preview |
 | `a11y.track` | %@ by %@ | (title, artist) — a search result row |
 | `a11y.track.hint` | Double-tap to choose this song |
+| `a11y.group.row.hint` | Double-tap to open their profile |
 | `a11y.readability` | Readability %lld percent. %@. | (value, band) |
 | `a11y.invite.code` | Your invite code is %@. | the code spelled out, one character at a time |
 | `a11y.seal.done` | Sealed. |
