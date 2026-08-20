@@ -13,7 +13,7 @@ member: the pending state is real, and everything downstream must ignore it.
 
 ### E20-01 — Pending invitations
 
-**Status:** todo · **Deps:** E18-01 · **Parallel:** yes — against E21, E24
+**Status:** wip · **Deps:** E18-01 · **Parallel:** yes — against E21, E24
 **Reads:** `docs/02` §2, §4, `docs/03` §2, `docs/14` §2
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/groups/`,
 `server/supabase/tests/`, `ios/Fixtures/`

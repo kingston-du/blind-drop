@@ -11,7 +11,7 @@ and the beta actually needs. `groups.timezone` is immutable after creation by de
 
 ### E21-01 — The circle's own screen
 
-**Status:** todo · **Deps:** E19-02 · **Parallel:** yes — against E20, E24
+**Status:** wip · **Deps:** E19-02 · **Parallel:** yes — against E20, E24
 **Reads:** `docs/02` §1, `docs/04` §3, `docs/08` §9, §10, `docs/11`, `docs/12` §2
 **Touches:** `BlindDrop/Features/Settings/`, `BlindDrop/Resources/Localizable.strings`,
 `docs/11-COPY-DECK.md`, snapshot tests

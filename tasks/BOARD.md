@@ -319,7 +319,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E20-01 Pending invitations | todo | E18-01 | vs E21, E24 | AC-3, AC-5 |
+| E20-01 Pending invitations | wip | E18-01 | vs E21, E24 | AC-3, AC-5 |
 | E20-02 Starting a circle, and filling it | todo | E20-01, E19-02 | no | — |
 | E20-03 Invitations in the switcher, and the push | todo | E20-02, E23-01 | no | AC-3 |
 
@@ -327,7 +327,7 @@ replacement inherits.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E21-01 The circle's own screen | todo | E19-02 | vs E20, E24 | — |
+| E21-01 The circle's own screen | wip | E19-02 | vs E20, E24 | — |
 | E21-02 Who is in charge | todo | E21-01 | no | — |
 
 ## E22 — Sealed-song privacy · [file](E22-sealed-privacy.md)
@@ -350,7 +350,7 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E24-01 Best Ear | todo | E18-01 | vs E20, E21 | — |
+| E24-01 Best Ear | wip | E18-01 | vs E20, E21 | — |
 | E24-02 A person, in this circle | todo | E24-01 | no | AC-1 |
 
 ## E25 — Insights · [file](E25-insights.md)

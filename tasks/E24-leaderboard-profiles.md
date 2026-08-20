@@ -17,7 +17,7 @@ different room, and the numbers only mean anything against the people who produc
 
 ### E24-01 — Best Ear
 
-**Status:** todo · **Deps:** E18-01 · **Parallel:** yes — against E20, E21
+**Status:** wip · **Deps:** E18-01 · **Parallel:** yes — against E20, E21
 **Reads:** `docs/02` §4, `docs/08` §9, `docs/11`, `docs/12` §2
 **Touches:** `BlindDrop/Features/Settings/GroupScreen.swift`,
 `BlindDrop/Features/Results/StandingsView.swift`, `Localizable.strings`, snapshot tests
