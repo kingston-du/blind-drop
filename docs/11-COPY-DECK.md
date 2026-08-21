@@ -458,6 +458,11 @@ either must be able to happen without the other.
 | `insights.empty` | No shared scored rounds yet. |
 | `insights.mutual.empty` | No pairs here yet. |
 | `insights.profile.hint` | Open their profile. |
+| `insights.confusion` | Mistaken identity |
+| `insights.confusion.as` | as |
+| `insights.confusion.detail` | %lld times. |
+| `insights.confusion.minimum` | Needs %lld of %lld scored rounds before it says anything. |
+| `insights.confusion.empty` | No repeated mix-ups yet. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |
 | `settings.name` | Display name |

@@ -94,6 +94,7 @@ import {
   rosterMemberDTO,
   standingsDTO,
 } from "../_shared/dto.ts";
+import { confusionMinimumRounds, confusionPairs, type InsightGuessRow } from "../_shared/insights.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
 import { localDate, nextDate, type RoundState, serverNow } from "../_shared/time.ts";
 
@@ -838,12 +839,6 @@ interface InsightScoreRow {
   user_id: string;
 }
 
-interface InsightGuessRow {
-  guesser_id: string;
-  card_owner_id: string;
-  is_correct: boolean;
-}
-
 interface DirectedInsight {
   member: MemberDTO;
   correct: number;
@@ -851,6 +846,7 @@ interface DirectedInsight {
 }
 
 const MUTUAL_PAIR_LIMIT = 3;
+const CONFUSION_PAIR_LIMIT = 3;
 
 function relationshipKey(from: string, to: string): string {
   return `${from}:${to}`;
@@ -891,13 +887,15 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
   const roundIDs = [...new Set((scoreRows as InsightScoreRow[]).map((row) => row.round_id))];
 
   const correctByDirection = new Map<string, number>();
+  let guessRows: InsightGuessRow[] = [];
   if (roundIDs.length > 0) {
-    const { data: guessRows, error: guessError } = await ctx.db
+    const { data, error: guessError } = await ctx.db
       .from("guess_results")
-      .select("guesser_id, card_owner_id, is_correct")
+      .select("guesser_id, card_owner_id, guessed_user_id, is_correct")
       .in("round_id", roundIDs);
     if (guessError) throw dbFailure("groups.insights.guesses", guessError);
-    for (const row of guessRows as InsightGuessRow[]) {
+    guessRows = data as InsightGuessRow[];
+    for (const row of guessRows) {
       // `round_id` confines the source query to this circle; this roster check additionally
       // omits former members, because Insights is about the current room rather than its archive.
       if (!row.is_correct || !memberIDs.has(row.guesser_id) || !memberIDs.has(row.card_owner_id)) continue;
@@ -905,6 +903,15 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
       correctByDirection.set(key, (correctByDirection.get(key) ?? 0) + 1);
     }
   }
+
+  // Confusion needs more history than a directed read: it is a matrix of actual owners and
+  // named members, and a single odd evening can otherwise make a pair look like a pattern.
+  // The gate applies to the whole surface, never individual pairs, so an empty cell does not
+  // become an accidental claim about two people while the rest of the matrix is still thin.
+  const minimumConfusionRounds = confusionMinimumRounds(members.length);
+  const visibleConfusions = roundIDs.length >= minimumConfusionRounds
+    ? confusionPairs(guessRows, memberByID, CONFUSION_PAIR_LIMIT)
+    : [];
 
   const directed = (from: string, to: string): DirectedInsight | null => {
     const target = memberByID.get(to);
@@ -961,6 +968,11 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
     // A larger denominator makes a mutual miss more interesting, so reverse only the confidence
     // tie-breaker while every rate is necessarily zero.
     mutual_misses: mutualMisses.sort((a, b) => b.possible - a.possible || comparePair(a, b)).slice(0, MUTUAL_PAIR_LIMIT),
+    confusion: {
+      scored_rounds: roundIDs.length,
+      minimum_rounds: minimumConfusionRounds,
+      pairs: visibleConfusions,
+    },
   };
   return ok(insightsDTO(response));
 }

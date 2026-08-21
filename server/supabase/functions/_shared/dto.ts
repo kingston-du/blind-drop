@@ -802,6 +802,36 @@ export function insightPairDTO(parts: InsightPairDTO): InsightPairDTO {
   };
 }
 
+/** A repeated wrong attribution: the first member's card was named as the second member. */
+export interface InsightConfusionPairDTO {
+  actual_member: MemberDTO;
+  mistaken_for_member: MemberDTO;
+  count: number;
+}
+
+export function insightConfusionPairDTO(parts: InsightConfusionPairDTO): InsightConfusionPairDTO {
+  return {
+    actual_member: memberDTO(parts.actual_member),
+    mistaken_for_member: memberDTO(parts.mistaken_for_member),
+    count: parts.count,
+  };
+}
+
+/** The gated confusion lens. Pairs stay empty until the circle has enough scored history. */
+export interface InsightConfusionDTO {
+  scored_rounds: number;
+  minimum_rounds: number;
+  pairs: InsightConfusionPairDTO[];
+}
+
+export function insightConfusionDTO(parts: InsightConfusionDTO): InsightConfusionDTO {
+  return {
+    scored_rounds: parts.scored_rounds,
+    minimum_rounds: parts.minimum_rounds,
+    pairs: parts.pairs.map(insightConfusionPairDTO),
+  };
+}
+
 /** `GET /groups/:group_id/insights`, derived entirely from scored rounds. */
 export interface InsightsDTO {
   you_know_best: InsightReadDTO | null;
@@ -809,6 +839,7 @@ export interface InsightsDTO {
   hardest_to_read: InsightReadDTO | null;
   mutual_recognition: InsightPairDTO[];
   mutual_misses: InsightPairDTO[];
+  confusion: InsightConfusionDTO;
 }
 
 export function insightsDTO(parts: InsightsDTO): InsightsDTO {
@@ -818,6 +849,7 @@ export function insightsDTO(parts: InsightsDTO): InsightsDTO {
     hardest_to_read: parts.hardest_to_read && insightReadDTO(parts.hardest_to_read),
     mutual_recognition: parts.mutual_recognition.map(insightPairDTO),
     mutual_misses: parts.mutual_misses.map(insightPairDTO),
+    confusion: insightConfusionDTO(parts.confusion),
   };
 }
 

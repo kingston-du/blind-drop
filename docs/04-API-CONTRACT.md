@@ -527,6 +527,47 @@ drawn from `scored` rounds only; an open, revealed, or voided round cannot chang
 - A fabricated id, a former member, a person from another circle, or a caller outside the circle
   returns `NOT_FOUND`. There is no global profile route, bio, follower count, or social graph.
 
+### `GET /groups/{group_id}/insights`
+
+The circle's finished-history relationships. Every named member is active in this exact circle;
+every count is derived from `scored` rounds only, so an open, revealed, or voided round cannot
+change this response.
+
+```jsonc
+{ "data": {
+  "you_know_best": { "member": { "user_id": "u_cal", "display_name": "Cal" },
+    "correct": 10, "possible": 14 },
+  "knows_you_best": { "member": { "user_id": "u_hal", "display_name": "Hal" },
+    "correct": 11, "possible": 14 },
+  "hardest_to_read": { "member": { "user_id": "u_gus", "display_name": "Gus" },
+    "correct": 2, "possible": 14 },
+  "mutual_recognition": [
+    { "members": [{ "user_id": "u_ana", "display_name": "Ana" },
+                  { "user_id": "u_hal", "display_name": "Hal" }],
+      "correct": 19, "possible": 28 }
+  ],
+  "mutual_misses": [],
+  "confusion": {
+    "scored_rounds": 36,
+    "minimum_rounds": 36,
+    "pairs": [
+      { "actual_member": { "user_id": "u_dee", "display_name": "Dee" },
+        "mistaken_for_member": { "user_id": "u_gus", "display_name": "Gus" },
+        "count": 8 }
+    ]
+  }
+}}
+```
+
+- The three directed reads and mutual pairs appear after the first scored shared round. Their
+  raw denominators make the beta's thin history visible.
+- `confusion` is intentionally stricter: `minimum_rounds` is the square of the current active
+  roster count. Until `scored_rounds` reaches it, `pairs` is exactly `[]`; the client explains
+  the gate rather than implying a missing pattern. Thereafter it contains at most three
+  repeated, wrong actual-owner → named-member attributions, sorted by count then name.
+- A duplicate-track attribution that scores as correct is not confusion. The response contains
+  no raw guess, card, round, or current-round participation data.
+
 ---
 
 ## 5. The Record

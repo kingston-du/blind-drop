@@ -52,6 +52,7 @@ struct InsightsContent: View {
             header
             yourReads
             mutualReads
+            confusion
         }
     }
 
@@ -76,6 +77,13 @@ struct InsightsContent: View {
             SectionLabel("insights.mutual")
             InsightPairList(title: "insights.mutual.recognition", pairs: insights.mutualRecognition, select: select)
             InsightPairList(title: "insights.mutual.misses", pairs: insights.mutualMisses, select: select)
+        }
+    }
+
+    private var confusion: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionLabel("insights.confusion")
+            InsightConfusionList(confusion: insights.confusion, select: select)
         }
     }
 }
@@ -144,6 +152,50 @@ private struct InsightPairList: View {
                         }
                         .padding(.vertical, Space.sm)
                         if pair.id != pairs.last?.id { Rule() }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface(radius: Radius.panel, inset: Layout.rowInset)
+    }
+}
+
+private struct InsightConfusionList: View {
+    let confusion: InsightConfusionDTO
+    let select: (MemberDTO) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            if !confusion.hasEnoughHistory {
+                Text(verbatim: Copy.format("insights.confusion.minimum", confusion.scoredRounds, confusion.minimumRounds))
+                    .typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+            } else if confusion.pairs.isEmpty {
+                Text("insights.confusion.empty").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+            } else {
+                VStack(spacing: Space.none) {
+                    ForEach(confusion.pairs) { pair in
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            HStack(spacing: Space.xs) {
+                                Button { select(pair.actualMember) } label: {
+                                    Text(verbatim: pair.actualMember.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("insights.member.\(pair.actualMember.userID)")
+                                .accessibilityHint(Copy.string("insights.profile.hint"))
+                                Text("insights.confusion.as").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+                                Button { select(pair.mistakenForMember) } label: {
+                                    Text(verbatim: pair.mistakenForMember.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("insights.member.\(pair.mistakenForMember.userID)")
+                                .accessibilityHint(Copy.string("insights.profile.hint"))
+                            }
+                            Text(verbatim: Copy.format("insights.confusion.detail", pair.count))
+                                .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
+                        }
+                        .padding(.vertical, Space.sm)
+                        if pair.id != confusion.pairs.last?.id { Rule() }
                     }
                 }
             }

@@ -5,10 +5,18 @@
     "server_now"
   ],
   "data": [
+    "confusion",
     "hardest_to_read",
     "knows_you_best",
     "mutual_misses",
     "mutual_recognition",
     "you_know_best"
-  ]
+  ],
+  "nested": {
+    "confusion": [
+      "minimum_rounds",
+      "pairs",
+      "scored_rounds"
+    ]
+  }
 }

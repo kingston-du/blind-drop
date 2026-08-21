@@ -246,6 +246,7 @@ Deno.test("insights are immediate, circle-scoped, and carry the exact read denom
   const insights = res.body.data;
 
   assertEquals(keysOf(insights), [
+    "confusion",
     "hardest_to_read",
     "knows_you_best",
     "mutual_misses",
@@ -254,6 +255,7 @@ Deno.test("insights are immediate, circle-scoped, and carry the exact read denom
   ]);
   assertEquals(keysOf(insights.you_know_best), ["correct", "member", "possible"]);
   assertEquals(keysOf(insights.you_know_best.member), ["display_name", "user_id"]);
+  assertEquals(keysOf(insights.confusion), ["minimum_rounds", "pairs", "scored_rounds"]);
 
   // One scored night is intentionally enough for the beta: the denominator makes that visible
   // rather than hiding the relationship until a tester has waited through ten evenings.
@@ -276,6 +278,9 @@ Deno.test("insights are immediate, circle-scoped, and carry the exact read denom
     (pair.members as Json[]).map((member) => member.display_name),
   ), [["Ben", "Dee"], ["Ben", "Eli"], ["Cal", "Dee"]]);
   assert((insights.mutual_misses as Json[]).every((pair) => pair.correct === 0 && pair.possible === 2));
+  // One night proves the relationship surface, but never a confusion matrix. The whole lens is
+  // withheld until this five-person circle has 25 scored rounds, not selectively shown by pair.
+  assertEquals(insights.confusion, { scored_rounds: 1, minimum_rounds: 25, pairs: [] });
 });
 
 Deno.test("insights name no one when a circle has no scored history", async () => {
@@ -290,6 +295,7 @@ Deno.test("insights name no one when a circle has no scored history", async () =
     hardest_to_read: null,
     mutual_recognition: [],
     mutual_misses: [],
+    confusion: { scored_rounds: 0, minimum_rounds: 1, pairs: [] },
   });
 });
 

@@ -235,6 +235,7 @@ Deno.test("golden: GET /groups/{group_id}/insights during open", async () => {
     hardest_to_read: null,
     mutual_recognition: [],
     mutual_misses: [],
+    confusion: { scored_rounds: 0, minimum_rounds: 4, pairs: [] },
   });
   await assertGolden(
     "groups_insights",

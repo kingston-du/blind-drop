@@ -33,5 +33,16 @@
       "correct": 0,
       "possible": 28
     }
-  ]
+  ],
+  "confusion": {
+    "scored_rounds": 36,
+    "minimum_rounds": 36,
+    "pairs": [
+      {
+        "actual_member": { "user_id": "a0000000-0000-4000-8000-000000000004", "display_name": "Dee" },
+        "mistaken_for_member": { "user_id": "a0000000-0000-4000-8000-000000000007", "display_name": "Gus" },
+        "count": 8
+      }
+    ]
+  }
 }

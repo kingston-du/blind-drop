@@ -47,7 +47,7 @@ public beta.
 
 ### E25-02 — Who you get mistaken for
 
-**Status:** wip · **Deps:** E25-01 · **Parallel:** no
+**Status:** done · **Deps:** E25-01 · **Parallel:** no
 **Reads:** `docs/02` §4, `docs/11`
 **Touches:** `server/supabase/functions/`, the Insights feature, tests
 **Verify:** `npm run test:functions`; `audit:leak`; simulator.
@@ -60,6 +60,12 @@ odd evening.
 Defer without hesitation if the data is thin. A confusion statistic that is wrong is worse than
 absent, because people believe matrices.
 
-- [ ] Confusion pairs, per circle, from existing guess data
-- [ ] A stated minimum before any cell is shown; below it, the surface says so plainly
-- [ ] Reads as a curiosity, not a judgement — copy checked against `CLAUDE.md` §6
+- [x] Confusion pairs, per circle, from existing guess data
+- [x] A stated minimum before any cell is shown; below it, the surface says so plainly
+- [x] Reads as a curiosity, not a judgement — copy checked against `CLAUDE.md` §6
+
+> **Completed:** The circle must have active-member-count squared scored rounds before any
+> confusion pair appears; the response carries its progress throughout. The server keeps the
+> three most repeated wrong actual-owner → guessed-member pairs, excluding correct duplicate-track
+> reads and former members. Focused server suites, the four-part leak audit, iOS lint, Insights
+> unit/snapshot tests, and the fixture-backed iPhone 17 route to a member profile all pass.

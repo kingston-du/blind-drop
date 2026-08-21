@@ -362,12 +362,13 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 
 E25-01 closed 2026-08-20: tester-visible relationships arrive from the first shared scored round,
 with raw shared-read denominators beside every percentage. Revisit its data threshold before public
-beta. E25-02 still needs history to mean anything.
+beta. E25-02 closed 2026-08-20: confusion stays absent until the circle has active-member-count
+squared scored rounds, then shows its three most repeated wrong owner-to-name attributions.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E25-01 Who you know, and who knows you | done | E24-02 | vs E26 | — |
-| E25-02 Who you get mistaken for | wip | E25-01 | no | — |
+| E25-02 Who you get mistaken for | done | E25-01 | no | — |
 
 ## E26 — UI polish and known bugs · [file](E26-ui-polish.md)
 
@@ -427,7 +428,7 @@ Investigation only. Each ends in a recommendation, not code.
 | E22 sealed privacy | 1 / 1 |
 | E23 notifications | 2 / 3 |
 | E24 leaderboard + profiles | 2 / 2 |
-| E25 insights | 1 / 2 |
+| E25 insights | 2 / 2 |
 | E26 UI polish | 4 / 4 |
 | E27 spikes | 5 / 5 |
-| **Beta total** | **25 / 28** |
+| **Beta total** | **26 / 28** |

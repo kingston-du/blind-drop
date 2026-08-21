@@ -11,6 +11,8 @@ import Testing
         #expect(insights.youKnowBest?.rate == 10.0 / 14.0)
         #expect(insights.mutualRecognition.first?.members.map(\.displayName) == ["Ana", "Hal"])
         #expect(insights.mutualMisses.first?.correct == 0)
+        #expect(insights.confusion.hasEnoughHistory)
+        #expect(insights.confusion.pairs.first?.actualMember.displayName == "Dee")
 
         let endpoint = Endpoint<InsightsDTO>.insights(in: "g_cove")
         #expect(endpoint.method == .get)
