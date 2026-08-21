@@ -12,7 +12,11 @@ final class GroupStore {
     private(set) var errorKey: String?
     private(set) var revealHourEffectiveFrom: String?
 
-    /// Four or fewer completed rounds are shown without percentages or rank.
+    /// Four or fewer completed rounds used to be shown without percentages or rank.
+    // Restore before public beta (`E28-06`, amendment A1): the test stage wants every number a
+    // tester can see, however little history is behind it, so `isThinHistory` below is pinned to
+    // `false` rather than reading this. Left in place — not deleted — so restoring the gate is a
+    // one-line revert instead of relearning what the number was.
     static let thinHistoryThreshold = 5
 
     private let api: APIClient
@@ -25,10 +29,11 @@ final class GroupStore {
 
     var group: GroupDTO? { state.value }
     var members: [MemberDTO] { group?.members ?? [] }
-    var isThinHistory: Bool {
-        guard let standings = standings.value else { return false }
-        return standings.roundsPlayed < Self.thinHistoryThreshold
-    }
+    // Restore before public beta: `standings.value.map { $0.roundsPlayed < Self.thinHistoryThreshold } ?? false`.
+    var isThinHistory: Bool { false }
+    /// The circle's own scored-round count (`E28-08`'s `SheetMeta` line) — `nil` while standings
+    /// have not loaded, same as every other standings-derived value here.
+    var roundsPlayed: Int? { standings.value?.roundsPlayed }
     var bestEar: [EarStandingDTO] { standings.value?.bestEar ?? [] }
     var readabilityByUserID: [String: ReadabilityStandingDTO] {
         Dictionary(uniqueKeysWithValues: (standings.value?.readability ?? []).map { ($0.userID, $0) })
@@ -41,7 +46,13 @@ final class GroupStore {
 
     func load() async {
         guard !state.isLoading else { return }
-        state = .loading
+        // `E28-06`: refresh in place. This used to clear to `.loading` unconditionally, which is
+        // why leaving a member's profile and returning to Group showed the skeleton every time —
+        // `GroupScreen` had a group to draw and drew nothing instead while a refetch it did not
+        // need to wait on was in flight. `standings` already only did this on a genuinely first
+        // load; `state` now matches it. A failed refresh still lands in `LoadState.stale`, which
+        // is what keeps the old value on screen if the network says no.
+        if state.value == nil { state = .loading }
         if standings.value == nil { standings = .loading }
         guard let groupID = await circles.resolveActiveID() else {
             let error = circles.state.error ?? .unreadable

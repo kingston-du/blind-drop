@@ -54,7 +54,12 @@ import Testing
         #expect(notThin.roundsPlayed >= GroupStore.thinHistoryThreshold)
     }
 
-    @Test func theStoreReportsThinHistoryOnlyOnceStandingsHaveLoaded() async throws {
+    /// `E28-06`, amendment A1: the test stage shows every stat, however little history is behind
+    /// it, so the leaderboard's thin-history swap is switched off — `isThinHistory` is `false`
+    /// whatever `roundsPlayed` says, both before and after a load. `thinHistoryThreshold` itself
+    /// stays defined (the two tests above still pin it) so the gate is a one-line revert rather
+    /// than a number to relearn.
+    @Test func theStoreNeverReportsThinHistoryWhileTheGateIsOff() async throws {
         let (env, session) = RoundFixture.environment()
         let groupID = try RoundFixture.groupID()
         session.armExact("/groups/\(groupID)", try RoundFixture.envelope("group_current"))
@@ -64,12 +69,11 @@ import Testing
         )
         let store = GroupStore(api: env.api, circles: env.circles)
 
-        // Before anything loads, there is nothing confident *or* unconfident to say yet.
         #expect(store.isThinHistory == false)
 
         await store.load()
 
-        #expect(store.isThinHistory == true)
+        #expect(store.isThinHistory == false)
         #expect(store.standings.value?.roundsPlayed == 2)
     }
 }

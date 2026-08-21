@@ -16,7 +16,8 @@ final class InsightsStore {
 
     func load() async {
         guard !state.isLoading else { return }
-        state = .loading
+        // `E28-06`: refresh in place — the same fix `GroupStore` and `MemberProfileStore` make.
+        if state.value == nil { state = .loading }
         guard let groupID = await circles.resolveActiveID() else {
             state = .failed(circles.state.error ?? .unreadable)
             return

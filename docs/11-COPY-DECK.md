@@ -408,11 +408,10 @@ either must be able to happen without the other.
 | `group.role.admin` | Admin |
 | `group.role.member` | Member |
 | `group.name.label` | Group name |
-| `group.name.help` | Everyone in the circle sees this. |
 | `group.name.save` | Save name |
 | `group.name.saved` | Saved. |
 | `group.revealhour.label` | Reveal hour |
-| `group.revealhour.help` | A change applies from the next round that hasn't been created yet — never tonight's. |
+| `group.revealhour.help` | A change applies to the next round, never the current one. |
 | `group.revealhour.effective` | Starts %@. |
 | `group.timezone.label` | Timezone |
 | `group.timezone.help` | Set when the circle was created. It can't be changed. |
@@ -429,23 +428,21 @@ either must be able to happen without the other.
 | `group.member.remove.confirm.action` | Remove |
 | `error.lastadmin` | You're the only admin here. This circle needs another one first. |
 | `group.standings.thin` | Not enough rounds yet to rank anyone. |
+| `group.meta.members` | %lld members |
+| `group.meta.rounds` | %lld rounds |
 | `group.admin` | Admin |
-| `profile.subtitle.own` | Your history in this circle. |
-| `profile.subtitle.member` | Their history in this circle. |
 | `profile.stats` | The numbers |
-| `profile.samples` | %lld scored rounds |
-| `profile.samples.minimum` | Shows after %lld scored rounds. |
+| `profile.samples` | %lld rounds |
 | `profile.drops` | Drops |
-| `profile.drops.detail` | %lld scored rounds with a song. |
+| `profile.rounds.none` | No rounds |
 | `profile.pairwise` | You and them |
 | `profile.youread` | You read them |
 | `profile.theyread` | They read you |
-| `profile.pairwise.detail` | %lld of %lld shared rounds. |
-| `profile.pairwise.minimum` | Shows after %lld shared rounds. |
+| `profile.pairwise.detail` | %lld of %lld rounds |
 | `profile.recent` | Recent songs |
 | `profile.recent.empty` | No scored songs here yet. |
 | `insights.title` | Insights |
-| `insights.subtitle` | How this circle reads itself. |
+| `insights.subtitle` | Your group dynamics |
 | `insights.yourreads` | Your reads |
 | `insights.youknow` | You read best |
 | `insights.knowsyou` | Reads you best |
@@ -454,14 +451,14 @@ either must be able to happen without the other.
 | `insights.mutual.recognition` | They read each other |
 | `insights.mutual.misses` | Neither has read the other |
 | `insights.pair.separator` | & |
-| `insights.detail` | %lld of %lld shared reads. |
+| `insights.detail` | %lld of %lld reads |
 | `insights.empty` | No shared scored rounds yet. |
 | `insights.mutual.empty` | No pairs here yet. |
 | `insights.profile.hint` | Open their profile. |
+| `insights.leaderboard.hint` | Open the leaderboard for this stat. |
 | `insights.confusion` | Mistaken identity |
 | `insights.confusion.as` | as |
 | `insights.confusion.detail` | %lld times. |
-| `insights.confusion.minimum` | Needs %lld of %lld scored rounds before it says anything. |
 | `insights.confusion.empty` | No repeated mix-ups yet. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |
