@@ -70,7 +70,7 @@ const ERRORS: Record<ErrorCode, { status: number; message: string; copyKey: stri
   },
   ALREADY_IN_GROUP: {
     status: 409,
-    message: "You're already in that group.",
+    message: "You're already in that circle.",
     copyKey: "error.alreadyingroup",
   },
   // BD004's insert half — a *live* pending invitation to this pair already exists (E20-01).

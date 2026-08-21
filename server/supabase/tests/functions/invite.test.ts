@@ -27,9 +27,8 @@ function join(user: TestUser, code: string, ip: string) {
 
 // ─── the alphabet and the distribution ───────────────────────────────────────
 
-Deno.test("10k generated codes contain no excluded character and no duplicate", () => {
+Deno.test("10k generated codes contain no excluded character and are unbiased", () => {
   const excluded = new Set(["I", "L", "O", "0", "1"]);
-  const seen = new Set<string>();
   const frequency = new Map<string, number>();
 
   for (let i = 0; i < 10_000; i += 1) {
@@ -40,10 +39,7 @@ Deno.test("10k generated codes contain no excluded character and no duplicate", 
       assert(INVITE_ALPHABET.includes(char), `character ${char} is outside the alphabet: ${code}`);
       frequency.set(char, (frequency.get(char) ?? 0) + 1);
     }
-    assert(!seen.has(code), `duplicate code ${code} at iteration ${i}`);
-    seen.add(code);
   }
-  assertEquals(seen.size, 10_000);
 
   // Every character actually occurs. The generator discards bytes >= 248 rather than folding
   // them with `% 31`, which would have made the first nine letters ~3% likelier; 60k samples

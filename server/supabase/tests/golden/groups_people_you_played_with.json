@@ -1,0 +1,16 @@
+{
+  "about": "GET /groups/people-you-played-with. Shared-circle identities only: no group id, membership date, role, round, or social-graph metadata.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "people"
+  ],
+  "nested": {
+    "people[]": [
+      "display_name",
+      "user_id"
+    ]
+  }
+}

@@ -59,7 +59,7 @@ someone discover it tonight.
 
 ### E21-02 — Who is in charge
 
-**Status:** wip · **Deps:** E21-01 · **Parallel:** no
+**Status:** done · **Deps:** E21-01 · **Parallel:** no
 **Reads:** `docs/03` §2, `docs/04` §3, `docs/11`, `docs/14` §2
 **Touches:** `server/supabase/functions/groups/`, `server/supabase/tests/`,
 `BlindDrop/Features/Settings/`, `BlindDrop/Core/Networking/`,
@@ -73,8 +73,14 @@ creator is admin; there is no way to appoint a second, and no way to remove anyo
 Small and boring by design. Enough that a circle does not die when its creator loses interest,
 and not one control more.
 
-- [ ] An admin may promote a member
-- [ ] An admin may remove a member — their past rounds stay scored, the same as leaving
-- [ ] An admin may not remove or demote themselves while they are the only one
-- [ ] Every rule enforced server-side; the UI is a convenience over it
-- [ ] Removal takes effect for rounds not yet created; tonight's round is not rewritten
+- [x] An admin may promote a member
+- [x] An admin may remove a member — their past rounds stay scored, the same as leaving
+- [x] An admin may not remove or demote themselves while they are the only one
+- [x] Every rule enforced server-side; the UI is a convenience over it
+- [x] Removal takes effect for rounds not yet created; tonight's round is not rewritten
+
+Verified locally: a freshly created `kingston` account created a circle, promoted a second
+account through the deployed local Edge Function, then removed it (204). The server suite covers
+both roles, inactive/out-of-circle targets, the last-admin guard, and that removal leaves the
+historical roster untouched. `npm run test:functions` passed 258/258; iPhone 17 launched against
+the fixture server and the focused networking suite passed 18/18. No SE simulator was used.
