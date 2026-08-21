@@ -344,7 +344,7 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 |---|---|---|---|---|
 | E23-01 Find out why, then fix it | done | — | **yes, vs E19–E21** | AC-3 |
 | E23-02 Three deliveries, whatever the circle count | done | E23-01, E18-01 | no | AC-3 |
-| E23-03 It arrives, and it opens the right thing | todo | E23-02, E19-03 | no | AC-3 |
+| E23-03 It arrives, and it opens the right thing | wip | E23-02, E19-03 | no | AC-3 |
 
 ## E24 — The leaderboard and profiles · [file](E24-leaderboard-profiles.md)
 

@@ -221,7 +221,7 @@ intermittent circle-switcher 500 (257 other tests passed); its isolated rerun pa
 
 ### E23-03 — It arrives, and it opens the right thing
 
-**Status:** todo · **Deps:** E23-02, E19-03 · **Parallel:** no
+**Status:** wip · **Deps:** E23-02, E19-03 · **Parallel:** no
 **Reads:** `docs/05` §2, `docs/15` AC-3
 **Touches:** `BlindDrop/Core/Push/`, tests, `docs/15-TESTING-AND-ACCEPTANCE.md`
 **Verify:** simulator for registration, payload handling and routing; **one real device** for
