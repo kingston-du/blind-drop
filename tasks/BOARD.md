@@ -95,6 +95,10 @@ E17-10 close the polish pass          done — the iOS lane is unblocked
 (no dep on E17-10 — server-side or investigation only)
     E23 notifications       E23-01 free; E23-02 then needs E18-01
     E27 spikes              investigation only, parallel with everything
+
+E28 polish and personality   five independent bug/layout slices, then three in order
+ ├─ E28-01 … E28-05          parallel with each other and with E28-06
+ └─ E28-06 ─ E28-07 ─ E28-08
 ```
 
 E17-10 gated the **iOS** work, because it is what left the app's goldens and its one failing
@@ -392,6 +396,33 @@ Investigation only. Each ends in a recommendation, not code.
 | E27-03 A web page | done | — | **yes** | — |
 | E27-04 Themed prompts | done | — | **yes** | — |
 | E27-05 Streaks | done | — | **yes** | — |
+
+## E28 — Polish and personality · [file](E28-polish-and-personality.md)
+
+Owner-driven pass over the beta build. Records three owner amendments in the epic file: the
+thin-history gates come off for the test stage (**A1**), hold to peek plays the preview
+(**A2**), and The Record's entry point moves to the Group screen (**A3**). All eight slices
+closed in one pass: build clean, 442 unit tests and all 81 snapshot tests pass (goldens
+re-recorded for the nine suites this actually changed, each looked at before recording — that
+look caught a real bug, a `MonogramMark` squeezing a member's name to nothing on the ranked
+leaderboard row, fixed before it landed), and a live simulator pass against the fixture server
+confirmed hold-to-peek, the header menu, Group, and the Insights → leaderboard → profile
+navigation chain. The epic file's own *Verified* section says what was and was not driven live.
+`server/` ran for real too, against an already-up local stack: `test:db` and `audit:leak` both
+green, `test:functions` 267/271 — the 4 failures are `circle_switcher.test.ts`, pre-existing and
+confirmed unrelated (a time-of-day-dependent reveal-hour bug in `circleCallerState`, filed
+separately, not this epic's).
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E28-01 The keyboard stops shoving Start a group off the screen | done | — | **yes** | — |
+| E28-02 Searching for a replacement, without the grey box or the ghost rows | done | — | **yes** | AC-10 |
+| E28-03 The call sheet answers a flick | done | — | **yes** | — |
+| E28-04 Hold to peek, actually held, and heard | done | — | **yes** | — |
+| E28-05 Answers with room for the song | done | — | **yes** | AC-9 |
+| E28-06 Every stat, shown; every screen, quieter | done | — | vs E28-01…05 | — |
+| E28-07 Insights that rank, and rank fairly | done | E28-06 | no | — |
+| E28-08 The printed sheet: Group, Profile and Insights get a face | done | E28-06, E28-07 | no | AC-2 gates |
 
 ---
 

@@ -217,6 +217,20 @@ enum Motion {
         static let spring = Animation.spring(response: 0.34, dampingFraction: 0.82)
     }
 
+    /// **Hold to peek** (`docs/08` §4, `E22-01`, amended `E28-04`). Opening — the cover fading
+    /// back and the artwork settling from a slight hold-scale — is a real animation, because a
+    /// finger is still down and there is time to spend on it. Closing is not: every path that
+    /// ends a hold routes through `SealedCard.reseal()`'s `disablesAnimations` transaction
+    /// instead, on purpose, because *"an animated close is a few frames of the answer"* — the
+    /// one thing this whole feature exists to prevent. Nothing here animates a release.
+    enum Peek {
+        static let duration = 0.180
+        static let animation = Animation.easeOut(duration: duration)
+        /// Reduced motion is the same crossfade — there is no movement in it to remove, only the
+        /// duration `docs/09` §5 asks every animation to keep (`Resolve.reduced`'s reasoning).
+        static let reduced = Animation.easeInOut(duration: duration)
+    }
+
     /// Button press: 120ms, scale 0.985 (`docs/09` §1). Under reduced motion, opacity only
     /// (`docs/09` §5) — which is `PrimaryButton`'s to apply, not this table's to decide.
     static let buttonPress = Animation.easeOut(duration: 0.120)

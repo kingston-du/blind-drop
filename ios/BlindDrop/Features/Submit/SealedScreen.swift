@@ -15,6 +15,10 @@ struct SealedScreen: View {
     /// changes is one line of the caller's own copy, and nothing anybody else can ever see.
     var didReplace = false
     let replace: () -> Void
+    /// The 30-second preview (`Core/Audio/PreviewPlayer.swift`). `nil` in every golden, which is
+    /// what keeps a snapshot silent and keeps `RevealScreen`/`SearchSheet`'s "one at a time" rule
+    /// intact when this screen shares the instance those already play through (`E28-04`).
+    var player: PreviewPlayer? = nil
 
     @Environment(\.scenePhase) private var scenePhase
     /// **Hold to peek** (`docs/08` §4, `E22-01`): `true` for exactly as long as a finger is down.
@@ -32,6 +36,7 @@ struct SealedScreen: View {
         timer: CountdownTimer,
         didReplace: Bool = false,
         replace: @escaping () -> Void,
+        player: PreviewPlayer? = nil,
         isPeekingForSnapshot: Bool = false
     ) {
         self.context = context
@@ -39,6 +44,7 @@ struct SealedScreen: View {
         self.timer = timer
         self.didReplace = didReplace
         self.replace = replace
+        self.player = player
         _isPeeking = State(initialValue: isPeekingForSnapshot)
     }
 
@@ -54,7 +60,17 @@ struct SealedScreen: View {
                     // same no-animation path every other way a hold ends uses, so a release is
                     // never the one that behaves differently.
                     onHoldChange: { holding in
-                        if holding { isPeeking = true } else { reseal() }
+                        if holding {
+                            isPeeking = true
+                            // `E28-04`: the caller's own preview, for exactly as long as the
+                            // hold lasts. `toggle` already no-ops a track with no `preview_url`
+                            // (`docs/06` §7) — a peek on those stays silent, same as before.
+                            if player?.playing != submission.track.trackKey {
+                                player?.toggle(submission.track)
+                            }
+                        } else {
+                            reseal()
+                        }
                     }
                 )
                 // The cover's upper-right is empty — the stamp lands lower-right (`docs/09` §2)
@@ -63,11 +79,12 @@ struct SealedScreen: View {
                 .overlay(alignment: .topTrailing) {
                     if TrackLinkDestination.appleMusic(track: submission.track) != nil
                         || TrackLinkDestination.spotify(track: submission.track) != nil {
-                        // `SealedCard` insets its artwork by `Layout.cardInset`, so the same
-                        // inset keeps this over the cover rather than in the white margin.
+                        // `SealedCard` insets its artwork by `Layout.cardInset` (`E28-04`: moved
+                        // up and right off that plain inset, which crowded the seal stamp's own
+                        // 8pt corner margin more than it needed to).
                         TrackUtilityMenu(track: submission.track, color: accent.text)
-                            .padding(.top, Layout.cardInset + Space.sm)
-                            .padding(.trailing, Layout.cardInset + Space.sm)
+                            .padding(.top, Layout.cardInset)
+                            .padding(.trailing, Layout.cardInset)
                     }
                 }
                 status
@@ -100,6 +117,7 @@ struct SealedScreen: View {
     /// of whatever transaction happens to be open when one of `reseal()`'s callers fires.
     private func reseal() {
         guard isPeeking else { return }
+        if player?.playing == submission.track.trackKey { player?.toggle(submission.track) }
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) { isPeeking = false }

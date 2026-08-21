@@ -10,7 +10,7 @@ struct GroupScreen: View {
     var body: some View {
         Group {
             if let store { content(store) }
-            else { RoundSkeleton().padding(Layout.screenInset) }
+            else { GroupSkeleton().padding(Layout.screenInset) }
         }
         .background(Palette.paper)
         .navigationTitle(Text("group.title"))
@@ -22,19 +22,14 @@ struct GroupScreen: View {
         }
     }
 
+    // `E28-06`: the group renders whenever the store has one, `isLoading` or not — a store that
+    // refreshes in place has a value on screen through its own refetch, and a skeleton drawn on
+    // top of that would be the exact re-flash this fix removes.
     @ViewBuilder private func content(_ store: GroupStore) -> some View {
-        if store.state.isLoading {
-            RoundSkeleton().padding(Layout.screenInset)
-        } else if let error = store.state.error, store.group == nil {
-            VStack(alignment: .leading, spacing: Layout.blockGap) {
-                Text(LocalizedStringKey(error.copyKey)).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-                PrimaryButton("error.retry", fill: .neutral) { Task { await store.load() } }
-            }
-            .padding(Layout.screenInset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        } else if let group = store.group {
+        if let group = store.group {
             GroupDetailView(
                 group: group,
+                roundsPlayed: store.roundsPlayed,
                 bestEar: store.bestEar,
                 readabilityByUserID: store.readabilityByUserID,
                 unrankedMembers: store.unrankedMembers,
@@ -57,8 +52,18 @@ struct GroupScreen: View {
                     guard await store.leave() else { return false }
                     env.router.path = []
                     return true
-                }
+                },
+                onOpenRecord: { env.router.path.append(.record) }
             )
+        } else if store.state.isLoading {
+            GroupSkeleton().padding(Layout.screenInset)
+        } else if let error = store.state.error {
+            VStack(alignment: .leading, spacing: Layout.blockGap) {
+                Text(LocalizedStringKey(error.copyKey)).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+                PrimaryButton("error.retry", fill: .neutral) { Task { await store.load() } }
+            }
+            .padding(Layout.screenInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -66,6 +71,9 @@ struct GroupScreen: View {
 /// Value-driven content keeps the live screen and snapshot coverage on the same layout.
 struct GroupDetailView: View {
     let group: GroupDTO
+    /// `nil` while standings have not loaded — `SheetMeta` below only prints the round count
+    /// once it has something honest to say.
+    var roundsPlayed: Int? = nil
     var bestEar: [EarStandingDTO] = []
     var readabilityByUserID: [String: ReadabilityStandingDTO] = [:]
     var unrankedMembers: [MemberDTO] = []
@@ -85,12 +93,15 @@ struct GroupDetailView: View {
     var onSetRole: (MemberDTO, String) async -> Bool = { _, _ in true }
     var onRemove: (MemberDTO) async -> Bool = { _ in true }
     var onLeave: () async -> Bool = { true }
+    /// The Record's entry point, moved here from the header menu (`E28-06`, amendment A3) — a
+    /// list of songs sits with the leaderboard it complements rather than beside the three
+    /// screens the menu is otherwise for. `Route.record` and its deep link are unchanged.
+    var onOpenRecord: () -> Void = {}
     /// Test-only construction path. It keeps snapshots on the same hierarchy while omitting the
     /// `ScrollView` and UIKit-backed controls `ImageRenderer` cannot draw.
     var rendersForSnapshot = false
 
     @State private var nameField = ""
-    @State private var nameDirty = false
     @State private var didSaveName = false
     @State private var confirmsLeaving = false
     @State private var memberToRemove: MemberDTO?
@@ -107,7 +118,12 @@ struct GroupDetailView: View {
             }
         }
         .onAppear { nameField = group.name }
-        .onChange(of: group.name) { _, new in if !nameDirty { nameField = new } }
+        // Only follows the server when the field still shows what the server last said —
+        // `E28-06` dropped the separate `nameDirty` flag in favour of comparing `nameField`
+        // against `group.name` directly, and this is the one place that still needs to tell "the
+        // caller is mid-edit" apart from "nothing has changed here yet": `old` is what `nameField`
+        // was set from the last time this ran, so a field that still matches it is untouched.
+        .onChange(of: group.name) { old, new in if nameField == old { nameField = new } }
         .alert("group.leave.confirm.title", isPresented: $confirmsLeaving) {
             Button("group.leave.confirm.action", role: .destructive) { Task { _ = await onLeave() } }
             Button("settings.cancel", role: .cancel) {}
@@ -128,11 +144,16 @@ struct GroupDetailView: View {
     /// container that would turn a meaningful golden into blank paper.
     var snapshotContent: some View { content(isSnapshot: true) }
 
+    // **Order** (`E28-06`): leaderboard first — it is what a circle is for — then the name a
+    // person can change, then the reveal hour and timezone that describe when the game happens,
+    // then The Record, then Leave, which stays last as the one destructive action on the screen.
     @ViewBuilder private func content(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            nameSection(isSnapshot: isSnapshot)
+            SheetMeta(text: meta)
             leaderboard(isSnapshot: isSnapshot)
+            nameSection(isSnapshot: isSnapshot)
             details(isSnapshot: isSnapshot)
+            recordLink
             if let errorKey {
                 Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
             }
@@ -140,6 +161,26 @@ struct GroupDetailView: View {
                 .buttonStyle(.plain).typeStyle(.bodyL).foregroundStyle(Palette.alert)
                 .minimumTouchTarget().disabled(isLeaving)
         }
+    }
+
+    /// `12 MEMBERS · 144 ROUNDS` — `SheetMeta`'s fact, standing in for the sentence a subtitle
+    /// used to be (`E28-08`). Member count is always known; the round count waits for standings.
+    private var meta: String {
+        let members = Copy.format("group.meta.members", group.members.count)
+        guard let roundsPlayed else { return members.uppercased() }
+        return "\(members) · \(Copy.format("group.meta.rounds", roundsPlayed))".uppercased()
+    }
+
+    private var recordLink: some View {
+        Button(action: onOpenRecord) {
+            HStack {
+                Text("record.title").typeStyle(.bodyL).foregroundStyle(Palette.ink)
+                Spacer(minLength: Space.sm)
+                Image(systemName: "chevron.right").foregroundStyle(Palette.inkDim)
+            }
+            .minimumTouchTarget()
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private func nameSection(isSnapshot: Bool) -> some View {
@@ -151,10 +192,9 @@ struct GroupDetailView: View {
                 } else {
                     InsetField("group.name.label", text: $nameField, isFocused: nameFocused)
                         .focused($nameFocused).textInputAutocapitalization(.words).submitLabel(.done)
-                        .onChange(of: nameField) { _, _ in nameDirty = true; didSaveName = false }
+                        .onChange(of: nameField) { _, _ in didSaveName = false }
                         .onSubmit { Task { await saveName() } }
                 }
-                Text("group.name.help").typeStyle(.caption).foregroundStyle(Palette.inkDim)
                 if didSaveName { Text("group.name.saved").typeStyle(.bodyM).foregroundStyle(Palette.inkDim) }
                 PrimaryButton("group.name.save", fill: .neutral, isEnabled: canSaveName) { Task { await saveName() } }
             }
@@ -163,13 +203,17 @@ struct GroupDetailView: View {
         }
     }
 
+    // `E28-06`: disabled until an actual keystroke changes the field, the same rule Settings'
+    // display name save already follows — comparing against `group.name` directly rather than a
+    // separate flag means there is nothing to forget to set.
     private var canSaveName: Bool {
-        !isSaving && nameDirty && !nameField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !isSaving && nameField != group.name
+            && !nameField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     private func saveName() async {
         guard canSaveName else { return }
         nameFocused = false
-        if await onSaveName(nameField) { nameDirty = false; didSaveName = true }
+        if await onSaveName(nameField) { didSaveName = true }
     }
 
     @ViewBuilder private func leaderboard(isSnapshot: Bool) -> some View {
@@ -344,7 +388,8 @@ struct MemberRosterRow: View {
     var body: some View {
         HStack(spacing: Space.sm) {
             Button(action: select) {
-                HStack {
+                HStack(spacing: Space.sm) {
+                    MonogramMark(name: member.displayName, diameter: MonogramMark.compactDiameter)
                     Text(verbatim: member.displayName).typeStyle(.bodyL).foregroundStyle(Palette.ink)
                     Spacer(minLength: Space.sm)
                     Text(member.isAdmin ? "group.role.admin" : "group.role.member").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
@@ -385,5 +430,22 @@ struct MemberActionMenu: View {
 
     private var glyph: some View {
         Image(systemName: "ellipsis.circle").foregroundStyle(Palette.inkDim).minimumTouchTarget()
+    }
+}
+
+/// The group's shape in `paperSunk` — a meta line, a stack of ranked rows, a settings block
+/// (`E28-08`). `RoundSkeleton` promised a round's three generic blocks, the wrong shape for a
+/// leaderboard; with `E28-06`'s in-place refresh this is now seen once per visit, not on return.
+struct GroupSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Layout.blockGap) {
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .fill(Palette.paperSunk).frame(width: Space.x6 * 2, height: Layout.itemGap)
+            RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
+                .fill(Palette.paperSunk).frame(height: Layout.buttonHeight * 4)
+            RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
+                .fill(Palette.paperSunk).frame(height: Layout.buttonHeight * 2)
+        }
+        .accessibilityHidden(true)
     }
 }

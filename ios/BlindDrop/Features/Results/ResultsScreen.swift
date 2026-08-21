@@ -101,9 +101,18 @@ struct ResultsScreen: View {
                 // (`docs/07` §4) — which is what puts the scroll indicator at the screen's edge
                 // where a thumb expects it. `RoundScreen` therefore does not inset this phase;
                 // the two together are the one application of `Layout.screenInset` on this path.
+                //
+                // **`.top`, not `.center`** (`E28-05`). A short night — a small circle, nobody's
+                // all-time standings loaded yet — used to centre inside `minHeight`, which is
+                // also what centred *while it was still arriving*: `content` grows as personal
+                // stats and standings land under it, so the whole page visibly slid downward
+                // into place instead of holding still with the answers at the top, where every
+                // other screen in the app starts. `minHeight` still keeps a short page from
+                // reading as an abandoned scrap of a screen; it just no longer moves anything to
+                // do it.
                 content
                     .padding(.horizontal, Layout.screenInset)
-                    .frame(minHeight: proxy.size.height, alignment: .center)
+                    .frame(minHeight: proxy.size.height, alignment: .top)
             }
             // **"Any scroll gesture completes the entire sequence immediately"** (`docs/09` §4).
             //

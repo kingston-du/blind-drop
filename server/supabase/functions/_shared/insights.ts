@@ -14,6 +14,45 @@ export function confusionMinimumRounds(memberCount: number): number {
   return memberCount ** 2;
 }
 
+// ─── Wilson score interval — `E28-07` ──────────────────────────────────────
+//
+// A rate alone ranks a thin 3-of-4 above a well-supported 8-of-12, which is not what "reads them
+// best" means. The Wilson score interval is a 95% confidence bound on the true rate behind a
+// `correct/possible` sample — not an invented weighting — and using its **lower** bound to rank
+// answers the owner's worked cases directly: 8-of-12 (≈0.391) outranks 3-of-4 (≈0.301), and so
+// does the smaller-but-still-better-supported 7-of-12 (≈0.320), while 6-of-12 (≈0.254) does not.
+// "Hardest to read" ranks by the **upper** bound instead, ascending, by the same argument run the
+// other way: a single unlucky round with one person should not credibly claim the room cannot
+// read the caller at all, and the upper bound is the most generous the sample can support.
+const WILSON_Z_95 = 1.959963984540054;
+
+interface WilsonBounds {
+  lower: number;
+  upper: number;
+}
+
+function wilsonBounds(correct: number, possible: number): WilsonBounds {
+  if (possible <= 0) return { lower: 0, upper: 0 };
+  const n = possible;
+  const p = correct / n;
+  const z2 = WILSON_Z_95 * WILSON_Z_95;
+  const denominator = 1 + z2 / n;
+  const center = p + z2 / (2 * n);
+  const margin = WILSON_Z_95 * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
+  return {
+    lower: (center - margin) / denominator,
+    upper: (center + margin) / denominator,
+  };
+}
+
+export function wilsonLowerBound(correct: number, possible: number): number {
+  return wilsonBounds(correct, possible).lower;
+}
+
+export function wilsonUpperBound(correct: number, possible: number): number {
+  return wilsonBounds(correct, possible).upper;
+}
+
 /**
  * Returns the most repeated wrong attributions in deterministic order. Correct guesses naming
  * a duplicate-track submitter never enter this lens: the game scores them as reads, not misses.

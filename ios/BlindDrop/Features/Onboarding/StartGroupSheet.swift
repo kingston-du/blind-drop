@@ -104,6 +104,7 @@ struct StartGroupSheet: View {
             }
         }
         .background(Palette.paper)
+        .presentationBackground(Palette.paper)
         .task {
             store = store ?? StartGroupStore(api: env.api, circles: env.circles)
         }
@@ -116,26 +117,52 @@ struct StartGroupForm: View {
     @FocusState private var nameFocused: Bool
 
     var body: some View {
-        content
-            .padding(.horizontal, Layout.screenInset)
-            .padding(.vertical, Layout.blockGap)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .onAppear { nameFocused = true }
+        VStack(alignment: .leading, spacing: Space.none) {
+            header
+            ScrollView {
+                fields
+                    .padding(.horizontal, Layout.screenInset)
+                    .padding(.top, Layout.itemGap)
+                    .padding(.bottom, Layout.blockGap)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .safeAreaInset(edge: .bottom, spacing: Space.none) {
+            action
+                .padding(.horizontal, Layout.screenInset)
+                .padding(.vertical, Layout.itemGap)
+                .background(Palette.paper)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .onAppear { nameFocused = true }
     }
 
-    /// The form without its screen inset, for the snapshot suite. `SnapshotRenderer` owns that
-    /// outer padding, just as it does for the existing onboarding forms.
-    var snapshotContent: some View { content }
-
-    @ViewBuilder private var content: some View {
-        @Bindable var store = store
+    /// The form without its screen inset or scroll container, for the snapshot suite.
+    /// `SnapshotRenderer` owns the outer padding and cannot draw a `ScrollView`'s content
+    /// (`ios/BlindDropTests/Snapshot/SnapshotRenderer.swift` documents why), so this renders
+    /// the same header, fields and action as one flat column instead.
+    var snapshotContent: some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            HStack {
-                Text("group.start.title").typeStyle(.displayM).foregroundStyle(Palette.ink)
-                Spacer(minLength: Space.sm)
-                CloseButton(action: close)
-            }
+            header
+            fields
+            action
+        }
+    }
 
+    private var header: some View {
+        HStack {
+            Text("group.start.title").typeStyle(.displayM).foregroundStyle(Palette.ink)
+            Spacer(minLength: Space.sm)
+            CloseButton(action: close)
+        }
+        .padding(.horizontal, Layout.screenInset)
+        .padding(.top, Layout.blockGap)
+        .padding(.bottom, Layout.itemGap)
+    }
+
+    @ViewBuilder private var fields: some View {
+        @Bindable var store = store
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
             InsetField("group.start.name.placeholder", text: $store.name, isFocused: nameFocused)
                 .focused($nameFocused)
                 .textInputAutocapitalization(.words)
@@ -173,12 +200,13 @@ struct StartGroupForm: View {
             if let failure = store.failure {
                 Text(LocalizedStringKey(failure)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
             }
+        }
+    }
 
-            Spacer(minLength: Space.none)
-            PrimaryButton("group.start.action", fill: .neutral, isEnabled: store.canCreate) {
-                nameFocused = false
-                Task { await store.create() }
-            }
+    private var action: some View {
+        PrimaryButton("group.start.action", fill: .neutral, isEnabled: store.canCreate) {
+            nameFocused = false
+            Task { await store.create() }
         }
     }
 

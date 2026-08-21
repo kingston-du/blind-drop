@@ -6,11 +6,10 @@
   ],
   "data": [
     "confusion",
-    "hardest_to_read",
-    "knows_you_best",
     "mutual_misses",
     "mutual_recognition",
-    "you_know_best"
+    "reads_you",
+    "your_reads"
   ],
   "nested": {
     "confusion": [

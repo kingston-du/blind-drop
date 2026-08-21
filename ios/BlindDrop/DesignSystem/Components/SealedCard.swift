@@ -48,6 +48,12 @@ struct SealedCard: View {
     /// finger hovering near the edge flickers the reveal open and shut. Reset only by `onEnded`,
     /// which is the one signal that a fresh touch-down is what comes next.
     @State private var hasLeftTarget = false
+    /// The card's own measured size, so **the whole card is the hold target** (`E28-04`) —
+    /// not just the metadata strip beneath the artwork. "Drag off the control" then means what
+    /// it says: past the card's own edge, measured against where the touch actually started
+    /// rather than a fixed radius that made sense for a 44pt strip and nowhere near covered an
+    /// artwork the width of the screen.
+    @State private var cardSize: CGSize = .zero
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
@@ -64,51 +70,29 @@ struct SealedCard: View {
         // washed amber edge to edge would make the whole screen amber, and the accent is meant
         // to be the *signal* on the screen rather than the screen itself.
         .cardSurface(border: Palette.amberEdge)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            Copy.A11y.sealed(title: track.title, artist: track.artist, remaining: remaining)
-        )
-        .accessibilityAddTraits([.isImage, .isStaticText])
-    }
-
-    /// `docs/08` §4: held, the title and artist show plainly, small, in `inkDim` — never a leak,
-    /// since it is the caller's own song, but no longer drawn for anyone glancing at the screen.
-    /// Hidden, this exact region *is* **Hold to peek** — same frame, same minimum touch target,
-    /// so the gesture's target does not depend on which state is drawn inside it.
-    private var peekableMetadata: some View {
-        Group {
-            if isPeeking {
-                VStack(alignment: .leading, spacing: Space.xxs) {
-                    Text(verbatim: track.title)
-                        .typeStyle(.displayS)
-                        .foregroundStyle(Palette.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(verbatim: track.artist)
-                        .typeStyle(.bodyM)
-                        .foregroundStyle(Palette.inkDim)
-                }
-            } else {
-                Text("sealed.peek")
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.inkDim)
+        .contentShape(Rectangle())
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { cardSize = proxy.size }
+                    .onChange(of: proxy.size) { _, size in cardSize = size }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
-        .contentShape(Rectangle())
         // A raw `DragGesture` rather than `onLongPressGesture`: reveals **on touch-down**, with
         // no minimum duration to wait out — `docs/08` §4 says "exactly as long as a finger is
-        // down", not "as long as a finger is down past a threshold". Distance from the finger's
-        // own start, not the view's bounds, is what turns a drag off the control into the same
-        // release a lift is (`docs/12` §5's drag-and-drop-free reading, applied to this one).
+        // down", not "as long as a finger is down past a threshold". The bound is the card's own
+        // measured rectangle, not the finger's travelled distance (`E28-04`) — a hold that
+        // wanders inside a card the width of the screen is not a drag off it, and one that
+        // crosses the edge is, which distance-from-start could not tell apart on a target this
+        // size.
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
                     guard !hasLeftTarget else { return }
-                    let distance = hypot(
-                        value.location.x - value.startLocation.x,
-                        value.location.y - value.startLocation.y
-                    )
-                    if distance <= Layout.minimumTouchTarget {
+                    let withinCard = cardSize == .zero
+                        || (0...cardSize.width).contains(value.location.x)
+                        && (0...cardSize.height).contains(value.location.y)
+                    if withinCard {
                         onHoldChange(true)
                     } else {
                         hasLeftTarget = true
@@ -120,6 +104,44 @@ struct SealedCard: View {
                     onHoldChange(false)
                 }
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            Copy.A11y.sealed(title: track.title, artist: track.artist, remaining: remaining)
+        )
+        .accessibilityAddTraits([.isImage, .isStaticText])
+    }
+
+    /// `docs/08` §4: held, the title and artist show plainly, small, in `inkDim` — never a leak,
+    /// since it is the caller's own song, but no longer drawn for anyone glancing at the screen.
+    /// Hidden, this exact region reads **Hold to peek**.
+    ///
+    /// **Both crossfade in place** (`E28-04`) rather than swapping via `if`, which is what let
+    /// this snap: a view SwiftUI destroys and recreates has nothing for `.animation` to
+    /// interpolate between, whatever curve is attached to it. Stacking them and animating
+    /// opacity is the same fix `ResolvedAnswer` already relies on for the results screen's own
+    /// arrivals. The one `.animation` modifier is what SealedScreen's `reseal()` then silences
+    /// on every closing path — a `disablesAnimations` transaction overrides an explicit
+    /// modifier exactly as it overrides `withAnimation`, so opening still gets `Motion.Peek` and
+    /// closing still gets nothing, from the same state change and the same view.
+    private var peekableMetadata: some View {
+        ZStack(alignment: .leading) {
+            Text("sealed.peek")
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.inkDim)
+                .opacity(isPeeking ? 0 : 1)
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                Text(verbatim: track.title)
+                    .typeStyle(.displayS)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: track.artist)
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.inkDim)
+            }
+            .opacity(isPeeking ? 1 : 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
+        .animation(reducedMotion ? Motion.Peek.reduced : Motion.Peek.animation, value: isPeeking)
     }
 }
 
@@ -156,10 +178,18 @@ struct SealedArtwork: View {
                         .seal(phase, as: .cover(height: proxy.size.height), reducedMotion: reducedMotion)
                         // The one opacity the seal timeline does not own. It multiplies onto
                         // `SealEffect`'s own `coverOpacity` (1 at rest) rather than replacing it,
-                        // so nothing here has to know whether a seal ever ran — and it is a plain
-                        // `.opacity`, not `withAnimation`, which is what makes a release
-                        // instant: nothing animates a value nobody wrapped in `withAnimation`.
+                        // so nothing here has to know whether a seal ever ran.
+                        //
+                        // **`E28-04`: the explicit `.animation` below is safe on the close path
+                        // too**, despite opening now animating — `SealedCard`'s hold ends only
+                        // through `SealedScreen.reseal()`, which wraps the assignment in a
+                        // `Transaction` with `disablesAnimations = true`. That flag overrides an
+                        // explicit modifier exactly as it overrides `withAnimation`, so a release
+                        // still lands in the same single frame this comment used to guarantee by
+                        // there being no animation attached at all; only the open — a plain
+                        // assignment outside any transaction — actually animates.
                         .opacity(isPeeking ? 0 : 1)
+                        .animation(reducedMotion ? Motion.Peek.reduced : Motion.Peek.animation, value: isPeeking)
                 }
             }
             .overlay(alignment: .bottomTrailing) { stamp }
