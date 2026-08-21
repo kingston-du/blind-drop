@@ -315,7 +315,11 @@ struct RoundScreen: View {
                         submission: mySubmission,
                         timer: timer,
                         didReplace: didReplace,
-                        replace: { startSearching(replacing: true, seal: seal) }
+                        replace: { startSearching(replacing: true, seal: seal) },
+                        // The one shared player (`docs/06` §4: one at a time) — the same instance
+                        // Submit's search sheet and the reveal flight already play through, so
+                        // holding a peek here stops whatever either of those had going.
+                        player: player
                     )
                     // `docs/05` §4: the ask lands after the first seal and never at launch. The
                     // registrar decides whether there is anything to ask.
@@ -940,14 +944,17 @@ struct RoundHeader<Badge: View>: View {
                     Spacer(minLength: Space.sm)
                     HelpButton(action: showHowTo)
                     Menu {
-                        Button { path.append(.record) } label: {
-                            Label("record.title", systemImage: "music.note.list")
-                        }
+                        // The Record keeps its `Route` and its deep link — only this entry point
+                        // moved, to the foot of the Group screen (`E28-06`, amendment A3): a
+                        // list of songs is company for a leaderboard, not a peer of the three
+                        // things this menu is actually for.
                         Button { path.append(.group) } label: {
                             Label("group.title", systemImage: "person.3")
                         }
                         Button { path.append(.insights) } label: {
-                            Label("insights.title", systemImage: "eye")
+                            // Not `eye` (`E28-06`) — nothing on this screen is watching anyone.
+                            // Three linked points is what the screen is actually about.
+                            Label("insights.title", systemImage: "point.3.connected.trianglepath.dotted")
                         }
                         Button { path.append(.settings) } label: {
                             Label("settings.title", systemImage: "gearshape")

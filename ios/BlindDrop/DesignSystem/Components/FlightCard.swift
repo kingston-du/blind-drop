@@ -257,30 +257,25 @@ struct FlightCard: View {
     /// longer level with. Hanging the menu off the whole head block instead would have been one
     /// stack fewer and would have narrowed the title by those 52pt at exactly the sizes the
     /// reflow exists to give it room at.
+    ///
+    /// **One arrangement at every type size** (`E28-05`, closing the open question this doc
+    /// comment used to carry). The number used to share a row with the artwork and the corner
+    /// menu below `.accessibility1`, which is exactly what left the title a column too narrow to
+    /// hold an ordinary two-word title without truncating — `"Motion Sickness"` clipped at full
+    /// size on an SE even after the 0.8 `minimumScaleFactor` this file used to reach for. Giving
+    /// the number and the menu their own row *always* — not only once `docs/12` §1's reflow
+    /// kicks in — gives the artwork/title row the card's full width back at every size, which is
+    /// the fix the scale factor was compensating for not having.
     private var answerCard: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
-            if isStacked {
-                HStack(alignment: .top, spacing: Space.sm) {
-                    HStack(alignment: .center, spacing: Space.lg) {
-                        cardNumber
-                        artwork
-                    }
-                    // Neither the number nor the artwork grows with the type size, so this row
-                    // does not fill the card on its own and the menu needs pushing to the edge.
-                    // The row below has `metadata`'s `maxWidth: .infinity` doing the same job.
-                    Spacer(minLength: Space.sm)
-                    linksMenu
-                }
-                metadata
-            } else {
-                HStack(alignment: .top, spacing: Space.sm) {
-                    HStack(alignment: .center, spacing: Space.lg) {
-                        cardNumber
-                        artwork
-                        metadata
-                    }
-                    linksMenu
-                }
+            HStack(alignment: .center, spacing: Space.sm) {
+                cardNumber
+                Spacer(minLength: Space.sm)
+                linksMenu
+            }
+            HStack(alignment: .top, spacing: Space.lg) {
+                artwork
+                answerMetadata
             }
             assignmentChip
         }
@@ -323,8 +318,10 @@ struct FlightCard: View {
             // A fixed column, so the artwork starts at the same x on every card in the list.
             // A group runs to twelve members, so two digits is the widest the number ever gets,
             // and a ragged left edge down a twelve-card reveal is the single most visible way
-            // this screen could stop looking like a tasting sheet.
-            .frame(minWidth: isStacked ? 0 : numberColumnWidth, alignment: .leading)
+            // this screen could stop looking like a tasting sheet. An answer card no longer
+            // shares this row with the artwork at all (`E28-05`) — the number sits alone against
+            // the corner menu, so it always takes its natural width instead.
+            .frame(minWidth: (isAnswer || isStacked) ? 0 : numberColumnWidth, alignment: .leading)
     }
 
     /// The width of the widest number a card can carry, measured rather than guessed.
@@ -360,6 +357,11 @@ struct FlightCard: View {
         unseal?.phase == .sealed ? Palette.amber : accent.mark
     }
 
+    /// The reveal row's title, artist and preview control. `answerMetadata` below is the answer
+    /// card's own version — the two used to be one view keyed by `isStacked`/`isAnswer`, which is
+    /// what made the answer card's title share a column with a two-digit number, 76pt of artwork
+    /// and a 44pt corner menu; `E28-05` gave the answer card its own full-width row instead, so
+    /// this one only has to serve the reveal row's genuinely narrow line any more.
     private var metadata: some View {
         VStack(alignment: .leading, spacing: Space.xxs) {
             // The title gets the column's full width; the preview control sits on the artist
@@ -372,30 +374,6 @@ struct FlightCard: View {
                 .foregroundStyle(Palette.ink)
                 .lineLimit(isStacked ? nil : 1)
                 .truncationMode(.tail)
-                // **The answer card only.** Below `.accessibility1` its title shares a row with
-                // the number, the artwork and the corner menu (`docs/12` §1's reflow has not
-                // happened yet), which leaves an ordinary two-word title — *"Motion Sickness"*,
-                // this file's own worked example — clipped at full size, at 100%, without ever
-                // trying anything smaller first. It gets the same "shrink rather than clip" the
-                // share card's headline already uses (`10-SHARE-CARD-SPEC.md` §3): 0.8, matching
-                // that precedent rather than a value picked to clear this one title.
-                //
-                // **Measured, not assumed, and the honest result: 0.8 buys a few more
-                // characters, not a fitting title.** On the SE at `.large` — the narrowest case
-                // this row ever renders — the title column left over beside a two-digit number
-                // (44pt numberL), the 76pt artwork and the 44pt corner menu is roughly 70–80pt;
-                // "Motion Sickness" at `bodyLStrong` wants something like double that even at
-                // 80%. Reaching a scale that fits it would mean shrinking to somewhere near half
-                // size, past the point the text is comfortably legible, which is a worse trade
-                // than a truncated ordinary title. So this title still truncates on the SE
-                // golden — as "Motion Si…" now, rather than "Motion…" — and that remainder is a
-                // real, narrowed-column limit, not eagerness in the truncation itself. Recovering
-                // it for good needs the row's own width back, which is `docs/12` §1's reflow
-                // brought earlier, not a `Text` modifier; see `tasks/E26-ui-polish.md`'s open
-                // question on `E26-01`. The reveal row keeps its plain truncation — its title
-                // never carried this report, and its chip already competes for the same line,
-                // which is a different-shaped problem.
-                .minimumScaleFactor(isStacked || !isAnswer ? 1 : 0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
@@ -413,6 +391,35 @@ struct FlightCard: View {
                 }
             }
         }
+    }
+
+    /// The answer card's title, artist and preview control, at the card's full width now that
+    /// the number and the corner menu keep their own row above (`E28-05`). The preview drops to
+    /// its own line under the artist rather than sharing it — this column no longer has to save
+    /// width for a 28pt control the way the narrower reveal row's does — which is what makes it a
+    /// control in its own right instead of a competitor for the artist's line.
+    private var answerMetadata: some View {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            Text(verbatim: track.title)
+                .typeStyle(.bodyLStrong)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(2)
+                .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(verbatim: track.artist)
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.inkDim)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let preview {
+                PreviewControl(isPlaying: preview.isPlaying, accent: accent, action: preview.toggle)
+                    .padding(.top, Space.xxs)
+                    // The card owns the announcement; the control is reached through the card's
+                    // custom action and its synthetic child, not by a fourth swipe.
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// What the card says about the caller's guess. Its words are `docs/11`'s
@@ -504,9 +511,17 @@ struct FlightCard: View {
         }
 
         /// How the room did on this one: a bar and the count that made it.
+        /// **The count moves onto the label row** (`E28-05`), so the bar underneath it runs the
+        /// card's full width instead of stopping short to leave room for its own trailing tally.
         private var room: some View {
             VStack(alignment: .leading, spacing: Space.sm) {
-                SectionLabel("results.card.room")
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                    SectionLabel("results.card.room")
+                    Spacer(minLength: Space.sm)
+                    Text(verbatim: Copy.format("results.card.tally", resolution.correctCount, resolution.eligibleCount))
+                        .typeStyle(.monoS)
+                        .foregroundStyle(resolution.correctCount > 0 ? PhaseAccent.revealed.text : Palette.inkDim)
+                }
                 ProportionBar(
                     part: resolution.correctCount,
                     whole: resolution.eligibleCount,
@@ -515,7 +530,8 @@ struct FlightCard: View {
                         correct: resolution.correctCount,
                         eligible: resolution.eligibleCount
                     ),
-                    fillProgress: presentation.hasBar ? 1 : 0
+                    fillProgress: presentation.hasBar ? 1 : 0,
+                    showsCount: false
                 )
             }
             .opacity(presentation.hasName ? 1 : 0)

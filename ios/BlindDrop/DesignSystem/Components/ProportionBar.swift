@@ -16,6 +16,11 @@ struct ProportionBar: View {
     let announcement: String
     /// The resolved fill amount. Zero is the pre-arrival state used by results motion.
     var fillProgress: Double = 1
+    /// Whether the raw count is drawn at the bar's own trailing end. `true` by default — a bar
+    /// with nothing beside it should still be a picture of a number that is also written down.
+    /// `false` is `FlightCard`'s answer card (`E28-05`), which prints the same count on the
+    /// label row above instead and lets the track itself run the card's full width.
+    var showsCount: Bool = true
 
     private var fraction: Double {
         guard whole > 0 else { return 0 }
@@ -27,10 +32,12 @@ struct ProportionBar: View {
     var body: some View {
         HStack(spacing: Space.md) {
             track
-            Text(verbatim: Copy.format("results.card.tally", part, whole))
-                .typeStyle(.monoS)
-                .foregroundStyle(part > 0 ? accent.text : Palette.inkDim)
-                .fixedSize()
+            if showsCount {
+                Text(verbatim: Copy.format("results.card.tally", part, whole))
+                    .typeStyle(.monoS)
+                    .foregroundStyle(part > 0 ? accent.text : Palette.inkDim)
+                    .fixedSize()
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: announcement))

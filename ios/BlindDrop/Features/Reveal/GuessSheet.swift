@@ -26,16 +26,25 @@ enum CallSheetDetent: Equatable, Sendable {
     /// the same quantity a scroll view uses to decide whether to keep coasting. A release that
     /// does not cross it is **non-committing** and returns `current` unchanged, which is what
     /// tells the caller to spring the sheet back rather than flip its detent.
+    ///
+    /// **`velocity` is the second, faster path in** (`E28-03`). A short, fast flick can end well
+    /// short of `threshold` in raw translation *and* in its own projection — the touch is on the
+    /// header for only a few points before it lifts — while still being unmistakably a flick
+    /// rather than a nudge. `250` pt/s is a light flick on this device class; crossing it in the
+    /// direction that already matches `current`'s one legal move commits immediately, distance
+    /// aside. `0` is the default so every existing caller — and every prior test — is unchanged.
     static func resolved(
         from current: CallSheetDetent,
         predictedEndTranslation: CGFloat,
-        collapseDistance: CGFloat
+        collapseDistance: CGFloat,
+        velocity: CGFloat = 0
     ) -> CallSheetDetent {
-        let threshold = max(Space.xxl, collapseDistance * 0.25)
-        if current == .open, predictedEndTranslation > threshold {
+        let threshold = max(Space.xxl, collapseDistance * 0.2)
+        let flickThreshold: CGFloat = 250
+        if current == .open, predictedEndTranslation > threshold || velocity > flickThreshold {
             return .peek
         }
-        if current == .peek, predictedEndTranslation < -threshold {
+        if current == .peek, predictedEndTranslation < -threshold || velocity < -flickThreshold {
             return .open
         }
         return current
@@ -186,7 +195,15 @@ struct GuessSheet: View {
     }
 
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: Space.xs)
+        // `Space.sm`, not `Space.xs` (`E28-03`): the header also carries a plain tap that
+        // toggles the detent, and the two used to be attached side by side rather than composed
+        // — a quick flick satisfied both, so the drag committed the new detent and the tap
+        // immediately toggled it straight back, which is why nothing short of a slow, deliberate
+        // drag ever visibly worked. `peekHeader` below now runs this exclusively *before* the
+        // tap, so only one of them resolves per touch; the larger minimum distance is the second
+        // half of the fix, keeping an actual tap from ever registering as a one-point drag that
+        // could contend for it in the first place.
+        DragGesture(minimumDistance: Space.sm)
             .onChanged { value in
                 guard canCollapse else { return }
                 let translation = value.translation.height
@@ -202,7 +219,8 @@ struct GuessSheet: View {
                 let resolved = CallSheetDetent.resolved(
                     from: detent,
                     predictedEndTranslation: value.predictedEndTranslation.height,
-                    collapseDistance: collapseDistance
+                    collapseDistance: collapseDistance,
+                    velocity: value.velocity.height
                 )
                 if resolved != detent {
                     setDetent(resolved)
@@ -335,10 +353,17 @@ struct GuessSheet: View {
             // This must be a gesture surface, rather than a transparent `Button`: SwiftUI gives
             // the button's press recognizer the header's drag before the sheet can observe it.
             // A normal tap still toggles the detent, and the drag owns both directions.
+            //
+            // **`.exclusively(before:)`, not two separate gesture attachments** (`E28-03`). Two
+            // recognisers on one view both got a look at every touch, so a flick — a real drag,
+            // just a short and fast one — satisfied the tap's criteria too, and the tap fired
+            // *after* the drag committed the new detent, immediately toggling it back. Composing
+            // them into one recognizer makes that outcome impossible: SwiftUI resolves the drag
+            // first, and only offers the touch to the tap once the drag has declared it is not
+            // one — which for `minimumDistance: Space.sm` is within the first few points.
             Color.clear
                 .contentShape(Rectangle())
-                .gesture(dragGesture)
-                .onTapGesture { toggleDetent() }
+                .gesture(dragGesture.exclusively(before: TapGesture().onEnded { toggleDetent() }))
                 .accessibilityAddTraits(.isButton)
                 .accessibilityLabel(Text(
                     detent == .open ? "reveal.callsheet.collapse" : "reveal.callsheet.expand"

@@ -10,9 +10,9 @@ import Testing
 /// that keeps a small sheet from committing on a hair-trigger threshold.
 @Suite struct CallSheetDetentTests {
 
-    /// A generous `collapseDistance` so `threshold` (`collapseDistance * 0.25`) sits well above
+    /// A generous `collapseDistance` so `threshold` (`collapseDistance * 0.2`) sits well above
     /// the `Space.xxl` floor and the test is exercising the scaled threshold, not the floor.
-    private let collapseDistance: CGFloat = 400 // threshold == 100
+    private let collapseDistance: CGFloat = 400 // threshold == 80
 
     @Test func openCommitsToPeekWhenProjectionCrossesTheThresholdDownward() {
         let resolved = CallSheetDetent.resolved(
@@ -52,13 +52,55 @@ import Testing
         // threshold is a springback, not a commit.
         #expect(CallSheetDetent.resolved(
             from: .open,
-            predictedEndTranslation: 100,
+            predictedEndTranslation: 80,
             collapseDistance: collapseDistance
         ) == .open)
         #expect(CallSheetDetent.resolved(
             from: .peek,
-            predictedEndTranslation: -100,
+            predictedEndTranslation: -80,
             collapseDistance: collapseDistance
+        ) == .peek)
+    }
+
+    // MARK: - `E28-03`: the flick path
+
+    @Test func aFastFlickCommitsEvenWhenTheProjectedDistanceDoesNot() {
+        // Short, fast, well inside the distance threshold (80) — the flick this exists for.
+        #expect(CallSheetDetent.resolved(
+            from: .open,
+            predictedEndTranslation: 20,
+            collapseDistance: collapseDistance,
+            velocity: 400
+        ) == .peek)
+        #expect(CallSheetDetent.resolved(
+            from: .peek,
+            predictedEndTranslation: -20,
+            collapseDistance: collapseDistance,
+            velocity: -400
+        ) == .open)
+    }
+
+    @Test func aSlowDragBelowTheFlickThresholdStillNeedsDistance() {
+        #expect(CallSheetDetent.resolved(
+            from: .open,
+            predictedEndTranslation: 20,
+            collapseDistance: collapseDistance,
+            velocity: 100
+        ) == .open)
+    }
+
+    @Test func flickVelocityInTheWrongDirectionNeverCommits() {
+        #expect(CallSheetDetent.resolved(
+            from: .open,
+            predictedEndTranslation: 20,
+            collapseDistance: collapseDistance,
+            velocity: -400
+        ) == .open)
+        #expect(CallSheetDetent.resolved(
+            from: .peek,
+            predictedEndTranslation: -20,
+            collapseDistance: collapseDistance,
+            velocity: 400
         ) == .peek)
     }
 

@@ -202,11 +202,18 @@ So, now:
 - Both the artwork (already under the cover) and the title/artist beneath it are **hidden by
   default**. The title/artist's spot is taken by **Hold to peek**, `sealed.peek`
   (`11-COPY-DECK.md`), in the same place, at the same minimum size.
-- Held, both come back — exactly as long as the finger is down. Released, dragged off the
-  control, or the screen leaves the foreground for any reason (navigation, the app
-  backgrounding, the app switcher appearing, a call arriving), it reseals **immediately, with no
-  animation**: a closing cover is allowed to take a moment; a peek that lingers into a
-  screenshot is not.
+- **The hold target is the whole card** (`E28-04`), not only the title/artist strip — a finger
+  anywhere on the artwork or the metadata opens it. Opening plays the caller's own 30-second
+  preview for as long as the hold lasts, through the same shared player Reveal and Search already
+  use, and crossfades the cover and the metadata over `Motion.Peek` (180ms) rather than snapping.
+  > **Amended by the owner:** the preview is audible to anyone nearby, and `.playback` ignores
+  > the silent switch. Deliberate, not an oversight — if it comes back as a bug report, it isn't
+  > one.
+- Held, both come back — exactly as long as the finger is down. Released, dragged off the card,
+  or the screen leaves the foreground for any reason (navigation, the app backgrounding, the app
+  switcher appearing, a call arriving), it reseals **immediately, with no animation, and the
+  preview stops**: a closing cover is allowed to take a moment; a peek that lingers into a
+  screenshot is not, and neither is a sound that keeps playing after it.
 - VoiceOver needs no hold. The sealed card's own accessibility label always names the title and
   artist, peeking or not — the non-gesture path `12-ACCESSIBILITY.md` §5 requires, and a normal
   touch cannot reach the hold at all while VoiceOver is running, since the OS routes it to
