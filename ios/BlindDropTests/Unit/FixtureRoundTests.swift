@@ -113,6 +113,35 @@ struct FixtureRoundTests {
         #expect(env.router.pending?.groupID == "b0000000-0000-4000-8000-000000000099")
     }
 
+    /// `E23-03`: this is the client path a tapped APNs notification takes, not merely the
+    /// deep-link parser in isolation: raw payload string → `PushRouter` → pending router link →
+    /// `RoundStore.load()`. The target is deliberately the non-active fixture circle, whose
+    /// server round remains `open` even though the payload says `results`; a notification is a
+    /// navigation hint, never permission for the client to manufacture a phase.
+    @Test func atappedPushOpensItsCircleAtTheServersPhase() async throws {
+        let env = try environment()
+        await env.session.startFixtureSession()
+        #expect(env.session.state == .ready)
+
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value?.group.name == "The Cove")
+
+        let raw = "blinddrop://circle/b0000000-0000-4000-8000-000000000099/round/current/results"
+        PushRouter.receive(PushRouter.link(from: raw), into: env.router, session: env.session.state)
+
+        await store.load()
+
+        #expect(env.circles.activeGroupID == "b0000000-0000-4000-8000-000000000099")
+        #expect(store.state.value?.group.name == "Late Night Radio")
+        #expect(store.state.value?.round.state == .open,
+                "the server's open round wins over a results-shaped notification")
+        #expect(env.router.pending == nil, "the loaded notification is consumed exactly once")
+        #expect(env.router.path.isEmpty, "round/results links return to the phase-appropriate root")
+    }
+
     /// **AC-10's search budget** (`E10-02`): a query returns results in under 400ms.
     ///
     /// Measured around the client's own call, which is what the user waits on — the debounce sits

@@ -52,6 +52,14 @@ repo.**
 | Cron-outage simulation: no tick for 3h, then one tick → `open → revealed → scored`, both outbox rows present, exactly once | `tests/db/lifecycle.sql` |
 | DST boundary: a group in `America/New_York` on the spring-forward date reveals at 20:00 local | `tests/db/timezones.sql` |
 | Push worker sends each outbox row once; a crash before `sent_at` re-sends with the same `apns-collapse-id` | `tests/functions/push.test.ts` |
+| A results-shaped push for a non-active circle is parsed through `PushRouter`, loads that circle, and renders the phase the server returned rather than forcing results | `FixtureRoundTests.atappedPushOpensItsCircleAtTheServersPhase` |
+| A `410 Unregistered` disables only that token; registering the token again clears `disabled_at` | `tests/functions/push.test.ts` |
+
+The two automated rows above cover payload handling, routing, retirement, and re-registration.
+Actual APNs delivery, permission, and notification taps still require the `E23-03` physical-device
+check: cold launch, background/warm launch, and foreground banner, all targeting a non-active
+circle. Record the device/build and observed delivery in `tasks/E23-notifications.md`; do not call
+that hardware gate green based on a simulator injection.
 
 ### AC-4 — Voiding
 

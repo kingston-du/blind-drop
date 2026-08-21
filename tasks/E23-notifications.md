@@ -239,3 +239,31 @@ from APNs must disable the token, and that path deserves to be exercised rather 
 - [ ] Tapping opens the right circle and phase from cold, warm and foreground
 - [ ] `410` disables the token; a reinstall re-registers cleanly
 - [ ] AC-3 in `docs/15` describes a test somebody actually ran, and says what needed hardware
+
+#### Verification note — automated coverage, 2026-08-20
+
+The deferred hardware check is now isolated from the client and worker behaviour it would
+otherwise be asked to prove indirectly:
+
+- `FixtureRoundTests.atappedPushOpensItsCircleAtTheServersPhase` starts with the raw
+  `deep_link` string from an APNs payload, sends it through `PushRouter`, and loads the named
+  non-active fixture circle. That circle deliberately answers `open` to a results-shaped link;
+  the test proves the router switches circles, consumes the link once, and leaves rendering to
+  the server's phase rather than manufacturing results.
+- `npm run test:functions -- push.test.ts` passed 11/11, including the 410 path: a dead token is
+  disabled without failing the row, and a subsequent `POST /devices` clears `disabled_at`.
+- `./ios/scripts/verify-fixture.sh` had been silently passing skipped fixture suites: it supplied
+  `TEST_RUNNER_BLINDDROP_FIXTURE_API` as a trailing Xcode build setting, not an environment
+  variable. It now forwards the variable correctly and refuses to attach to another process's
+  already-bound fixture port. The E23 fixture suite passed 9/9 on the iPhone 17 simulator.
+- An iPhone 17 simulator accepted `ios/Fixtures/push/results-other-circle.apns`; its notification
+  permission was not granted, so iOS did not present a banner to tap. This is **not** recorded as
+  a delivery or tap success. The fixture and test above are the automated payload/routing proof.
+- Lint and the focused `PushTests` suite passed (13/13). The complete unit + snapshot run did not
+  pass: 44 golden mismatches are confined to `GroupScreenSnapshotTests` and
+  `GroupSnapshotTests`, files outside this diff. Their actual/expected/diff PNGs were inspected
+  only enough to identify the affected, unrelated screen and were not re-recorded.
+
+What remains for closure is hardware-only: permission and token registration, one actual APNs
+delivery, cold/warm/foreground notification taps into a non-active circle, and uninstall/reinstall
+registration evidence. Until that run is performed on a physical iPhone, this slice stays `wip`.

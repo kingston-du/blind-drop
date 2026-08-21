@@ -30,6 +30,14 @@ if [ ! -x "$DENO" ] && ! command -v deno >/dev/null 2>&1; then
 fi
 [ -x "$DENO" ] || DENO="$(command -v deno)"
 
+# Do not silently attach a test run to another session's fixture server. Its phase, latency, or
+# source tree may differ from this checkout, which turns a passing result into evidence about
+# somebody else's process. Pick another explicit `PORT` when one is already occupied.
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  printf '%sPort :%s is already in use; choose a free PORT for this fixture run.%s\n' "$RED" "$PORT" "$OFF"
+  exit 2
+fi
+
 printf '%sStarting the fixture server on :%s%s\n' "$DIM" "$PORT" "$OFF"
 PORT="$PORT" "$DENO" run --allow-net --allow-read --allow-env "$ROOT/ios/Fixtures/server.ts" &
 SERVER_PID=$!
@@ -45,25 +53,24 @@ if ! curl -fsS "http://127.0.0.1:$PORT/__fixture" >/dev/null 2>&1; then
   exit 1
 fi
 
-# TEST_RUNNER_-prefixed settings reach the test process with the prefix stripped, which is how
-# an environment variable gets past xcodebuild into the simulator.
-xcodebuild test \
+# TEST_RUNNER_-prefixed environment variables reach the test process with the prefix stripped.
+# They must be *environment variables*, before `xcodebuild`; trailing words are Xcode build
+# settings and silently leave the suite disabled (every fixture test then reports skipped).
+TEST_RUNNER_BLINDDROP_FIXTURE_API="http://127.0.0.1:$PORT" xcodebuild test \
   -project "$ROOT/ios/BlindDrop.xcodeproj" \
   -scheme BlindDrop \
   -destination "platform=iOS Simulator,OS=latest,name=$SIMULATOR" \
   -derivedDataPath "$ROOT/ios/.build" \
   -only-testing:"$SUITE" \
-  TEST_RUNNER_BLINDDROP_FIXTURE_API="http://127.0.0.1:$PORT" \
   | grep -E '✔|✘|Test run|error:' || true
 
 # xcodebuild's exit status is what decides, not the grep's.
-if xcodebuild test-without-building \
+if TEST_RUNNER_BLINDDROP_FIXTURE_API="http://127.0.0.1:$PORT" xcodebuild test-without-building \
   -project "$ROOT/ios/BlindDrop.xcodeproj" \
   -scheme BlindDrop \
   -destination "platform=iOS Simulator,OS=latest,name=$SIMULATOR" \
   -derivedDataPath "$ROOT/ios/.build" \
-  -only-testing:"$SUITE" \
-  TEST_RUNNER_BLINDDROP_FIXTURE_API="http://127.0.0.1:$PORT" >/dev/null 2>&1
+  -only-testing:"$SUITE" >/dev/null 2>&1
 then
   printf '%s%s completes against the fixture server.%s\n' "$GREEN" "$WHAT" "$OFF"
 else

@@ -1,0 +1,10 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Tonight's answers are in.",
+      "body": ""
+    },
+    "sound": "default"
+  },
+  "deep_link": "blinddrop://circle/b0000000-0000-4000-8000-000000000099/round/current/results"
+}
