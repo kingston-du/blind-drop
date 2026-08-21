@@ -191,7 +191,7 @@ last are now resolved:
 
 ### E23-02 — Three deliveries, whatever the circle count
 
-**Status:** wip · **Deps:** E23-01, E18-01 · **Parallel:** no
+**Status:** done · **Deps:** E23-01, E18-01 · **Parallel:** no
 **Reads:** `CLAUDE.md` §2.6, `docs/05` §3, §4
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/push-worker/`,
 `server/supabase/tests/`, `docs/05-JOBS-AND-NOTIFICATIONS.md`
@@ -206,12 +206,16 @@ The structural guarantee that made the old rule reliable was that only `tick_rou
 enqueue. That is worth preserving: the budget belongs in one place that every sender passes
 through, not in each sender's good intentions.
 
-- [ ] Coalescing across circles: same kind, same window, one delivery, copy that reads well for
+- [x] Coalescing across circles: same kind, same window, one delivery, copy that reads well for
       one circle and for three
-- [ ] A hard per-user daily ceiling, enforced centrally
-- [ ] The payload carries enough for `E19-03` to open the right circle
-- [ ] pgTAP: three circles revealing together produce one delivery; a fourth is refused
-- [ ] `docs/05` §3 and §4 updated to the amended rule
+- [x] A hard per-user daily ceiling, enforced centrally
+- [x] The payload carries enough for `E19-03` to open the right circle
+- [x] pgTAP: three circles revealing together produce one delivery; a fourth is refused
+- [x] `docs/05` §3 and §4 updated to the amended rule
+
+Verified locally 2026-08-20: 684 pgTAP assertions; E23-02 push and results function suites;
+lint; AC-1 leak audit; and Supabase database advisors. The full function suite had one
+intermittent circle-switcher 500 (257 other tests passed); its isolated rerun passed 12/12.
 
 ---
 

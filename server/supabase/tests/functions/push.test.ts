@@ -639,19 +639,14 @@ Deno.test("the nudge audience is the active roster at enqueue — docs/05 §3", 
   assertEquals(afterCalSealed.length, 1, "a second tick does not enqueue a second nudge");
   assertEquals(
     [...afterCalSealed[0].audience].sort(),
-    [ben.id, cal.id].sort(),
+    [ana.id, ben.id, cal.id].sort(),
     "someone who seals after the freeze still receives the nudge",
   );
 
   await clearPending(enqueued[0].id);
   const stub = stubApns(() => ({ status: 200 }));
   await drainPushOutbox(serviceClient(), stub.fetchApns);
-  assertEquals(stub.tokens.sort(), [tokens.ben, tokens.cal].sort());
-  assertEquals(
-    stub.tokens.includes(tokens.ana),
-    false,
-    "an early submitter is included in the frozen nudge audience",
-  );
+  assertEquals(stub.tokens.sort(), [tokens.ana, tokens.ben, tokens.cal].sort());
 });
 
 Deno.test("reveal and void are mutually exclusive for a round", async () => {

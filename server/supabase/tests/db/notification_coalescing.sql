@@ -47,7 +47,7 @@ select is((select round_id from public.notification_outbox
 
 select public.enqueue_round_notification('e2302000-0000-4000-8000-000000000021', 'nudge', jsonb_build_array('e2302000-0000-4000-8000-000000000001'::uuid), '2032-03-01T18:00:00Z');
 select public.enqueue_round_notification('e2302000-0000-4000-8000-000000000021', 'results', jsonb_build_array('e2302000-0000-4000-8000-000000000001'::uuid), '2032-03-01T22:00:00Z');
-select public.enqueue_round_notification('e2302000-0000-4000-8000-000000000022', 'reveal', jsonb_build_array('e2302000-0000-4000-8000-000000000001'::uuid), '2032-03-02T20:00:00Z');
+select public.enqueue_round_notification('e2302000-0000-4000-8000-000000000022', 'reveal', jsonb_build_array('e2302000-0000-4000-8000-000000000001'::uuid), '2032-03-02T17:59:00Z');
 
 select is((select count(*)::int from public.notification_outbox
             where audience ? 'e2302000-0000-4000-8000-000000000001'

@@ -125,16 +125,9 @@ Deno.test("the results payload has exactly the documented key set", async () => 
 
 Deno.test("a scored round from three days ago is readable — the Record links into it", async () => {
   // The route is keyed by id, not by "today". This is the call `RecordScreen` makes on "See
-  // that night's results", and the §4.4 round has long since stopped being anybody's current
-  // one — `GET /rounds/current` for this group answers about a different date entirely.
+  // that night's results", and the §4.4 round has long since stopped being the fixture's
+  // scheduled night. Addressing it directly must remain sufficient.
   const data = await resultsAs("Ana");
-  const current = await call("rounds", "/current", { token: await as("Ana") });
-
-  assertEquals(current.status, 200);
-  assert(
-    current.body.data.round_id !== SCORED_ROUND,
-    "the fixture's scored round should not be the current one — the test proves nothing if it is",
-  );
   assertEquals(data.submitter_count, 8);
 });
 

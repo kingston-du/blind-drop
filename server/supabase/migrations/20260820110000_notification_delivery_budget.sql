@@ -63,8 +63,15 @@ begin
     into v_deliveries
     from public.notification_outbox o
    where o.audience ? p_user::text
-     and o.enqueued_at > v_now - interval '24 hours'
-     and o.enqueued_at <= v_now;
+     and case
+       -- Scheduled round events are budgeted against the instant they describe. A delayed
+       -- scheduler tick must not make an old event look like a new delivery window.
+       when p_scheduled_for is not null then o.scheduled_for > p_scheduled_for - interval '24 hours'
+                                         and o.scheduled_for <= p_scheduled_for
+       -- Invitations have no scheduled instant, so their actual enqueue time is the delivery
+       -- window until the worker claims them.
+       else o.enqueued_at > v_now - interval '24 hours' and o.enqueued_at <= v_now
+     end;
 
   return v_deliveries < 3;
 end $$;
@@ -217,7 +224,9 @@ begin
   for v_round in
     select r.id, r.group_id, r.reveals_at
       from public.rounds r
+      join public.groups g on g.id = r.group_id
      where r.state = 'open'
+       and not g.is_demo
        and r.reveals_at <= v_now
      order by r.reveals_at, r.id
      for update skip locked
@@ -264,7 +273,9 @@ begin
   for v_round in
     select r.id, r.group_id, r.scores_at
       from public.rounds r
+      join public.groups g on g.id = r.group_id
      where r.state = 'revealed'
+       and not g.is_demo
        and r.reveals_at <= v_now - interval '2 hours'
      order by r.reveals_at, r.id
      for update skip locked
@@ -293,7 +304,9 @@ begin
   for v_round in
     select r.id, r.group_id, r.reveals_at
       from public.rounds r
+      join public.groups g on g.id = r.group_id
      where r.state = 'open'
+       and not g.is_demo
        and r.reveals_at > v_now
        and r.reveals_at <= v_now + interval '2 hours'
        and not exists (
