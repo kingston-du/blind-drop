@@ -367,7 +367,7 @@ beta. E25-02 still needs history to mean anything.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E25-01 Who you know, and who knows you | done | E24-02 | vs E26 | — |
-| E25-02 Who you get mistaken for | todo | E25-01 | no | — |
+| E25-02 Who you get mistaken for | wip | E25-01 | no | — |
 
 ## E26 — UI polish and known bugs · [file](E26-ui-polish.md)
 

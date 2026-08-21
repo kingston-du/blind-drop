@@ -47,7 +47,7 @@ public beta.
 
 ### E25-02 — Who you get mistaken for
 
-**Status:** todo · **Deps:** E25-01 · **Parallel:** no
+**Status:** wip · **Deps:** E25-01 · **Parallel:** no
 **Reads:** `docs/02` §4, `docs/11`
 **Touches:** `server/supabase/functions/`, the Insights feature, tests
 **Verify:** `npm run test:functions`; `audit:leak`; simulator.
