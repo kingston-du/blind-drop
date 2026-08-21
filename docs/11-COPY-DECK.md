@@ -444,6 +444,20 @@ either must be able to happen without the other.
 | `profile.pairwise.minimum` | Shows after %lld shared rounds. |
 | `profile.recent` | Recent songs |
 | `profile.recent.empty` | No scored songs here yet. |
+| `insights.title` | Insights |
+| `insights.subtitle` | How this circle reads itself. |
+| `insights.yourreads` | Your reads |
+| `insights.youknow` | You read best |
+| `insights.knowsyou` | Reads you best |
+| `insights.hardest` | Hardest to read |
+| `insights.mutual` | Mutual reads |
+| `insights.mutual.recognition` | They read each other |
+| `insights.mutual.misses` | Neither has read the other |
+| `insights.pair.separator` | & |
+| `insights.detail` | %lld of %lld shared reads. |
+| `insights.empty` | No shared scored rounds yet. |
+| `insights.mutual.empty` | No pairs here yet. |
+| `insights.profile.hint` | Open their profile. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |
 | `settings.name` | Display name |

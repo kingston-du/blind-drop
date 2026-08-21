@@ -439,6 +439,27 @@ async function route(req: Request, url: URL): Promise<Response> {
     if (!(await groupPayloadFor(groupStandings[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");
     return ok(await payload("standings"));
   }
+  const memberProfile = p.match(/^\/groups\/([^/]+)\/members\/([^/]+)\/profile$/);
+  if (m === "GET" && memberProfile) {
+    const group = await groupPayloadFor(memberProfile[1]) as Record<string, unknown> | null;
+    const member = (group?.members as Array<Record<string, unknown>> | undefined)
+      ?.find((entry) => entry.user_id === memberProfile[2]);
+    if (!member) return fail(404, "NOT_FOUND", "That's not available right now.");
+    return ok({
+      member,
+      ear: { value: 0.71, samples: 14 },
+      readability: { value: 0.43, samples: 14 },
+      drop_count: 14,
+      recent_tracks: [],
+      you_read_them: { correct: 8, possible: 14 },
+      they_read_you: { correct: 5, possible: 14 },
+    });
+  }
+  const groupInsights = p.match(/^\/groups\/([^/]+)\/insights$/);
+  if (m === "GET" && groupInsights && groupInsights[1] !== "current") {
+    if (!(await groupPayloadFor(groupInsights[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    return ok(await payload("insights"));
+  }
   const groupRecord = p.match(/^\/groups\/([^/]+)\/record$/);
   if (m === "GET" && groupRecord && groupRecord[1] !== "current") {
     if (!(await groupPayloadFor(groupRecord[1]))) return fail(404, "NOT_FOUND", "That's not available right now.");

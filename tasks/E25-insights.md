@@ -7,14 +7,16 @@ No tab bar (`docs/16` §3), and nothing here appears on the round screens.
 Circle-scoped, like profiles. Cross-circle aggregation is banned by ADR-011.
 
 **Ship this after there is data.** Every statistic here is a ratio, and ratios over a two-week
-beta with five rounds are decoration. `E25-01` is worth building when circles have history;
-`E25-02` needs more still. Deferring is the right call if the beta has not produced enough.
+beta with five rounds are decoration. `E25-01` has a temporary owner-approved beta exception:
+show relationships immediately so testers can exercise the surface, and always show the raw
+shared-read denominator next to the percentage. Do not label the page as early data. Revisit the
+threshold before public beta; `E25-02` still needs more history.
 
 ---
 
 ### E25-01 — Who you know, and who knows you
 
-**Status:** wip · **Deps:** E24-02 · **Parallel:** yes — against E26
+**Status:** blocked · **Deps:** E24-02 · **Parallel:** yes — against E26
 **Reads:** `docs/02` §4, `docs/16` §3, `docs/11`
 **Touches:** `server/supabase/functions/`, a new Insights feature, `Localizable.strings`,
 `docs/11-COPY-DECK.md`, tests
@@ -27,15 +29,22 @@ pairs who see each other, and the pairs who never do, which is the more interest
 All of it is `guess_results` aggregated by pair. The engineering is small; the judgement is
 where to stop. Every person named drills into their profile.
 
-The thin-data rule from `E24-02` is stricter here, because a superlative is a claim: naming a
-"hardest person to read" off three shared rounds is a sentence about a friendship that the data
-does not support. Say nothing until it does.
+The thin-data rule from `E24-02` is suspended for this tester-facing slice. Results appear after
+the first shared scored round, with both the percentage and its raw shared-read denominator. That
+makes the small sample unmistakable without adding an early-data label; restore a threshold before
+public beta.
 
-- [ ] Who you know best, who knows you best, hardest to read, mutual recognition
-- [ ] Everyone named drills into their profile
-- [ ] Superlatives suppressed entirely below a stated threshold, not softened
-- [ ] Reached from the menu or a profile; no tab bar, nothing on the round screens
+- [x] Who you know best, who knows you best, hardest to read, mutual recognition
+- [x] Everyone named drills into their profile
+- [x] Results appear immediately after a shared scored round, with an explicit raw denominator
+- [x] Reached from the root header menu; no tab bar, nothing on the round screens
 - [ ] Nothing reachable from an unscored round — asserted by the leak audit
+
+> **Blocked:** The implementation, iOS unit/snapshot coverage, fixture-backed UI loop, lint, and
+> Edge Function type check pass. The required local Supabase function tests and leak audit cannot
+> run because neither Docker nor Podman is installed or available on `PATH`. Start the local stack
+> and run `cd server && npm run test:functions && npm run audit:leak` before setting this slice
+> to `done`.
 
 ---
 

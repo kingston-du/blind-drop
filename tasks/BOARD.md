@@ -360,11 +360,12 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 
 ## E25 — Insights · [file](E25-insights.md)
 
-Needs history to mean anything. Defer without regret if the beta has not produced it.
+E25-01 is tester-visible immediately, with raw shared-read denominators beside every percentage;
+revisit its data threshold before public beta. E25-02 still needs history to mean anything.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E25-01 Who you know, and who knows you | wip | E24-02 | vs E26 | — |
+| E25-01 Who you know, and who knows you | blocked — local Supabase needs Docker/Podman | E24-02 | vs E26 | — |
 | E25-02 Who you get mistaken for | todo | E25-01 | no | — |
 
 ## E26 — UI polish and known bugs · [file](E26-ui-polish.md)

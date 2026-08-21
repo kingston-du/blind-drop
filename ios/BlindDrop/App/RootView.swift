@@ -63,6 +63,7 @@ struct RootView: View {
                 case .record:   RecordScreen()
                 case .group:    GroupScreen()
                 case .settings: SettingsScreen()
+                case .insights: InsightsScreen()
                 }
             }
         }

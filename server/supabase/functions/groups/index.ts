@@ -17,6 +17,7 @@
 //   GET   /groups/current/standings            all-time, ranked one way and not the other
 //   GET   /groups/:group_id/standings          the same, for a named circle
 //   GET   /groups/:group_id/members/:user_id/profile   scored history and pairwise reads only
+//   GET   /groups/:group_id/insights                    scored circle relationships only
 //   GET   /groups/current/record                the archive, newest night first, paginated
 //   GET   /groups/:group_id/record              the same, for a named circle
 //   GET   /groups/current/record/export?service=  the ordered track list, for the client to
@@ -80,6 +81,8 @@ import {
   memberDTO,
   memberProfileDTO,
   type MemberProfileDTO,
+  insightsDTO,
+  type InsightsDTO,
   type ReadabilityBand,
   readabilityStandingDTO,
   type RecordDayDTO,
@@ -823,6 +826,143 @@ async function profileForMember(ctx: MemberCtx, userId: string): Promise<Respons
   return ok(memberProfileDTO(profile));
 }
 
+// ─── Insights — E25-01 ─────────────────────────────────────────────────────
+//
+// This is deliberately not a new score. It is a small set of views over the same scored-only
+// guess results that make profiles' pairwise reads. The server keeps the aggregation here so a
+// client never receives a circle's raw guesses, and so an `open` round cannot become visible by
+// accident when a later screen adds a field.
+
+interface InsightScoreRow {
+  round_id: string;
+  user_id: string;
+}
+
+interface InsightGuessRow {
+  guesser_id: string;
+  card_owner_id: string;
+  is_correct: boolean;
+}
+
+interface DirectedInsight {
+  member: MemberDTO;
+  correct: number;
+  possible: number;
+}
+
+const MUTUAL_PAIR_LIMIT = 3;
+
+function relationshipKey(from: string, to: string): string {
+  return `${from}:${to}`;
+}
+
+function compareMembers(a: MemberDTO, b: MemberDTO): number {
+  return a.display_name.localeCompare(b.display_name) || a.user_id.localeCompare(b.user_id);
+}
+
+function compareReadDescending(a: DirectedInsight, b: DirectedInsight): number {
+  const rate = b.correct / b.possible - a.correct / a.possible;
+  return rate || b.correct - a.correct || b.possible - a.possible || compareMembers(a.member, b.member);
+}
+
+function compareReadAscending(a: DirectedInsight, b: DirectedInsight): number {
+  const rate = a.correct / a.possible - b.correct / b.possible;
+  return rate || a.correct - b.correct || b.possible - a.possible || compareMembers(a.member, b.member);
+}
+
+async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
+  const members = (await roster(ctx.db, ctx.groupId)).map(memberDTO).sort(compareMembers);
+  const memberIDs = new Set(members.map((member) => member.user_id));
+  const memberByID = new Map(members.map((member) => [member.user_id, member]));
+
+  const { data: scoreRows, error: scoreError } = await ctx.db
+    .from("round_scores")
+    .select("round_id, user_id")
+    .eq("group_id", ctx.groupId)
+    .in("user_id", members.map((member) => member.user_id));
+  if (scoreError) throw dbFailure("groups.insights.scores", scoreError);
+
+  const roundsByUser = new Map<string, Set<string>>();
+  for (const row of scoreRows as InsightScoreRow[]) {
+    const rounds = roundsByUser.get(row.user_id) ?? new Set<string>();
+    rounds.add(row.round_id);
+    roundsByUser.set(row.user_id, rounds);
+  }
+  const roundIDs = [...new Set((scoreRows as InsightScoreRow[]).map((row) => row.round_id))];
+
+  const correctByDirection = new Map<string, number>();
+  if (roundIDs.length > 0) {
+    const { data: guessRows, error: guessError } = await ctx.db
+      .from("guess_results")
+      .select("guesser_id, card_owner_id, is_correct")
+      .in("round_id", roundIDs);
+    if (guessError) throw dbFailure("groups.insights.guesses", guessError);
+    for (const row of guessRows as InsightGuessRow[]) {
+      // `round_id` confines the source query to this circle; this roster check additionally
+      // omits former members, because Insights is about the current room rather than its archive.
+      if (!row.is_correct || !memberIDs.has(row.guesser_id) || !memberIDs.has(row.card_owner_id)) continue;
+      const key = relationshipKey(row.guesser_id, row.card_owner_id);
+      correctByDirection.set(key, (correctByDirection.get(key) ?? 0) + 1);
+    }
+  }
+
+  const directed = (from: string, to: string): DirectedInsight | null => {
+    const target = memberByID.get(to);
+    if (!target || from === to) return null;
+    const sourceRounds = roundsByUser.get(from) ?? new Set<string>();
+    const targetRounds = roundsByUser.get(to) ?? new Set<string>();
+    let possible = 0;
+    for (const roundID of sourceRounds) if (targetRounds.has(roundID)) possible += 1;
+    if (possible === 0) return null;
+    return {
+      member: target,
+      correct: correctByDirection.get(relationshipKey(from, to)) ?? 0,
+      possible,
+    };
+  };
+
+  const fromCaller = members.flatMap((member) => {
+    const read = directed(ctx.userId, member.user_id);
+    return read ? [read] : [];
+  });
+  const toCaller = members.flatMap((member) => {
+    const read = directed(member.user_id, ctx.userId);
+    return read ? [read] : [];
+  });
+
+  const mutualRecognition: { members: MemberDTO[]; correct: number; possible: number }[] = [];
+  const mutualMisses: { members: MemberDTO[]; correct: number; possible: number }[] = [];
+  for (let first = 0; first < members.length; first += 1) {
+    for (let second = first + 1; second < members.length; second += 1) {
+      const left = directed(members[first].user_id, members[second].user_id);
+      const right = directed(members[second].user_id, members[first].user_id);
+      if (!left || !right) continue;
+      const pair = {
+        members: [members[first], members[second]],
+        correct: left.correct + right.correct,
+        possible: left.possible + right.possible,
+      };
+      if (left.correct > 0 && right.correct > 0) mutualRecognition.push(pair);
+      if (left.correct === 0 && right.correct === 0) mutualMisses.push(pair);
+    }
+  }
+  const comparePair = (a: { members: MemberDTO[]; correct: number; possible: number },
+                       b: { members: MemberDTO[]; correct: number; possible: number }): number =>
+    b.correct / b.possible - a.correct / a.possible || b.correct - a.correct || b.possible - a.possible
+      || compareMembers(a.members[0], b.members[0]) || compareMembers(a.members[1], b.members[1]);
+
+  const response: InsightsDTO = {
+    you_know_best: [...fromCaller].sort(compareReadDescending)[0] ?? null,
+    knows_you_best: [...toCaller].sort(compareReadDescending)[0] ?? null,
+    hardest_to_read: [...fromCaller].sort(compareReadAscending)[0] ?? null,
+    mutual_recognition: mutualRecognition.sort(comparePair).slice(0, MUTUAL_PAIR_LIMIT),
+    // A larger denominator makes a mutual miss more interesting, so reverse only the confidence
+    // tie-breaker while every rate is necessarily zero.
+    mutual_misses: mutualMisses.sort((a, b) => b.possible - a.possible || comparePair(a, b)).slice(0, MUTUAL_PAIR_LIMIT),
+  };
+  return ok(insightsDTO(response));
+}
+
 // docs/04 §5, docs/06 §6. The ordered track list, and nothing else.
 //
 // **The server never creates the playlist.** It holds no Spotify or Apple Music credential
@@ -1378,6 +1518,15 @@ serveFunction("groups", {
       params.group_id,
     );
     return profileForMember(ctx, params.user_id);
+  },
+
+  // ─── insights — E25-01 ────────────────────────────────────────────────────
+  "GET /:group_id/insights": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return insightsForGroup(ctx);
   },
 
   // ─── the record ────────────────────────────────────────────────────────────

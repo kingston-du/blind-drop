@@ -1,0 +1,37 @@
+{
+  "you_know_best": {
+    "member": { "user_id": "a0000000-0000-4000-8000-000000000003", "display_name": "Cal" },
+    "correct": 10,
+    "possible": 14
+  },
+  "knows_you_best": {
+    "member": { "user_id": "a0000000-0000-4000-8000-000000000008", "display_name": "Hal" },
+    "correct": 11,
+    "possible": 14
+  },
+  "hardest_to_read": {
+    "member": { "user_id": "a0000000-0000-4000-8000-000000000007", "display_name": "Gus" },
+    "correct": 2,
+    "possible": 14
+  },
+  "mutual_recognition": [
+    {
+      "members": [
+        { "user_id": "a0000000-0000-4000-8000-000000000001", "display_name": "Ana" },
+        { "user_id": "a0000000-0000-4000-8000-000000000008", "display_name": "Hal" }
+      ],
+      "correct": 19,
+      "possible": 28
+    }
+  ],
+  "mutual_misses": [
+    {
+      "members": [
+        { "user_id": "a0000000-0000-4000-8000-000000000004", "display_name": "Dee" },
+        { "user_id": "a0000000-0000-4000-8000-000000000007", "display_name": "Gus" }
+      ],
+      "correct": 0,
+      "possible": 28
+    }
+  ]
+}

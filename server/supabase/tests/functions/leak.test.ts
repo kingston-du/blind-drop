@@ -215,6 +215,36 @@ Deno.test("golden: GET /groups/{group_id}/members/{user_id}/profile during open"
   );
 });
 
+Deno.test("golden: GET /groups/{group_id}/insights during open", async () => {
+  const { user: ana, group } = await openGroup("Golden Insights");
+  const ben = await newMember(group.invite_code as string, "Ben");
+  // Ben seals tonight, but the new endpoint may name nobody until a whole round has scored.
+  // This proves Insights is a finished-history lens rather than a participation signal.
+  const seal = await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: ben.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  assertEquals(seal.status, 200);
+
+  const res = await call("groups", `/${group.id}/insights`, { token: ana.token });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  assertEquals(res.body.data, {
+    you_know_best: null,
+    knows_you_best: null,
+    hardest_to_read: null,
+    mutual_recognition: [],
+    mutual_misses: [],
+  });
+  await assertGolden(
+    "groups_insights",
+    res.body,
+    "GET /groups/{group_id}/insights during `open`, after another member has submitted. Every " +
+      "field remains a function of scored rounds only, so the response names nobody and carries " +
+      "no current-round, submission, or participation field.",
+  );
+});
+
 Deno.test("golden: GET /groups (the switcher)", async () => {
   const { user, group } = await openGroup("Golden Circles");
   await newMember(group.invite_code as string, "Ben");
@@ -589,6 +619,7 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // its dedicated capture runs after the target has sealed tonight, proving the shape still
     // cannot name or carry that submission.
     "groups GET /:group_id/members/:user_id/profile": "groups_member_profile",
+    "groups GET /:group_id/insights": "groups_insights",
     "groups GET /:group_id/record": "groups_record",
     "groups GET /:group_id/record/export": "groups_record_export",
     "groups POST /:group_id/leave": null, // 204

@@ -185,6 +185,10 @@ extension Endpoint {
         .init(.get, scoped("/groups", groupID, "/members/\(userID)/profile"), retry: .twice)
     }
 
+    static func insights(in groupID: String) -> Endpoint<InsightsDTO> {
+        .init(.get, scoped("/groups", groupID, "/insights"), retry: .twice)
+    }
+
     static var peopleYouPlayedWith: Endpoint<KnownPeopleDTO> {
         .init(.get, "/groups/people-you-played-with", retry: .twice)
     }

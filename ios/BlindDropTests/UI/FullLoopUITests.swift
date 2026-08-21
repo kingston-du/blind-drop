@@ -51,6 +51,29 @@ final class FullLoopUITests: XCTestCase {
         assertVisibleControlsHaveLabels(record, screen: "record")
     }
 
+    func testHeaderMenuOpensInsightsAndANameOpensItsProfile() async throws {
+        try await requireControllableFixture()
+        try await setPhase("open")
+
+        let app = makeApp(reducedMotion: false)
+        app.launch()
+
+        let menu = app.buttons["Menu"]
+        require(menu, within: 5, message: "header menu never appeared")
+        menu.tap()
+        let insights = app.buttons["Insights"]
+        require(insights, within: 3, message: "Insights is missing from the header menu")
+        insights.tap()
+
+        XCTAssertTrue(app.staticTexts["Insights"].waitForExistence(timeout: 5),
+                      "Insights screen never appeared")
+        let cal = app.buttons["insights.member.a0000000-0000-4000-8000-000000000003"]
+        require(cal, within: 3, message: "a named relationship was not a control")
+        cal.tap()
+        XCTAssertTrue(app.navigationBars["Cal"].waitForExistence(timeout: 5),
+                      "a relationship name did not open the existing member profile")
+    }
+
     private func runLoop(reducedMotion: Bool) async throws {
         try await requireControllableFixture()
         try await setPhase("open_nosub")

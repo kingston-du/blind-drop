@@ -770,6 +770,57 @@ export function memberProfileDTO(parts: MemberProfileDTO): MemberProfileDTO {
   };
 }
 
+// ─── Insights — E25-01 ─────────────────────────────────────────────────────
+
+/** One directed read across the scored rounds two people share in this circle. */
+export interface InsightReadDTO {
+  member: MemberDTO;
+  correct: number;
+  possible: number;
+}
+
+export function insightReadDTO(parts: InsightReadDTO): InsightReadDTO {
+  return {
+    member: memberDTO(parts.member),
+    correct: parts.correct,
+    possible: parts.possible,
+  };
+}
+
+/** A two-way relationship. `possible` counts both directions, so 2 shared nights is 4 reads. */
+export interface InsightPairDTO {
+  members: MemberDTO[];
+  correct: number;
+  possible: number;
+}
+
+export function insightPairDTO(parts: InsightPairDTO): InsightPairDTO {
+  return {
+    members: parts.members.map(memberDTO),
+    correct: parts.correct,
+    possible: parts.possible,
+  };
+}
+
+/** `GET /groups/:group_id/insights`, derived entirely from scored rounds. */
+export interface InsightsDTO {
+  you_know_best: InsightReadDTO | null;
+  knows_you_best: InsightReadDTO | null;
+  hardest_to_read: InsightReadDTO | null;
+  mutual_recognition: InsightPairDTO[];
+  mutual_misses: InsightPairDTO[];
+}
+
+export function insightsDTO(parts: InsightsDTO): InsightsDTO {
+  return {
+    you_know_best: parts.you_know_best && insightReadDTO(parts.you_know_best),
+    knows_you_best: parts.knows_you_best && insightReadDTO(parts.knows_you_best),
+    hardest_to_read: parts.hardest_to_read && insightReadDTO(parts.hardest_to_read),
+    mutual_recognition: parts.mutual_recognition.map(insightPairDTO),
+    mutual_misses: parts.mutual_misses.map(insightPairDTO),
+  };
+}
+
 // ─── The Record — docs/04 §5 ─────────────────────────────────────────────────
 
 /**

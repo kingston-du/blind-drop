@@ -151,11 +151,11 @@ import Testing
         #expect(router.path == [.record])
     }
 
-    /// `docs/08` intro and `docs/13` §4: three pushed destinations, and that is the list. The
-    /// modal (Search) is presented from Submit and never enters the path.
-    @Test func thePathHasExactlyThreeDestinations() {
-        #expect(Route.allCases.count == 3)
-        #expect(Set(Route.allCases) == [.record, .group, .settings])
+    /// `E25-01`: Insights is a fourth, menu-only destination. The Search modal is presented
+    /// from Submit and never enters the path.
+    @Test func thePathHasExactlyFourDestinations() {
+        #expect(Route.allCases.count == 4)
+        #expect(Set(Route.allCases) == [.record, .group, .settings, .insights])
     }
 }
 

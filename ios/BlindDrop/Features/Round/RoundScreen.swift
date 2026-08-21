@@ -926,9 +926,18 @@ struct RoundHeader<Badge: View>: View {
                     Spacer(minLength: Space.sm)
                     HelpButton(action: showHowTo)
                     Menu {
-                        Button("record.title") { path.append(.record) }
-                        Button("group.title") { path.append(.group) }
-                        Button("settings.title") { path.append(.settings) }
+                        Button { path.append(.record) } label: {
+                            Label("record.title", systemImage: "music.note.list")
+                        }
+                        Button { path.append(.group) } label: {
+                            Label("group.title", systemImage: "person.3")
+                        }
+                        Button { path.append(.insights) } label: {
+                            Label("insights.title", systemImage: "eye")
+                        }
+                        Button { path.append(.settings) } label: {
+                            Label("settings.title", systemImage: "gearshape")
+                        }
                     } label: {
                         Image(systemName: "line.3.horizontal")
                             .font(Font(Typography.uiFont(.bodyLStrong)))

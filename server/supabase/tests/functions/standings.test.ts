@@ -234,6 +234,65 @@ Deno.test("a group with no scored rounds has empty lists, not an error", async (
   assertEquals(res.body.data, { rounds_played: 0, best_ear: [], readability: [] });
 });
 
+// ─── insights ───────────────────────────────────────────────────────────────
+
+Deno.test("insights are immediate, circle-scoped, and carry the exact read denominators", async () => {
+  const { people } = await scoredRound("Insights Shape");
+  const group = await call("groups", "/current", { token: people.Ana.token });
+  const groupID = group.body.data.id as string;
+
+  const res = await call("groups", `/${groupID}/insights`, { token: people.Ana.token });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  const insights = res.body.data;
+
+  assertEquals(keysOf(insights), [
+    "hardest_to_read",
+    "knows_you_best",
+    "mutual_misses",
+    "mutual_recognition",
+    "you_know_best",
+  ]);
+  assertEquals(keysOf(insights.you_know_best), ["correct", "member", "possible"]);
+  assertEquals(keysOf(insights.you_know_best.member), ["display_name", "user_id"]);
+
+  // One scored night is intentionally enough for the beta: the denominator makes that visible
+  // rather than hiding the relationship until a tester has waited through ten evenings.
+  assertEquals(insights.you_know_best, {
+    member: { user_id: people.Ben.id, display_name: "Ben" }, correct: 1, possible: 1,
+  });
+  assertEquals(insights.knows_you_best, {
+    member: { user_id: people.Ben.id, display_name: "Ben" }, correct: 1, possible: 1,
+  });
+  assertEquals(insights.hardest_to_read, {
+    member: { user_id: people.Ben.id, display_name: "Ben" }, correct: 1, possible: 1,
+  });
+
+  // Mutual recognition requires a correct read in both directions. Mutual misses require zero
+  // in both. The exact rows also pin stable alphabetical tie-breaking from the first night.
+  assertEquals((insights.mutual_recognition as Json[]).map((pair) =>
+    (pair.members as Json[]).map((member) => member.display_name),
+  ), [["Ana", "Ben"], ["Ana", "Cal"], ["Ben", "Cal"]]);
+  assertEquals((insights.mutual_misses as Json[]).map((pair) =>
+    (pair.members as Json[]).map((member) => member.display_name),
+  ), [["Ben", "Dee"], ["Ben", "Eli"], ["Cal", "Dee"]]);
+  assert((insights.mutual_misses as Json[]).every((pair) => pair.correct === 0 && pair.possible === 2));
+});
+
+Deno.test("insights name no one when a circle has no scored history", async () => {
+  const { user, group } = await newGroupOwner("Insights Empty", {
+    name: "Insights Empty", timezone: zoneWhereLocalHourIs(12),
+  });
+  const res = await call("groups", `/${group.id}/insights`, { token: user.token });
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data, {
+    you_know_best: null,
+    knows_you_best: null,
+    hardest_to_read: null,
+    mutual_recognition: [],
+    mutual_misses: [],
+  });
+});
+
 // ─── member profiles ────────────────────────────────────────────────────────
 
 Deno.test("a member profile is circle-scoped, finished-only, and has the documented shape", async () => {

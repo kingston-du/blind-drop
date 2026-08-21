@@ -1,0 +1,14 @@
+{
+  "about": "GET /groups/{group_id}/insights during `open`, after another member has submitted. Every field remains a function of scored rounds only, so the response names nobody and carries no current-round, submission, or participation field.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "hardest_to_read",
+    "knows_you_best",
+    "mutual_misses",
+    "mutual_recognition",
+    "you_know_best"
+  ]
+}
