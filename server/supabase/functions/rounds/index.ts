@@ -179,6 +179,16 @@ interface CurrentRound {
  * §1 is explicit that the dark hours are "not a state"; the client renders from `opens_at`,
  * which is in the future, and says so.
  *
+ * The lookup below takes the earliest round dated `today` or later, not an exact match on
+ * `today`, for the same reason `groups/index.ts`'s `circleCallerState` does: `ensure_rounds()`
+ * refuses to create a round whose reveal has already passed (`0004_round_lifecycle.sql`'s
+ * `where d.reveals_at > v_now`), so a group first read after its own `reveal_hour` — most
+ * often a brand-new one — has a round dated tomorrow and none dated today. An exact match
+ * against `today` misses that row and 404s a founding member out of their own first submission
+ * until the calendar date rolls over; `today` or later still returns today's round first
+ * whenever one exists (it always sorts before tomorrow's), so the dark-hours behaviour two
+ * paragraphs up is unchanged — only the brand-new-and-late case stops 404ing.
+ *
  * `ensure_rounds()` is called on a miss rather than 404ing, because the one moment a round can
  * legitimately be absent is the first minute of a brand-new group — the scheduler runs each
  * minute (docs/03 §4) and the API is not going to make the founding member wait for it.
@@ -207,7 +217,9 @@ async function currentRound(ctx: MemberCtx): Promise<CurrentRound> {
       .from("rounds")
       .select(ROUND_COLUMNS)
       .eq("group_id", ctx.groupId)
-      .eq("local_date", today)
+      .gte("local_date", today)
+      .order("local_date", { ascending: true })
+      .limit(1)
       .maybeSingle();
     if (error) throw dbFailure("rounds.current", error);
     return data;

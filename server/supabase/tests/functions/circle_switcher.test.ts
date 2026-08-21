@@ -245,12 +245,15 @@ Deno.test("fewer than three submitters: `voided`, never needing action", async (
 });
 
 Deno.test(
-  "a circle created after its own reveal hour has already passed today is left out, not a 500",
+  "a circle created after its own reveal hour has already passed today still shows drop, not a gap",
   async () => {
     // `ensure_rounds()` never creates a round whose reveal has already passed
     // (`0004_round_lifecycle.sql`) — a circle founded at, say, 22:00 local with a 21:00 reveal
-    // hour has a round for tomorrow and genuinely none for today. One circle in that state
-    // must not fail the whole `GET /groups` request.
+    // hour has a round for tomorrow and none dated today. That is not "nothing to report yet":
+    // tomorrow's round is real, already `open`, and is the circle's only round, so it is the
+    // one the switcher must show. `circleCallerState`'s lookup takes the earliest round dated
+    // today or later for exactly this reason — pinning to `local_date = today` would miss this
+    // row and silently drop the circle out of `GET /groups` for the rest of the day.
     const user = await newNamedUser("Ana");
     const kept = (
       await groups("/", { method: "POST", token: user.token, body: { name: "Kept", timezone: "UTC" } })
@@ -264,10 +267,14 @@ Deno.test(
     ).body.data;
 
     const res = await groups("/", { token: user.token });
-    assertEquals(res.status, 200, "a circle with no round today must not fail the whole request");
+    assertEquals(res.status, 200, "a circle with only a future round must not fail the whole request");
     const ids = (res.body.data.circles as { id: string }[]).map((c) => c.id);
     assert(ids.includes(kept.id), "the unaffected circle is still listed");
-    assert(!ids.includes(tooLate.id), "a circle with nothing to report yet is left out, not errored");
+    assert(ids.includes(tooLate.id), "a circle whose only round is tomorrow's must still be listed");
+
+    const row = circleOf(res.body, tooLate.id as string);
+    assertEquals(row.my_state, "drop");
+    assertEquals(row.needs_action, true);
   },
 );
 

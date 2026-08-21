@@ -207,15 +207,27 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
  * concurrently, for a single request. `myCirclesResponse` builds one and hands it to every
  * circle; only the first miss actually runs it.
  *
- * `null` covers the one circle a sweep still cannot produce a row for: `ensure_rounds()`
- * refuses to create a round whose reveal has already passed for the day it would cover
- * (`0004_round_lifecycle.sql`'s `where d.reveals_at > v_now`), which is exactly what happens to
- * a circle created after its own `reveal_hour` — there is a round for tomorrow, and genuinely
- * none for today. `GET /rounds/current` answers that with a scoped `NOT_FOUND` for the one
- * circle asked about; the switcher cannot 404 one row out of a list, so it leaves the circle
- * out rather than failing the whole request over a single member's gap. `docs/04`'s example
- * still lists the circle by id from `activeMemberships`, so a caller that later paginates or
- * counts membership separately is not misled — only the switcher row is missing, briefly.
+ * The round looked up is not necessarily dated the caller's actual calendar `today`.
+ * `ensure_rounds()` refuses to create a round whose reveal has already passed for the day it
+ * would cover (`0004_round_lifecycle.sql`'s `where d.reveals_at > v_now`), which is exactly
+ * what happens to a circle created — or simply first read — after its own `reveal_hour`: there
+ * is a round for tomorrow, and none for today, ever, until tomorrow's own calendar date
+ * arrives. A lookup pinned to `local_date = today` misses that row outright and the circle
+ * silently drops out of the switcher for the rest of the day, which is the bug `E18-02b` fixes:
+ * the query below takes the earliest round dated `today` or later, matching whichever of
+ * `ensure_rounds()`'s two candidate dates it actually materialised. An ordinary circle with
+ * today's round still open, revealed or scored gets that row back, exactly as before, because
+ * it sorts before tomorrow's; only a circle with nothing dated today falls through to
+ * tomorrow's row, and reports it — correctly, since that IS the circle's live round, just not
+ * one dated today.
+ *
+ * `null` still covers the one case no sweep can produce a row for: a group whose timezone
+ * `ensure_rounds()` cannot evaluate (`0004_round_lifecycle.sql`'s per-group exception guard).
+ * `GET /rounds/current` answers that with a scoped `NOT_FOUND` for the one circle asked about;
+ * the switcher cannot 404 one row out of a list, so it leaves the circle out rather than
+ * failing the whole request over a single member's gap. `docs/04`'s example still lists the
+ * circle by id from `activeMemberships`, so a caller that later paginates or counts membership
+ * separately is not misled — only the switcher row is missing, briefly.
  *
  * Demo-group ticking (`demo_tick`) is included, unlike `ensure_rounds`: `rounds/index.ts` runs
  * it before every read because `tick_rounds()` never advances a demo round on its own
@@ -229,12 +241,18 @@ async function circleCallerState(
 ): Promise<{ myState: CallerCircleState; needsAction: boolean } | null> {
   const today = localDate(member.timezone, serverNow());
 
+  // `.gte` + earliest-first, not `.eq`: see the doc comment above. `ensure_rounds()` may have
+  // skipped today's local_date entirely and materialised only tomorrow's; ordering ascending
+  // picks today's row when it exists (it always sorts first) and falls back to the next one
+  // that does when it doesn't, which is the same round `effectiveFrom` would call current.
   const loadRound = async () => {
     const { data, error } = await db
       .from("rounds")
       .select("id, state, reveals_at, card_order")
       .eq("group_id", member.groupId)
-      .eq("local_date", today)
+      .gte("local_date", today)
+      .order("local_date", { ascending: true })
+      .limit(1)
       .maybeSingle();
     if (error) throw dbFailure("groups.myCircles.round", error);
     return data as
