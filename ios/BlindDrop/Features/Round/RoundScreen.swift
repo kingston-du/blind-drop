@@ -148,7 +148,10 @@ struct RoundScreen: View {
                     ) {
                         badge(store: store, timer: timer)
                     }
-                    if let error = store.state.error {
+                    // A banner belongs over a stale screen: it qualifies data that is still
+                    // useful enough to show. A first-load failure has no data beneath it and is
+                    // rendered by `phase(…)` as a full error state with its own retry action.
+                    if store.state.value != nil, let error = store.state.error {
                         OfflineBanner(error: error)
                     }
                 }
@@ -387,6 +390,17 @@ struct RoundScreen: View {
             }
         } else if store.state.isLoading {
             RoundSkeleton()
+        } else if let error = store.state.error {
+            VStack(alignment: .leading, spacing: Layout.blockGap) {
+                Text(LocalizedStringKey(error.copyKey))
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.inkDim)
+
+                PrimaryButton("error.retry", fill: .neutral) {
+                    loadToken += 1
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
