@@ -114,8 +114,8 @@ Three deliveries per user in a rolling 24-hour window, maximum, across every cir
 earns trust by being quiet. Round transitions make the four kinds below; `invite` is the one
 prompt kind, created with a direct invitation rather than by `tick_rounds()`. Its enqueue path
 counts every existing delivery for the recipient and coalesces invitations waiting to send, so a
-person invited to several circles together receives one notification. `E23-02` finishes the
-same cross-circle grouping for coincident scheduled round deliveries. A grouped scheduled
+person invited to several circles together receives one notification. `E23-02` applies the
+same cross-circle grouping to coincident scheduled round deliveries. A grouped scheduled
 delivery uses the first deterministic round as its deep-link target; the switcher exposes the
 other circles that changed at the same instant.
 
