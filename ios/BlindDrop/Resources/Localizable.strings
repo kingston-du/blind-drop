@@ -178,7 +178,20 @@
 "group.member.remove.confirm.action" = "Remove";
 "group.standings.thin" = "Not enough rounds yet to rank anyone.";
 "group.admin" = "Admin";
-"group.profile.placeholder" = "Profile coming soon.";
+"profile.subtitle.own" = "Your history in this circle.";
+"profile.subtitle.member" = "Their history in this circle.";
+"profile.stats" = "The numbers";
+"profile.samples" = "%lld scored rounds";
+"profile.samples.minimum" = "Shows after %lld scored rounds.";
+"profile.drops" = "Drops";
+"profile.drops.detail" = "%lld scored rounds with a song.";
+"profile.pairwise" = "You and them";
+"profile.youread" = "You read them";
+"profile.theyread" = "They read you";
+"profile.pairwise.detail" = "%lld of %lld shared rounds.";
+"profile.pairwise.minimum" = "Shows after %lld shared rounds.";
+"profile.recent" = "Recent songs";
+"profile.recent.empty" = "No scored songs here yet.";
 
 /* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
 

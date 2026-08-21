@@ -39,13 +39,13 @@ import Testing
 
     @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
     func asAdmin(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        let view = GroupDetailView(group: try group(isAdmin: true))
+        let view = GroupDetailView(group: try group(isAdmin: true), currentUserID: "u_ana", rendersForSnapshot: true)
         verify(named: "Group-admin", device, size) { view }
     }
 
     @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
     func asMember(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        let view = GroupDetailView(group: try group(isAdmin: false))
+        let view = GroupDetailView(group: try group(isAdmin: false), currentUserID: "u_ben", rendersForSnapshot: true)
         verify(named: "Group-member", device, size) { view }
     }
 
@@ -55,7 +55,9 @@ import Testing
     func revealHourEffectiveDate(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         let view = GroupDetailView(
             group: try group(isAdmin: true, revealHour: 19),
-            revealHourEffectiveFrom: "2026-08-20"
+            revealHourEffectiveFrom: "2026-08-20",
+            currentUserID: "u_ana",
+            rendersForSnapshot: true
         )
         verify(named: "Group-admin-revealhour-effective", device, size) { view }
     }
@@ -64,7 +66,7 @@ import Testing
     /// UI today, but the copy must still render plainly if the server ever sends it.
     @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
     func lastAdminError(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        let view = GroupDetailView(group: try group(isAdmin: true), errorKey: "error.lastadmin")
+        let view = GroupDetailView(group: try group(isAdmin: true), errorKey: "error.lastadmin", currentUserID: "u_ana", rendersForSnapshot: true)
         verify(named: "Group-admin-lastadmin-error", device, size) { view }
     }
 
@@ -72,7 +74,7 @@ import Testing
     /// likely to make the leave button and the empty space around it look wrong.
     @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
     func soleMember(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        let view = GroupDetailView(group: try group(isAdmin: true, memberCount: 1))
+        let view = GroupDetailView(group: try group(isAdmin: true, memberCount: 1), currentUserID: "u_ana", rendersForSnapshot: true)
         verify(named: "Group-admin-sole-member", device, size) { view }
     }
 
@@ -84,7 +86,7 @@ import Testing
         @ViewBuilder content: () -> some View
     ) {
         let image = SnapshotRenderer.image(
-            of: content().padding(Layout.screenInset).background(Palette.paper),
+            of: content(),
             device: device,
             typeSize: size
         )

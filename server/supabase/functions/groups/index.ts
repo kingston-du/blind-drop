@@ -16,6 +16,7 @@
 //   PATCH /groups/:group_id                    the same, for a named circle
 //   GET   /groups/current/standings            all-time, ranked one way and not the other
 //   GET   /groups/:group_id/standings          the same, for a named circle
+//   GET   /groups/:group_id/members/:user_id/profile   scored history and pairwise reads only
 //   GET   /groups/current/record                the archive, newest night first, paginated
 //   GET   /groups/:group_id/record              the same, for a named circle
 //   GET   /groups/current/record/export?service=  the ordered track list, for the client to
@@ -77,6 +78,8 @@ import {
   knownPersonDTO,
   type MemberDTO,
   memberDTO,
+  memberProfileDTO,
+  type MemberProfileDTO,
   type ReadabilityBand,
   readabilityStandingDTO,
   type RecordDayDTO,
@@ -341,6 +344,7 @@ interface StandingRow {
   user_id: string;
   ear_all_time: number | null;
   ear_correct_total: number | null;
+  ear_rounds: number;
   readability_all_time: number | null;
   band: ReadabilityBand;
 }
@@ -357,7 +361,7 @@ interface StandingRow {
 async function standingRows(db: Db, groupId: string): Promise<StandingRow[]> {
   const { data, error } = await db
     .from("standings")
-    .select("user_id, ear_all_time, ear_correct_total, readability_all_time, band")
+    .select("user_id, ear_all_time, ear_correct_total, ear_rounds, readability_all_time, band")
     .eq("group_id", groupId);
   if (error) throw dbFailure("groups.standings", error);
   return data as StandingRow[];
@@ -729,6 +733,94 @@ async function recordForGroup(req: Request, ctx: MemberCtx): Promise<Response> {
   const entries = await archiveEntries(ctx.db, page.map((round) => round.round_id), member);
   const cursor = more && page.length > 0 ? encodeCursor(page[page.length - 1].local_date) : null;
   return ok(recordDTO(daysWithEntries(page, entries), cursor));
+}
+
+// ─── member profiles — E24-02 ───────────────────────────────────────────────
+//
+// A profile is a lens on finished play, never a second results route. Its score views and
+// archive readers all exclude open, revealed and voided rounds by construction (0005_scoring).
+
+interface ProfileScoreRow {
+  round_id: string;
+}
+
+async function profileScores(db: Db, groupId: string, userId: string): Promise<ProfileScoreRow[]> {
+  const { data, error } = await db
+    .from("round_scores")
+    .select("round_id")
+    .eq("group_id", groupId)
+    .eq("user_id", userId);
+  if (error) throw dbFailure("groups.profile.scores", error);
+  return data as ProfileScoreRow[];
+}
+
+/** The one direction of "read" that a profile can state honestly: the caller's correct reads
+ * of the other person's actual cards. A shared scored round is one opportunity; unanswered
+ * cards remain in the denominator, so this cannot quietly turn two guesses into 100%. */
+async function pairwiseRead(
+  db: Db,
+  groupId: string,
+  guesserId: string,
+  cardOwnerId: string,
+): Promise<{ correct: number; possible: number }> {
+  const [guesserRows, ownerRows] = await Promise.all([
+    profileScores(db, groupId, guesserId),
+    profileScores(db, groupId, cardOwnerId),
+  ]);
+  const guesserRounds = new Set(guesserRows.map((row) => row.round_id));
+  const shared = ownerRows.filter((row) => guesserRounds.has(row.round_id));
+  if (shared.length === 0) return { correct: 0, possible: 0 };
+
+  const { data, error } = await db
+    .from("guess_results")
+    .select("is_correct")
+    .in("round_id", shared.map((row) => row.round_id))
+    .eq("guesser_id", guesserId)
+    .eq("card_owner_id", cardOwnerId);
+  if (error) throw dbFailure("groups.profile.pairwise", error);
+  return {
+    correct: (data as { is_correct: boolean }[]).filter((row) => row.is_correct).length,
+    possible: shared.length,
+  };
+}
+
+async function profileForMember(ctx: MemberCtx, userId: string): Promise<Response> {
+  const members = await roster(ctx.db, ctx.groupId);
+  const target = members.find((member) => member.user_id === userId);
+  if (!target) throw new ApiError("NOT_FOUND");
+
+  const [scores, standings, rounds] = await Promise.all([
+    profileScores(ctx.db, ctx.groupId, userId),
+    standingRows(ctx.db, ctx.groupId),
+    // A member may have missed the most recent few nights. Read the scored archive first and
+    // then take *their* five songs, rather than accidentally calling a shorter list "recent".
+    archiveRounds(ctx.db, ctx.groupId, null),
+  ]);
+  const entries = await archiveEntries(ctx.db, rounds.map((round) => round.round_id), userId);
+  const recentTracks = rounds.flatMap((round) =>
+    (entries.get(round.round_id) ?? []).map((entry) => ({ local_date: round.local_date, track: entry.track })),
+  ).slice(0, 5);
+  const standing = standings.find((row) => row.user_id === userId);
+
+  const [youReadThem, theyReadYou] = userId === ctx.userId
+    ? [null, null]
+    : await Promise.all([
+      pairwiseRead(ctx.db, ctx.groupId, ctx.userId, userId),
+      pairwiseRead(ctx.db, ctx.groupId, userId, ctx.userId),
+    ]);
+
+  const profile: MemberProfileDTO = {
+    member: memberDTO(target),
+    // The SQL view owns the pooled-ear / mean-readability asymmetry. Do not average the round
+    // values here: it would look plausible while silently changing both product definitions.
+    ear: { value: standing?.ear_all_time ?? null, samples: standing?.ear_rounds ?? 0 },
+    readability: { value: standing?.readability_all_time ?? null, samples: scores.length },
+    drop_count: scores.length,
+    recent_tracks: recentTracks,
+    you_read_them: youReadThem,
+    they_read_you: theyReadYou,
+  };
+  return ok(memberProfileDTO(profile));
 }
 
 // docs/04 §5, docs/06 §6. The ordered track list, and nothing else.
@@ -1274,6 +1366,18 @@ serveFunction("groups", {
       params.group_id,
     );
     return standingsForGroup(ctx);
+  },
+
+  // ─── member profile — E24-02 ──────────────────────────────────────────────
+  // The target must be an active member of this exact circle. A caller cannot use this as a
+  // directory for former members or for people from another circle, and every fact below is
+  // already constrained to scored rounds before it reaches the response.
+  "GET /:group_id/members/:user_id/profile": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return profileForMember(ctx, params.user_id);
   },
 
   // ─── the record ────────────────────────────────────────────────────────────

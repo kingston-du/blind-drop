@@ -190,6 +190,31 @@ Deno.test("golden: GET /groups/current", async () => {
   );
 });
 
+Deno.test("golden: GET /groups/{group_id}/members/{user_id}/profile during open", async () => {
+  const { user: ana, group } = await openGroup("Golden Member Profile");
+  const ben = await newMember(group.invite_code as string, "Ben");
+  // Ben does submit tonight. The profile response must remain a finished-history lens: no song,
+  // no round, no participation bit, and no count can move until the night is scored.
+  const seal = await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: ben.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  assertEquals(seal.status, 200);
+
+  const res = await call("groups", `/${group.id}/members/${ben.id}/profile`, { token: ana.token });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  assertEquals(res.body.data.drop_count, 0);
+  assertEquals(res.body.data.recent_tracks, []);
+  await assertGolden(
+    "groups_member_profile",
+    res.body,
+    "GET /groups/{group_id}/members/{user_id}/profile during `open`, after that member has " +
+      "submitted. Every profile field remains a function of scored rounds only; the reviewed " +
+      "shape deliberately contains no current-round, submission, or other-member field.",
+  );
+});
+
 Deno.test("golden: GET /groups (the switcher)", async () => {
   const { user, group } = await openGroup("Golden Circles");
   await newMember(group.invite_code as string, "Ben");
@@ -560,6 +585,10 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups GET /:group_id": "groups_current",
     "groups PATCH /:group_id": "groups_current",
     "groups GET /:group_id/standings": "groups_standings",
+    // E24-02. This is safe during `open` only because every field is filtered to scored rounds;
+    // its dedicated capture runs after the target has sealed tonight, proving the shape still
+    // cannot name or carry that submission.
+    "groups GET /:group_id/members/:user_id/profile": "groups_member_profile",
     "groups GET /:group_id/record": "groups_record",
     "groups GET /:group_id/record/export": "groups_record_export",
     "groups POST /:group_id/leave": null, // 204

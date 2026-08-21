@@ -1,0 +1,38 @@
+{
+  "about": "GET /groups/{group_id}/members/{user_id}/profile during `open`, after that member has submitted. Every profile field remains a function of scored rounds only; the reviewed shape deliberately contains no current-round, submission, or other-member field.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "drop_count",
+    "ear",
+    "member",
+    "readability",
+    "recent_tracks",
+    "they_read_you",
+    "you_read_them"
+  ],
+  "nested": {
+    "member": [
+      "display_name",
+      "user_id"
+    ],
+    "ear": [
+      "samples",
+      "value"
+    ],
+    "readability": [
+      "samples",
+      "value"
+    ],
+    "you_read_them": [
+      "correct",
+      "possible"
+    ],
+    "they_read_you": [
+      "correct",
+      "possible"
+    ]
+  }
+}

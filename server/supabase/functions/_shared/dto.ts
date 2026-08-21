@@ -729,6 +729,47 @@ export function standingsDTO(
   return { rounds_played: roundsPlayed, best_ear: bestEar, readability };
 }
 
+export interface ProfileRateDTO {
+  value: number | null;
+  samples: number;
+}
+
+export interface ProfileTrackDTO {
+  local_date: string;
+  track: TrackDTO;
+}
+
+export interface PairwiseReadDTO {
+  correct: number;
+  possible: number;
+}
+
+/** `GET /groups/:group_id/members/:user_id/profile`, scoped entirely to scored rounds. */
+export interface MemberProfileDTO {
+  member: MemberDTO;
+  ear: ProfileRateDTO;
+  readability: ProfileRateDTO;
+  drop_count: number;
+  recent_tracks: ProfileTrackDTO[];
+  you_read_them: PairwiseReadDTO | null;
+  they_read_you: PairwiseReadDTO | null;
+}
+
+export function memberProfileDTO(parts: MemberProfileDTO): MemberProfileDTO {
+  return {
+    member: memberDTO(parts.member),
+    ear: { ...parts.ear },
+    readability: { ...parts.readability },
+    drop_count: parts.drop_count,
+    recent_tracks: parts.recent_tracks.map((entry) => ({
+      local_date: entry.local_date,
+      track: trackDTO(entry.track),
+    })),
+    you_read_them: parts.you_read_them && { ...parts.you_read_them },
+    they_read_you: parts.they_read_you && { ...parts.they_read_you },
+  };
+}
+
 // ─── The Record — docs/04 §5 ─────────────────────────────────────────────────
 
 /**

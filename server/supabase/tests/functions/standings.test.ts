@@ -234,6 +234,149 @@ Deno.test("a group with no scored rounds has empty lists, not an error", async (
   assertEquals(res.body.data, { rounds_played: 0, best_ear: [], readability: [] });
 });
 
+// ─── member profiles ────────────────────────────────────────────────────────
+
+Deno.test("a member profile is circle-scoped, finished-only, and has the documented shape", async () => {
+  const { people, standings } = await scoredRound("Profile Shape");
+  const groupRes = await call("groups", "/current", { token: people.Ana.token });
+  assertEquals(groupRes.status, 200);
+  const groupID = groupRes.body.data.id as string;
+
+  const res = await call("groups", `/${groupID}/members/${people.Ben.id}/profile`, {
+    token: people.Ana.token,
+  });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  const profile = res.body.data;
+
+  assertEquals(keysOf(profile), [
+    "drop_count",
+    "ear",
+    "member",
+    "readability",
+    "recent_tracks",
+    "they_read_you",
+    "you_read_them",
+  ]);
+  assertEquals(keysOf(profile.member), ["display_name", "user_id"]);
+  assertEquals(keysOf(profile.ear), ["samples", "value"]);
+  assertEquals(keysOf(profile.readability), ["samples", "value"]);
+  assertEquals(profile.member.display_name, "Ben");
+  assertEquals(profile.ear, { value: 0.5, samples: 1 });
+  assertEquals(profile.readability, { value: 0.5, samples: 1 });
+  assertEquals(profile.drop_count, 1);
+  assertEquals(profile.recent_tracks.length, 1);
+  assertEquals(keysOf(profile.recent_tracks[0]), ["local_date", "track"]);
+  assertEquals(profile.you_read_them, { correct: 1, possible: 1 });
+  assertEquals(profile.they_read_you, { correct: 1, possible: 1 });
+  assertEquals(standings.rounds_played, 1, "the fixture has exactly the one finished night");
+
+  // The profile may expose no wider history than its explicit contract. In particular, it must
+  // not grow into a second record/results payload as fields get added elsewhere.
+  for (const forbidden of ["round_id", "guesses", "submissions", "joined_at", "rank"]) {
+    assert(!(forbidden in profile), `profile must not expose ${forbidden}`);
+  }
+});
+
+Deno.test("your own profile has no self-comparison", async () => {
+  const { people } = await scoredRound("Profile Own");
+  const group = await call("groups", "/current", { token: people.Ana.token });
+  const res = await call("groups", `/${group.body.data.id}/members/${people.Ana.id}/profile`, {
+    token: people.Ana.token,
+  });
+
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.you_read_them, null);
+  assertEquals(res.body.data.they_read_you, null);
+});
+
+Deno.test("a profile cannot name someone outside the caller's active circle", async () => {
+  const { user: ana, group } = await newGroupOwner("Profile Ana", {
+    name: "Profile Scope",
+    timezone: zoneWhereLocalHourIs(12),
+  });
+  const outsider = await newNamedUser("Profile Outsider");
+
+  const res = await call("groups", `/${group.id}/members/${outsider.id}/profile`, { token: ana.token });
+  assertEquals(res.status, 404);
+  assertEquals(res.body.error.code, "NOT_FOUND");
+});
+
+Deno.test("pairwise reads never borrow a matching guess from another circle", async () => {
+  const { people } = await scoredRound("Profile Pairwise First Circle");
+  const create = await call("groups", "/", {
+    method: "POST",
+    token: people.Ana.token,
+    body: { name: "Profile Pairwise Second Circle", timezone: zoneWhereLocalHourIs(17), reveal_hour: 18 },
+  });
+  assertEquals(create.status, 200);
+  const group = create.body.data;
+  const ben = people.Ben;
+  const cal = people.Cal;
+  for (const person of [ben, cal]) {
+    const joined = await call("groups", "/join", {
+      method: "POST", token: person.token, body: { invite_code: group.invite_code },
+    });
+    assertEquals(joined.status, 200);
+  }
+
+  const ownerOf = new Map<string, string>();
+  for (const [index, name] of ["Ana", "Ben", "Cal"].entries()) {
+    const sealed = await call("rounds", `/${group.id}/current/submission`, {
+      method: "PUT", token: people[name].token,
+      body: { apple_music_id: ["1656689279", "1468055107", "1440908896"][index] },
+    });
+    assertEquals(sealed.status, 200, JSON.stringify(sealed.body));
+    ownerOf.set(sealed.body.data.track.track_key, name);
+  }
+  await tickRoundsAt(2);
+
+  async function correctRead(guesser: "Ana" | "Ben", target: "Ana" | "Ben") {
+    const current = await call("rounds", `/${group.id}/current`, { token: people[guesser].token });
+    const card = (current.body.data.cards as Json[]).find((entry) =>
+      ownerOf.get(entry.track.track_key as string) === target,
+    );
+    assert(card, `${target}'s card was not revealed`);
+    const saved = await call("rounds", `/${group.id}/current/guesses`, {
+      method: "PUT", token: people[guesser].token,
+      body: { assignments: [{ card_no: card.card_no, guessed_user_id: people[target].id }] },
+    });
+    assertEquals(saved.status, 200);
+  }
+  await correctRead("Ana", "Ben");
+  await correctRead("Ben", "Ana");
+  await tickRoundsAt(4);
+
+  const res = await call("groups", `/${group.id}/members/${ben.id}/profile`, { token: people.Ana.token });
+  assertEquals(res.status, 200);
+  // The first circle also held a correct Ana→Ben guess. This second circle still has one
+  // opportunity and one correct read, not two correct guesses over one denominator.
+  assertEquals(res.body.data.you_read_them, { correct: 1, possible: 1 });
+  assertEquals(res.body.data.they_read_you, { correct: 1, possible: 1 });
+});
+
+Deno.test("an open round cannot appear in a member profile", async () => {
+  const { user: ana, group } = await newGroupOwner("Open Profile Ana", {
+    name: "Profile Open",
+    timezone: zoneWhereLocalHourIs(12),
+  });
+  const ben = await newMember(group.invite_code as string, "Open Profile Ben");
+  const seal = await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: ben.token,
+    body: { apple_music_id: TRACKS[0] },
+  });
+  assertEquals(seal.status, 200);
+
+  const res = await call("groups", `/${group.id}/members/${ben.id}/profile`, { token: ana.token });
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.drop_count, 0);
+  assertEquals(res.body.data.recent_tracks, []);
+  assertEquals(res.body.data.ear, { value: null, samples: 0 });
+  assertEquals(res.body.data.readability, { value: null, samples: 0 });
+  assertEquals(res.body.data.you_read_them, { correct: 0, possible: 0 });
+  assertEquals(res.body.data.they_read_you, { correct: 0, possible: 0 });
+});
+
 Deno.test("standings need a group", async () => {
   const stranger = await newNamedUser("Nobody");
   const res = await call("groups", "/current/standings", { token: stranger.token });

@@ -430,7 +430,20 @@ either must be able to happen without the other.
 | `error.lastadmin` | You're the only admin here. This circle needs another one first. |
 | `group.standings.thin` | Not enough rounds yet to rank anyone. |
 | `group.admin` | Admin |
-| `group.profile.placeholder` | Profile coming soon. |
+| `profile.subtitle.own` | Your history in this circle. |
+| `profile.subtitle.member` | Their history in this circle. |
+| `profile.stats` | The numbers |
+| `profile.samples` | %lld scored rounds |
+| `profile.samples.minimum` | Shows after %lld scored rounds. |
+| `profile.drops` | Drops |
+| `profile.drops.detail` | %lld scored rounds with a song. |
+| `profile.pairwise` | You and them |
+| `profile.youread` | You read them |
+| `profile.theyread` | They read you |
+| `profile.pairwise.detail` | %lld of %lld shared rounds. |
+| `profile.pairwise.minimum` | Shows after %lld shared rounds. |
+| `profile.recent` | Recent songs |
+| `profile.recent.empty` | No scored songs here yet. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |
 | `settings.name` | Display name |

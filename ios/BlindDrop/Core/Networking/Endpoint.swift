@@ -181,6 +181,10 @@ extension Endpoint {
         .init(.get, scoped("/groups", groupID, "/standings"), retry: .twice)
     }
 
+    static func memberProfile(_ userID: String, in groupID: String) -> Endpoint<MemberProfileDTO> {
+        .init(.get, scoped("/groups", groupID, "/members/\(userID)/profile"), retry: .twice)
+    }
+
     static var peopleYouPlayedWith: Endpoint<KnownPeopleDTO> {
         .init(.get, "/groups/people-you-played-with", retry: .twice)
     }

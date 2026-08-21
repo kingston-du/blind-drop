@@ -22,7 +22,12 @@ active id, switches to a held circle or drops the link if the caller does not ho
 already handled for free — a notification tapped while the round screen is already up. A race the
 reviewer caught (a manual switcher pick racing a still-in-flight link-driven switch could silently
 revert to the link) was fixed before closing with a new `Router.clearPending()`, called by the
-switcher's own selection. `E23-02` is open on the server side.
+switcher's own selection. `E23-03` remains hardware-only work in progress. `E24-02` closed 2026-08-20:
+circle-scoped profiles now show only scored Ear, Readability, drops, recent songs and pairwise
+reads, with thin history withheld rather than exaggerated. Its new open-phase golden is part of
+AC-1. The full Group snapshot baseline's 44 stale mismatches were not ignored: `ImageRenderer`
+had been asked to render a `ScrollView`, producing blank goldens; the harness now renders the
+actual static content and the reviewed replacements pass.
 `E22-01`, `E23-01` and all five `E27` spikes closed 2026-08-18 too — see each epic file for what
 each actually needed (E22-01's one open item is a credentials-gated manual check, named there
 rather than silently skipped). `E26` — a first batch attempt on all four slices ran out of budget
@@ -351,7 +356,7 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E24-01 Best Ear | done | E18-01 | vs E20, E21 | — |
-| E24-02 A person, in this circle | wip | E24-01 | no | AC-1 |
+| E24-02 A person, in this circle | done | E24-01 | no | AC-1 |
 
 ## E25 — Insights · [file](E25-insights.md)
 
@@ -414,13 +419,13 @@ Investigation only. Each ends in a recommendation, not code.
 | Beta epic | Done / Total |
 |---|---|
 | E18 circles: server | 3 / 3 |
-| E19 circles: the app | 2 / 3 |
+| E19 circles: the app | 3 / 3 |
 | E20 invitations | 3 / 3 |
-| E21 circle settings | 0 / 2 |
+| E21 circle settings | 2 / 2 |
 | E22 sealed privacy | 1 / 1 |
-| E23 notifications | 1 / 3 |
-| E24 leaderboard + profiles | 0 / 2 |
+| E23 notifications | 2 / 3 |
+| E24 leaderboard + profiles | 2 / 2 |
 | E25 insights | 0 / 2 |
 | E26 UI polish | 4 / 4 |
 | E27 spikes | 5 / 5 |
-| **Beta total** | **14 / 28** |
+| **Beta total** | **25 / 28** |

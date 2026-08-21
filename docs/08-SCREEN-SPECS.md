@@ -18,6 +18,7 @@ RootView
 │   └─ ResultsScreen         scored
 ├─ RecordScreen              pushed, always reachable
 ├─ GroupScreen               pushed, roster + admin settings + leave
+│   └─ MemberProfileScreen    pushed from a roster row
 └─ SettingsScreen            pushed, profile and account actions
 ```
 
@@ -456,6 +457,19 @@ Sign in with Apple credential for Apple-authenticated users, revokes the Apple a
 then anonymises history and deletes the authentication principal.
 
 No notification settings. No theme setting.
+
+## 10.1 Member profile
+
+Tapping a roster row opens a **circle-scoped** profile, never a global identity page. The header
+uses the person's name and the one-line context copy; three equal cards state Ear, Readability,
+and drops. Ear and readability stay as `—` until five scored rounds support them, with the
+sample threshold written underneath rather than a small-sample percentage. On somebody else’s
+profile, a second two-card row says **You read them** and **They read you**; it follows the same
+five-shared-round threshold. The caller’s own profile omits that comparison entirely.
+
+Below, **Recent songs** is a newest-first list of up to five scored drops with their local dates.
+There is no bio, edit control, follower/following count, activity feed, or non-scored round
+information. The profile is a quiet explanation of finished play, not a social layer.
 
 ---
 

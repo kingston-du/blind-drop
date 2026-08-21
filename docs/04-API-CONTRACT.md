@@ -497,6 +497,36 @@ round, which is how the Record links back into results.
 - Both arrays contain active group members only. A departed member disappears from current
   standings, while their historical submissions and guesses remain part of past scoring.
 
+### `GET /groups/{group_id}/members/{user_id}/profile`
+
+The caller and named person must both be active members of this exact circle. Every field is
+drawn from `scored` rounds only; an open, revealed, or voided round cannot change this response.
+
+```jsonc
+{ "data": {
+  "member": { "user_id": "u_ben", "display_name": "Ben" },
+  "ear": { "value": 0.71, "samples": 14 },
+  "readability": { "value": 0.43, "samples": 14 },
+  "drop_count": 14,
+  "recent_tracks": [
+    { "local_date": "2026-08-10", "track": { /* Track DTO */ } }
+  ],
+  "you_read_them": { "correct": 8, "possible": 14 },
+  "they_read_you": { "correct": 5, "possible": 14 }
+}}
+```
+
+- Rates are decimals `0..1`; `value: null` means no applicable score, never zero. `samples`
+  lets the app suppress a percentage until it has enough finished rounds.
+- Ear keeps the domain's pooled calculation (`Σ correct / Σ possible`); readability remains the
+  mean of per-round read rates. `drop_count` counts scored submissions, not calendar days.
+- `recent_tracks` holds up to five of that member's newest scored drops. It contains no guesses,
+  round ids, other members, or participation state.
+- On the caller's own profile both pairwise fields are `null`. Otherwise each direction includes
+  exactly the scored rounds both people played; unanswered guesses remain in `possible`.
+- A fabricated id, a former member, a person from another circle, or a caller outside the circle
+  returns `NOT_FOUND`. There is no global profile route, bio, follower count, or social graph.
+
 ---
 
 ## 5. The Record

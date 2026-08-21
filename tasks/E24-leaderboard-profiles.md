@@ -43,7 +43,7 @@ means something. Do not print a confident percentage over four data points.
 
 ### E24-02 — A person, in this circle
 
-**Status:** wip · **Deps:** E24-01 · **Parallel:** no
+**Status:** done · **Deps:** E24-01 · **Parallel:** no
 **Reads:** `docs/02` §4, `docs/16` §3, `docs/11`
 **Touches:** a new profile feature, `server/supabase/functions/groups/`, `Localizable.strings`,
 `docs/08-SCREEN-SPECS.md`, `docs/11-COPY-DECK.md`, tests
@@ -63,8 +63,15 @@ either, no posts, nothing editable.
 Recent songs are past rounds only. A profile must never be a hole in the blind window — check
 that a `scored` round's contents are all it can ever reach, and prove it in `audit:leak`.
 
-- [ ] Ear, Readability, drop count, recent songs, You vs. them — circle-scoped
-- [ ] Small samples never rendered as confident percentages
-- [ ] Own profile and another member's both make sense
-- [ ] Nothing from an `open` or `revealed` round is reachable — asserted by the leak audit
-- [ ] No bio, followers, posts, or editable surface
+- [x] Ear, Readability, drop count, recent songs, You vs. them — circle-scoped
+- [x] Small samples never rendered as confident percentages
+- [x] Own profile and another member's both make sense
+- [x] Nothing from an `open` or `revealed` round is reachable — asserted by the leak audit
+- [x] No bio, followers, posts, or editable surface
+
+Completed 2026-08-20. The server makes profile fields from scored views only, with an
+open-phase golden captured after the named member has sealed a song, and AC-1 passes. The iOS
+screen has reviewed regular and accessibility snapshots for both another member with history and
+the caller with thin history. The Group snapshot harness was also repaired: it now renders the
+actual non-scrolling content instead of ImageRenderer's blank `ScrollView` result, replacing the
+44 unrelated stale Group goldens with reviewed views of the real settings screen.

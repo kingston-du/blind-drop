@@ -15,7 +15,7 @@ struct GroupScreen: View {
         .background(Palette.paper)
         .navigationTitle(Text("group.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $selectedMember) { MemberProfilePlaceholder(member: $0) }
+        .navigationDestination(item: $selectedMember) { MemberProfileScreen(member: $0) }
         .task {
             if store == nil { store = GroupStore(api: env.api, circles: env.circles) }
             await store?.load()
@@ -85,6 +85,9 @@ struct GroupDetailView: View {
     var onSetRole: (MemberDTO, String) async -> Bool = { _, _ in true }
     var onRemove: (MemberDTO) async -> Bool = { _ in true }
     var onLeave: () async -> Bool = { true }
+    /// Test-only construction path. It keeps snapshots on the same hierarchy while omitting the
+    /// `ScrollView` and UIKit-backed controls `ImageRenderer` cannot draw.
+    var rendersForSnapshot = false
 
     @State private var nameField = ""
     @State private var nameDirty = false
@@ -94,19 +97,14 @@ struct GroupDetailView: View {
     @FocusState private var nameFocused: Bool
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Layout.blockGap) {
-                nameSection
-                leaderboard
-                details
-                if let errorKey {
-                    Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
+        Group {
+            if rendersForSnapshot {
+                content(isSnapshot: true)
+            } else {
+                ScrollView {
+                    content(isSnapshot: false).padding(Layout.screenInset)
                 }
-                Button("group.leave", role: .destructive) { confirmsLeaving = true }
-                    .buttonStyle(.plain).typeStyle(.bodyL).foregroundStyle(Palette.alert)
-                    .minimumTouchTarget().disabled(isLeaving)
             }
-            .padding(Layout.screenInset)
         }
         .onAppear { nameField = group.name }
         .onChange(of: group.name) { _, new in if !nameDirty { nameField = new } }
@@ -125,14 +123,37 @@ struct GroupDetailView: View {
         }
     }
 
-    @ViewBuilder private var nameSection: some View {
+    /// `ImageRenderer` silently omits a `ScrollView`; snapshots render this same column bare.
+    /// The outer renderer supplies the screen inset, matching `body` without baking a scroll
+    /// container that would turn a meaningful golden into blank paper.
+    var snapshotContent: some View { content(isSnapshot: true) }
+
+    @ViewBuilder private func content(isSnapshot: Bool) -> some View {
+        VStack(alignment: .leading, spacing: Layout.blockGap) {
+            nameSection(isSnapshot: isSnapshot)
+            leaderboard(isSnapshot: isSnapshot)
+            details(isSnapshot: isSnapshot)
+            if let errorKey {
+                Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
+            }
+            Button("group.leave", role: .destructive) { confirmsLeaving = true }
+                .buttonStyle(.plain).typeStyle(.bodyL).foregroundStyle(Palette.alert)
+                .minimumTouchTarget().disabled(isLeaving)
+        }
+    }
+
+    @ViewBuilder private func nameSection(isSnapshot: Bool) -> some View {
         if group.isAdmin {
             VStack(alignment: .leading, spacing: Space.sm) {
                 SectionLabel("group.name.label")
-                InsetField("group.name.label", text: $nameField, isFocused: nameFocused)
-                    .focused($nameFocused).textInputAutocapitalization(.words).submitLabel(.done)
-                    .onChange(of: nameField) { _, _ in nameDirty = true; didSaveName = false }
-                    .onSubmit { Task { await saveName() } }
+                if isSnapshot {
+                    controlRow { Text(verbatim: group.name) }
+                } else {
+                    InsetField("group.name.label", text: $nameField, isFocused: nameFocused)
+                        .focused($nameFocused).textInputAutocapitalization(.words).submitLabel(.done)
+                        .onChange(of: nameField) { _, _ in nameDirty = true; didSaveName = false }
+                        .onSubmit { Task { await saveName() } }
+                }
                 Text("group.name.help").typeStyle(.caption).foregroundStyle(Palette.inkDim)
                 if didSaveName { Text("group.name.saved").typeStyle(.bodyM).foregroundStyle(Palette.inkDim) }
                 PrimaryButton("group.name.save", fill: .neutral, isEnabled: canSaveName) { Task { await saveName() } }
@@ -151,7 +172,7 @@ struct GroupDetailView: View {
         if await onSaveName(nameField) { nameDirty = false; didSaveName = true }
     }
 
-    @ViewBuilder private var leaderboard: some View {
+    @ViewBuilder private func leaderboard(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("results.standings.ear")
             if standingsLoading {
@@ -164,7 +185,7 @@ struct GroupDetailView: View {
             } else if isThinHistory {
                 Text("group.standings.thin").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
                 ForEach(group.members) { member in
-                    MemberRosterRow(member: member, actions: memberActions(for: member),
+                    MemberRosterRow(member: member, actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
                                     managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                     manage: { manage($0, member: member) })
                 }
@@ -173,13 +194,13 @@ struct GroupDetailView: View {
                     if let member = group.members.first(where: { $0.userID == standing.userID }) {
                         MemberStandingRow(member: member, standing: standing,
                                           readability: readabilityByUserID[standing.userID],
-                                          actions: memberActions(for: member),
+                                          actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
                                           managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                           manage: { manage($0, member: member) })
                     }
                 }
                 ForEach(rosterMembers) { member in
-                    MemberRosterRow(member: member, actions: memberActions(for: member),
+                    MemberRosterRow(member: member, actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
                                     managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                     manage: { manage($0, member: member) })
                 }
@@ -219,24 +240,28 @@ struct GroupDetailView: View {
         }
     }
 
-    private var details: some View {
+    private func details(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            if group.isAdmin { revealHourSection }
+            if group.isAdmin { revealHourSection(isSnapshot: isSnapshot) }
             timezoneSection
         }
     }
 
-    private var revealHourSection: some View {
+    private func revealHourSection(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("group.revealhour.label")
-            Menu {
-                Picker("group.revealhour.label", selection: Binding(get: { group.revealHour }, set: { hour in
-                    Task { await onPickRevealHour(hour) }
-                })) {
-                    ForEach(Array(RevealHour.allowed), id: \.self) { Text(verbatim: RevealHour.formatted($0)).tag($0) }
-                }
-            } label: { controlRow(chevron: true) { Text(verbatim: RevealHour.formatted(group.revealHour)) } }
-            .disabled(isSaving).accessibilityLabel(Text("group.revealhour.label"))
+            if isSnapshot {
+                controlRow(chevron: true) { Text(verbatim: RevealHour.formatted(group.revealHour)) }
+            } else {
+                Menu {
+                    Picker("group.revealhour.label", selection: Binding(get: { group.revealHour }, set: { hour in
+                        Task { await onPickRevealHour(hour) }
+                    })) {
+                        ForEach(Array(RevealHour.allowed), id: \.self) { Text(verbatim: RevealHour.formatted($0)).tag($0) }
+                    }
+                } label: { controlRow(chevron: true) { Text(verbatim: RevealHour.formatted(group.revealHour)) } }
+                .disabled(isSaving).accessibilityLabel(Text("group.revealhour.label"))
+            }
             Text("group.revealhour.help").typeStyle(.caption).foregroundStyle(Palette.inkDim)
             if let effective = revealHourEffectiveFrom,
                let date = GroupCalendar(timezone: group.timezone).shareDate(localDate: effective) {
@@ -283,6 +308,7 @@ struct MemberStandingRow: View {
     let standing: EarStandingDTO
     let readability: ReadabilityStandingDTO?
     var actions: [MemberManagementAction] = []
+    var rendersForSnapshot = false
     var managementDisabled = false
     let select: () -> Void
     var manage: (MemberManagementAction) -> Void = { _ in }
@@ -299,7 +325,10 @@ struct MemberStandingRow: View {
             .buttonStyle(.plain).accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(standing: standing, readability: readability)))
             .accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
-            if !actions.isEmpty { MemberActionMenu(actions: actions, disabled: managementDisabled, manage: manage) }
+            if !actions.isEmpty {
+                MemberActionMenu(actions: actions, disabled: managementDisabled,
+                                 rendersForSnapshot: rendersForSnapshot, manage: manage)
+            }
         }
         .rowSurface()
     }
@@ -308,6 +337,7 @@ struct MemberStandingRow: View {
 struct MemberRosterRow: View {
     let member: MemberDTO
     var actions: [MemberManagementAction] = []
+    var rendersForSnapshot = false
     var managementDisabled = false
     let select: () -> Void
     var manage: (MemberManagementAction) -> Void = { _ in }
@@ -322,7 +352,10 @@ struct MemberRosterRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain).accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
-            if !actions.isEmpty { MemberActionMenu(actions: actions, disabled: managementDisabled, manage: manage) }
+            if !actions.isEmpty {
+                MemberActionMenu(actions: actions, disabled: managementDisabled,
+                                 rendersForSnapshot: rendersForSnapshot, manage: manage)
+            }
         }
         .rowSurface()
     }
@@ -331,26 +364,26 @@ struct MemberRosterRow: View {
 struct MemberActionMenu: View {
     let actions: [MemberManagementAction]
     let disabled: Bool
+    let rendersForSnapshot: Bool
     let manage: (MemberManagementAction) -> Void
 
     var body: some View {
-        Menu {
-            ForEach(actions) { action in
-                Button(action.titleKey, role: action == .remove ? .destructive : nil) { manage(action) }
+        Group {
+            if rendersForSnapshot {
+                glyph
+            } else {
+                Menu {
+                    ForEach(actions) { action in
+                        Button(action.titleKey, role: action == .remove ? .destructive : nil) { manage(action) }
+                    }
+                } label: { glyph }
+                .accessibilityLabel(Text("group.member.actions"))
             }
-        } label: {
-            Image(systemName: "ellipsis.circle").foregroundStyle(Palette.inkDim).minimumTouchTarget()
         }
-        .accessibilityLabel(Text("group.member.actions"))
         .disabled(disabled)
     }
-}
 
-struct MemberProfilePlaceholder: View {
-    let member: MemberDTO
-    var body: some View {
-        Text("group.profile.placeholder").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(Layout.screenInset)
-            .background(Palette.paper).navigationTitle(Text(verbatim: member.displayName)).navigationBarTitleDisplayMode(.inline)
+    private var glyph: some View {
+        Image(systemName: "ellipsis.circle").foregroundStyle(Palette.inkDim).minimumTouchTarget()
     }
 }

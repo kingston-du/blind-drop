@@ -89,7 +89,9 @@ enum GroupFixture {
                 ? group.members
                 : group.members.filter { !rankedIDs.contains($0.userID) },
             isThinHistory: isThinHistory,
-            select: { _ in }
+            currentUserID: "u_ana",
+            select: { _ in },
+            rendersForSnapshot: true
         )
     }
 
