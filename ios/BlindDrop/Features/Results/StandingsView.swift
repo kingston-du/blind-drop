@@ -115,17 +115,28 @@ struct StandingRowContent: View {
     }
 
     /// Tabular and monospaced, so a two-digit rank does not shift the column of names beside it.
+    /// **The flight card's own numeral** (`E28-08`), not `StandingRow`'s old plain `monoS` —
+    /// zero-padded and set in the display face, in neutral `ink` rather than an accent this
+    /// screen has none of, so a rank reads as *the game's* number rather than a settings list's
+    /// row index. `FlightCard.numberColumnWidth` is `private`; `Layout.standingsNameColumn`-style
+    /// fixed width is approximated here with the same two-digit tabular-figure logic, kept small
+    /// on purpose rather than duplicating that measurement.
     private var rank: some View {
-        Text(verbatim: standing.rank.formatted(.number.grouping(.never)))
-            .typeStyle(.monoS)
-            .foregroundStyle(Palette.inkDim)
-            .frame(minWidth: Space.lg, alignment: .leading)
+        Text(verbatim: String(format: "%02lld", standing.rank))
+            .typeStyle(.numberM)
+            .foregroundStyle(Palette.ink)
+            .fixedSize()
+            .frame(minWidth: Space.xxl, alignment: .leading)
     }
 
     /// One truncating line while the row is a row, wrapping once it has stacked.
     ///
-    /// A display name runs to 24 characters, which at `.large` is most of an SE's width, so an
-    /// unbounded name would wrap and leave the numbers floating beside its third line.
+    /// **No `MonogramMark` here** (`E28-08`, reverted after measuring it). This row already
+    /// carries a rank numeral, and on `GroupScreen`'s admin view it also shares its width with a
+    /// fixed-size numbers block *and* a trailing action menu — on an SE that combination is
+    /// already tighter than the mark's 36pt cost, and adding it there squeezed the name itself
+    /// to nothing, which a snapshot golden caught before this shipped. `MemberRosterRow` and
+    /// `InsightLeaderboardScreen` still carry the mark; both have room this row does not.
     private var name: some View {
         Text(verbatim: standing.displayName)
             .typeStyle(.bodyLStrong)
