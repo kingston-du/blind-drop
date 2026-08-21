@@ -772,11 +772,20 @@ export function memberProfileDTO(parts: MemberProfileDTO): MemberProfileDTO {
 
 // ─── Insights — E25-01 ─────────────────────────────────────────────────────
 
-/** One directed read across the scored rounds two people share in this circle. */
+/**
+ * One directed read across the scored rounds two people share in this circle.
+ *
+ * `lower_bound`/`upper_bound` are the Wilson score interval on `correct/possible` at 95%
+ * confidence (`E28-07`) — carried alongside the raw counts, not instead of them, so the client
+ * can rank the same array two different ways (`your_reads` sorted by the lower bound for "best",
+ * by the upper bound for "hardest") without a second round trip or a second array.
+ */
 export interface InsightReadDTO {
   member: MemberDTO;
   correct: number;
   possible: number;
+  lower_bound: number;
+  upper_bound: number;
 }
 
 export function insightReadDTO(parts: InsightReadDTO): InsightReadDTO {
@@ -784,6 +793,8 @@ export function insightReadDTO(parts: InsightReadDTO): InsightReadDTO {
     member: memberDTO(parts.member),
     correct: parts.correct,
     possible: parts.possible,
+    lower_bound: parts.lower_bound,
+    upper_bound: parts.upper_bound,
   };
 }
 
@@ -832,11 +843,22 @@ export function insightConfusionDTO(parts: InsightConfusionDTO): InsightConfusio
   };
 }
 
-/** `GET /groups/:group_id/insights`, derived entirely from scored rounds. */
+/**
+ * `GET /groups/:group_id/insights`, derived entirely from scored rounds.
+ *
+ * **`E28-07` replaced the three single-best fields with two full, ranked arrays.** `you_know_best`
+ * and `hardest_to_read` used to be two separate server-computed picks off the same underlying
+ * set — the caller's read of every co-scored member — sorted two different ways; sending that set
+ * once, with both Wilson bounds on every entry, lets the client derive both headline cards *and*
+ * back a tap-through leaderboard for each stat without a second endpoint or a second array.
+ * `your_reads.first` is "You read best"; `your_reads` sorted by `upper_bound` ascending is
+ * "Hardest to read". `reads_you.first` is "Reads you best". Sort order is the server's, always —
+ * a client re-sorting by a *different key already present in the payload* is picking a lens on
+ * data it already has, not re-deriving a statistic the server is supposed to own.
+ */
 export interface InsightsDTO {
-  you_know_best: InsightReadDTO | null;
-  knows_you_best: InsightReadDTO | null;
-  hardest_to_read: InsightReadDTO | null;
+  your_reads: InsightReadDTO[];
+  reads_you: InsightReadDTO[];
   mutual_recognition: InsightPairDTO[];
   mutual_misses: InsightPairDTO[];
   confusion: InsightConfusionDTO;
@@ -844,9 +866,8 @@ export interface InsightsDTO {
 
 export function insightsDTO(parts: InsightsDTO): InsightsDTO {
   return {
-    you_know_best: parts.you_know_best && insightReadDTO(parts.you_know_best),
-    knows_you_best: parts.knows_you_best && insightReadDTO(parts.knows_you_best),
-    hardest_to_read: parts.hardest_to_read && insightReadDTO(parts.hardest_to_read),
+    your_reads: parts.your_reads.map(insightReadDTO),
+    reads_you: parts.reads_you.map(insightReadDTO),
     mutual_recognition: parts.mutual_recognition.map(insightPairDTO),
     mutual_misses: parts.mutual_misses.map(insightPairDTO),
     confusion: insightConfusionDTO(parts.confusion),

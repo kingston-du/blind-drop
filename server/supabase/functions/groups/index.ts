@@ -94,7 +94,13 @@ import {
   rosterMemberDTO,
   standingsDTO,
 } from "../_shared/dto.ts";
-import { confusionMinimumRounds, confusionPairs, type InsightGuessRow } from "../_shared/insights.ts";
+import {
+  confusionMinimumRounds,
+  confusionPairs,
+  type InsightGuessRow,
+  wilsonLowerBound,
+  wilsonUpperBound,
+} from "../_shared/insights.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
 import { localDate, nextDate, type RoundState, serverNow } from "../_shared/time.ts";
 
@@ -843,10 +849,15 @@ interface DirectedInsight {
   member: MemberDTO;
   correct: number;
   possible: number;
+  lower_bound: number;
+  upper_bound: number;
 }
 
 const MUTUAL_PAIR_LIMIT = 3;
 const CONFUSION_PAIR_LIMIT = 3;
+// `E28-06`, amendment A1: the test stage shows the confusion lens from the first wrong guess.
+// Restore before public beta by dropping this flag and its one call site below.
+const CONFUSION_GATE_ENABLED = false;
 
 function relationshipKey(from: string, to: string): string {
   return `${from}:${to}`;
@@ -856,14 +867,11 @@ function compareMembers(a: MemberDTO, b: MemberDTO): number {
   return a.display_name.localeCompare(b.display_name) || a.user_id.localeCompare(b.user_id);
 }
 
+/// `E28-07`: ranked by the Wilson lower bound, not the raw rate — a well-supported 8-of-12
+/// always outranks a thin 3-of-4. Ties (equal bound) fall to the larger sample, per the owner:
+/// whatever is tied, more history ranks first.
 function compareReadDescending(a: DirectedInsight, b: DirectedInsight): number {
-  const rate = b.correct / b.possible - a.correct / a.possible;
-  return rate || b.correct - a.correct || b.possible - a.possible || compareMembers(a.member, b.member);
-}
-
-function compareReadAscending(a: DirectedInsight, b: DirectedInsight): number {
-  const rate = a.correct / a.possible - b.correct / b.possible;
-  return rate || a.correct - b.correct || b.possible - a.possible || compareMembers(a.member, b.member);
+  return b.lower_bound - a.lower_bound || b.possible - a.possible || compareMembers(a.member, b.member);
 }
 
 async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
@@ -909,7 +917,7 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
   // The gate applies to the whole surface, never individual pairs, so an empty cell does not
   // become an accidental claim about two people while the rest of the matrix is still thin.
   const minimumConfusionRounds = confusionMinimumRounds(members.length);
-  const visibleConfusions = roundIDs.length >= minimumConfusionRounds
+  const visibleConfusions = (!CONFUSION_GATE_ENABLED || roundIDs.length >= minimumConfusionRounds)
     ? confusionPairs(guessRows, memberByID, CONFUSION_PAIR_LIMIT)
     : [];
 
@@ -921,23 +929,32 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
     let possible = 0;
     for (const roundID of sourceRounds) if (targetRounds.has(roundID)) possible += 1;
     if (possible === 0) return null;
+    const correct = correctByDirection.get(relationshipKey(from, to)) ?? 0;
     return {
       member: target,
-      correct: correctByDirection.get(relationshipKey(from, to)) ?? 0,
+      correct,
       possible,
+      lower_bound: wilsonLowerBound(correct, possible),
+      upper_bound: wilsonUpperBound(correct, possible),
     };
   };
 
-  const fromCaller = members.flatMap((member) => {
-    const read = directed(ctx.userId, member.user_id);
-    return read ? [read] : [];
-  });
-  const toCaller = members.flatMap((member) => {
-    const read = directed(member.user_id, ctx.userId);
-    // `directed` names its target, which is the caller in this direction. The insight needs
-    // the person doing the reading, or the UI would claim that the caller knows themselves.
-    return read ? [{ ...read, member }] : [];
-  });
+  // Full lists, not a single best (`E28-07`) — the client derives both headline cards and each
+  // one's tap-through leaderboard off these, sorted by whichever bound the stat calls for.
+  const yourReads = members
+    .flatMap((member) => {
+      const read = directed(ctx.userId, member.user_id);
+      return read ? [read] : [];
+    })
+    .sort(compareReadDescending);
+  const readsYou = members
+    .flatMap((member) => {
+      const read = directed(member.user_id, ctx.userId);
+      // `directed` names its target, which is the caller in this direction. The insight needs
+      // the person doing the reading, or the UI would claim that the caller knows themselves.
+      return read ? [{ ...read, member }] : [];
+    })
+    .sort(compareReadDescending);
 
   const mutualRecognition: { members: MemberDTO[]; correct: number; possible: number }[] = [];
   const mutualMisses: { members: MemberDTO[]; correct: number; possible: number }[] = [];
@@ -955,19 +972,22 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
       if (left.correct === 0 && right.correct === 0) mutualMisses.push(pair);
     }
   }
+  // `E28-07`: the Wilson lower bound again, with the same volume tie-break — the owner's "ties
+  // rank on volume" rule applies everywhere a stat is ranked, mutual pairs included.
   const comparePair = (a: { members: MemberDTO[]; correct: number; possible: number },
                        b: { members: MemberDTO[]; correct: number; possible: number }): number =>
-    b.correct / b.possible - a.correct / a.possible || b.correct - a.correct || b.possible - a.possible
+    wilsonLowerBound(b.correct, b.possible) - wilsonLowerBound(a.correct, a.possible)
+      || b.possible - a.possible
       || compareMembers(a.members[0], b.members[0]) || compareMembers(a.members[1], b.members[1]);
 
   const response: InsightsDTO = {
-    you_know_best: [...fromCaller].sort(compareReadDescending)[0] ?? null,
-    knows_you_best: [...toCaller].sort(compareReadDescending)[0] ?? null,
-    hardest_to_read: [...fromCaller].sort(compareReadAscending)[0] ?? null,
+    your_reads: yourReads,
+    reads_you: readsYou,
     mutual_recognition: mutualRecognition.sort(comparePair).slice(0, MUTUAL_PAIR_LIMIT),
-    // A larger denominator makes a mutual miss more interesting, so reverse only the confidence
-    // tie-breaker while every rate is necessarily zero.
-    mutual_misses: mutualMisses.sort((a, b) => b.possible - a.possible || comparePair(a, b)).slice(0, MUTUAL_PAIR_LIMIT),
+    // Every mutual miss has a Wilson bound of zero (`correct` is always 0), so `comparePair`
+    // already falls straight to the volume tie-break — the larger denominator is the more
+    // interesting miss, and there is nothing left to sort by after that.
+    mutual_misses: mutualMisses.sort(comparePair).slice(0, MUTUAL_PAIR_LIMIT),
     confusion: {
       scored_rounds: roundIDs.length,
       minimum_rounds: minimumConfusionRounds,

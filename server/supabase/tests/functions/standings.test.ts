@@ -247,27 +247,34 @@ Deno.test("insights are immediate, circle-scoped, and carry the exact read denom
 
   assertEquals(keysOf(insights), [
     "confusion",
-    "hardest_to_read",
-    "knows_you_best",
     "mutual_misses",
     "mutual_recognition",
-    "you_know_best",
+    "reads_you",
+    "your_reads",
   ]);
-  assertEquals(keysOf(insights.you_know_best), ["correct", "member", "possible"]);
-  assertEquals(keysOf(insights.you_know_best.member), ["display_name", "user_id"]);
+  const yourReads = insights.your_reads as Json[];
+  const readsYou = insights.reads_you as Json[];
+  assertEquals(keysOf(yourReads[0]), ["correct", "lower_bound", "member", "possible", "upper_bound"]);
+  assertEquals(keysOf(yourReads[0].member as Json), ["display_name", "user_id"]);
   assertEquals(keysOf(insights.confusion), ["minimum_rounds", "pairs", "scored_rounds"]);
 
   // One scored night is intentionally enough for the beta: the denominator makes that visible
   // rather than hiding the relationship until a tester has waited through ten evenings.
-  assertEquals(insights.you_know_best, {
-    member: { user_id: people.Ben.id, display_name: "Ben" }, correct: 1, possible: 1,
-  });
-  assertEquals(insights.knows_you_best, {
-    member: { user_id: people.Ben.id, display_name: "Ben" }, correct: 1, possible: 1,
-  });
-  assertEquals(insights.hardest_to_read, {
-    member: { user_id: people.Ben.id, display_name: "Ben" }, correct: 1, possible: 1,
-  });
+  //
+  // `E28-07`: full, ranked lists now, not a single server-picked best — the client derives "You
+  // read best" / "Reads you best" / "Hardest to read" off these, so what the server pins is that
+  // `scoredRound()`'s fixture has Ana guess correctly on all four other cards, so every one of
+  // her reads is 1-of-1 — the Wilson lower bound ties across the board, same as the raw rate
+  // always did, and Ben's win here is `compareReadDescending`'s alphabetical tie-break, not a
+  // volume argument. `insights.test.ts` is where the volume-aware ordering itself is pinned
+  // (8-of-12 over 3-of-4, etc.); this test's job is only the shape and the exact denominators.
+  assertEquals(yourReads[0].member, { user_id: people.Ben.id, display_name: "Ben" });
+  assertEquals(yourReads[0].correct, 1);
+  assertEquals(yourReads[0].possible, 1);
+  assertEquals(yourReads[0].lower_bound, yourReads[1].lower_bound);
+  assertEquals(readsYou[0].member, { user_id: people.Ben.id, display_name: "Ben" });
+  assertEquals(readsYou[0].correct, 1);
+  assertEquals(readsYou[0].possible, 1);
 
   // Mutual recognition requires a correct read in both directions. Mutual misses require zero
   // in both. The exact rows also pin stable alphabetical tie-breaking from the first night.
@@ -278,9 +285,19 @@ Deno.test("insights are immediate, circle-scoped, and carry the exact read denom
     (pair.members as Json[]).map((member) => member.display_name),
   ), [["Ben", "Dee"], ["Ben", "Eli"], ["Cal", "Dee"]]);
   assert((insights.mutual_misses as Json[]).every((pair) => pair.correct === 0 && pair.possible === 2));
-  // One night proves the relationship surface, but never a confusion matrix. The whole lens is
-  // withheld until this five-person circle has 25 scored rounds, not selectively shown by pair.
-  assertEquals(insights.confusion, { scored_rounds: 1, minimum_rounds: 25, pairs: [] });
+  // `E28-06`/`E28-07`, amendment A1: the confusion lens shows from the first wrong guess in the
+  // test stage — `CONFUSION_GATE_ENABLED = false` in `groups/index.ts` — so a single scored
+  // night's wrong guesses are visible even though `scored_rounds` (1) is nowhere near
+  // `minimum_rounds` (25, unchanged: `confusionMinimumRounds` itself is not what moved). The
+  // counts are pinned as data, not assumed: pull the wrong-guess rows straight from `guess()`'s
+  // calls in `scoredRound()`'s fixture rather than re-deriving them here.
+  assertEquals(insights.confusion.scored_rounds, 1);
+  assertEquals(insights.confusion.minimum_rounds, 25);
+  assertEquals((insights.confusion.pairs as Json[]).map((pair) => [
+    (pair.actual_member as Json).display_name,
+    (pair.mistaken_for_member as Json).display_name,
+    pair.count,
+  ]), [["Eli", "Ana", 3], ["Dee", "Ana", 2], ["Ana", "Ben", 1]]);
 });
 
 Deno.test("insights name no one when a circle has no scored history", async () => {
@@ -290,9 +307,8 @@ Deno.test("insights name no one when a circle has no scored history", async () =
   const res = await call("groups", `/${group.id}/insights`, { token: user.token });
   assertEquals(res.status, 200);
   assertEquals(res.body.data, {
-    you_know_best: null,
-    knows_you_best: null,
-    hardest_to_read: null,
+    your_reads: [],
+    reads_you: [],
     mutual_recognition: [],
     mutual_misses: [],
     confusion: { scored_rounds: 0, minimum_rounds: 1, pairs: [] },

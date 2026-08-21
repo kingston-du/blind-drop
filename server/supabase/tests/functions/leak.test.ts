@@ -230,9 +230,8 @@ Deno.test("golden: GET /groups/{group_id}/insights during open", async () => {
   const res = await call("groups", `/${group.id}/insights`, { token: ana.token });
   assertEquals(res.status, 200, JSON.stringify(res.body));
   assertEquals(res.body.data, {
-    you_know_best: null,
-    knows_you_best: null,
-    hardest_to_read: null,
+    your_reads: [],
+    reads_you: [],
     mutual_recognition: [],
     mutual_misses: [],
     confusion: { scored_rounds: 0, minimum_rounds: 4, pairs: [] },
