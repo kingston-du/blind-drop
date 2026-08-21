@@ -81,6 +81,13 @@ Four faults on the same screen, plus one thing it never had:
 > for body text. So `Results-8-SE-large` still shows *"Motion Si…"* — better than the pre-fix
 > *"Motion…"*, not a title that now fits.
 >
+> **Closed by `E28-05`.** The reflow named above as the real fix landed: the answer card's number
+> and corner menu moved to their own row, unconditionally, so artwork and title share the card's
+> full width at every type size instead of only above `.accessibility1`. `"Motion Sickness"` no
+> longer needs the 0.8 `minimumScaleFactor` at all — it is removed from the answer card, which
+> now truncates, if it ever has to, from a column roughly the artwork's own width wider than
+> before rather than one also paying for a number and a menu on the same line.
+>
 > Picking the interpretation most protective of the actual defect: `.minimumScaleFactor(0.8)` is
 > the correct, bounded fix for "truncating too eagerly" and stays. The checklist item is ticked
 > against that half — truncation now only fires after a real attempt to shrink, which is the bug
