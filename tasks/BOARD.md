@@ -351,7 +351,7 @@ Push does not work today. `E23-01` diagnoses before anything is repaired.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E24-01 Best Ear | done | E18-01 | vs E20, E21 | — |
-| E24-02 A person, in this circle | todo | E24-01 | no | AC-1 |
+| E24-02 A person, in this circle | wip | E24-01 | no | AC-1 |
 
 ## E25 — Insights · [file](E25-insights.md)
 

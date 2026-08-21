@@ -43,7 +43,7 @@ means something. Do not print a confident percentage over four data points.
 
 ### E24-02 — A person, in this circle
 
-**Status:** todo · **Deps:** E24-01 · **Parallel:** no
+**Status:** wip · **Deps:** E24-01 · **Parallel:** no
 **Reads:** `docs/02` §4, `docs/16` §3, `docs/11`
 **Touches:** a new profile feature, `server/supabase/functions/groups/`, `Localizable.strings`,
 `docs/08-SCREEN-SPECS.md`, `docs/11-COPY-DECK.md`, tests
