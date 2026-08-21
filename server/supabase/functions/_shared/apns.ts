@@ -63,9 +63,9 @@ export type NotificationKind = "invite" | "nudge" | "reveal" | "results" | "void
 
 const BODIES: Readonly<Record<NotificationKind, string>> = {
   invite: "You have a group invite.",
-  nudge: "Two hours to drop.",
-  reveal: "Tonight's drop is open.",
-  results: "Answers are in.",
+  nudge: "Two hours left to drop a song.",
+  reveal: "Tonight's songs are out.",
+  results: "Tonight's answers are in.",
   void: "Not enough drops tonight. Nothing revealed.",
 };
 

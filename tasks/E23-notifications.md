@@ -191,7 +191,7 @@ last are now resolved:
 
 ### E23-02 — Three deliveries, whatever the circle count
 
-**Status:** todo · **Deps:** E23-01, E18-01 · **Parallel:** no
+**Status:** wip · **Deps:** E23-01, E18-01 · **Parallel:** no
 **Reads:** `CLAUDE.md` §2.6, `docs/05` §3, §4
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/push-worker/`,
 `server/supabase/tests/`, `docs/05-JOBS-AND-NOTIFICATIONS.md`

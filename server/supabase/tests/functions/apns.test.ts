@@ -79,12 +79,12 @@ Deno.test("a cold concurrent batch signs one APNs JWT", async () => {
 
 Deno.test("the five APNs alerts are the approved copy, verbatim", () => {
   assertEquals(notificationAlert("invite"), { title: "Blind Drop", body: "You have a group invite." });
-  assertEquals(notificationAlert("nudge"), { title: "Blind Drop", body: "Two hours to drop." });
+  assertEquals(notificationAlert("nudge"), { title: "Blind Drop", body: "Two hours left to drop a song." });
   assertEquals(notificationAlert("reveal"), {
     title: "Blind Drop",
-    body: "Tonight's drop is open.",
+    body: "Tonight's songs are out.",
   });
-  assertEquals(notificationAlert("results"), { title: "Blind Drop", body: "Answers are in." });
+  assertEquals(notificationAlert("results"), { title: "Blind Drop", body: "Tonight's answers are in." });
   assertEquals(notificationAlert("void"), {
     title: "Blind Drop",
     body: "Not enough drops tonight. Nothing revealed.",

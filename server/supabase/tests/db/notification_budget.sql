@@ -1,8 +1,8 @@
 -- notification_budget.sql — tasks/E03-03, docs/15 §2.
 --
--- Ana submits after the nudge every day and therefore exercises the maximum legitimate
--- delivery set: nudge + reveal + results. Ben submits before the nudge; Ivy never submits.
--- Fourteen daily rounds prove both targeting and a rolling, half-open 24-hour budget.
+-- Every active member receives the nudge, including people who already submitted, so each
+-- member exercises the maximum legitimate delivery set: nudge + reveal + results. Fourteen
+-- daily rounds prove the rolling, half-open 24-hour budget.
 begin;
 set search_path = public, extensions, tests;
 select plan(7);
@@ -18,7 +18,7 @@ select ('e3031400-0000-4000-8000-' || lpad(day_no::text, 12, '0'))::uuid,
        (date '2032-02-01' + (day_no - 1))::timestamp + interval '22 hours'
   from generate_series(1, 14) day_no;
 
--- Ben and Dee seal before the nudge every day.
+-- Ben and Dee seal before the nudge every day; they remain eligible for it.
 insert into public.submissions (round_id, user_id, track_key, track_meta, created_at)
 select r.id, p.user_id,
        format('isrc:E303BUDGET%02s%s', extract(day from r.local_date)::int, p.suffix),
@@ -93,7 +93,7 @@ select audience.value::uuid as user_id, o.enqueued_at
 select is((select count(*)::int from simulated_deliveries where user_id = tests.person('Ana')),
           42, 'a late submitter exercises the maximum three deliveries every day');
 select is((select count(*)::int from simulated_deliveries where user_id = tests.person('Ben')),
-          28, 'an early submitter receives reveal and results but no nudge');
+          42, 'an early submitter receives the nudge, reveal, and results');
 select is(
   (select max(delivery_count)::int
      from (

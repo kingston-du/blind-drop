@@ -29,6 +29,8 @@ export interface ClaimedNotification {
   id: string;
   /** Present for scheduled round notifications; direct invitations have no round. */
   round_id: string | null;
+  /** The circle behind a scheduled notification's stable representative round (E23-02). */
+  group_id: string | null;
   /** Present only for the recipient-specific `invite` kind. */
   invitation_id: string | null;
   kind: NotificationKind;
@@ -82,7 +84,9 @@ export function notificationDeepLink(row: ClaimedNotification): string {
     if (!row.invitation_id) throw new Error("invite outbox row has no invitation id");
     return `blinddrop://invite/${row.invitation_id}`;
   }
-  return row.kind === "results" ? "blinddrop://round/current/results" : "blinddrop://round/current";
+  if (!row.group_id) throw new Error("round notification outbox row has no group id");
+  const prefix = `blinddrop://circle/${row.group_id}/round/current`;
+  return row.kind === "results" ? `${prefix}/results` : prefix;
 }
 
 /** The APNs expiration is the end of the phase the alert describes. */
@@ -238,6 +242,7 @@ async function claim(db: Db, claimId: string): Promise<ClaimedNotification[]> {
   return (data ?? []).map((row: Record<string, unknown>) => ({
     id: String(row.id),
     round_id: typeof row.round_id === "string" ? row.round_id : null,
+    group_id: typeof row.group_id === "string" ? row.group_id : null,
     invitation_id: typeof row.invitation_id === "string" ? row.invitation_id : null,
     kind: row.kind as NotificationKind,
     audience: audience(row.audience),

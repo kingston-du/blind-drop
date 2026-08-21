@@ -1,7 +1,7 @@
 -- schema.sql — tasks/E01-01. Every table, column type, and index in docs/03 §2 exists.
 begin;
 set search_path = public, extensions, tests;
-select plan(137);
+select plan(140);
 
 -- ─── extensions (docs/03 §2, 0001) ───────────────────────────────────────────
 select has_extension('pgcrypto', 'pgcrypto is installed (gen_random_uuid)');
@@ -117,10 +117,12 @@ select has_index('public','devices','devices_user_active', 'devices devices_user
 -- ─── notification outbox — scheduled rounds and direct invitations ───────────
 select has_column('public','notification_outbox', c, format('notification_outbox.%I', c))
 from unnest(array['id','round_id','kind','audience','enqueued_at','sent_at','attempts',
-                  'last_error','invitation_id']) as c;
+                  'last_error','invitation_id','scheduled_for']) as c;
 select has_index('public','notification_outbox','notification_outbox_once', 'notification_outbox notification_outbox_once');
 select index_is_unique('public','notification_outbox','notification_outbox_once', 'notification_outbox notification_outbox_once');
 select has_index('public','notification_outbox','notification_outbox_pending', 'notification_outbox notification_outbox_pending');
+select has_index('public','notification_outbox','notification_outbox_delivery_window', 'notification_outbox notification_outbox_delivery_window');
+select has_index('public','notification_outbox','notification_outbox_audience', 'notification_outbox notification_outbox_audience');
 select has_index('public','notification_outbox','notification_outbox_invitation_once', 'notification_outbox notification_outbox_invitation_once');
 select index_is_unique('public','notification_outbox','notification_outbox_invitation_once', 'notification_outbox notification_outbox_invitation_once');
 select has_check('public','notification_outbox', 'notification_outbox source is exactly one round or invitation');

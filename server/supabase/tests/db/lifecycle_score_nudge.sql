@@ -3,7 +3,7 @@ begin;
 set search_path = public, extensions, tests;
 select plan(20);
 
--- Nudge targeting: Ben has already submitted; Ana has not.
+-- Nudge targeting: Ben has already submitted; the nudge still leaves his choice open to change.
 insert into public.rounds
        (id, group_id, local_date, state, opens_at, reveals_at, scores_at)
 values ('e3030000-0000-4000-8000-000000000001', tests.the_group(), date '2031-04-07', 'open',
@@ -30,9 +30,8 @@ select set_eq(
        lateral jsonb_array_elements_text(o.audience) t(value)
        where o.round_id = 'e3030000-0000-4000-8000-000000000001' and o.kind = 'nudge' $$,
   $$ select m.user_id from public.memberships m
-       where m.group_id = tests.the_group() and m.left_at is null
-         and m.user_id <> tests.person('Ben') $$,
-  'the nudge audience is the frozen active roster minus existing submitters');
+       where m.group_id = tests.the_group() and m.left_at is null $$,
+  'the nudge audience is the frozen active roster, including existing submitters');
 
 -- Ana submits after audience resolution. The accepted product rule is that the frozen row
 -- remains unchanged rather than teaching the push worker how to inspect submission state.
@@ -51,9 +50,9 @@ select is((select count(*)::int from public.notification_outbox
 select ok((select audience ? tests.person('Ana')::text from public.notification_outbox
             where round_id = 'e3030000-0000-4000-8000-000000000001' and kind = 'nudge'),
           'a member who submits after enqueue remains in the frozen audience');
-select ok(not (select audience ? tests.person('Ben')::text from public.notification_outbox
-                where round_id = 'e3030000-0000-4000-8000-000000000001' and kind = 'nudge'),
-          'a member who submitted before enqueue is absent');
+select ok((select audience ? tests.person('Ben')::text from public.notification_outbox
+            where round_id = 'e3030000-0000-4000-8000-000000000001' and kind = 'nudge'),
+          'a member who submitted before enqueue can still open the round and change their song');
 
 -- Scoring: create a normal three-person round, reveal it, then prove the second guarded
 -- transition and its participant-only results audience.

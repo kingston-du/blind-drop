@@ -510,15 +510,16 @@ singular forms are **"1 hour"** and **"1 minute"**; their plural forms remain `%
 
 | Kind | Title | Body |
 |---|---|---|
-| `reveal` | Blind Drop | Tonight's drop is open. |
-| `results` | Blind Drop | Answers are in. |
-| `nudge` | Blind Drop | Two hours to drop. |
+| `reveal` | Blind Drop | Tonight's songs are out. |
+| `results` | Blind Drop | Tonight's answers are in. |
+| `nudge` | Blind Drop | Two hours left to drop a song. |
 | `void` | Blind Drop | Not enough drops tonight. Nothing revealed. |
 | `invite` | Blind Drop | You have a group invite. |
 
 Five kinds, at most three deliveries to any one person in any rolling 24-hour window (`reveal`
-and `void` are mutually exclusive). The nudge never reaches anyone who has already dropped;
-an `invite` is one recipient's pending invitation, never a membership or a group activity signal.
+and `void` are mutually exclusive). The nudge reaches every active member, including someone
+who has already dropped, because opening it leaves their choice open to change; an `invite` is
+one recipient's pending invitation, never a membership or a group activity signal.
 
 ---
 

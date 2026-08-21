@@ -106,27 +106,28 @@ Transition and enqueue happen in **one transaction**. Never enqueue first.
 
 ## 3. The round notifications and invitations
 
-> **Amended by the owner — ADR-011, `CLAUDE.md` §2.6.** The budget is now three *deliveries*
-> per user per day across **all** their circles, grouped where they coincide; it did not grow
-> with the circle count. The kinds below are unchanged and `invite` joins them in `E20-03`.
-> `E23-02` brings this section in line. Until it lands, what follows is what the code does.
+> **Amended by the owner — ADR-011, `CLAUDE.md` §2.6.** Three *deliveries* per user in a rolling
+> 24-hour window, across **all** their circles, grouped by kind where their scheduled instants
+> coincide. The budget did not grow with the circle count; `E23-02` enforces it centrally.
 
 Three deliveries per user in a rolling 24-hour window, maximum, across every circle. This app
 earns trust by being quiet. Round transitions make the four kinds below; `invite` is the one
 prompt kind, created with a direct invitation rather than by `tick_rounds()`. Its enqueue path
 counts every existing delivery for the recipient and coalesces invitations waiting to send, so a
 person invited to several circles together receives one notification. `E23-02` finishes the
-same cross-circle grouping for coincident scheduled round deliveries.
+same cross-circle grouping for coincident scheduled round deliveries. A grouped scheduled
+delivery uses the first deterministic round as its deep-link target; the switcher exposes the
+other circles that changed at the same instant.
 
 | # | When | Audience | Title / body | Deep link |
 |---|---|---|---|---|
-| 1 | `reveals_at` | all active members | *Tonight's drop is open.* | `blinddrop://round/current` |
-| 2 | `scores_at` | members who **submitted or guessed** | *Answers are in.* | `blinddrop://round/current/results` |
-| 3 | `reveals_at − 2h` | active members with **no submission** in this round | *Two hours to drop.* | `blinddrop://round/current` |
+| 1 | `reveals_at` | all active members | *Tonight's songs are out.* | `blinddrop://circle/<GROUP_ID>/round/current` |
+| 2 | `scores_at` | members who **submitted or guessed** | *Tonight's answers are in.* | `blinddrop://circle/<GROUP_ID>/round/current/results` |
+| 3 | `reveals_at − 2h` | all active members | *Two hours left to drop a song.* | `blinddrop://circle/<GROUP_ID>/round/current` |
 
 Plus one conditional, replacing #1:
 
-| — | `reveals_at`, when `S < 3` | all active members | *Not enough drops tonight. Nothing revealed.* | `blinddrop://round/current` |
+| — | `reveals_at`, when `S < 3` | all active members | *Not enough drops tonight. Nothing revealed.* | `blinddrop://circle/<GROUP_ID>/round/current` |
 
 | Kind | When | Audience | Title / body | Deep link |
 |---|---|---|---|---|
@@ -136,24 +137,13 @@ That is the complete closed set. **No** streak reminders, **no** "your friend ju
 re-engagement nags, **no** "someone dropped a song". Adding a sixth notification is a product
 change requiring the owner, not an agent.
 
-### The nudge is the only phase-targeted one
+### The nudge leaves a choice open
 
-Notification #3 goes only to non-submitters. This is the single phase-targeted push and it must
-never reach someone who has already submitted. (An `invite` is necessarily addressed to its own
-recipient, but says nothing about a round.) Two consequences:
-
-- The audience is resolved **at enqueue time** (`reveals_at − 2h`) and frozen into
-  `notification_outbox.audience`. Someone who submits at `−1h55m` still receives it. That is
-  accepted: re-resolving at send time would mean the worker reads submission state, and a
-  worker that reads submission state is one refactor away from an endpoint that does.
-- The push body must not imply anything about others. *"Two hours to drop."* — not "you're
-  the last one", not "3 people have dropped".
-
-### The nudge is not a leak
-
-A user who receives the nudge learns only that *they* have not submitted, which they already
-knew. Verify the inverse too: a user who has submitted receives nothing at `−2h`, and silence
-carries no information about others.
+Notification #3 goes to every active member, including someone who has already dropped. It is a
+quiet invitation to open the round and replace their song before reveal, not a signal about who
+else has or has not submitted. Its audience is resolved and frozen at `reveals_at − 2h`; a later
+join or leave does not rewrite it. The body stays personal and neutral: *"Two hours left to drop
+a song."* — never "you're the last one" or "3 people have dropped".
 
 ---
 
@@ -176,13 +166,13 @@ apns-expiration:    <unix seconds>
 ```jsonc
 {
   "aps": {
-    "alert": { "title": "Blind Drop", "body": "Tonight's drop is open." },
+    "alert": { "title": "Blind Drop", "body": "Tonight's songs are out." },
     "sound": "default",
     "interruption-level": "active"
   },
   "kind": "reveal",
   "round_id": "r_…",
-  "deep_link": "blinddrop://round/current"
+  "deep_link": "blinddrop://circle/<GROUP_ID>/round/current"
 }
 ```
 
@@ -208,10 +198,9 @@ something happens at 8:00 PM and has a reason to want to be told.
 
 ### There are no notification settings
 
-> **Amended by the owner (ADR-011, `CLAUDE.md` §2.6).** Three *deliveries* per user per day
-> across **all** their circles, grouped where they coincide — the budget did not grow with the
-> circle count. `E23-02` brings this section and §3 in line; until then §3's per-round table is
-> still what the code does.
+> **ADR-011, `CLAUDE.md` §2.6.** Three *deliveries* per user in a rolling 24-hour window across
+> **all** their circles, grouped where the kind and scheduled instant coincide. The budget does
+> not grow with the circle count.
 
 No per-type toggles, no quiet hours, no in-app preference screen. Three pushes a day is
 already quiet; a settings screen implies there is something to manage. Users who want silence
@@ -225,8 +214,10 @@ URL scheme `blinddrop://`. Universal Links are out of scope except the invite la
 
 | URL | Destination |
 |---|---|
-| `blinddrop://round/current` | Today's round, phase-appropriate screen |
-| `blinddrop://round/current/results` | Results for today's round |
+| `blinddrop://round/current` | The active circle's round, phase-appropriate screen |
+| `blinddrop://round/current/results` | The active circle's results |
+| `blinddrop://circle/<GROUP_ID>/round/current` | That circle's round, phase-appropriate screen |
+| `blinddrop://circle/<GROUP_ID>/round/current/results` | That circle's results |
 | `blinddrop://record` | The Record |
 | `blinddrop://join/<CODE>` | Join flow, code prefilled |
 

@@ -42,6 +42,7 @@ Deno.env.set("APNS_TOPIC", "com.blinddrop.fixture");
 const row: ClaimedNotification = {
   id: "00000000-0000-4000-8000-000000000001",
   round_id: "00000000-0000-4000-8000-000000000002",
+  group_id: "00000000-0000-4000-8000-000000000006",
   invitation_id: null,
   kind: "reveal",
   audience: ["00000000-0000-4000-8000-000000000003"],
@@ -71,13 +72,13 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
 
   assertEquals(await request.json(), {
     aps: {
-      alert: { title: "Blind Drop", body: "Tonight's drop is open." },
+      alert: { title: "Blind Drop", body: "Tonight's songs are out." },
       sound: "default",
       "interruption-level": "active",
     },
     kind: "reveal",
     round_id: row.round_id,
-    deep_link: "blinddrop://round/current",
+    deep_link: `blinddrop://circle/${row.group_id}/round/current`,
   });
 
   const results = { ...row, kind: "results" as const };
@@ -86,7 +87,7 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
     (Date.parse(row.scores_at!) + 12 * 60 * 60 * 1_000) / 1_000,
   );
   const resultsBody = await apnsRequest(results, device, "jwt", "topic").json();
-  assertEquals(resultsBody.deep_link, "blinddrop://round/current/results");
+  assertEquals(resultsBody.deep_link, `blinddrop://circle/${row.group_id}/round/current/results`);
 
   const nudge = { ...row, kind: "nudge" as const };
   assertEquals(notificationExpiration(nudge), Date.parse(row.reveals_at!) / 1_000);
@@ -94,6 +95,7 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
   const invitation: ClaimedNotification = {
     ...row,
     round_id: null,
+    group_id: null,
     invitation_id: "00000000-0000-4000-8000-000000000005",
     kind: "invite",
     reveals_at: null,
@@ -579,7 +581,7 @@ Deno.test("429 and 5xx leave the row for the next minute, then stop at five atte
   assert(abandoned.last_error?.startsWith("503"), "the last failure survives on the row");
 });
 
-Deno.test("the nudge audience is frozen at enqueue — docs/05 §3", async () => {
+Deno.test("the nudge audience is the active roster at enqueue — docs/05 §3", async () => {
   await clearPending();
   // 17:00 local with a reveal at 20:00, so a tick an hour and a half on lands inside the
   // two-hour nudge window without changing the group's local date.
@@ -599,7 +601,7 @@ Deno.test("the nudge audience is frozen at enqueue — docs/05 §3", async () =>
     cal: await registerDevice(cal.token),
   };
 
-  // Ana seals before the nudge is enqueued. Ben and Cal have not.
+  // Ana seals before the nudge is enqueued. The nudge still invites her to revise that choice.
   assertEquals(
     (await call("rounds", "/current/submission", {
       method: "PUT",
@@ -616,8 +618,8 @@ Deno.test("the nudge audience is frozen at enqueue — docs/05 §3", async () =>
   assertEquals(enqueued.length, 1, "one nudge, at reveals_at − 2h");
   assertEquals(
     [...enqueued[0].audience].sort(),
-    [ben.id, cal.id].sort(),
-    "the nudge goes to non-submitters and to nobody else",
+    [ana.id, ben.id, cal.id].sort(),
+    "the nudge reaches every active member, including people who already dropped",
   );
 
   // Cal seals at −1h55m, and a second tick runs before the worker does. The audience is not
@@ -648,7 +650,7 @@ Deno.test("the nudge audience is frozen at enqueue — docs/05 §3", async () =>
   assertEquals(
     stub.tokens.includes(tokens.ana),
     false,
-    "an early submitter is never nudged, and hears nothing about anyone else",
+    "an early submitter is included in the frozen nudge audience",
   );
 });
 
