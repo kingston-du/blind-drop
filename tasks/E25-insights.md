@@ -14,7 +14,7 @@ beta with five rounds are decoration. `E25-01` is worth building when circles ha
 
 ### E25-01 — Who you know, and who knows you
 
-**Status:** todo · **Deps:** E24-02 · **Parallel:** yes — against E26
+**Status:** wip · **Deps:** E24-02 · **Parallel:** yes — against E26
 **Reads:** `docs/02` §4, `docs/16` §3, `docs/11`
 **Touches:** `server/supabase/functions/`, a new Insights feature, `Localizable.strings`,
 `docs/11-COPY-DECK.md`, tests
