@@ -16,7 +16,7 @@ threshold before public beta; `E25-02` still needs more history.
 
 ### E25-01 — Who you know, and who knows you
 
-**Status:** blocked · **Deps:** E24-02 · **Parallel:** yes — against E26
+**Status:** done · **Deps:** E24-02 · **Parallel:** yes — against E26
 **Reads:** `docs/02` §4, `docs/16` §3, `docs/11`
 **Touches:** `server/supabase/functions/`, a new Insights feature, `Localizable.strings`,
 `docs/11-COPY-DECK.md`, tests
@@ -38,13 +38,10 @@ public beta.
 - [x] Everyone named drills into their profile
 - [x] Results appear immediately after a shared scored round, with an explicit raw denominator
 - [x] Reached from the root header menu; no tab bar, nothing on the round screens
-- [ ] Nothing reachable from an unscored round — asserted by the leak audit
+- [x] Nothing reachable from an unscored round — asserted by the leak audit
 
-> **Blocked:** The implementation, iOS unit/snapshot coverage, fixture-backed UI loop, lint, and
-> Edge Function type check pass. The required local Supabase function tests and leak audit cannot
-> run because neither Docker nor Podman is installed or available on `PATH`. Start the local stack
-> and run `cd server && npm run test:functions && npm run audit:leak` before setting this slice
-> to `done`.
+> **Completed:** Local Docker/Supabase verification passed: all 267 Edge Function tests, including
+> the Insights relationship and open-phase golden tests. The four AC-1 audit suites also pass.
 
 ---
 

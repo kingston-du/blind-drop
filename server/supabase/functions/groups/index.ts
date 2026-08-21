@@ -927,7 +927,9 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
   });
   const toCaller = members.flatMap((member) => {
     const read = directed(member.user_id, ctx.userId);
-    return read ? [read] : [];
+    // `directed` names its target, which is the caller in this direction. The insight needs
+    // the person doing the reading, or the UI would claim that the caller knows themselves.
+    return read ? [{ ...read, member }] : [];
   });
 
   const mutualRecognition: { members: MemberDTO[]; correct: number; possible: number }[] = [];
