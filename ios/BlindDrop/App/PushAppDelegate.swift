@@ -49,22 +49,28 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
     /// A notification the user tapped. Its `deep_link` becomes the router's **pending** link, and
     /// is applied only once the round has loaded (`docs/05` §5).
     ///
-    /// `nonisolated`, because `UNNotificationResponse` and the center itself are not `Sendable` and
-    /// the delegate protocol is not main-actor isolated. The link is lifted out as a `String`
-    /// before the hop, so nothing non-`Sendable` crosses.
+    /// The **completion-handler** spelling, not the `async` one (`E23-03`). The `async` variant
+    /// runs its body on a background cooperative queue when the method is `nonisolated`, and the
+    /// response's scene/state-restoration path then ran off the main thread and crashed with a
+    /// UIKit assertion (`_updateSnapshotAndStateRestorationWithAction:windowScene:` → SIGABRT).
+    /// The synchronous spelling is delivered on the main thread, so the link string is lifted out
+    /// there; only the work that touches main-actor state hops back via `Task { @MainActor }`.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         let raw = response.notification.request.content.userInfo[PushRouter.deepLinkKey] as? String
-        await MainActor.run {
-            guard let environment else { return }
-            PushRouter.receive(
-                PushRouter.link(from: raw),
-                into: environment.router,
-                session: environment.session.state
-            )
+        Task { @MainActor in
+            if let environment {
+                PushRouter.receive(
+                    PushRouter.link(from: raw),
+                    into: environment.router,
+                    session: environment.session.state
+                )
+            }
         }
+        completionHandler()
     }
 
     /// A notification that arrived while the app was open.
@@ -74,8 +80,9 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
     /// the same thing everybody else does. The screen behind it refetches on its own countdown.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }
