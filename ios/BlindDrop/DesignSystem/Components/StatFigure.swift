@@ -45,11 +45,19 @@ struct StatFigure: View {
     }
 }
 
-/// The bare bar `StatFigure` draws under a number — `ProportionBar` without its own trailing
-/// tally, since the number is already printed above it here rather than beside the bar.
-private struct ProportionTrack: View {
+/// The bare proportion bar — `ProportionBar` without its own trailing tally, since the number is
+/// already printed above it rather than beside the bar. `StatFigure` draws it under a number at
+/// its default height; `InsightsScreen` reuses the same bar at a smaller height for its compact
+/// mutual-read rows, which is why it is not `private`.
+struct ProportionTrack: View {
     let progress: Double
-    private let height: CGFloat = 6
+    var height: CGFloat = ProportionTrack.regularHeight
+
+    /// The bar under a profile stat's `.numberL` numeral.
+    static let regularHeight: CGFloat = 6
+    /// The shorter bar under Insights' compact mutual-read `.numberM` numeral, so it does not
+    /// crowd the pair of names above it.
+    static let compactHeight: CGFloat = 4
 
     var body: some View {
         GeometryReader { proxy in

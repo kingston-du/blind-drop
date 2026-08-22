@@ -17,7 +17,9 @@ struct GroupScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedMember) { MemberProfileScreen(member: $0) }
         .task {
-            if store == nil { store = GroupStore(api: env.api, circles: env.circles) }
+            if store == nil {
+                store = env.routeStores.groupStore(for: await env.circles.resolveActiveID())
+            }
             await store?.load()
         }
     }
@@ -389,7 +391,15 @@ struct MemberRosterRow: View {
         HStack(spacing: Space.sm) {
             Button(action: select) {
                 HStack(spacing: Space.sm) {
-                    MonogramMark(name: member.displayName, diameter: MonogramMark.compactDiameter)
+                    // An unranked member gets the rank column's own "no value" dash, not a face —
+                    // a mark in this slot reads as *ranked but not shown*, and the honest thing is
+                    // the same "—" every other "does not apply" number in the app already prints.
+                    Text(verbatim: ScoringFormat.unavailable)
+                        .typeStyle(.numberM)
+                        .foregroundStyle(Palette.inkDim)
+                        .fixedSize()
+                        .frame(minWidth: Space.xxl, alignment: .leading)
+                        .accessibilityHidden(true)
                     Text(verbatim: member.displayName).typeStyle(.bodyL).foregroundStyle(Palette.ink)
                     Spacer(minLength: Space.sm)
                     Text(member.isAdmin ? "group.role.admin" : "group.role.member").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)

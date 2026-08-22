@@ -207,6 +207,7 @@
 "insights.confusion" = "Mistaken identity";
 "insights.confusion.as" = "as";
 "insights.confusion.detail" = "%lld times.";
+"insights.confusion.times" = "times";
 "insights.confusion.empty" = "No repeated mix-ups yet.";
 
 /* ── Submit (docs/11 §Submit — open, nothing dropped) ──────────────────────── */
@@ -355,7 +356,8 @@
 "results.spectrum.high" = "Easy to read";
 "results.standings.title" = "All time";
 "results.standings.rounds" = "%lld rounds";
-"results.standings.row" = "Ear %lld · Read %@";
+"results.standings.ear.row" = "Ear %lld";
+"results.standings.read.row" = "Read %@";
 "results.standings.ear" = "Best ear";
 "results.standings.ear.detail" = "%lld correct";
 "results.standings.readability" = "How readable";

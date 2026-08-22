@@ -129,7 +129,9 @@ struct StandingRowContent: View {
             .frame(minWidth: Space.xxl, alignment: .leading)
     }
 
-    /// One truncating line while the row is a row, wrapping once it has stacked.
+    /// Two lines before truncating, so a reasonable-length name is read whole instead of cut to
+    /// fit beside the stats. The stats moved to a stacked column (below) exactly so this name can
+    /// spend the width on itself.
     ///
     /// **No `MonogramMark` here** (`E28-08`, reverted after measuring it). This row already
     /// carries a rank numeral, and on `GroupScreen`'s admin view it also shares its width with a
@@ -141,20 +143,25 @@ struct StandingRowContent: View {
         Text(verbatim: standing.displayName)
             .typeStyle(.bodyLStrong)
             .foregroundStyle(Palette.ink)
-            .lineLimit(isStacked ? nil : 1)
+            .lineLimit(isStacked ? nil : 2)
             .truncationMode(.tail)
-            .frame(maxWidth: isStacked ? .infinity : nil, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// *"EAR 78 · READ 62"* — the ear number and readability value (or an honest *"—"* when
-    /// it does not apply), in the apparatus voice, so neither reads as the score. The middot is
-    /// a separator, not copy.
+    /// *"EAR 78"* over *"READ 62"* — the ear number and readability value (or an honest *"—"*
+    /// when it does not apply), stacked in the apparatus voice so neither reads as the score and
+    /// neither competes with the name for one line's width.
     private var numbers: some View {
-        SectionLabel(verbatim: Copy.format(
-            "results.standings.row",
-            ScoringFormat.percentValue(standing.earAllTime),
-            ScoringFormat.percent(readability?.readabilityAllTime)
-        ))
+        VStack(alignment: .trailing, spacing: Space.xxs) {
+            SectionLabel(verbatim: Copy.format(
+                "results.standings.ear.row",
+                ScoringFormat.percentValue(standing.earAllTime)
+            ))
+            SectionLabel(verbatim: Copy.format(
+                "results.standings.read.row",
+                ScoringFormat.percent(readability?.readabilityAllTime)
+            ))
+        }
         .fixedSize()
     }
 

@@ -94,6 +94,13 @@ struct RootView: View {
             // A direct invitation received while signed out survives Apple sign-in and naming;
             // this is the first point it can be proved against the recipient's account.
             env.router.consume(session: state, roundIsLoaded: false)
+            // Sign-out (or account deletion) must not leave the previous account's cached
+            // profiles and standings reachable by circle id — ids are the same shape across
+            // accounts, only the holder differs, which keying by circle id cannot see. Clear the
+            // cache exactly as `CircleStore.reset()` clears the circle list.
+            if state == .signedOut {
+                env.routeStores.reset()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             // docs/13 §5 rule 5: the monotonic anchor does not advance while the device is

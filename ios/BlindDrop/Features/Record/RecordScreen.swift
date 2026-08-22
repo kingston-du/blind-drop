@@ -27,7 +27,9 @@ struct RecordScreen: View {
         .toolbar(.visible, for: .navigationBar)
         .toolbar { filterToolbar }
         .task {
-            prepare()
+            if store == nil {
+                store = env.routeStores.recordStore(for: await env.circles.resolveActiveID())
+            }
             await store?.load()
         }
         .onDisappear { player.stop() }
@@ -279,20 +281,6 @@ struct RecordScreen: View {
         return TrackRow.Preview(isPlaying: player.playing == track.trackKey) {
             player.toggle(track)
         }
-    }
-
-    private func prepare() {
-        guard store == nil else { return }
-        let spotify = SpotifyAuth(
-            clientID: env.configuration.spotifyClientID,
-            secrets: Keychain()
-        )
-        store = RecordStore(
-            api: env.api,
-            spotify: SpotifyExporter(auth: spotify),
-            apple: AppleMusicExporter(),
-            circles: env.circles
-        )
     }
 }
 

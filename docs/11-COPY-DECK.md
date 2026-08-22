@@ -329,7 +329,8 @@ Never state how many people did drop.
 | `results.spectrum.high` | Easy to read |
 | `results.standings.title` | All time |
 | `results.standings.rounds` | %lld rounds |
-| `results.standings.row` | Ear %lld · Read %@ |
+| `results.standings.ear.row` | Ear %lld |
+| `results.standings.read.row` | Read %@ |
 | `results.standings.ear` | Best ear |
 | `results.standings.ear.detail` | %lld correct |
 | `results.standings.readability` | How readable |
@@ -459,6 +460,7 @@ either must be able to happen without the other.
 | `insights.confusion` | Mistaken identity |
 | `insights.confusion.as` | as |
 | `insights.confusion.detail` | %lld times. |
+| `insights.confusion.times` | times |
 | `insights.confusion.empty` | No repeated mix-ups yet. |
 | `settings.title` | Settings |
 | `settings.profile` | Profile |

@@ -27,6 +27,10 @@ struct SealedScreen: View {
     /// the switcher appearing. The initialiser's `isPeekingForSnapshot` is the one way a test
     /// seeds this to `true` without a live gesture to drive it.
     @State private var isPeeking: Bool
+    /// The deferred preview stop from a release (`reseal()`). Kept so a fast re-hold can cancel
+    /// it before it fires — without this, the release's one-turn-later pause would cut short the
+    /// very next hold's playback.
+    @State private var pendingStop: Task<Void, Never>?
 
     private let accent = PhaseAccent.sealed
 
@@ -61,6 +65,11 @@ struct SealedScreen: View {
                     // never the one that behaves differently.
                     onHoldChange: { holding in
                         if holding {
+                            // A release just before this re-hold queued a one-turn-later pause.
+                            // Cancel it: the audio is still playing (it was never actually
+                            // stopped), and the hold this finger is now starting owns it.
+                            pendingStop?.cancel()
+                            pendingStop = nil
                             isPeeking = true
                             // `E28-04`: the caller's own preview, for exactly as long as the
                             // hold lasts. `toggle` already no-ops a track with no `preview_url`
@@ -117,10 +126,26 @@ struct SealedScreen: View {
     /// of whatever transaction happens to be open when one of `reseal()`'s callers fires.
     private func reseal() {
         guard isPeeking else { return }
-        if player?.playing == submission.track.trackKey { player?.toggle(submission.track) }
+        // The cover comes back down **before** the audio stops. `stop()` hands the audio session
+        // back to other apps with `notifyOthersOnDeactivation`, which blocks the main actor; if
+        // it ran first, the single-frame reseal `docs/08` §4 requires would wait on that. Defer
+        // the pause one turn so the seal is never the thing that lags — the audio may take a
+        // moment to stop, the cover must not.
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) { isPeeking = false }
+        // Capture the player and the track as locals, not `self`: the `Task` is `@Sendable` and
+        // `self` is a `View` — the pause only needs the one player instance and the one track.
+        let player = self.player
+        let track = submission.track
+        pendingStop = Task { @MainActor in
+            // A re-hold cancels this task, but cancellation is cooperative — the body still
+            // runs — so the guard is what actually keeps a cancelled pause from firing.
+            guard !Task.isCancelled else { return }
+            if player?.playing == track.trackKey {
+                player?.toggle(track)
+            }
+        }
     }
 
     /// *"Sealed until 8:00."*, or *"Sealed again."* after a replacement (`docs/11`).

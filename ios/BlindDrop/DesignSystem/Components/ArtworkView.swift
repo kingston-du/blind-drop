@@ -23,7 +23,11 @@ struct ArtworkView: View {
 
     @Environment(\.artworkLoader) private var loader
     @Environment(\.displayScale) private var displayScale
-    @State private var loaded: UIImage?
+    /// The decoded bitmap, keyed to the URL it was decoded from. The key matters: a card whose
+    /// track changes in place (a replacement on `SealedScreen`) is the same view instance, so an
+    /// un-keyed `UIImage?` would keep showing the first song's artwork while `.task(id: url)`'s
+    /// guard then refused to fetch the new one.
+    @State private var loaded: (url: URL, image: UIImage)?
 
     init(template: String?, backgroundColor: String?, size: CGFloat, fillsWidth: Bool = false) {
         self.template = template
@@ -53,7 +57,7 @@ struct ArtworkView: View {
     /// deterministic: `ImageRenderer` never runs `.task`, so a rendered artwork is one the test
     /// put in the cache and nothing else.
     private var image: UIImage? {
-        if let loaded { return loaded }
+        if let loaded, let url, loaded.url == url { return loaded.image }
         guard let url else { return nil }
         return loader.cachedImage(for: url)
     }
@@ -71,8 +75,8 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.artwork, style: .continuous))
             .accessibilityHidden(true)  // the card announces the track; the art is not a fact
             .task(id: url) {
-                guard image == nil, let url else { return }
-                loaded = await loader.image(for: url)
+                guard let url, loaded?.url != url else { return }
+                loaded = await loader.image(for: url).map { (url: url, image: $0) }
             }
     }
 

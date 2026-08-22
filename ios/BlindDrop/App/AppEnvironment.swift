@@ -32,6 +32,10 @@ final class AppEnvironment {
     /// tied to *the first seal ever*, not to a screen: the sealed screen triggers it, the app
     /// delegate feeds it the APNs token, and neither of those can own it.
     let push: PushRegistrar
+    /// The circle-keyed cache of feature stores (`Features/RouteStoreCache.swift`). Like `circles`,
+    /// it is app-wide state that has to survive navigation: a pushed route that is popped and
+    /// pushed again reuses the same store, so it renders cached content instead of a skeleton.
+    let routeStores: RouteStoreCache
 
     /// `auth` and `secrets` are parameters so `AuthTests` can build a whole environment around
     /// doubles — the alternative is a test that reaches into the simulator's keychain daemon
@@ -90,5 +94,21 @@ final class AppEnvironment {
             flags: flags,
             center: notifications ?? SystemNotificationAuthority()
         )
+        // The one store that needs more than `api` and `circles`: the record store's Spotify
+        // exporter is built here from the app's own configuration, where that configuration
+        // lives. The closure runs lazily, once per circle, so a Spotify auth object is only ever
+        // made for a circle whose Record the caller actually opens.
+        self.routeStores = RouteStoreCache(api: api, circles: circles) {
+            let spotify = SpotifyAuth(
+                clientID: configuration.spotifyClientID,
+                secrets: Keychain()
+            )
+            return RecordStore(
+                api: api,
+                spotify: SpotifyExporter(auth: spotify),
+                apple: AppleMusicExporter(),
+                circles: circles
+            )
+        }
     }
 }

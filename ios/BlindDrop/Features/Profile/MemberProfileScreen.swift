@@ -19,7 +19,12 @@ struct MemberProfileScreen: View {
         .navigationTitle(Text(verbatim: member.displayName))
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if store == nil { store = MemberProfileStore(member: member, api: env.api, circles: env.circles) }
+            if store == nil {
+                store = env.routeStores.profileStore(
+                    member: member,
+                    circleID: await env.circles.resolveActiveID()
+                )
+            }
             await store?.load()
         }
     }

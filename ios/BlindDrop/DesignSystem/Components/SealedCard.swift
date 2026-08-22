@@ -192,7 +192,15 @@ struct SealedArtwork: View {
                         .animation(reducedMotion ? Motion.Peek.reduced : Motion.Peek.animation, value: isPeeking)
                 }
             }
-            .overlay(alignment: .bottomTrailing) { stamp }
+            // The stamp is part of the cover, not of the artwork beneath it — a peek removes the
+            // cover, so it removes the stamp with it. It fades on the same `Motion.Peek` curve
+            // the cover does, and `reseal()`'s no-animation transaction snaps it back just as
+            // instantly on release.
+            .overlay(alignment: .bottomTrailing) {
+                stamp
+                    .opacity(isPeeking ? 0 : 1)
+                    .animation(reducedMotion ? Motion.Peek.reduced : Motion.Peek.animation, value: isPeeking)
+            }
             .clipShape(RoundedRectangle(cornerRadius: Radius.artwork, style: .continuous))
     }
 

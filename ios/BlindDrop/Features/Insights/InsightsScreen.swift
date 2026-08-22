@@ -22,7 +22,9 @@ struct InsightsScreen: View {
             InsightLeaderboardScreen(target: target, select: { selectedMember = $0 })
         }
         .task {
-            if store == nil { store = InsightsStore(api: env.api, circles: env.circles) }
+            if store == nil {
+                store = env.routeStores.insightsStore(for: await env.circles.resolveActiveID())
+            }
             await store?.load()
         }
     }
@@ -116,12 +118,12 @@ struct InsightsContent: View {
     }
 }
 
-/// One "Your reads" card, opened from a scored rate (`E28-07`). **The card itself is the tap
-/// target for the leaderboard** — a centred percentage and name are what a glance is meant to
-/// land on, with no chevron implying a single destination when the honest one is "see everyone,
-/// ranked" — and the name is a second, nested control that goes straight to a profile instead,
-/// the same "tap the person, not the row" split `FlightCard` already draws between its card tap
-/// and its inline controls.
+/// One "Your reads" card, opened from a scored rate (`E28-07`). Drawn in the profile page's
+/// `StatFigure` shape — a leading label, the percentage as an oversized numeral, a proportion
+/// bar, the detail — because these are the same kind of fact those are. **The card itself is the
+/// tap target for the leaderboard**, and the name is a second, nested control that goes straight
+/// to a profile instead, the same "tap the person, not the row" split `FlightCard` already draws
+/// between its card tap and its inline controls.
 private struct InsightReadCard: View {
     let titleKey: String
     let read: InsightReadDTO?
@@ -134,12 +136,13 @@ private struct InsightReadCard: View {
     let openLeaderboard: (InsightLeaderboardTarget) -> Void
 
     var body: some View {
-        VStack(spacing: Space.xs) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             SectionLabel(verbatim: Copy.string(titleKey))
             if let read {
-                VStack(spacing: Space.xxs) {
+                VStack(alignment: .leading, spacing: Space.xs) {
                     Text(verbatim: ScoringFormat.percent(read.rate))
-                        .typeStyle(.displayM).foregroundStyle(Palette.ink)
+                        .typeStyle(.numberL).foregroundStyle(Palette.ink)
+                    ProportionTrack(progress: read.rate)
                     Button { select(read.member) } label: {
                         Text(verbatim: read.member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
                     }
@@ -148,7 +151,7 @@ private struct InsightReadCard: View {
                     Text(verbatim: Copy.format("insights.detail", read.correct, read.possible))
                         .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     openLeaderboard(InsightLeaderboardTarget(kind: titleKey, titleKey: titleKey, entries: entries))
@@ -171,10 +174,10 @@ private struct InsightReadCard: View {
                 }
             } else {
                 Text("insights.empty").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, Space.sm)
     }
 }
@@ -248,33 +251,31 @@ private struct InsightPairList: View {
                 Text("insights.mutual.empty").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
             } else {
                 VStack(spacing: Space.none) {
-                    ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
-                        // **A rank on the left, not centred names** (`E28-07`): the pair reads
-                        // as one row in a small table — a position, who it is, how often — the
-                        // same shape `StandingsView.table` already uses, rather than two names
-                        // floating in the middle of the card with nothing anchoring them.
-                        HStack(alignment: .top, spacing: Space.md) {
-                            Text(verbatim: "\(index + 1)")
-                                .typeStyle(.monoS).foregroundStyle(Palette.inkDim)
-                                .frame(minWidth: Space.xl, alignment: .leading)
-                            VStack(alignment: .leading, spacing: Space.xxs) {
-                                HStack(spacing: Space.xs) {
-                                    ForEach(Array(pair.members.enumerated()), id: \.element.userID) { memberIndex, member in
-                                        if memberIndex > 0 {
-                                            Text("insights.pair.separator").typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                        }
-                                        Button { select(member) } label: {
-                                            Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityIdentifier("insights.member.\(member.userID)")
-                                        .accessibilityHint(Copy.string("insights.profile.hint"))
+                    ForEach(pairs) { pair in
+                        // The percentage-bar shape "Your reads" uses, at the smaller size a pair
+                        // of names wants: the names are the row's label, the number and bar carry
+                        // the "how often" that the old rank numeral used to point at.
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            HStack(spacing: Space.xs) {
+                                ForEach(Array(pair.members.enumerated()), id: \.element.userID) { memberIndex, member in
+                                    if memberIndex > 0 {
+                                        Text("insights.pair.separator").typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
                                     }
+                                    Button { select(member) } label: {
+                                        Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityIdentifier("insights.member.\(member.userID)")
+                                    .accessibilityHint(Copy.string("insights.profile.hint"))
                                 }
-                                Text(verbatim: Copy.format("insights.detail", pair.correct, pair.possible))
-                                    .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
                             }
+                            Text(verbatim: ScoringFormat.percent(pair.rate))
+                                .typeStyle(.numberM).foregroundStyle(Palette.ink)
+                            ProportionTrack(progress: pair.rate, height: ProportionTrack.compactHeight)
+                            Text(verbatim: Copy.format("insights.detail", pair.correct, pair.possible))
+                                .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, Space.sm)
                         if pair.id != pairs.last?.id { Rule() }
                     }
@@ -297,7 +298,10 @@ private struct InsightConfusionList: View {
             } else {
                 VStack(spacing: Space.none) {
                     ForEach(confusion.pairs) { pair in
-                        VStack(alignment: .leading, spacing: Space.xs) {
+                        // Names on the leading edge, the count as a large display-face numeral on
+                        // the trailing edge — the same number language the percentage bars above
+                        // speak, so "5 times" reads as a fact of the same weight as a percentage.
+                        HStack(alignment: .top, spacing: Space.md) {
                             HStack(spacing: Space.xs) {
                                 Button { select(pair.actualMember) } label: {
                                     Text(verbatim: pair.actualMember.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
@@ -313,8 +317,15 @@ private struct InsightConfusionList: View {
                                 .accessibilityIdentifier("insights.member.\(pair.mistakenForMember.userID)")
                                 .accessibilityHint(Copy.string("insights.profile.hint"))
                             }
-                            Text(verbatim: Copy.format("insights.confusion.detail", pair.count))
-                                .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
+                            Spacer(minLength: Space.sm)
+                            VStack(alignment: .trailing, spacing: Space.none) {
+                                Text(verbatim: "\(pair.count)")
+                                    .typeStyle(.numberM).foregroundStyle(Palette.ink)
+                                Text("insights.confusion.times")
+                                    .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
+                            }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text(verbatim: Copy.format("insights.confusion.detail", pair.count)))
                         }
                         .padding(.vertical, Space.sm)
                         if pair.id != confusion.pairs.last?.id { Rule() }
