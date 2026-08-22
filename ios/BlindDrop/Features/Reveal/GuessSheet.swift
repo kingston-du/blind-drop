@@ -194,16 +194,15 @@ struct GuessSheet: View {
         .onAppear { onMetrics?(metrics) }
     }
 
-    private var dragGesture: some Gesture {
-        // `Space.sm`, not `Space.xs` (`E28-03`): the header also carries a plain tap that
-        // toggles the detent, and the two used to be attached side by side rather than composed
-        // — a quick flick satisfied both, so the drag committed the new detent and the tap
-        // immediately toggled it straight back, which is why nothing short of a slow, deliberate
-        // drag ever visibly worked. `peekHeader` below now runs this exclusively *before* the
-        // tap, so only one of them resolves per touch; the larger minimum distance is the second
-        // half of the fix, keeping an actual tap from ever registering as a one-point drag that
-        // could contend for it in the first place.
-        DragGesture(minimumDistance: Space.sm)
+    private var headerGesture: some Gesture {
+        // One recogniser owns every touch on the header, so a drag and a tap can never both fire.
+        // (`E28-03` composed the two with `.exclusively(before:)` and a flick still satisfied
+        // both — the tap fired after the drag committed and toggled the detent straight back,
+        // which is why a flick appeared to do nothing and only a slow, deliberate drag worked.)
+        // `minimumDistance: Space.none` recognises on touch-down, and `onEnded` is the one place
+        // that decides, from how far the finger actually travelled, whether the touch was a tap
+        // (toggle) or a drag (commit or spring back).
+        DragGesture(minimumDistance: Space.none)
             .onChanged { value in
                 guard canCollapse else { return }
                 let translation = value.translation.height
@@ -216,14 +215,21 @@ struct GuessSheet: View {
                     withAnimation(Motion.CallSheet.spring) { dragOffset = 0 }
                     return
                 }
-                let resolved = CallSheetDetent.resolved(
-                    from: detent,
-                    predictedEndTranslation: value.predictedEndTranslation.height,
-                    collapseDistance: collapseDistance,
-                    velocity: value.velocity.height
-                )
-                if resolved != detent {
-                    setDetent(resolved)
+                // A touch that never moved meaningfully is the header's tap-to-toggle. The
+                // boundary is the `Space.sm` the drag's `minimumDistance` used to be, so what
+                // counts as a tap has not moved.
+                if abs(value.translation.height) < Space.sm {
+                    toggleDetent()
+                } else {
+                    let resolved = CallSheetDetent.resolved(
+                        from: detent,
+                        predictedEndTranslation: value.predictedEndTranslation.height,
+                        collapseDistance: collapseDistance,
+                        velocity: value.velocity.height
+                    )
+                    if resolved != detent {
+                        setDetent(resolved)
+                    }
                 }
                 // `.animation(_:value:)` on the body is keyed to `detent`, so a drag that *does*
                 // cross the threshold gets its spring for free when `setDetent` changes it above.
@@ -352,18 +358,11 @@ struct GuessSheet: View {
         .background {
             // This must be a gesture surface, rather than a transparent `Button`: SwiftUI gives
             // the button's press recognizer the header's drag before the sheet can observe it.
-            // A normal tap still toggles the detent, and the drag owns both directions.
-            //
-            // **`.exclusively(before:)`, not two separate gesture attachments** (`E28-03`). Two
-            // recognisers on one view both got a look at every touch, so a flick — a real drag,
-            // just a short and fast one — satisfied the tap's criteria too, and the tap fired
-            // *after* the drag committed the new detent, immediately toggling it back. Composing
-            // them into one recognizer makes that outcome impossible: SwiftUI resolves the drag
-            // first, and only offers the touch to the tap once the drag has declared it is not
-            // one — which for `minimumDistance: Space.sm` is within the first few points.
+            // A normal tap still toggles the detent, and the drag owns both directions — both
+            // are `headerGesture` now, so one touch can only ever resolve one way.
             Color.clear
                 .contentShape(Rectangle())
-                .gesture(dragGesture.exclusively(before: TapGesture().onEnded { toggleDetent() }))
+                .gesture(headerGesture)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityLabel(Text(
                     detent == .open ? "reveal.callsheet.collapse" : "reveal.callsheet.expand"
