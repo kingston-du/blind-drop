@@ -53,12 +53,13 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
     /// runs its body on a background cooperative queue when the method is `nonisolated`, and the
     /// response's scene/state-restoration path then ran off the main thread and crashed with a
     /// UIKit assertion (`_updateSnapshotAndStateRestorationWithAction:windowScene:` → SIGABRT).
-    /// The synchronous spelling is delivered on the main thread, so the link string is lifted out
-    /// there; only the work that touches main-actor state hops back via `Task { @MainActor }`.
+    /// UIKit runs that same scene/state-restoration path on whatever thread `completionHandler()`
+    /// is called on, so the handler is hopped to the main actor along with the router work. The
+    /// SDK declares it `@Sendable`, which is what lets it cross that boundary cleanly.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
         let raw = response.notification.request.content.userInfo[PushRouter.deepLinkKey] as? String
         Task { @MainActor in
@@ -69,8 +70,8 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
                     session: environment.session.state
                 )
             }
+            completionHandler()
         }
-        completionHandler()
     }
 
     /// A notification that arrived while the app was open.
