@@ -17,7 +17,10 @@ right — this is a layout and hierarchy pass, not a rewrite of what it's allowe
 `ios/BlindDrop/Features/Results/Share/ShareRenderer.swift`, `docs/10-SHARE-CARD-SPEC.md`,
 `ios/BlindDropTests/Snapshot/ShareCardSnapshotTests.swift`,
 `ios/BlindDropTests/Unit/ShareRendererTests.swift`, `ios/BlindDropTests/Unit/ShareHeadlineTests.swift`
-**Verify:** `-only-testing:BlindDropSnapshotTests/ShareCardSnapshotTests -only-testing:BlindDropUnitTests/ShareRendererTests -only-testing:BlindDropUnitTests/ShareHeadlineTests`;
+**Verify:** `-only-testing:BlindDropSnapshotTests/ShareCardSnapshots -only-testing:BlindDropUnitTests/ShareRendererTests -only-testing:BlindDropUnitTests/ShareHeadlineTests`
+(the suite is `ShareCardSnapshots`, not `ShareCardSnapshotTests` — the filename `ShareCardSnapshotTests.swift`
+matches the old name but the `-only-testing:` filter needs the actual `struct`/`class` name; the
+stale name silently matches zero tests and reports a false "0 tests, passed" rather than an error);
 `./ios/scripts/lint.sh`. Simulator: share sheet from scored rounds with 1 song, 4 songs, and 6+
 songs (overflow), exercising as many of `ShareHeadline`'s five precedence branches as the fixture
 data allows. Screenshot both render sizes (square-tall, story).
