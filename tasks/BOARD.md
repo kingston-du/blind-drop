@@ -105,6 +105,20 @@ E17-10 gated the **iOS** work, because it is what left the app's goldens and its
 test in a known state. That gate is open. E23-01 and E27 touch neither, so they never waited —
 their `Deps` columns say `—` and mean it. E19-03 and E20-03 join the two lanes back together and need both.
 
+### Next progression
+
+```
+E29 results & record depth      E29-03 independent; E29-01/E29-02 exclusive (both touch ResultsScreen)
+E30 share card                  one slice
+E31 conditional reminders       one slice, amends CLAUDE.md §2.6 — see the epic file
+E32 two small fixes             two independent slices
+E33 record chip                 done — landed, goldens re-recorded
+E34 marketing website           one slice — mostly outside this repo
+```
+
+None of `E29`–`E34` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
+is the spec all six were cut from.
+
 ---
 
 ## E00 — Repo, tooling, CI · [file](E00-repo-and-tooling.md)
@@ -426,6 +440,55 @@ separately, not this epic's).
 
 ---
 
+# Next progression
+
+Nine improvements the owner named as the next progression for the app, spec'd in
+`docs/17-NEXT-FEATURES.md` and cut into epics here.
+
+## E29 — Results and Record, deepened · [file](E29-results-and-record-depth.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E29-01 Who guessed you, and how tonight stacked up | todo | — | vs E29-03 | AC-1, AC-8 |
+| E29-02 Preview playback on past results | todo | — | vs E29-03 | — |
+| E29-03 Song links, consistent across every card state | todo | — | vs E29-01, E29-02 | — |
+
+## E30 — A share card worth sharing · [file](E30-share-card-redesign.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E30-01 Lead with the moment, not the table | todo | — | yes | AC-9 |
+
+## E31 — Conditional reminders, not a universal nudge · [file](E31-conditional-reminders.md)
+
+Amends `CLAUDE.md` §2.6 (the 3-deliveries/day cap). Not an agent's call — recorded as an owner
+amendment in the epic file.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E31-01 Two conditions replace one universal nudge | todo | — | yes | AC-3 |
+
+## E32 — Two small, independent fixes · [file](E32-two-small-fixes.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E32-01 The call sheet commits instead of springing back | todo | — | vs E32-02 | — |
+| E32-02 The menu doesn't peek through the pop transition | todo | — | vs E32-01 | — |
+
+## E33 — Finish the record chip · [file](E33-record-chip-finish.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E33-01 Finish, verify, and commit the in-flight record chip | done | — | yes | AC-2 gates |
+
+## E34 — Marketing website (separate repo) · [file](E34-marketing-website.md)
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E34-01 Coordinate this repo's half | todo | — | yes | — |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -463,3 +526,13 @@ separately, not this epic's).
 | E26 UI polish | 4 / 4 |
 | E27 spikes | 5 / 5 |
 | **Beta total** | **26 / 28** |
+
+| Next-progression epic | Done / Total |
+|---|---|
+| E29 results & record depth | 0 / 3 |
+| E30 share card | 0 / 1 |
+| E31 conditional reminders | 0 / 1 |
+| E32 two small fixes | 0 / 2 |
+| E33 record chip | 1 / 1 |
+| E34 marketing website | 0 / 1 |
+| **Next-progression total** | **1 / 9** |
