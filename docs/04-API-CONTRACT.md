@@ -693,10 +693,11 @@ There is no endpoint for any of these, and adding one is a spec violation:
   caller's membership, never from the request).
   <!-- Superseded by ADR-011 from E18-01: routes name the group, and each proves membership of
        that group explicitly. Until E18-01 lands, the rule above is still the truth. -->
-- Push-notification preferences. Three pushes, no settings (`05-JOBS-AND-NOTIFICATIONS.md`).
-  <!-- Amended by the owner (ADR-011, CLAUDE.md §2.6): three *deliveries* per user per day
-       across all their circles, grouped where they coincide. E23-02 lands it. Still no
-       preferences — that part is unchanged. -->
+- Push-notification preferences. No settings, at any delivery volume (`05-JOBS-AND-NOTIFICATIONS.md`).
+  <!-- Amended by the owner (ADR-011, CLAUDE.md §2.6): deliveries are grouped per user across all
+       their circles where they coincide. E23-02 lands it. Amended again by E31-01: the fixed
+       3-deliveries/day ceiling that amendment introduced is lifted (docs/17 §5) — up to five in
+       an evening is possible now. Still no preferences screen — that part is unchanged. -->
 
 ---
 

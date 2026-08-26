@@ -55,14 +55,21 @@ These are product-defining. A change here needs the owner, not an agent.
    phase does not inherit it, and the rest of How to play (the scoring card, the notes) stays
    neutral. See `Features/HowTo/HowToSheet.swift`, which argues it at length; do not revert it
    as a rule violation.
-6. **Three push deliveries a day, per user, maximum — across all their circles.**
-   See `docs/05-JOBS-AND-NOTIFICATIONS.md`. Originally three per user per day, when a user had
-   one group; **amended by the owner** when multi-circle landed (ADR-011). The budget did not
-   grow with the number of circles, because the point of the rule was the user's evening, not
-   the group's. Two consequences, both binding: a reveal that fires for three circles at the
-   same hour is **one** grouped notification, not three; and the kinds themselves stay closed —
-   `nudge`, `reveal`, `results`, `void`, plus `invite` (E20). A fifth kind, or a fourth
-   delivery, is a product change and needs the owner.
+6. **No fixed daily push cap — but the kinds are still a closed set, and coincident circles
+   still group.** See `docs/05-JOBS-AND-NOTIFICATIONS.md`. Originally three deliveries per user
+   per day; **amended by the owner** when multi-circle landed (ADR-011), which kept the cap at
+   three but stopped it growing with circle count. **Amended again by the owner**, on the same
+   footing as ADR-011, in `docs/17-NEXT-FEATURES.md` §5 (E31): the unconditional `nudge` is
+   retired for two conditional reminders, `seal_reminder` (up to twice a round) and
+   `guess_reminder` (once), and the 3/day cap is lifted to admit them — a fully disengaged
+   member in one circle can now see up to five pushes in an evening (both `seal_reminder`s,
+   `reveal`, `guess_reminder`, `results`). What the cap protected is otherwise unchanged: a
+   reveal that fires for three circles at the same hour is still **one** grouped notification,
+   not three, and the kinds themselves stay closed — `seal_reminder`, `guess_reminder`,
+   `reveal`, `results`, `void`, plus `invite` (E20). A seventh kind, or a push that mentions
+   another member's status or a count, is a product change and needs the owner. `nudge` is
+   retired; the label is not removed from the database (Postgres cannot drop an enum value),
+   but no code path produces it anymore.
 7. **No gamification.** No streaks, badges, XP, levels, or cosmetics. See `docs/16`.
 8. **Scores are derived, not stored.** Compute from `guesses` × `submissions` on read.
 

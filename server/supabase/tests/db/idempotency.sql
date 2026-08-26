@@ -210,21 +210,46 @@ $query$)),
      and r.reveals_at <= '2059-12-31T18:00:00Z'::timestamptz - interval '2 hours'
    order by r.reveals_at, r.id for update skip locked
 $query$)),
-('nudge', pg_temp.explain_json($query$
+-- E31-01 retired the single unconditional nudge scan for three conditional ones. All three are
+-- still expressed via reveals_at, not scores_at — guess_reminder has no scores_at column in
+-- rounds_pending_tick to lean on, so it is written the same way the pre-existing 'score' entry
+-- above is: as an equivalent reveals_at comparison (docs/03 §4: scores_at is always
+-- reveals_at + 2h), so it gets the same index instead of falling back to a scan.
+('seal_reminder_2h', pg_temp.explain_json($query$
   select r.id, r.group_id from public.rounds r
    where r.state = 'open'
      and r.reveals_at > '2060-01-01T18:00:00Z'
      and r.reveals_at <= '2060-01-01T18:00:00Z'::timestamptz + interval '2 hours'
      and not exists (select 1 from public.notification_outbox o
-                      where o.round_id = r.id and o.kind = 'nudge')
+                      where o.round_id = r.id and o.kind = 'seal_reminder'
+                        and o.scheduled_for = r.reveals_at - interval '2 hours')
+   order by r.reveals_at, r.id for update skip locked
+$query$)),
+('seal_reminder_30m', pg_temp.explain_json($query$
+  select r.id, r.group_id from public.rounds r
+   where r.state = 'open'
+     and r.reveals_at > '2060-01-01T18:00:00Z'
+     and r.reveals_at <= '2060-01-01T18:00:00Z'::timestamptz + interval '30 minutes'
+     and not exists (select 1 from public.notification_outbox o
+                      where o.round_id = r.id and o.kind = 'seal_reminder'
+                        and o.scheduled_for = r.reveals_at - interval '30 minutes')
+   order by r.reveals_at, r.id for update skip locked
+$query$)),
+('guess_reminder', pg_temp.explain_json($query$
+  select r.id, r.group_id from public.rounds r
+   where r.state = 'revealed'
+     and r.reveals_at <= '2059-12-31T18:00:00Z'::timestamptz - interval '1 hour 30 minutes'
+     and not exists (select 1 from public.notification_outbox o
+                      where o.round_id = r.id and o.kind = 'guess_reminder')
    order by r.reveals_at, r.id for update skip locked
 $query$));
 
 select set_eq(
   $$ select name from e306_plans
       where jsonb_path_exists(plan, '$.** ? (@."Index Name" == "rounds_pending_tick")') $$,
-  $$ values ('reveal'::text), ('score'::text), ('nudge'::text) $$,
-  'every due-round selector uses rounds_pending_tick');
+  $$ values ('reveal'::text), ('score'::text), ('seal_reminder_2h'::text),
+            ('seal_reminder_30m'::text), ('guess_reminder'::text) $$,
+  'every due-round selector uses rounds_pending_tick, including E31-01''s three new scans');
 select is_empty($$
   select name from e306_plans
    where jsonb_path_exists(plan,

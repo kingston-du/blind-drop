@@ -12,6 +12,7 @@ import {
   PUSH_CONCURRENCY,
   PUSH_MAX_ATTEMPTS,
   type PushDevice,
+  sealReminderFiring,
 } from "../../functions/push-worker/worker.ts";
 import {
   ANON_KEY,
@@ -49,6 +50,7 @@ const row: ClaimedNotification = {
   attempts: 1,
   reveals_at: "2026-08-11T20:00:00Z",
   scores_at: "2026-08-11T22:00:00Z",
+  scheduled_for: "2026-08-11T20:00:00Z",
   invitation_expires_at: null,
 };
 const device: PushDevice = {
@@ -89,8 +91,51 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
   const resultsBody = await apnsRequest(results, device, "jwt", "topic").json();
   assertEquals(resultsBody.deep_link, `blinddrop://circle/${row.group_id}/round/current/results`);
 
-  const nudge = { ...row, kind: "nudge" as const };
-  assertEquals(notificationExpiration(nudge), Date.parse(row.reveals_at!) / 1_000);
+  // seal_reminder expires at reveal — a reminder to seal is pointless once the round revealed.
+  const sealFirst = {
+    ...row,
+    kind: "seal_reminder" as const,
+    scheduled_for: "2026-08-11T18:00:00Z", // reveals_at − 2h
+  };
+  assertEquals(notificationExpiration(sealFirst), Date.parse(row.reveals_at!) / 1_000);
+  assertEquals(sealReminderFiring(sealFirst), "first");
+  const sealFirstBody = await apnsRequest(sealFirst, device, "jwt", "topic").json();
+  assertEquals(sealFirstBody.aps.alert, {
+    title: "Blind Drop",
+    body: "You haven't sealed a song yet. Two hours left.",
+  });
+  assertEquals(sealFirstBody.deep_link, `blinddrop://circle/${row.group_id}/round/current`);
+
+  const sealSecond = {
+    ...row,
+    kind: "seal_reminder" as const,
+    scheduled_for: "2026-08-11T19:30:00Z", // reveals_at − 30m
+  };
+  assertEquals(sealReminderFiring(sealSecond), "second");
+  const sealSecondBody = await apnsRequest(sealSecond, device, "jwt", "topic").json();
+  assertEquals(sealSecondBody.aps.alert, {
+    title: "Blind Drop",
+    body: "Half an hour left, and you haven't sealed a song.",
+  });
+  // Both firings collapse into one banner on the device — same round, same kind.
+  assertEquals(
+    apnsRequest(sealFirst, device, "jwt", "topic").headers.get("apns-collapse-id"),
+    apnsRequest(sealSecond, device, "jwt", "topic").headers.get("apns-collapse-id"),
+  );
+
+  // guess_reminder expires at scoring — a reminder to guess is pointless once the round scored.
+  const guessReminder = {
+    ...row,
+    kind: "guess_reminder" as const,
+    scheduled_for: "2026-08-11T21:30:00Z", // scores_at − 30m
+  };
+  assertEquals(notificationExpiration(guessReminder), Date.parse(row.scores_at!) / 1_000);
+  const guessReminderBody = await apnsRequest(guessReminder, device, "jwt", "topic").json();
+  assertEquals(guessReminderBody.aps.alert, {
+    title: "Blind Drop",
+    body: "Half an hour left to guess who dropped what.",
+  });
+  assertEquals(guessReminderBody.deep_link, `blinddrop://circle/${row.group_id}/round/current`);
 
   const invitation: ClaimedNotification = {
     ...row,
@@ -100,6 +145,7 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
     kind: "invite",
     reveals_at: null,
     scores_at: null,
+    scheduled_for: null,
     invitation_expires_at: "2026-08-25T20:00:00Z",
   };
   const invitationRequest = apnsRequest(invitation, device, "jwt", "topic");
@@ -185,7 +231,7 @@ async function invitationOutboxFor(userID: string): Promise<InvitationOutboxRow[
 
 // ─── E20-03 · direct-invitation deliveries ───────────────────────────────────
 
-Deno.test("invitations enqueue one budgeted delivery and coalesce before it sends", async () => {
+Deno.test("invitations coalesce before sending, with no fixed daily delivery ceiling (E31-01)", async () => {
   await clearPending();
   const recipient = await newNamedUser("Invite Recipient");
   const first = await newGroupOwner("First Inviter");
@@ -213,9 +259,10 @@ Deno.test("invitations enqueue one budgeted delivery and coalesce before it send
   );
   assertEquals(coalesced[0].sent_at, null);
 
-  // A sent notification consumes one of the same rolling 24-hour slots as all round kinds.
-  // Make three such events against different circles, settling each one as the fixture APNs
-  // worker would, then prove a fourth direct invitation remains silent.
+  // E31-01 lifted the fixed 3-deliveries/24h ceiling this used to be capped by. Send two more
+  // direct-invitation deliveries against different circles (three total, settled as the fixture
+  // APNs worker would), then prove a fourth is admitted too — nothing throttles it centrally
+  // anymore; only the coalescing above (several *pending* invites, one row) still applies.
   await clearPending();
   for (const label of ["Budget Two", "Budget Three"]) {
     const inviter = await newGroupOwner(label);
@@ -233,11 +280,11 @@ Deno.test("invitations enqueue one budgeted delivery and coalesce before it send
     token: fourth.user.token,
     body: { user_id: recipient.id },
   });
-  assertEquals(fourthInvite.status, 200, "the invitation itself is never refused by push budget");
+  assertEquals(fourthInvite.status, 200, "the invitation itself was never refused by push budget");
   assertEquals(
     (await invitationOutboxFor(recipient.id)).length,
-    3,
-    "the fourth invitation does not become a fourth delivery in the rolling day",
+    4,
+    "the fourth invitation is now a real fourth delivery — E31-01 lifted the daily cap",
   );
 });
 
@@ -581,73 +628,194 @@ Deno.test("429 and 5xx leave the row for the next minute, then stop at five atte
   assert(abandoned.last_error?.startsWith("503"), "the last failure survives on the row");
 });
 
-Deno.test("the nudge audience is the active roster at enqueue — docs/05 §3", async () => {
-  await clearPending();
-  // 17:00 local with a reveal at 20:00, so a tick an hour and a half on lands inside the
-  // two-hour nudge window without changing the group's local date.
-  const { user: ana, group } = await newGroupOwner("Ana", {
-    name: `Push Nudge ${crypto.randomUUID().slice(0, 8)}`,
-    timezone: zoneWhereLocalHourIs(17),
-    reveal_hour: 20,
-  });
-  const ben = await newMember(group.invite_code as string, "Ben");
-  const cal = await newMember(group.invite_code as string, "Cal");
-  const roundId =
-    (await call("rounds", "/current", { token: ana.token })).body.data.round_id as string;
-
-  const tokens = {
-    ana: await registerDevice(ana.token),
-    ben: await registerDevice(ben.token),
-    cal: await registerDevice(cal.token),
-  };
-
-  // Ana seals before the nudge is enqueued. The nudge still invites her to revise that choice.
-  assertEquals(
-    (await call("rounds", "/current/submission", {
-      method: "PUT",
-      token: ana.token,
-      body: { apple_music_id: "1440818664" },
-    })).status,
-    200,
-  );
-
-  await tickRoundsAt(1.5);
-  const enqueued = (await serviceRequest(
-    `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.nudge`,
+/**
+ * Every seal_reminder row for a round, oldest `scheduled_for` first — E31-01 fires this kind
+ * twice per round (`reveals_at − 2h`, then `− 30m`), so callers pick firing 1/2 by position.
+ */
+async function sealReminderRows(roundId: string): Promise<{ id: string; audience: string[] }[]> {
+  return (await serviceRequest(
+    `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.seal_reminder` +
+      `&order=scheduled_for.asc`,
   )).body as { id: string; audience: string[] }[];
-  assertEquals(enqueued.length, 1, "one nudge, at reveals_at − 2h");
-  assertEquals(
-    [...enqueued[0].audience].sort(),
-    [ana.id, ben.id, cal.id].sort(),
-    "the nudge reaches every active member, including people who already dropped",
-  );
+}
 
-  // Cal seals at −1h55m, and a second tick runs before the worker does. The audience is not
-  // revised: re-resolving at send time would mean the worker reads submission state.
-  assertEquals(
-    (await call("rounds", "/current/submission", {
-      method: "PUT",
-      token: cal.token,
-      body: { apple_music_id: "1440765580" },
-    })).status,
-    200,
-  );
-  await tickRoundsAt(1.6);
-  const afterCalSealed = (await serviceRequest(
-    `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.nudge`,
-  )).body as { id: string; audience: string[] }[];
-  assertEquals(afterCalSealed.length, 1, "a second tick does not enqueue a second nudge");
-  assertEquals(
-    [...afterCalSealed[0].audience].sort(),
-    [ana.id, ben.id, cal.id].sort(),
-    "someone who seals after the freeze still receives the nudge",
-  );
+Deno.test(
+  "seal_reminder and guess_reminder audiences are conditional at enqueue, and trimmed at " +
+    "claim — docs/05 §3, E31-01",
+  async () => {
+    await clearPending();
+    // 17:00 local with a reveal at 20:00 (scores at 22:00), so the offsets below land inside
+    // each window without crossing the group's local date.
+    const { user: ana, group } = await newGroupOwner("Ana", {
+      name: `Push Reminders ${crypto.randomUUID().slice(0, 8)}`,
+      timezone: zoneWhereLocalHourIs(17),
+      reveal_hour: 20,
+    });
+    const ben = await newMember(group.invite_code as string, "Ben");
+    const cal = await newMember(group.invite_code as string, "Cal");
+    const roundId =
+      (await call("rounds", "/current", { token: ana.token })).body.data.round_id as string;
 
-  await clearPending(enqueued[0].id);
-  const stub = stubApns(() => ({ status: 200 }));
-  await drainPushOutbox(serviceClient(), stub.fetchApns);
-  assertEquals(stub.tokens.sort(), [tokens.ana, tokens.ben, tokens.cal].sort());
-});
+    const tokens = {
+      ana: await registerDevice(ana.token),
+      ben: await registerDevice(ben.token),
+      cal: await registerDevice(cal.token),
+    };
+
+    // Ben drops right away — he should never appear in either seal_reminder firing.
+    assertEquals(
+      (await call("rounds", "/current/submission", {
+        method: "PUT",
+        token: ben.token,
+        body: { apple_music_id: "1440818664" },
+      })).status,
+      200,
+    );
+
+    // ── reveals_at − 2h (offset 1.5h → 18:30 local): Ben has submitted, Ana and Cal have not ──
+    await tickRoundsAt(1.5);
+    const afterFirstTick = await sealReminderRows(roundId);
+    assertEquals(afterFirstTick.length, 1, "one seal_reminder row after the 2h window opens");
+    assertEquals(
+      [...afterFirstTick[0].audience].sort(),
+      [ana.id, cal.id].sort(),
+      "the 2h reminder reaches only members who haven't sealed a song yet",
+    );
+
+    // Cal seals between the two firings.
+    assertEquals(
+      (await call("rounds", "/current/submission", {
+        method: "PUT",
+        token: cal.token,
+        body: { apple_music_id: "1440765580" },
+      })).status,
+      200,
+    );
+
+    // ── reveals_at − 30m (offset 2.6h → 19:36 local): only Ana is still unsealed ─────────────
+    await tickRoundsAt(2.6);
+    const afterSecondTick = await sealReminderRows(roundId);
+    assertEquals(afterSecondTick.length, 2, "the 30m window adds a second, distinct row");
+    const [firstFiring, secondFiring] = afterSecondTick;
+    assertEquals(
+      [...firstFiring.audience].sort(),
+      [ana.id, cal.id].sort(),
+      "the first firing's own row is not rewritten by Cal sealing later — frozen at enqueue",
+    );
+    assertEquals(
+      [...secondFiring.audience],
+      [ana.id],
+      "the 30m reminder is computed fresh: Cal has since sealed and drops out",
+    );
+
+    // Ana seals just before reveal — after both seal_reminder rows were frozen, before either
+    // is drained. This is the enqueue/claim gap docs/05 §3 now calls out explicitly.
+    assertEquals(
+      (await call("rounds", "/current/submission", {
+        method: "PUT",
+        token: ana.token,
+        body: { apple_music_id: "1452874255" },
+      })).status,
+      200,
+    );
+
+    // Draining now must skip Ana on *both* rows — her condition resolved before claim — and
+    // send nobody else, since the DB rows still list only her (Cal already excluded from the
+    // second, and never in the first... Ben never appears in either).
+    await clearPending(firstFiring.id);
+    const sealDrain = stubApns(() => ({ status: 200 }));
+    await drainPushOutbox(serviceClient(), sealDrain.fetchApns);
+    assertEquals(sealDrain.tokens, [], "seal_reminder(2h): Ana sealed before claim, so no send");
+    const firstFiringSentAt = (await serviceRequest(
+      `notification_outbox?select=sent_at&id=eq.${firstFiring.id}`,
+    )).body as { sent_at: string | null }[];
+    assertEquals(
+      firstFiringSentAt[0].sent_at !== null,
+      true,
+      "settled to an empty audience still marks the row sent_at",
+    );
+
+    await clearPending(secondFiring.id);
+    const secondDrain = stubApns(() => ({ status: 200 }));
+    await drainPushOutbox(serviceClient(), secondDrain.fetchApns);
+    assertEquals(secondDrain.tokens, [], "seal_reminder(30m): Ana sealed before claim too");
+
+    // ── reveal, at reveals_at (offset 3.0h → 20:00 local): unconditional, unaffected by E31-01 ─
+    await clearPending();
+    await tickRoundsAt(3.0);
+    // Both seal_reminder rows are already sent (drained above); this adds exactly one more kind.
+    assertEquals(await outboxKinds(roundId), ["reveal", "seal_reminder", "seal_reminder"]);
+
+    // Ben completes his guess sheet; Cal makes one of two guesses (partial); Ana never opens
+    // the sheet at all. `card_no` is shared round-wide, but "the other two cards" is relative
+    // to each guesser's own card, so each fetches their own view.
+    async function otherCardNosFor(token: string): Promise<number[]> {
+      const view = (await call("rounds", "/current", { token })).body
+        .data as { cards: { card_no: number }[]; my_card_no: number };
+      const others = view.cards.map((c) => c.card_no).filter((n) => n !== view.my_card_no);
+      assertEquals(others.length, 2, "three submitters means two cards to name");
+      return others;
+    }
+
+    const bensOthers = await otherCardNosFor(ben.token);
+    assertEquals(
+      (await call("rounds", "/current/guesses", {
+        method: "PUT",
+        token: ben.token,
+        body: {
+          assignments: bensOthers.map((card_no) => ({ card_no, guessed_user_id: ana.id })),
+        },
+      })).status,
+      200,
+      "Ben completes his sheet",
+    );
+
+    const calsOthers = await otherCardNosFor(cal.token);
+    assertEquals(
+      (await call("rounds", "/current/guesses", {
+        method: "PUT",
+        token: cal.token,
+        body: { assignments: [{ card_no: calsOthers[0], guessed_user_id: ana.id }] },
+      })).status,
+      200,
+      "Cal guesses only one of two cards",
+    );
+
+    // ── guess_reminder, at scores_at − 30m (offset 4.6h → 21:36 local) ──────────────────────
+    await tickRoundsAt(4.6);
+    const guessReminderEnqueued = (await serviceRequest(
+      `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.guess_reminder`,
+    )).body as { id: string; audience: string[] }[];
+    assertEquals(guessReminderEnqueued.length, 1, "one guess_reminder, at scores_at − 30m");
+    assertEquals(
+      [...guessReminderEnqueued[0].audience].sort(),
+      [ana.id, cal.id].sort(),
+      "guess_reminder reaches submitters with an incomplete sheet — Ben is done, so excluded",
+    );
+
+    // Cal finishes their sheet after enqueue, before the worker claims the row.
+    assertEquals(
+      (await call("rounds", "/current/guesses", {
+        method: "PUT",
+        token: cal.token,
+        body: {
+          assignments: calsOthers.map((card_no) => ({ card_no, guessed_user_id: ana.id })),
+        },
+      })).status,
+      200,
+      "Cal completes their sheet before the reminder is drained",
+    );
+
+    await clearPending(guessReminderEnqueued[0].id);
+    const guessDrain = stubApns(() => ({ status: 200 }));
+    await drainPushOutbox(serviceClient(), guessDrain.fetchApns);
+    assertEquals(
+      guessDrain.tokens,
+      [tokens.ana],
+      "Cal is skipped (resolved before claim); Ana, still incomplete, is sent",
+    );
+  },
+);
 
 Deno.test("reveal and void are mutually exclusive for a round", async () => {
   const zone = zoneWhereLocalHourIs(17);
@@ -704,11 +872,10 @@ Deno.test("reveal and void are mutually exclusive for a round", async () => {
 });
 
 Deno.test("a delivered row is one push per device and is never delivered twice", async () => {
-  // The season budget — no more than three notifications to anyone in any 24 hours — is
-  // proven at the enqueue layer over fourteen simulated days by
-  // `tests/db/notification_budget.sql`. This is the other half: what the outbox holds is what
-  // the phone gets, exactly once per registered device, so the enqueue budget *is* the
-  // delivery budget.
+  // What each outbox row's audience should be — no fixed daily ceiling as of E31-01, but still
+  // exactly the coalesced, conditional set a kind's own rule computes — is proven at the enqueue
+  // layer by `tests/db/notification_budget.sql`. This is the other half: what the outbox holds
+  // is what the phone gets, exactly once per registered device, no more and no less.
   await clearPending();
   const { roundId, user_token } = await voidingRound("Push Once");
   const first = await registerDevice(user_token);

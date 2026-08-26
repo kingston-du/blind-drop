@@ -14,7 +14,7 @@ One slice, from `docs/17-NEXT-FEATURES.md` §5.
 
 ### E31-01 — Two conditions replace one universal nudge
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/17-NEXT-FEATURES.md` §5, `docs/05-JOBS-AND-NOTIFICATIONS.md` (all), `docs/03-DATA-MODEL.md` §4
@@ -45,27 +45,27 @@ to twice per round; `guess_reminder` once. Worst case for a fully disengaged mem
 is now **up to 5 pushes in an evening** — the doc updates below must say this plainly, not leave it
 implicit.
 
-- [ ] `tick_rounds()` gains three new scan windows, computing "members without a submission" (for
+- [x] `tick_rounds()` gains three new scan windows, computing "members without a submission" (for
       both `seal_reminder` firings) and "submitters without a complete guess sheet" (for
       `guess_reminder`) at enqueue time — same mechanism the old 2-hour nudge scan already used,
       just a real condition instead of "everyone."
-- [ ] `claim_notification_outbox` gets a settle-check for `seal_reminder`/`guess_reminder`
+- [x] `claim_notification_outbox` gets a settle-check for `seal_reminder`/`guess_reminder`
       mirroring the existing `settled_invitations` pattern used for `invite`
       (`20260820110000_notification_delivery_budget.sql`): skip sending, mark `sent_at`, if the
       recipient's condition already resolved by claim time. This is a deliberate break from
       `docs/05`'s prior guarantee that round-kind audiences are frozen forever at enqueue — say so
       in the doc, not just in the migration comment.
-- [ ] The multi-circle same-hour grouping rule (`E23-02`) still applies within each kind
+- [x] The multi-circle same-hour grouping rule (`E23-02`) still applies within each kind
       independently.
-- [ ] `worker.ts`'s deep-link/expiration switch gets cases for `seal_reminder`/`guess_reminder`,
+- [x] `worker.ts`'s deep-link/expiration switch gets cases for `seal_reminder`/`guess_reminder`,
       reusing the existing `.round(groupID:)` deep link
       (`blinddrop://circle/<GROUP_ID>/round/current`) — no iOS routing change is expected;
       `App/DeepLink.swift` and `PushRouter.swift` already handle this link shape generically.
-- [ ] New push copy added to `docs/11-COPY-DECK.md` in this commit (`CLAUDE.md` §6 — don't invent
+- [x] New push copy added to `docs/11-COPY-DECK.md` in this commit (`CLAUDE.md` §6 — don't invent
       strings elsewhere). These are addressed to the recipient about their own status, so — unlike
       the old nudge's deliberately neutral body — they may say "you haven't sealed a song yet" or
       similar; they still must never mention anyone else's status or a count.
-- [ ] `CLAUDE.md` §2.6, `docs/05` §3, `docs/16` §5 all edited to match the table above, in this
+- [x] `CLAUDE.md` §2.6, `docs/05` §3, `docs/16` §5 all edited to match the table above, in this
       commit.
-- [ ] Existing exactly-3/day assertions (`push.test.ts`, `apns.test.ts`, `audit:leak`) found and
+- [x] Existing exactly-3/day assertions (`push.test.ts`, `apns.test.ts`, `audit:leak`) found and
       explicitly revised to the new model — not left to fail and get silently loosened.

@@ -174,6 +174,12 @@ create index devices_user_active on public.devices (user_id) where disabled_at i
 
 ### `0006_notifications.sql`
 
+> This section shows the migration as originally written. `notif_kind` has since gained more
+> values via later, forward-only migrations (`invite`, then `seal_reminder`/`guess_reminder` in
+> `E31-01` — see `docs/05` §3 for the current, authoritative kind table and `nudge`'s retirement).
+> The type below is not rewritten here to match; only the schema files themselves are the source
+> of truth for the live column/type shape.
+
 ```sql
 create type notif_kind as enum ('nudge','reveal','results','void');
 
@@ -349,15 +355,35 @@ for r in (select * from rounds
                 (round_id,'results', <members who submitted OR guessed>)
               on conflict do nothing;
 
--- 2-hours-before nudge  (reveals_at - 2h .. reveals_at)
+-- seal_reminder, fired twice a round — reveals_at-2h, then reveals_at-30m — replacing the
+-- old unconditional nudge as of E31-01 (docs/05 §3). Each firing recomputes the condition
+-- fresh; the two are distinguished by scheduled_for, not by a second kind.
+for window in ('2 hours', '30 minutes'):
+    for r in (select * from rounds
+              where state='open'
+                and now() >= reveals_at - window
+                and now() < reveals_at
+                and not exists (outbox row for r, 'seal_reminder', reveals_at - window)):
+        insert into notification_outbox (round_id,'seal_reminder',
+            <active members with NO submission in r>, scheduled_for := reveals_at - window)
+        on conflict (round_id, kind, scheduled_for) do nothing;
+
+-- guess_reminder, fired once a round at scores_at-30m (expressed via reveals_at so this reuses
+-- rounds_pending_tick(state, reveals_at) rather than an unindexed scores_at filter — scores_at
+-- is always reveals_at + 2h, so reveals_at <= now() - 1h30m is the same instant).
 for r in (select * from rounds
-          where state='open'
-            and now() >= reveals_at - interval '2 hours'
-            and now() < reveals_at):
-    insert into notification_outbox (round_id,'nudge',
-        <active members with NO submission in r>)
+          where state='revealed'
+            and reveals_at <= now() - interval '1 hour 30 minutes'
+            and not exists (outbox row for r, 'guess_reminder')):
+    insert into notification_outbox (round_id,'guess_reminder',
+        <submitters in r with FEWER THAN S-1 distinct cards guessed>,
+        scheduled_for := scores_at - interval '30 minutes')
     on conflict do nothing;                          -- fires exactly once per round
 ```
+
+`claim_notification_outbox` re-checks `seal_reminder`/`guess_reminder` audiences at claim time
+and drops any recipient whose condition has since resolved — the only round-kind audiences that
+are not frozen forever at enqueue (docs/05 §3, E31-01).
 
 The `where state = <expected>` guard plus `on conflict do nothing` gives full idempotency:
 a job that runs twice, or a worker that crashes mid-transaction and retries, produces one

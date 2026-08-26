@@ -6,7 +6,12 @@
 //   429 / 5xx         Apple is busy or broken. Leave `sent_at` null and let the next minute try.
 //   attempts = 5      it is not going to work. Record `last_error` and stop; a human looks.
 
-import { apnsToken, notificationAlert, type NotificationKind } from "../_shared/apns.ts";
+import {
+  apnsToken,
+  notificationAlert,
+  type NotificationKind,
+  type SealReminderFiring,
+} from "../_shared/apns.ts";
 import { type Db, dbFailure } from "../_shared/db.ts";
 import { fixtureFlagEnabled } from "../_shared/localStack.ts";
 
@@ -38,6 +43,11 @@ export interface ClaimedNotification {
   attempts: number;
   reveals_at: string | null;
   scores_at: string | null;
+  /**
+   * The semantic instant this row describes (docs/05 §3). Null only for `invite`. Used to tell
+   * `seal_reminder`'s two firings apart — `reveals_at − 2h` vs `reveals_at − 30m` (E31-01).
+   */
+  scheduled_for: string | null;
   invitation_expires_at: string | null;
 }
 
@@ -86,7 +96,17 @@ export function notificationDeepLink(row: ClaimedNotification): string {
   }
   if (!row.group_id) throw new Error("round notification outbox row has no group id");
   const prefix = `blinddrop://circle/${row.group_id}/round/current`;
-  return row.kind === "results" ? `${prefix}/results` : prefix;
+  switch (row.kind) {
+    case "results":
+      return `${prefix}/results`;
+    // seal_reminder/guess_reminder reuse the plain round link (E31-01) — there is nothing to
+    // route to yet: the round hasn't revealed (seal_reminder) or hasn't scored (guess_reminder).
+    case "seal_reminder":
+    case "guess_reminder":
+    case "reveal":
+    case "void":
+      return prefix;
+  }
 }
 
 /** The APNs expiration is the end of the phase the alert describes. */
@@ -94,12 +114,30 @@ export function notificationExpiration(row: ClaimedNotification): number {
   if (row.kind === "invite") {
     return Math.floor(parseInstant(row.invitation_expires_at ?? "", "invitation_expires_at").getTime() / 1_000);
   }
-  if (row.kind === "nudge") {
+  // A reminder is meaningless once the phase it is nudging toward has already happened —
+  // `seal_reminder` after reveal, `guess_reminder` after scoring (E31-01, replacing `nudge`'s
+  // identical rule for the same reason).
+  if (row.kind === "seal_reminder") {
     return Math.floor(parseInstant(row.reveals_at ?? "", "reveals_at").getTime() / 1_000);
+  }
+  if (row.kind === "guess_reminder") {
+    return Math.floor(parseInstant(row.scores_at ?? "", "scores_at").getTime() / 1_000);
   }
   const scoresAt = parseInstant(row.scores_at ?? "", "scores_at").getTime();
   const expiresAt = row.kind === "results" ? scoresAt + RESULTS_LIFETIME_MS : scoresAt;
   return Math.floor(expiresAt / 1_000);
+}
+
+/**
+ * Which of `seal_reminder`'s two per-round bodies applies, told apart by how far this row's
+ * `scheduled_for` sits before `reveals_at` — exactly `2h` for the first firing, `30m` for the
+ * second (both set by `tick_rounds()`, docs/05 §3). Any other kind never calls this.
+ */
+export function sealReminderFiring(row: ClaimedNotification): SealReminderFiring {
+  const reveals = parseInstant(row.reveals_at ?? "", "reveals_at").getTime();
+  const scheduled = parseInstant(row.scheduled_for ?? "", "scheduled_for").getTime();
+  const secondFiringLead = 30 * 60 * 1_000;
+  return reveals - scheduled <= secondFiringLead ? "second" : "first";
 }
 
 function notificationCollapseID(row: ClaimedNotification): string {
@@ -108,6 +146,9 @@ function notificationCollapseID(row: ClaimedNotification): string {
     return `invite:${row.invitation_id}`;
   }
   if (!row.round_id) throw new Error("round notification outbox row has no round id");
+  // seal_reminder's two firings deliberately share one collapse id (round_id:kind, not
+  // round_id:kind:scheduled_for): the second, more urgent reminder is meant to replace the
+  // first in notification center, not sit beside it (E31-01).
   return `${row.round_id}:${row.kind}`;
 }
 
@@ -138,7 +179,9 @@ export function apnsRequest(
     },
     body: JSON.stringify({
       aps: {
-        alert: notificationAlert(row.kind),
+        alert: row.kind === "seal_reminder"
+          ? notificationAlert(row.kind, sealReminderFiring(row))
+          : notificationAlert(row.kind),
         sound: "default",
         "interruption-level": "active",
       },
@@ -249,6 +292,7 @@ async function claim(db: Db, claimId: string): Promise<ClaimedNotification[]> {
     attempts: Number(row.attempts),
     reveals_at: typeof row.reveals_at === "string" ? row.reveals_at : null,
     scores_at: typeof row.scores_at === "string" ? row.scores_at : null,
+    scheduled_for: typeof row.scheduled_for === "string" ? row.scheduled_for : null,
     invitation_expires_at: typeof row.invitation_expires_at === "string"
       ? row.invitation_expires_at
       : null,
