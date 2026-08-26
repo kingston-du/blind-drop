@@ -35,6 +35,28 @@ Deno.test("PUT then GET /me returns exactly {user_id, display_name, has_group}",
   assertEquals(get.body.data, { user_id: user.id, display_name: "Ana", has_group: false });
 });
 
+Deno.test("GET and PUT /me work when the caller holds several active circles", async () => {
+  const { user } = await newGroupOwner("Ana");
+  const second = await call("groups", "/", {
+    method: "POST",
+    token: user.token,
+    body: { name: "Another Cove", timezone: "UTC" },
+  });
+  assertEquals(second.status, 200);
+
+  const get = await me("/", { token: user.token });
+  assertEquals(get.status, 200);
+  assertEquals(get.body.data, { user_id: user.id, display_name: "Ana", has_group: true });
+
+  const put = await me("/", {
+    method: "PUT",
+    token: user.token,
+    body: { display_name: "Ana L" },
+  });
+  assertEquals(put.status, 200);
+  assertEquals(put.body.data, { user_id: user.id, display_name: "Ana L", has_group: true });
+});
+
 Deno.test("PUT /me trims, collapses whitespace, and enforces 1–24 characters", async () => {
   const user = await newUser();
 

@@ -29,6 +29,9 @@ async function hasGroup(ctx: UserCtx): Promise<boolean> {
     .select("id")
     .eq("user_id", ctx.userId)
     .is("left_at", null)
+    // ADR-011 allows several active circles. This query asks only whether one exists, so cap
+    // the result before shaping it as a zero-or-one-row response.
+    .limit(1)
     .maybeSingle();
   if (error) throw dbFailure("me.hasGroup", error);
   return data !== null;
