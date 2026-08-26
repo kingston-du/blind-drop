@@ -7,7 +7,7 @@ right — this is a layout and hierarchy pass, not a rewrite of what it's allowe
 
 ### E30-01 — Lead with the moment, not the table
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/17-NEXT-FEATURES.md` §4, `docs/10-SHARE-CARD-SPEC.md`, `docs/16-OUT-OF-SCOPE.md` §5,

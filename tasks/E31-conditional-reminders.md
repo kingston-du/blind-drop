@@ -14,7 +14,7 @@ One slice, from `docs/17-NEXT-FEATURES.md` §5.
 
 ### E31-01 — Two conditions replace one universal nudge
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/17-NEXT-FEATURES.md` §5, `docs/05-JOBS-AND-NOTIFICATIONS.md` (all), `docs/03-DATA-MODEL.md` §4

@@ -457,7 +457,7 @@ Nine improvements the owner named as the next progression for the app, spec'd in
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E30-01 Lead with the moment, not the table | todo | — | yes | AC-9 |
+| E30-01 Lead with the moment, not the table | wip | — | yes | AC-9 |
 
 ## E31 — Conditional reminders, not a universal nudge · [file](E31-conditional-reminders.md)
 
@@ -466,7 +466,7 @@ amendment in the epic file.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E31-01 Two conditions replace one universal nudge | todo | — | yes | AC-3 |
+| E31-01 Two conditions replace one universal nudge | wip | — | yes | AC-3 |
 
 ## E32 — Two small, independent fixes · [file](E32-two-small-fixes.md)
 
