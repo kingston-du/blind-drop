@@ -132,7 +132,7 @@ The fixture is `02-DOMAIN-RULES.md` §4.4, loaded by `server/supabase/seed.sql`.
 | Numerals render in Bricolage, not the system face | same |
 | All artwork loaded before render; placeholder path only on timeout | `ShareRendererTests.swift` |
 | Headline precedence, five fixtures | `ShareHeadlineTests.swift` |
-| 90-char title + 24-char name does not overflow | snapshot |
+| Longest display name (24 chars) + a 100% Best Ear rate does not overflow | snapshot |
 | Temp file deleted after the share sheet completes | `ShareRendererTests.swift` |
 
 ### AC-10 — Full loop under 90 seconds

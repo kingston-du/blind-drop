@@ -31,33 +31,29 @@ artwork.
 
 ## 2. Content
 
-Same information, two layouts.
+`E30-01` redesigned this from a compact data table to one hero-scale moment: the headline
+sentence, set at the display face's largest size, with everything else built as quieter support
+underneath it. Same information as before — nothing new was added and nothing on the "what is
+not" list below changed — but the headline now carries the card, and the four-row song table it
+used to sit beside is gone.
 
 ```
   ┌────────────────────────────────────┐   1080 × 1350
   │                                    │
-  │  THE COVE · 10 AUGUST              │   label, inkDim, letterspaced
+  │  THE COVE            10 AUGUST     │   masthead: displayS + label
   │                                    │
-  │  Tonight's                         │   displayL, ink
-  │  drop                              │
+  │  TONIGHT'S DROP                    │   label, inkDim, letterspaced — a kicker
   │                                    │
-  │  ┌──┬──────────────────────────┐   │
-  │  │1 │ ▓▓  Redbone         Cal  │   │   up to 4 flight rows
-  │  ├──┼──────────────────────────┤   │   number in display face,
-  │  │2 │ ▓▓  Ribs            Ana  │   │   artwork 96pt, owner right-aligned
-  │  ├──┼──────────────────────────┤   │
-  │  │3 │ ▓▓  Bags            Hal  │   │
-  │  ├──┼──────────────────────────┤   │
-  │  │4 │ ▓▓  Motion Sick…    Eli  │   │
-  │  └──┴──────────────────────────┘   │
-  │  + 4 more                          │   caption, inkFaint
+  │  Nobody got                        │   displayXL, ink — the card's hero
+  │  No. 7                             │
   │                                    │
-  │  ┌──────────────┬──────────────┐   │
-  │  │ NOBODY GOT   │ BEST EAR     │   │   the headline stat pair
-  │  │ No. 7        │ Cal  100%    │   │   monoM tabular
-  │  └──────────────┴──────────────┘   │
+  │  ▓▓▓▓  ▓▓▓▓  ▓▓▓▓  ▓▓▓▓            │   the filmstrip: up to 4 pieces of
+  │  + 4 more                          │   bare artwork, caption, inkDim
   │                                    │
-  │  Blind Drop                        │   caption, inkFaint, bottom-left
+  │  BEST EAR                          │   label, inkDim
+  │  Cal  100%                         │   bodyL name + display-face rate
+  │                                    │
+  │  Blind Drop                        │   label, inkDim, bottom-left
   └────────────────────────────────────┘
 ```
 
@@ -72,23 +68,32 @@ One line chosen by this precedence, first match wins:
 5. Fallback → *"8 songs, 56 guesses"*
 
 Never more than one headline. Never a superlative that requires a comparison the viewer can't
-see on the card.
+see on the card. Unchanged by `E30-01` — the redesign changed how loudly this line is said, not
+which line gets chosen (`ShareHeadline.swift`, still a pure function of the results, untouched).
 
 ### What is on the card
 
-Group name · date · up to 4 flight rows (number, artwork, title, owner) · overflow count ·
-one headline stat · the Best Ear leader · the wordmark.
+Group name · date · a small "Tonight's drop" kicker · the headline, as the card's one hero
+element · up to 4 pieces of bare artwork (no title, no owner, no number) · overflow count · the
+Best Ear leader · the wordmark.
 
 ### What is not
 
 No QR code. No "download Blind Drop". No install link. No app-store badge. No user avatars.
-No scores for people who aren't the headline. The card is a **group artifact** — it works
-because it looks like something the group made, not like an ad. The name at the bottom is the
-whole marketing.
+No scores for people who aren't the headline (the Best Ear leader is the one exception this
+document has always carried). The card is a **group artifact** — it works because it looks like
+something the group made, not like an ad. The name at the bottom is the whole marketing.
 
-### Rows shown
+**Also gone as of `E30-01`, on purpose:** song titles, owner names, and the row number that used
+to sit beside each piece of artwork. The filmstrip is decoration under the headline, not a second
+thing asking to be read — see the design-critique rationale in `tasks/E30-share-card-redesign.md`
+for why the table was cut rather than merely shrunk further. Anyone who wants the per-song detail
+already has the full Results screen; this artifact's job is to make somebody want to open it.
 
-The first 4 cards by `card_no`, not by any interest ranking. Numbering is the game's spine;
+### Artwork shown
+
+The first 4 cards by `card_no`, not by any interest ranking. Numbering is the game's spine, which
+is exactly why the filmstrip keeps the order even though it no longer prints the numeral —
 resorting it for the share card would misrepresent the night.
 
 ---
@@ -98,20 +103,33 @@ resorting it for the share card would misrepresent the night.
 Identical tokens to the app (`07-DESIGN-SYSTEM.md`) — the card must look like it came from
 the app, because that is the entire distribution mechanism.
 
-- Background `paper`, rows on `surface` with `edge` hairlines.
+- Background `paper` throughout. No card surface, no hairlines — `E30-01` retired the table's
+  `surface` + `edge` frame along with the table itself; the filmstrip is artwork directly on
+  `paper`.
 - Accent **ultramarine** only. The share card is a post-results artifact; nothing on it is
   sealed. **Amber must not appear.**
-- Numbers in Bricolage Grotesque at 96pt (square-tall) / 112pt (story).
-- Artwork at 96pt, `Radius.artwork`, unmodified — no scrim, no gradient, no rounding beyond
-  the token.
+- The headline is set in `TypeStyle.displayXL` (56pt), the largest step the display face has —
+  a token, not a literal, and the first place on this card that size has ever been used. It
+  shrinks (`minimumScaleFactor`, never truncates) on its longest possible sentence, for the same
+  reason everything fixed-size on this card shrinks rather than clips: the artifact is a fixed
+  rectangle, and a line that doesn't fit doesn't grow the card, it pushes the wordmark off it.
+- The Best Ear rate is the one number still set from a literal size rather than a `TypeStyle` —
+  Bricolage Grotesque at 96pt (square-tall) / 112pt (story), `docs/07`'s two-literal exception,
+  unchanged by the redesign.
+- Filmstrip artwork at 180pt, `Radius.artwork`, unmodified — no scrim, no gradient, no rounding
+  beyond the token. Bigger than the pre-redesign 96pt thumbnail, which is the "bigger, bolder
+  album art" half of the brief; sized to the **story** variant's narrower content width, the
+  binding constraint for fitting four across in either shape.
 - Generous margins: 72pt square-tall, 96pt story with an extra 240pt of bottom safe space so
   the Instagram UI does not cover the wordmark.
-- Long titles truncate at one line with a middle ellipsis for the title and a tail ellipsis
-  for the owner. Owner names never truncate before the title does.
+- Nothing is ever laid over artwork — no caption, no number, no gradient. The filmstrip's
+  overflow count sits in its own line below the pictures, never on them.
 
 ### Story variant differences
-Same content, more vertical air. The headline pair stacks instead of sitting side by side.
-The date moves under the group name. Nothing is added.
+Same content, more vertical air — the canvas is taller and the `Spacer`s between blocks absorb
+the difference, so nothing about the layout branches by shape beyond the margins, the bottom
+safe space and the Best Ear rate's literal size (all three already covered above). Nothing is
+added.
 
 ---
 
@@ -155,6 +173,6 @@ for the implementation:
 | Display face present | Snapshot test asserts the numeral glyph is not SF Pro |
 | Artwork loaded | Unit test: renderer awaits all image loads before producing output |
 | Headline precedence | Unit test over five fixtures, one per rule in §2 |
-| Long titles | Snapshot with a 90-character title and a 24-character display name |
+| Longest name + 100% Best Ear rate | Snapshot with a 24-character display name (`DisplayName.maximumLength`) as both the headline subject and the Best Ear leader |
 | Temp file cleanup | Unit test: file absent after share-sheet completion handler |
 | The sheet fits its detent | Snapshot test measures the rendered sheet on an SE against `Layout.shareSheetHeight` |
