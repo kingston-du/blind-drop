@@ -9,15 +9,15 @@ import SwiftUI
 ///
 /// **`docs/10`'s numbers are in the artifact's own pixel space; a SwiftUI view is laid out in
 /// points.** With `ImageRenderer.scale = 3` those differ by exactly three, so the view is 360
-/// points wide and every geometric number the spec writes down — *"96pt artwork"*, *"72pt
-/// margins"*, *"240pt of bottom safe space"* — is divided once, here, by `canvas(_:)`. Doing it
-/// anywhere else would mean a card designed at 1080 points and rendered at 3 240 pixels: a 12MB
-/// PNG where `docs/10` §1 asks for about 800KB.
+/// points wide and every geometric number the spec writes down — *"180pt filmstrip artwork"*,
+/// *"72pt margins"*, *"240pt of bottom safe space"* — is divided once, here, by `canvas(_:)`.
+/// Doing it anywhere else would mean a card designed at 1080 points and rendered at 3 240
+/// pixels: a 12MB PNG where `docs/10` §1 asks for about 800KB.
 ///
-/// Everything that is *type* rather than geometry comes from `TypeStyle` at a pinned
-/// `.large`, because the card is an image and an image has no Dynamic Type. The row number is
-/// the single exception, and it is why `numberSize` exists: `docs/10` §3 gives it two literal
-/// sizes and no token.
+/// Everything that is *type* rather than geometry comes from `TypeStyle` at a pinned `.large`,
+/// because the card is an image and an image has no Dynamic Type. The Best Ear rate is the
+/// single exception, and it is why `numberSize` exists: `docs/10` §3 gives it two literal sizes
+/// and no token.
 enum ShareCard {
 
     /// `ImageRenderer.scale` (`docs/10` §1, §4). The one number that ties the two spaces
@@ -74,44 +74,31 @@ enum ShareCard {
         }
 
         /// *"Numbers in Bricolage Grotesque at 96pt (square-tall) / 112pt (story)"*
-        /// (`docs/10` §3).
+        /// (`docs/10` §3). The one number left in the display face after `E30-01`: the Best
+        /// Ear rate, the sole figure still worth setting in it now that the headline itself
+        /// carries the card (`TypeStyle.displayXL`, a token, needs no literal of its own).
         var numberSize: CGFloat {
             switch self {
             case .squareTall: canvas(96)
             case .story: canvas(112)
             }
         }
-
-        /// *"The headline pair stacks instead of sitting side by side"* in the story
-        /// (`docs/10` §3), which is also what `docs/12` §1 asks of the square-tall at
-        /// accessibility sizes — except that a rendered image has no type size, so here it is a
-        /// property of the shape and nothing else.
-        var stacksHeadline: Bool { self == .story }
     }
 
-    /// *"Artwork at 96pt, `Radius.artwork`, unmodified"* (`docs/10` §3).
-    static let artwork = canvas(96)
+    /// *"Bigger, bolder album-art treatment is fine"* (`E30-01`, `docs/17` §4). Roughly twice
+    /// the pre-redesign 96px thumbnail — the largest that still lets four of them sit in one
+    /// row inside the **story** variant's narrower content width, which is the binding
+    /// constraint (`docs/10` §3's margins are more generous there, but the canvas itself is the
+    /// same 1080px wide as square-tall).
+    static let artwork = canvas(180)
 
-    /// *"up to 4 flight rows"* (`docs/10` §2), taken **by `card_no`** and never re-sorted.
+    /// *"up to 4 flight rows"* (`docs/10` §2), taken **by `card_no`** and never re-sorted. The
+    /// redesign keeps the count and drops everything each row used to say — the filmstrip is
+    /// four pictures, not four sentences.
     static let maximumRows = 4
 
-    /// The most of a row an owner's name may take.
-    ///
-    /// `docs/10` §3 says *"owner names never truncate before the title does"*, and a cap is what
-    /// keeps that from being read as *"the owner takes whatever it wants"*: an unbounded
-    /// 24-character display name eats the row and leaves the title as a single ellipsis, which
-    /// satisfies the sentence and defeats it. With the cap the title gives way first — the
-    /// order the rule is about — and only a genuinely extreme name is trimmed at all.
-    static let ownerColumn = canvas(240)
-
-    /// The gap between the card's blocks, and between two rows inside the flight. Both are the
-    /// app's own rhythm scaled into the card's space, so the artifact looks like the app.
+    /// The gap between the card's blocks, and between two frames inside the filmstrip. Both are
+    /// the app's own rhythm scaled into the card's space, so the artifact looks like the app.
     static let blockGap = canvas(48)
     static let rowGap = canvas(36)
-    /// The vertical breathing room inside one flight row, either side of its 96pt artwork.
-    ///
-    /// Tight on purpose: four rows plus a headline, a stat pair and a wordmark have to fit
-    /// inside 1350 pixels with the *"generous margins"* §3 asks for, and the row is the one
-    /// block of the card that is repeated four times.
-    static let rowPadding = canvas(18)
 }

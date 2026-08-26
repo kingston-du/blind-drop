@@ -174,7 +174,8 @@ Do not use the display face below 20pt; at small sizes its personality reads as 
 ```swift
 // DesignSystem/Typography.swift  — all sizes scale with Dynamic Type
 enum TypeStyle {
-    case displayXL   // 56/56  Bricolage 800 wdth max — the hero countdown, a stat number
+    case displayXL   // 56/56  Bricolage 800 wdth max — the hero countdown, a stat number,
+                      //                                 the share card's headline (E30-01)
     case displayL    // 44/42  Bricolage 700, -0.9    — the screen headline
     case displayM    // 32/34  Bricolage 700, -0.5    — a screen title
     case displayS    // 24/26  Bricolage 700, -0.2    — a card title, a name as a result

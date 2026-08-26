@@ -362,7 +362,7 @@ readability or commiserates a low one.
 | `share.headline.perfect` | %@ read the whole room |
 | `share.headline.unreadable` | %@ was unreadable |
 | `share.headline.fallback` | %lld songs, %lld guesses |
-| `share.overflow` | + %lld more | the cards that did not fit in the four rows (`docs/10` §2) |
+| `share.overflow` | + %lld more | the cards whose artwork did not fit in the filmstrip (`docs/10` §2) |
 | `share.bestear.label` | Best ear |
 | `share.wordmark` | Blind Drop |
 

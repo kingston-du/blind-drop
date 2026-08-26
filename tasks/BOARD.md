@@ -457,7 +457,7 @@ Nine improvements the owner named as the next progression for the app, spec'd in
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E30-01 Lead with the moment, not the table | wip | — | yes | AC-9 |
+| E30-01 Lead with the moment, not the table | done | — | yes | AC-9 |
 
 ## E31 — Conditional reminders, not a universal nudge · [file](E31-conditional-reminders.md)
 
@@ -530,9 +530,9 @@ amendment in the epic file.
 | Next-progression epic | Done / Total |
 |---|---|
 | E29 results & record depth | 1 / 3 |
-| E30 share card | 0 / 1 |
+| E30 share card | 1 / 1 |
 | E31 conditional reminders | 0 / 1 |
 | E32 two small fixes | 0 / 2 |
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
-| **Next-progression total** | **2 / 9** |
+| **Next-progression total** | **3 / 9** |

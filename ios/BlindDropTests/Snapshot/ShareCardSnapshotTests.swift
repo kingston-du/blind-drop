@@ -33,26 +33,16 @@ private let variants = ShareCard.Variant.allCases
         verify(ShareCardFixture.render(variant: variant), named: "Share-\(variant.rawValue)")
     }
 
-    /// *"Long titles truncate at one line with a middle ellipsis for the title and a tail
-    /// ellipsis for the owner. Owner names never truncate before the title does."*
-    /// (`docs/10` §3) — `docs/10` §6 asks for exactly this fixture: a 90-character title beside
-    /// a 24-character display name.
-    @Test(arguments: variants)
-    func aLongTitleGivesWayBeforeTheOwnerDoes(_ variant: ShareCard.Variant) {
-        verify(
-            ShareCardFixture.render(variant: variant, content: ShareCardFixture.longTitles),
-            named: "Share-\(variant.rawValue)-long"
-        )
-    }
-
-    /// **The boundary the rate was never given a ceiling for.** `longTitles` stresses the flight
-    /// rows and the headline; it leaves the Best Ear pair itself at its short, easy default
-    /// (`"Cal"`). This is the pair's own worst case instead — the longest name the product
-    /// allows next to the rate's widest string, 100% — which is exactly the shape `E26-01`'s
-    /// report described: before `.lineLimit(1)`/`.minimumScaleFactor(0.7)` on the rate,
-    /// `ImageRenderer` does not clip past the card's fixed edge, it draws past the canvas, so a
-    /// squeezed rate does not look wrong, it just loses pixels nobody sees missing. This golden
-    /// is the picture that would have caught it.
+    /// **The boundary the rate was never given a ceiling for.** The longest name the product
+    /// allows (`DisplayName.maximumLength`) next to the rate's widest string, 100% — which is
+    /// exactly the shape `E26-01`'s report described: before `.lineLimit(1)`/
+    /// `.minimumScaleFactor(0.7)` on the rate, `ImageRenderer` does not clip past the card's
+    /// fixed edge, it draws past the canvas, so a squeezed rate does not look wrong, it just
+    /// loses pixels nobody sees missing. `E30-01` retired the row table's own long-title/
+    /// long-owner truncation golden alongside it — `heroHeadline` and this pair are now the only
+    /// text on the card whose length the layout doesn't already bound, so this fixture (the same
+    /// long name doubling as the night's headline subject, since Cal is both `bestEar` and the
+    /// `ear: 1.0` person the headline names) is the one worst case left to prove.
     @Test(arguments: variants)
     func theLongestNameAndAHundredPercentTogether(_ variant: ShareCard.Variant) {
         verify(
@@ -202,40 +192,6 @@ enum ShareCardFixture {
         groupName: "The Cove",
         date: "10 August"
     )
-
-    /// `docs/10` §6's stress fixture — a 90-character title against a 24-character display name.
-    ///
-    /// Built by editing the payload and decoding it again, rather than by constructing DTOs: the
-    /// types' initialisers are the decoder on purpose (`docs/13` §2), and a fixture assembled
-    /// around them would be a picture of a shape the server cannot send.
-    static let longTitles: ShareCardContent = {
-        // Exactly the two lengths `docs/10` §6 names, built rather than eyeballed — a fixture
-        // that is *about* 90 characters proves nothing about the case that breaks at 90.
-        let title = String(
-            "The Very Long Song Title That Keeps Going Well Past Any Reasonable Width And Then Some More"
-                .prefix(90)
-        )
-        let owner = String("Bartholomew Winterborneiii".prefix(24))
-        #expect(title.count == 90)
-        #expect(owner.count == 24)
-
-        var json = ResultsSnapshotFixture.payload("results")
-        var cards = json["cards"] as? [[String: Any]] ?? []
-        for index in cards.indices {
-            var card = cards[index]
-            var track = card["track"] as? [String: Any] ?? [:]
-            track["title"] = title
-            card["track"] = track
-            card["owner"] = ["user_id": "u_long", "display_name": owner]
-            cards[index] = card
-        }
-        json["cards"] = cards
-
-        let results = try! JSONDecoder.api.decode(
-            ResultsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)
-        )
-        return ShareCardContent(results: results, groupName: "The Cove", date: "10 August")
-    }()
 
     /// `docs/10` §3's Best Ear pair at both its extremes at once: `DisplayName.maximumLength`
     /// beside 100%. Cal is already tonight's leader in the base fixture (`ear: 1.0` in

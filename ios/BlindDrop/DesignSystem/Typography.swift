@@ -17,7 +17,9 @@ import UIKit
 /// raw size in a feature file, because a fixed size is a screen that breaks at
 /// `.accessibility5` and nobody notices until somebody who needs it opens the app.
 enum TypeStyle: String, CaseIterable, Sendable {
-    /// 56/56 · Bricolage 800 wdth max — the hero countdown, a stat tile's number.
+    /// 56/56 · Bricolage 800 wdth max — the hero countdown, a stat tile's number, the share
+    /// card's headline (`E30-01`, the one exported-image use — an on-screen headline stays
+    /// `displayL`).
     case displayXL
     /// 44/42 · Bricolage 700 wdth max, tracking −0.9 — the screen headline.
     case displayL
