@@ -347,6 +347,12 @@ Reveal is progressive on first view: cards resolve top to bottom, 120ms apart, e
 220ms crossfade of name-in. Skippable by scrolling — a scroll gesture completes the whole
 sequence immediately. Runs once per round.
 
+**Who guessed you** (`E29-01`). Under the caller's own card only, a disclosure lists every
+guesser and what they picked — name, name, and whether it landed in the same neutral
+ultramarine/inkDim word-mark the resolved cards themselves use, never a green/red glyph
+(`docs/16` §5). This is not a grid: no other card carries this list, and there is no route to
+see who guessed someone else.
+
 ### 7.2 You
 
 ```
@@ -389,6 +395,10 @@ leaderboard for something that is not a competition. Rendering a readability ran
 a spec violation (`02-DOMAIN-RULES.md` §4.5). Both numbers are set in the mono micro-label so
 neither reads as *the* score, and the raw correct count stays in the row's VoiceOver label —
 a 100% off two rounds must not pass for a 100% off fourteen.
+
+**Tonight** (`E29-01`). A small module beside this table, never merged into it — this round's
+top 3 by Ear, ties sharing a rank the same way. Distinct enough that nobody mistakes a single
+night's ranking for the all-time one above it. Never a readability counterpart, at any scope.
 
 ### 7.4 Share
 One `PrimaryButton`: **Share tonight**. See `10-SHARE-CARD-SPEC.md`. This is the app's

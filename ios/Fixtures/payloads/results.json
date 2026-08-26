@@ -30,7 +30,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000004",
         "display_name": "Dee",
         "is_correct": true
-      }
+      },
+      "guesses": null
     },
     {
       "card_no": 2,
@@ -59,7 +60,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000002",
         "display_name": "Ben",
         "is_correct": true
-      }
+      },
+      "guesses": null
     },
     {
       "card_no": 3,
@@ -88,7 +90,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000008",
         "display_name": "Hal",
         "is_correct": true
-      }
+      },
+      "guesses": null
     },
     {
       "card_no": 4,
@@ -113,7 +116,51 @@
       },
       "correct_guess_count": 6,
       "eligible_guesser_count": 7,
-      "my_guess": null
+      "my_guess": null,
+      "guesses": [
+        {
+          "guesser_id": "a0000000-0000-4000-8000-000000000002",
+          "guesser_name": "Ben",
+          "guessed_user_id": "a0000000-0000-4000-8000-000000000001",
+          "guessed_name": "Ana",
+          "is_correct": true
+        },
+        {
+          "guesser_id": "a0000000-0000-4000-8000-000000000003",
+          "guesser_name": "Cal",
+          "guessed_user_id": "a0000000-0000-4000-8000-000000000001",
+          "guessed_name": "Ana",
+          "is_correct": true
+        },
+        {
+          "guesser_id": "a0000000-0000-4000-8000-000000000004",
+          "guesser_name": "Dee",
+          "guessed_user_id": "a0000000-0000-4000-8000-000000000001",
+          "guessed_name": "Ana",
+          "is_correct": true
+        },
+        {
+          "guesser_id": "a0000000-0000-4000-8000-000000000006",
+          "guesser_name": "Fay",
+          "guessed_user_id": "a0000000-0000-4000-8000-000000000001",
+          "guessed_name": "Ana",
+          "is_correct": true
+        },
+        {
+          "guesser_id": "a0000000-0000-4000-8000-000000000007",
+          "guesser_name": "Gus",
+          "guessed_user_id": "a0000000-0000-4000-8000-000000000002",
+          "guessed_name": "Ben",
+          "is_correct": true
+        },
+        {
+          "guesser_id": "a0000000-0000-4000-8000-000000000008",
+          "guesser_name": "Hal",
+          "guessed_user_id": "a0000000-0000-4000-8000-000000000002",
+          "guessed_name": "Ben",
+          "is_correct": true
+        }
+      ]
     },
     {
       "card_no": 5,
@@ -142,7 +189,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000003",
         "display_name": "Cal",
         "is_correct": false
-      }
+      },
+      "guesses": null
     },
     {
       "card_no": 6,
@@ -171,7 +219,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000003",
         "display_name": "Cal",
         "is_correct": true
-      }
+      },
+      "guesses": null
     },
     {
       "card_no": 7,
@@ -200,7 +249,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000006",
         "display_name": "Fay",
         "is_correct": false
-      }
+      },
+      "guesses": null
     },
     {
       "card_no": 8,
@@ -229,7 +279,8 @@
         "guessed_user_id": "a0000000-0000-4000-8000-000000000006",
         "display_name": "Fay",
         "is_correct": true
-      }
+      },
+      "guesses": null
     }
   ],
   "me": {
@@ -287,6 +338,32 @@
       "user_id": "a0000000-0000-4000-8000-000000000006",
       "display_name": "Fay",
       "readability": 0.286,
+      "ear": 0.571
+    }
+  ],
+  "tonight_top_ear": [
+    {
+      "rank": 1,
+      "user_id": "a0000000-0000-4000-8000-000000000003",
+      "display_name": "Cal",
+      "ear": 1.0
+    },
+    {
+      "rank": 2,
+      "user_id": "a0000000-0000-4000-8000-000000000001",
+      "display_name": "Ana",
+      "ear": 0.714
+    },
+    {
+      "rank": 3,
+      "user_id": "a0000000-0000-4000-8000-000000000006",
+      "display_name": "Fay",
+      "ear": 0.571
+    },
+    {
+      "rank": 3,
+      "user_id": "a0000000-0000-4000-8000-000000000008",
+      "display_name": "Hal",
       "ear": 0.571
     }
   ]

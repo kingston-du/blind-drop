@@ -10,13 +10,15 @@
     "me",
     "people",
     "round_id",
-    "submitter_count"
+    "submitter_count",
+    "tonight_top_ear"
   ],
   "nested": {
     "cards[]": [
       "card_no",
       "correct_guess_count",
       "eligible_guesser_count",
+      "guesses",
       "my_guess",
       "owner",
       "track"
@@ -57,6 +59,12 @@
       "display_name",
       "ear",
       "readability",
+      "user_id"
+    ],
+    "tonight_top_ear[]": [
+      "display_name",
+      "ear",
+      "rank",
       "user_id"
     ]
   }

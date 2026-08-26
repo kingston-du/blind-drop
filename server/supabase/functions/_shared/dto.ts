@@ -501,6 +501,19 @@ export interface MyGuessDTO {
 }
 
 /**
+ * One guess made against the card the caller owns — who made it, who they named, and whether
+ * it landed (`E29-01`). Naming mirrors `MyGuessDTO`'s `guessed_user_id`/`is_correct` for the
+ * guessed side, and adds the symmetric `guesser_id`/`guesser_name` pair for the other.
+ */
+export interface CardGuessDTO {
+  guesser_id: string;
+  guesser_name: string;
+  guessed_user_id: string;
+  guessed_name: string;
+  is_correct: boolean;
+}
+
+/**
  * One card, resolved: the song, whose it was, and how the room did on it.
  *
  * `eligible_guesser_count` is `S − 1` on every card in the round, not the number of people who
@@ -508,6 +521,11 @@ export interface MyGuessDTO {
  * or not they opened the sheet, "because a room that didn't look is a room that didn't read
  * you". A denominator that shrank to the people who tried would quietly make readability
  * measure enthusiasm instead.
+ *
+ * `guesses` is **only** populated on the card `owner.user_id === caller`; every other card
+ * carries `null` (`E29-01`). This is the same never-guessing-vs-never-shown split every other
+ * nullable field in this file already draws — showing an empty list on someone else's card
+ * would claim to know it is empty, and `docs/02` gives that fact to nobody but the owner.
  */
 export interface ResultCardDTO {
   card_no: number;
@@ -516,6 +534,7 @@ export interface ResultCardDTO {
   correct_guess_count: number;
   eligible_guesser_count: number;
   my_guess: MyGuessDTO | null;
+  guesses: CardGuessDTO[] | null;
 }
 
 export function resultCardDTO(parts: {
@@ -525,6 +544,7 @@ export function resultCardDTO(parts: {
   correctGuessCount: number;
   eligibleGuesserCount: number;
   myGuess: MyGuessDTO | null;
+  guesses: CardGuessDTO[] | null;
 }): ResultCardDTO {
   return {
     card_no: parts.cardNo,
@@ -533,6 +553,7 @@ export function resultCardDTO(parts: {
     correct_guess_count: parts.correctGuessCount,
     eligible_guesser_count: parts.eligibleGuesserCount,
     my_guess: parts.myGuess,
+    guesses: parts.guesses,
   };
 }
 
@@ -620,6 +641,20 @@ export function personScoreDTO(
   };
 }
 
+/**
+ * One row in tonight's Ear ranking (`E29-01`) — the same **ranked**, ties-share-a-rank shape as
+ * `EarStandingDTO`, scoped to this round instead of all time. A deliberately separate type
+ * rather than a reuse of `EarStandingDTO`: that type's `ear_all_time`/`ear_correct_total`
+ * fields name an all-time fact this round-scoped row does not carry. Never a readability
+ * counterpart — `docs/02` §4.5 forbids ranking readability at any scope, not just all-time.
+ */
+export interface TonightEarDTO {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  ear: number;
+}
+
 /** `GET /rounds/{round_id}/results` — docs/04 §4. */
 export interface ResultsDTO {
   round_id: string;
@@ -628,6 +663,7 @@ export interface ResultsDTO {
   cards: ResultCardDTO[];
   me: PersonalScoreDTO;
   people: PersonScoreDTO[];
+  tonight_top_ear: TonightEarDTO[];
 }
 
 export function resultsDTO(
@@ -637,6 +673,7 @@ export function resultsDTO(
     cards: ResultCardDTO[];
     me: PersonalScoreDTO;
     people: PersonScoreDTO[];
+    tonightTopEar: TonightEarDTO[];
   },
 ): ResultsDTO {
   return {
@@ -646,6 +683,7 @@ export function resultsDTO(
     cards: parts.cards,
     me: parts.me,
     people: parts.people,
+    tonight_top_ear: parts.tonightTopEar,
   };
 }
 

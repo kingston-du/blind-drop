@@ -26,6 +26,12 @@ struct ResultsViewState: Equatable, Sendable {
     /// did not load is a section that is not drawn rather than a screen that is not.
     let standings: StandingsDTO?
 
+    /// This round's top 3 by Ear (`E29-01`), beside `standings` but drawn as its own module.
+    /// Empty rather than absent while the answers are still loading — the same "no cards, no
+    /// section" convention `cards` and its `ForEach` already draw, so there is no third state to
+    /// carry alongside `standings`'s genuine `nil`.
+    let tonightTopEar: [TonightEarDTO]
+
     /// The cards whose owner has arrived.
     let namedCards: Set<Int>
     /// The cards whose mark has arrived.
@@ -36,6 +42,7 @@ struct ResultsViewState: Equatable, Sendable {
         cards: [ResultCardDTO],
         me: PersonalScoreDTO? = nil,
         standings: StandingsDTO? = nil,
+        tonightTopEar: [TonightEarDTO] = [],
         namedCards: Set<Int>? = nil,
         markedCards: Set<Int>? = nil,
         barredCards: Set<Int>? = nil
@@ -43,6 +50,7 @@ struct ResultsViewState: Equatable, Sendable {
         self.cards = cards
         self.me = me
         self.standings = standings
+        self.tonightTopEar = tonightTopEar
         // `nil` is "settled" — a round re-opened after its one run, and the state every golden
         // but one is a picture of.
         let all = Set(cards.map(\.cardNumber))
@@ -149,6 +157,9 @@ struct ResultsScreen: View {
             if let me = state.me {
                 PersonalStats(me: me)
             }
+            if !state.tonightTopEar.isEmpty {
+                TonightTopEarView(rows: state.tonightTopEar)
+            }
             if let standings = state.standings {
                 StandingsView(standings: standings)
             }
@@ -167,27 +178,42 @@ struct ResultsScreen: View {
                 .padding(.bottom, Space.xs)
 
             ForEach(state.cards) { card in
-                // The links used to be their own row under the card (`TrackLinkButtons`); they
-                // now sit inside it, beside the title — `FlightCard`'s `metadataRow` docs why.
-                FlightCard(
-                    number: card.cardNumber,
-                    track: card.track,
-                    accent: accent,
-                    // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
-                    // (`docs/12` §2). Nothing on a results card is a control.
-                    assignment: .resolved(card.resolution),
-                    // The answers are the one place a song is shown on this screen and could not
-                    // be heard (`docs/08` §7.1) — Submit's search sheet and the reveal flight
-                    // both already play through the same shared player. No preview URL means no
-                    // control at all, same as everywhere else `preview(for:)` is built.
-                    preview: preview(for: card.track),
-                    resolve: ResolvePresentation(
-                        hasName: state.namedCards.contains(card.cardNumber),
-                        hasMark: state.markedCards.contains(card.cardNumber),
-                        hasBar: state.barredCards.contains(card.cardNumber),
-                        reducedMotion: reduceMotion
+                // A tighter `VStack` than the `ForEach`'s own item spacing, so a "who guessed
+                // you" disclosure reads as attached to the one card it belongs to rather than as
+                // another card in the list.
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    // The links used to be their own row under the card (`TrackLinkButtons`);
+                    // they now sit inside it, beside the title — `FlightCard`'s `metadataRow`
+                    // docs why.
+                    FlightCard(
+                        number: card.cardNumber,
+                        track: card.track,
+                        accent: accent,
+                        // No `chooseGuess`, so the card carries `.staticText` and not `.isButton`
+                        // (`docs/12` §2). Nothing on a results card is a control.
+                        assignment: .resolved(card.resolution),
+                        // The answers are the one place a song is shown on this screen and could
+                        // not be heard (`docs/08` §7.1) — Submit's search sheet and the reveal
+                        // flight both already play through the same shared player. No preview URL
+                        // means no control at all, same as everywhere else `preview(for:)` is
+                        // built.
+                        preview: preview(for: card.track),
+                        resolve: ResolvePresentation(
+                            hasName: state.namedCards.contains(card.cardNumber),
+                            hasMark: state.markedCards.contains(card.cardNumber),
+                            hasBar: state.barredCards.contains(card.cardNumber),
+                            reducedMotion: reduceMotion
+                        )
                     )
-                )
+                    // `guesses` is only ever non-`nil` on the one card the caller owns
+                    // (`E29-01`) — that presence *is* "is this mine", so there is no separate
+                    // flag to carry or keep in sync with it. Gated on `barredCards` — the card's
+                    // own last resolve event (`docs/09` §4) — so the disclosure arrives once that
+                    // card has settled rather than popping in underneath one still resolving.
+                    if let guesses = card.guesses, state.barredCards.contains(card.cardNumber) {
+                        GuessedYouDisclosure(guesses: guesses)
+                    }
+                }
             }
         }
     }
@@ -200,6 +226,68 @@ struct ResultsScreen: View {
         return TrackRow.Preview(isPlaying: player.playing == track.trackKey) {
             player.toggle(track)
         }
+    }
+}
+
+/// §7.1's "who guessed you" (`E29-01`) — every guess made against the caller's own card, sitting
+/// directly under it. Not a grid: this is the only card that ever carries this list.
+///
+/// The per-row mark is `FlightCard`'s own resolved-answer treatment, restated here rather than
+/// shared, because that one is about the caller's *own* guess on someone else's card and this one
+/// is about everyone *else's* guess on the caller's — same visual rule, different data. **An
+/// `ultramarine` name or an `inkDim` strike, never red, never a cross** (`docs/16` §5) — and the
+/// word underneath, `results.card.hit`/`.miss`, is the same apparatus voice the rest of the
+/// screen already speaks.
+///
+/// Internal rather than private only so `ResultsSnapshots` can point at it on its own — the same
+/// reason `PersonalStats` is not `private` either.
+struct GuessedYouDisclosure: View {
+    let guesses: [CardGuessDTO]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionLabel("results.guessedyou.title")
+            if guesses.isEmpty {
+                Text("results.guessedyou.empty")
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.inkDim)
+            } else {
+                VStack(spacing: Space.none) {
+                    ForEach(Array(guesses.enumerated()), id: \.element.id) { index, guess in
+                        if index > 0 { Rule() }
+                        row(guess)
+                    }
+                }
+            }
+        }
+        .cardSurface(radius: Radius.panel, inset: Space.lg)
+    }
+
+    private func row(_ guess: CardGuessDTO) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+            Text(verbatim: guess.guesserName)
+                .typeStyle(.bodyLStrong)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .trailing, spacing: Space.xs) {
+                Text(verbatim: guess.guessedName)
+                    .typeStyle(.bodyL)
+                    .foregroundStyle(guess.isCorrect ? Palette.ultramarine : Palette.inkDim)
+                    .strikethrough(!guess.isCorrect, color: Palette.inkQuiet)
+                    .lineLimit(1)
+                SectionLabel(
+                    guess.isCorrect ? "results.card.hit" : "results.card.miss",
+                    color: guess.isCorrect ? Palette.ultramarine : Palette.amberText
+                )
+            }
+        }
+        .padding(.vertical, Space.sm)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim:
+            "\(guess.guesserName). \(Copy.string(guess.isCorrect ? "results.card.hit" : "results.card.miss")) — \(guess.guessedName)"
+        ))
     }
 }
 

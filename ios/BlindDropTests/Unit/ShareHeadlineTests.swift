@@ -176,6 +176,7 @@ enum ShareHeadlineFixture {
                 "correct_guess_count": correct,
                 "eligible_guesser_count": 7,
                 "my_guess": NSNull(),
+                "guesses": NSNull(),
             ]
         }
         let peopleJSON = people.map { name, readability, ear -> [String: Any] in
@@ -197,6 +198,7 @@ enum ShareHeadlineFixture {
                 "ear_correct": NSNull(), "ear_possible": NSNull(),
             ],
             "people": peopleJSON,
+            "tonight_top_ear": [],
         ]
         // A fixture that will not decode is a broken test, and failing loudly here is more
         // useful than nine assertions failing for a reason none of them names.

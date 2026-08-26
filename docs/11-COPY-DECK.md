@@ -318,6 +318,8 @@ Never state how many people did drop.
 | `results.card.hit` | Hit |
 | `results.card.miss` | Miss |
 | `results.card.room` | How the room did |
+| `results.guessedyou.title` | Who guessed you |
+| `results.guessedyou.empty` | Nobody guessed you. |
 | `results.you.title` | You |
 | `results.readability.label` | Readability |
 | `results.readability.detail` | %lld of %lld read you |
@@ -327,6 +329,7 @@ Never state how many people did drop.
 | `results.ear.none` | You sat this one out. |
 | `results.spectrum.low` | Unreadable |
 | `results.spectrum.high` | Easy to read |
+| `results.tonight.title` | Tonight |
 | `results.standings.title` | All time |
 | `results.standings.rounds` | %lld rounds |
 | `results.standings.ear.row` | Ear %lld |

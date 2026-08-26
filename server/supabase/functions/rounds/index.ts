@@ -63,6 +63,7 @@ import {
   type CannotGuessReason,
   type CardDTO,
   cardDTO,
+  type CardGuessDTO,
   type GuessDTO,
   guessSheetDTO,
   type MemberDTO,
@@ -504,6 +505,23 @@ async function roundScores(ctx: MemberCtx, roundId: string): Promise<Map<string,
 }
 
 /**
+ * Competition ranking: ties share a rank and the next rank skips it — 1, 2, 2, 4 (docs/04 §4).
+ * Same rule as `groups/index.ts`'s `ranked()`, kept local here rather than shared: that helper
+ * is typed to the all-time `ear_all_time` column, this round's rate lives in a differently
+ * named field, and this is its only other caller.
+ */
+function rankedByEar<T>(rows: T[], earOf: (row: T) => number): { rank: number; row: T }[] {
+  let rank = 0;
+  let previous: number | null = null;
+  return rows.map((row, index) => {
+    const ear = earOf(row);
+    if (previous === null || ear !== previous) rank = index + 1;
+    previous = ear;
+    return { rank, row };
+  });
+}
+
+/**
  * Why the caller may not guess, or `null` if they may. docs/02 §3, docs/04 §4.
  *
  * **`joined_late` is checked first, matching the owner-approved order in docs/04 §4.**
@@ -782,8 +800,13 @@ serveFunction("rounds", {
     // they opened the sheet (docs/02 §4.1).
     const eligibleGuesserCount = Math.max(order.length - 1, 0);
 
+    // The card the caller owns, if any — `guesses` (E29-01) is populated on that one card only,
+    // the same restriction `my_guess` already draws in the other direction.
+    const mySubmissionId = order.find((id) => rows.get(id)?.user_id === ctx.userId) ?? null;
+
     const correctBySubmission = new Map<string, number>();
     const mineBySubmission = new Map<string, GuessResultRow>();
+    const guessesOnMine: GuessResultRow[] = [];
     for (const result of results) {
       if (result.is_correct) {
         correctBySubmission.set(
@@ -792,10 +815,27 @@ serveFunction("rounds", {
         );
       }
       if (result.guesser_id === ctx.userId) mineBySubmission.set(result.submission_id, result);
+      if (mySubmissionId !== null && result.submission_id === mySubmissionId) {
+        guessesOnMine.push(result);
+      }
     }
 
     const unknown = (userId: string): MemberDTO =>
       profiles.get(userId) ?? memberDTO({ user_id: userId, display_name: "" });
+
+    // Every guesser is necessarily a submitter (`CLAUDE.md` §2 rule 3, "only submitters may
+    // guess"), so `profiles` — already scoped to this round's submitters — names them too.
+    // Sorted by guesser name — `guess_results` carries no ordering guarantee of its own, and
+    // "in name order" is the same convention `people` already uses below.
+    const guesses: CardGuessDTO[] = guessesOnMine
+      .map((result) => ({
+        guesser_id: result.guesser_id,
+        guesser_name: unknown(result.guesser_id).display_name,
+        guessed_user_id: result.guessed_user_id,
+        guessed_name: unknown(result.guessed_user_id).display_name,
+        is_correct: result.is_correct,
+      }))
+      .sort((a, b) => a.guesser_name.localeCompare(b.guesser_name));
 
     const cards: ResultCardDTO[] = order.map((submissionId, index) => {
       const row = rows.get(submissionId);
@@ -814,6 +854,7 @@ serveFunction("rounds", {
         correctGuessCount: correctBySubmission.get(submissionId) ?? 0,
         eligibleGuesserCount,
         myGuess,
+        guesses: submissionId === mySubmissionId ? guesses : null,
       });
     });
 
@@ -828,12 +869,33 @@ serveFunction("rounds", {
       })
       .filter((person) => person !== null);
 
+    // Tonight's top 3 by Ear, this round only — never readability (`docs/02` §4.5). A member
+    // with no ear this round (sat the guessing out entirely) is absent rather than ranked last
+    // with a dash, the same rule `groups/index.ts`'s all-time Best Ear draws.
+    const tonightRows = [...scores.entries()]
+      .filter(([, score]) => score.ear !== null)
+      .map(([userId, score]) => ({ member: unknown(userId), ear: score.ear! }))
+      .sort((a, b) =>
+        b.ear - a.ear ||
+        a.member.display_name.localeCompare(b.member.display_name) ||
+        a.member.user_id.localeCompare(b.member.user_id)
+      );
+    const tonightTopEar = rankedByEar(tonightRows, (row) => row.ear)
+      .filter(({ rank }) => rank <= 3)
+      .map(({ rank, row }) => ({
+        rank,
+        user_id: row.member.user_id,
+        display_name: row.member.display_name,
+        ear: row.ear,
+      }));
+
     return ok(
       resultsDTO(round, {
         submitterCount: order.length,
         cards,
         me: personalScoreDTO(scores.get(ctx.userId) ?? null),
         people,
+        tonightTopEar,
       }),
     );
   },

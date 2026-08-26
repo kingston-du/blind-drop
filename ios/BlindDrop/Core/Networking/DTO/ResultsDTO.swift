@@ -13,6 +13,27 @@ struct MyGuessDTO: Decodable, Sendable, Equatable {
     }
 }
 
+/// One guess made against the card the caller owns — who made it, who they named, and whether
+/// it landed (`E29-01`, `docs/04` §4). Naming mirrors `MyGuessDTO`'s `guessedUserID`/`isCorrect`
+/// for the guessed side, and adds the symmetric `guesserID`/`guesserName` pair for the other.
+struct CardGuessDTO: Decodable, Sendable, Equatable, Identifiable {
+    let guesserID: String
+    let guesserName: String
+    let guessedUserID: String
+    let guessedName: String
+    let isCorrect: Bool
+
+    var id: String { guesserID }
+
+    enum CodingKeys: String, CodingKey {
+        case guesserID = "guesser_id"
+        case guesserName = "guesser_name"
+        case guessedUserID = "guessed_user_id"
+        case guessedName = "guessed_name"
+        case isCorrect = "is_correct"
+    }
+}
+
 /// One card, resolved: the song, whose it was, and how the room did on it (`docs/04` §4).
 ///
 /// `eligibleGuesserCount` is `S − 1` on **every** card — every other submitter, whether or not
@@ -26,6 +47,10 @@ struct ResultCardDTO: Decodable, Sendable, Equatable, Identifiable {
     let eligibleGuesserCount: Int
     /// `nil` when the caller did not guess this card, or could not guess at all.
     let myGuess: MyGuessDTO?
+    /// Who guessed *this* card, and what they picked — `nil` on every card but the one the
+    /// caller owns (`E29-01`). An empty array still means "your card, nobody's guessed it yet",
+    /// which `nil` on someone else's card does not claim to know.
+    let guesses: [CardGuessDTO]?
 
     var id: Int { cardNumber }
 
@@ -35,6 +60,7 @@ struct ResultCardDTO: Decodable, Sendable, Equatable, Identifiable {
         case correctGuessCount = "correct_guess_count"
         case eligibleGuesserCount = "eligible_guesser_count"
         case myGuess = "my_guess"
+        case guesses
     }
 }
 
@@ -80,6 +106,27 @@ struct PersonScoreDTO: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// One row in tonight's Ear ranking (`E29-01`) — the same **ranked**, ties-share-a-rank shape
+/// as `EarStandingDTO`, scoped to this round instead of all time. A deliberately separate type
+/// rather than a reuse of `EarStandingDTO`: that type's `earAllTime`/`earCorrectTotal` name an
+/// all-time fact this round-scoped row does not carry. Never a readability counterpart —
+/// `docs/02` §4.5 forbids ranking readability at any scope, not just all-time.
+struct TonightEarDTO: Decodable, Sendable, Equatable, Identifiable {
+    let rank: Int
+    let userID: String
+    let displayName: String
+    let ear: Double
+
+    var id: String { userID }
+
+    enum CodingKeys: String, CodingKey {
+        case rank
+        case userID = "user_id"
+        case displayName = "display_name"
+        case ear
+    }
+}
+
 /// `GET /rounds/{round_id}/results` — `docs/04` §4. Available for any past round, which is how
 /// The Record links back into a night from three weeks ago.
 ///
@@ -92,12 +139,14 @@ struct ResultsDTO: Decodable, Sendable, Equatable {
     let cards: [ResultCardDTO]
     let me: PersonalScoreDTO
     let people: [PersonScoreDTO]
+    let tonightTopEar: [TonightEarDTO]
 
     enum CodingKeys: String, CodingKey {
         case roundID = "round_id"
         case localDate = "local_date"
         case submitterCount = "submitter_count"
         case cards, me, people
+        case tonightTopEar = "tonight_top_ear"
     }
 }
 

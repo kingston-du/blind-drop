@@ -48,6 +48,33 @@ import Testing
         #expect(card.resolution.owner == "Gus")
     }
 
+    // MARK: - E29-01: who guessed you, and tonight's top three
+
+    /// `guesses` is populated only on the card the caller owns. No. 4 is Ana's, and the fixture
+    /// carries six guesses against it — Ribs' duplicate (Ana and Ben both dropped it) makes every
+    /// one of them correct, `docs/02` §4.3.
+    @Test func guessesIsPopulatedOnlyOnTheCallersOwnCard() throws {
+        let results = try ResultsFixture.results()
+        let mine = try #require(results.cards.first { $0.cardNumber == 4 })
+        let others = results.cards.filter { $0.cardNumber != 4 }
+
+        #expect(mine.guesses?.map(\.guesserName) == ["Ben", "Cal", "Dee", "Fay", "Gus", "Hal"])
+        #expect(mine.guesses?.allSatisfy(\.isCorrect) == true)
+        for card in others {
+            #expect(card.guesses == nil, "card \(card.cardNumber) is not Ana's")
+        }
+    }
+
+    /// `tonight_top_ear` ranks the round alone — Cal's 100% leads, and Fay and Hal share rank 3 on
+    /// an identical 0.571, the tie the fixture happens to carry at exactly the boundary this cuts
+    /// off at. Both stay; the array is not simply truncated to three entries.
+    @Test func tonightTopEarIsRankedWithTiesAtTheBoundaryKeptWhole() throws {
+        let results = try ResultsFixture.results()
+
+        #expect(results.tonightTopEar.map(\.displayName) == ["Cal", "Ana", "Fay", "Hal"])
+        #expect(results.tonightTopEar.map(\.rank) == [1, 2, 3, 3])
+    }
+
     // MARK: - "%lld of %lld got it", and the two nights that get a sentence
 
     @Test func theCountReadsAsAFraction() {
@@ -205,6 +232,20 @@ import Testing
         // that asserted on `.first` would pass or fail on it.
         let paths = session.requests.compactMap { $0.url?.path() }
         #expect(paths.contains { $0.hasSuffix("/rounds/c0000000-0000-4000-8000-000000000001/results") })
+    }
+
+    /// `tonight_top_ear` reaches `viewState` untouched — the store holds no opinion about it
+    /// beyond decoding, the same as every other field on `ResultsDTO`.
+    @Test func theStoreSurfacesTonightTopEar() async throws {
+        let (env, session) = RoundFixture.environment()
+        session.arm([try RoundFixture.envelope("results")])
+        let store = ResultsStore(
+            api: env.api, roundID: "c0000000-0000-4000-8000-000000000001", circles: env.circles
+        )
+
+        await store.load()
+
+        #expect(store.viewState(resolve: nil).tonightTopEar.map(\.displayName) == ["Cal", "Ana", "Fay", "Hal"])
     }
 
     /// A failed refresh keeps the answers on screen (`LoadState.stale`). Results do not change

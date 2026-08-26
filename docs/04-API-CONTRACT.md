@@ -449,7 +449,20 @@ round, which is how the Record links back into results.
       "correct_guess_count": 4,
       "eligible_guesser_count": 7,
       "my_guess": { "guessed_user_id": "u_cal", "display_name": "Cal",
-                    "is_correct": false }      // null if you didn't guess / couldn't
+                    "is_correct": false },     // null if you didn't guess / couldn't
+      "guesses": null                          // populated only on the card you own — see below
+    },
+    {
+      "card_no": 4,
+      "track": { /* Track DTO */ },
+      "owner": { "user_id": "u_ana", "display_name": "Ana" },
+      "correct_guess_count": 6,
+      "eligible_guesser_count": 7,
+      "my_guess": null,                        // you never guess your own card
+      "guesses": [                             // E29-01 — every guess made against *this* card
+        { "guesser_id": "u_ben", "guesser_name": "Ben",
+          "guessed_user_id": "u_ana", "guessed_name": "Ana", "is_correct": true }
+      ]
     }
   ],
   "me": {
@@ -463,9 +476,24 @@ round, which is how the Record links back into results.
   "people": [
     { "user_id": "u_ana", "display_name": "Ana",
       "readability": 0.857, "ear": 0.714 }
+  ],
+  "tonight_top_ear": [                         // E29-01 — this round only, never readability
+    { "rank": 1, "user_id": "u_ana", "display_name": "Ana", "ear": 1.0 },
+    { "rank": 2, "user_id": "u_ben", "display_name": "Ben", "ear": 0.75 },
+    { "rank": 2, "user_id": "u_cal", "display_name": "Cal", "ear": 0.75 }
   ]
 }}
 ```
+
+- `cards[].guesses` is present, as a list (possibly empty), only on the one card whose `owner`
+  is the caller — `null` on every other card. Not a who-guessed-whom grid for the whole round:
+  each entry names who guessed and what they picked, both by id and by name, and whether it
+  landed — the same neutral correct/incorrect the rest of the screen already carries, never
+  green/red (`docs/16` §5).
+- `tonight_top_ear` is **ranked** — ties share a rank and the next rank skips, the same rule as
+  `best_ear` below — computed for this round alone, top 3 by rank (a tie at the boundary can
+  make this more than 3 rows; it never splits a tie). A member who made no guesses this round
+  has a null ear and is absent, not ranked last. Never a readability counterpart.
 
 - Rates are decimals `0..1`, not percentages. The client formats.
 - `null` means *not applicable*, never *zero*. The client must render `null` ear as "—", not

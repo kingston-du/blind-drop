@@ -22,6 +22,7 @@ import {
   mintToken,
   newGroupOwner,
   newMember,
+  type TestUser,
   tickRoundsAt,
   zoneWhereLocalHourIs,
 } from "./_harness.ts";
@@ -46,15 +47,32 @@ const PERSON = {
 // amount of scheduler-running by the rest of the suite can move it out from under this file.
 const SCORED_ROUND = "c0000000-0000-4000-8000-000000000001";
 
-const RESULTS_KEYS = ["cards", "local_date", "me", "people", "round_id", "submitter_count"].sort();
+const RESULTS_KEYS = [
+  "cards",
+  "local_date",
+  "me",
+  "people",
+  "round_id",
+  "submitter_count",
+  "tonight_top_ear",
+].sort();
 const CARD_KEYS = [
   "card_no",
   "correct_guess_count",
   "eligible_guesser_count",
+  "guesses",
   "my_guess",
   "owner",
   "track",
 ].sort();
+const GUESS_KEYS = [
+  "guesser_id",
+  "guesser_name",
+  "guessed_user_id",
+  "guessed_name",
+  "is_correct",
+].sort();
+const TONIGHT_EAR_KEYS = ["display_name", "ear", "rank", "user_id"].sort();
 const ME_KEYS = [
   "ear",
   "ear_correct",
@@ -121,6 +139,11 @@ Deno.test("the results payload has exactly the documented key set", async () => 
   assertEquals(keysOf(data.cards[0].owner), ["display_name", "user_id"]);
   assertEquals(data.round_id, SCORED_ROUND);
   assertEquals(data.local_date, "2026-08-08");
+
+  // Card 4 is Ana's own — the one card in this fixture whose `guesses` is populated.
+  assertEquals(keysOf(data.cards[3].guesses[0]), GUESS_KEYS);
+  assert(data.tonight_top_ear.length > 0, "the §4.4 matrix has more than three submitters");
+  assertEquals(keysOf(data.tonight_top_ear[0]), TONIGHT_EAR_KEYS);
 });
 
 Deno.test("a scored round from three days ago is readable — the Record links into it", async () => {
@@ -163,6 +186,130 @@ Deno.test("cards carry the whole Track DTO, so the archive renders without a sec
   // The `{w}x{h}` template, never a resolved size — docs/06 §2.1.
   assert(String(track.artwork_url).includes("{w}x{h}"), "artwork stays a template");
   assert(String(track.spotify_url).startsWith("https://open.spotify.com/track/"));
+});
+
+// ─── E29-01: who guessed you ──────────────────────────────────────────────────
+
+Deno.test("guesses names everyone who guessed the caller's card, in name order — and nobody else's card", async () => {
+  const data = await resultsAs("Ana");
+
+  // Card 4 is Ana's. Ana and Ben both dropped "Ribs" (§4.4's deliberate duplicate), so a guess
+  // of either name on this card is correct — docs/02 §4.3, `guess_results`'s own comment. Ana's
+  // guessers, from the seed: Ben, Cal, Dee and Fay all named Ana; Gus and Hal both named Ben.
+  // Eli never opened a sheet, so Eli is simply absent rather than a guess of nothing.
+  const mine = data.cards[3];
+  assertEquals(mine.owner.display_name, "Ana");
+  assertEquals(
+    mine.guesses.map((g: Json) => g.guesser_name),
+    ["Ben", "Cal", "Dee", "Fay", "Gus", "Hal"],
+    "in guesser-name order",
+  );
+  assert(mine.guesses.every((g: Json) => g.is_correct), "Ribs' duplicate makes every one of these correct");
+  assertEquals(
+    mine.guesses.map((g: Json) => g.guessed_name),
+    ["Ana", "Ana", "Ana", "Ana", "Ben", "Ben"],
+  );
+
+  // Every other card, including the caller's own guess elsewhere in the round, carries no
+  // `guesses` at all — this is not a full who-guessed-whom grid (`tasks/E29-...md`).
+  for (const [index, card] of data.cards.entries()) {
+    if (index === 3) continue;
+    assertEquals(card.guesses, null, `card ${index + 1} is not Ana's — guesses must be null`);
+  }
+});
+
+Deno.test("guesses is absent from another caller's view of the very same round", async () => {
+  // The shape rule proven from Ana's side above must hold from everyone's side: `guesses` is
+  // never a property of the card, only of who is asking.
+  const data = await resultsAs("Dee");
+  assertEquals(data.cards[3].guesses, null, "Dee is not Ana — Ana's guesses are not Dee's to see");
+  assert(data.cards[0].guesses !== null, "card 1 is Dee's own");
+});
+
+// ─── E29-01: tonight's top three ──────────────────────────────────────────────
+//
+// Built fresh rather than read off the §4.4 seed: the seed's Ear numbers do not happen to
+// produce a tie, and a tie at the rank-3 boundary — where "top three" and "ties share a rank"
+// pull in different directions — is exactly the case worth stating exactly.
+
+Deno.test("tonight_top_ear ranks the round alone, ties share a rank, and a tied rank at the boundary still shows in full", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana", {
+    name: "Tonight Only",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+  });
+  const code = group.invite_code as string;
+  const names = ["Ana", "Ben", "Cal", "Dee", "Eli"] as const;
+  const tracks = ["1440818664", "1440765580", "1452874255", "1440830827", "1442571948"];
+  const people: Record<string, TestUser> = { Ana: ana };
+  for (const person of names.slice(1)) people[person] = await newMember(code, person);
+
+  const ownerOf = new Map<string, string>();
+  for (const [i, person] of names.entries()) {
+    const res = await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: people[person].token,
+      body: { apple_music_id: tracks[i] },
+    });
+    assertEquals(res.status, 200, `${person} could not drop a song`);
+    ownerOf.set(res.body.data.track.track_key as string, person);
+  }
+
+  await tickRoundsAt(2);
+  const revealed = await call("rounds", "/current", { token: ana.token });
+  assertEquals(revealed.body.data.state, "revealed");
+  const roundId = revealed.body.data.round_id as string;
+
+  async function cardOwners(person: string): Promise<Map<number, string>> {
+    const res = await call("rounds", "/current", { token: people[person].token });
+    return new Map(
+      (res.body.data.cards as Json[]).map((c) => [
+        c.card_no as number,
+        ownerOf.get(c.track.track_key as string)!,
+      ]),
+    );
+  }
+
+  /** Assigns every card but the guesser's own, naming the true owner for `correctOn` and a
+   *  deliberate miss (never the guesser) everywhere else. */
+  async function guess(guesser: string, correctOn: string[]): Promise<void> {
+    const owners = await cardOwners(guesser);
+    const assignments = [...owners.entries()]
+      .filter(([, owner]) => owner !== guesser)
+      .map(([cardNo, owner]) => {
+        const named = correctOn.includes(owner) ? owner : (owner === "Ana" ? "Eli" : "Ana");
+        return { card_no: cardNo, guessed_user_id: people[named].id };
+      });
+    const res = await call("rounds", "/current/guesses", {
+      method: "PUT",
+      token: people[guesser].token,
+      body: { assignments },
+    });
+    assertEquals(res.status, 200, `${guesser} could not save a sheet: ${JSON.stringify(res.body)}`);
+  }
+
+  // Ana 4/4 → 1.0, alone at rank 1. Ben and Cal 3/4 → 0.75 apiece, tied at rank 2 — the pair
+  // that must both survive the "top three" cut. Dee 2/4 → 0.5: the tie at rank 2 pushes Dee to
+  // rank 4, one place past the cutoff, which is the point of this fixture. Eli guesses nothing
+  // at all, so Eli's ear is null and Eli never appears here — same rule as the all-time board.
+  await guess("Ana", ["Ben", "Cal", "Dee", "Eli"]);
+  await guess("Ben", ["Ana", "Cal", "Dee"]);
+  await guess("Cal", ["Ana", "Ben", "Eli"]);
+  await guess("Dee", ["Ben", "Cal"]);
+
+  await tickRoundsAt(4);
+
+  const res = await call("rounds", `/${roundId}/results`, { token: ana.token });
+  assertEquals(res.status, 200);
+  const tonight = res.body.data.tonight_top_ear as Json[];
+
+  assertEquals(tonight.length, 3, "Dee's rank 4 and Eli's null ear both fall outside the top three");
+  assertEquals(tonight.map((t) => t.rank), [1, 2, 2]);
+  assertEquals(tonight.map((t) => t.display_name), ["Ana", "Ben", "Cal"]);
+  assertEquals(tonight.map((t) => t.user_id), [people.Ana.id, people.Ben.id, people.Cal.id]);
+  assertRate(tonight[0].ear, 1, "Ana tonight");
+  assertRate(tonight[1].ear, 0.75, "Ben tonight");
+  assertRate(tonight[2].ear, 0.75, "Cal tonight");
 });
 
 Deno.test("my_guess is the caller's own, with the name and whether it landed", async () => {

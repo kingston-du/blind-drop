@@ -38,7 +38,11 @@ private let sizes = SnapshotRenderer.typeSizes
 
     @Test(arguments: devices, sizes)
     func threeCards(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
-        verify(named: "Results-3", device, size) {
+        // No. 4's new "who guessed you" disclosure (`E29-01`) adds real height, and at 3× the
+        // wide accessibility-five case is now over ImageIO's simulator PNG limit — the same
+        // ~8000px ceiling `SnapshotRenderer`'s own docs name. The cap is a no-op at every other
+        // size in this matrix; only 15 Pro Max × accessibility5 is anywhere near it.
+        verify(named: "Results-3", device, size, maximumPixelCount: 8_000_000) {
             ResultsSnapshotFixture.screen(cards: ResultsSnapshotFixture.cards(Self.markStates))
         }
     }
@@ -138,14 +142,48 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    // MARK: - E29-01: who guessed you, and tonight's top three
+
+    /// Six guesses against one card, the fixture's own §4.4 shape (`docs/02` §4.3's duplicate —
+    /// Ana and Ben both dropped "Ribs" — makes every one of them correct, so this golden is also
+    /// the only place four back-to-back `Hit`s are on screen at once).
+    @Test(arguments: devices, sizes)
+    func guessedYou(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-guessedyou", device, size) {
+            GuessedYouDisclosure(guesses: ResultsSnapshotFixture.myGuesses)
+        }
+    }
+
+    /// Nobody has guessed this card yet — an empty list, not an absent one (`docs/04` §4): the
+    /// caller's card exists and no one has opened a sheet against it, which is a different fact
+    /// from the `nil` every other card carries.
+    @Test(arguments: devices)
+    func guessedYouEmpty(_ device: SnapshotRenderer.Device) {
+        verify(named: "Results-guessedyou-empty", device, .large) {
+            GuessedYouDisclosure(guesses: [])
+        }
+    }
+
+    /// Cal alone at rank 1, and Fay/Hal tied at rank 3 — the fixture's own boundary tie, kept
+    /// whole rather than truncated to three rows.
+    @Test(arguments: devices, sizes)
+    func tonightTopEar(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-tonight", device, size) {
+            TonightTopEarView(rows: ResultsSnapshotFixture.results.tonightTopEar)
+        }
+    }
+
     private func verify(
         named name: String,
         _ device: SnapshotRenderer.Device,
         _ size: DynamicTypeSize,
+        maximumPixelCount: Int? = nil,
         sourceLocation: SourceLocation = #_sourceLocation,
         @ViewBuilder content: () -> some View
     ) {
-        let image = SnapshotRenderer.image(of: content(), device: device, typeSize: size)
+        let image = SnapshotRenderer.image(
+            of: content(), device: device, typeSize: size, maximumPixelCount: maximumPixelCount
+        )
         SnapshotRenderer.verify(
             image,
             named: "\(name)-\(device.name)-\(size.snapshotName)",
@@ -194,6 +232,12 @@ enum ResultsSnapshotFixture {
 
     /// The whole night, in the order the server sent it.
     static var allCards: [ResultCardDTO] { results.cards }
+
+    /// Every guess against card No. 4 — Ana's own — the six-entry list `E29-01`'s "who guessed
+    /// you" disclosure draws.
+    static var myGuesses: [CardGuessDTO] {
+        results.cards.first { $0.cardNumber == 4 }?.guesses ?? []
+    }
 
     /// The **You** pair on its own, so the two absent-rate goldens are pictures of the pair
     /// rather than of a whole screen with an empty flight above it.
