@@ -466,7 +466,7 @@ amendment in the epic file.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E31-01 Two conditions replace one universal nudge | wip | — | yes | AC-3 |
+| E31-01 Two conditions replace one universal nudge | done | — | yes | AC-3 |
 
 ## E32 — Two small, independent fixes · [file](E32-two-small-fixes.md)
 
@@ -531,8 +531,8 @@ amendment in the epic file.
 |---|---|
 | E29 results & record depth | 1 / 3 |
 | E30 share card | 1 / 1 |
-| E31 conditional reminders | 0 / 1 |
+| E31 conditional reminders | 1 / 1 |
 | E32 two small fixes | 0 / 2 |
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
-| **Next-progression total** | **3 / 9** |
+| **Next-progression total** | **4 / 9** |

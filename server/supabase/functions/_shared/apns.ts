@@ -59,17 +59,44 @@ export function resetApnsToken(): void {
   signing = null;
 }
 
-export type NotificationKind = "invite" | "nudge" | "reveal" | "results" | "void";
+// E31-01, docs/05 §3: `nudge` is retired — replaced by two conditional reminders,
+// `seal_reminder` (up to twice a round) and `guess_reminder` (once). The enum label `nudge`
+// stays in the database (Postgres has no `ALTER TYPE ... DROP VALUE`) but no code path produces
+// it anymore, so it is deliberately absent from this type and from `BODIES` below.
+export type NotificationKind =
+  | "invite"
+  | "seal_reminder"
+  | "guess_reminder"
+  | "reveal"
+  | "results"
+  | "void";
 
-const BODIES: Readonly<Record<NotificationKind, string>> = {
+const BODIES: Readonly<Record<Exclude<NotificationKind, "seal_reminder">, string>> = {
   invite: "You have a group invite.",
-  nudge: "Two hours left to drop a song.",
+  guess_reminder: "Half an hour left to guess who dropped what.",
   reveal: "Tonight's songs are out.",
   results: "Tonight's answers are in.",
   void: "Not enough drops tonight. Nothing revealed.",
 };
 
-/** The only five notification alerts the product permits. */
-export function notificationAlert(kind: NotificationKind): { title: "Blind Drop"; body: string } {
+/**
+ * `seal_reminder` fires twice a round (`reveals_at − 2h`, then `reveals_at − 30m`) and each
+ * firing gets its own body — `firing` distinguishes them. Every other kind ignores `firing`.
+ */
+const SEAL_REMINDER_BODIES = {
+  first: "You haven't sealed a song yet. Two hours left.",
+  second: "Half an hour left, and you haven't sealed a song.",
+} as const;
+
+export type SealReminderFiring = keyof typeof SEAL_REMINDER_BODIES;
+
+/** The only six notification alerts the product permits (docs/11 §"Notifications"). */
+export function notificationAlert(
+  kind: NotificationKind,
+  sealReminderFiring: SealReminderFiring = "first",
+): { title: "Blind Drop"; body: string } {
+  if (kind === "seal_reminder") {
+    return { title: "Blind Drop", body: SEAL_REMINDER_BODIES[sealReminderFiring] };
+  }
   return { title: "Blind Drop", body: BODIES[kind] };
 }

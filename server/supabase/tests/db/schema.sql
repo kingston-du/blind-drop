@@ -13,8 +13,12 @@ select has_enum('public', 'round_state', 'round_state enum exists');
 select enum_has_labels('public', 'round_state',
        array['open','revealed','scored','voided'], 'round_state has the docs/02 §2 states');
 select has_enum('public', 'notif_kind', 'notif_kind enum exists');
+-- `nudge` is retired (E31-01, docs/05 §3) but the label is not removed — Postgres has no
+-- `ALTER TYPE ... DROP VALUE` — so it stays in the type, permanently unused, alongside the six
+-- live kinds docs/11 documents.
 select enum_has_labels('public', 'notif_kind',
-       array['nudge','reveal','results','void','invite'], 'notif_kind has the docs/11 kinds');
+       array['nudge','reveal','results','void','invite','seal_reminder','guess_reminder'],
+       'notif_kind has the docs/11 kinds, plus the retired-but-undroppable nudge label');
 
 -- ─── the nine tables ─────────────────────────────────────────────────────────
 select has_table('public', t, format('table %I exists', t))

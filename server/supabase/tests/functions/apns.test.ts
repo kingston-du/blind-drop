@@ -77,9 +77,8 @@ Deno.test("a cold concurrent batch signs one APNs JWT", async () => {
   assertEquals(new Set(tokens).size, 1);
 });
 
-Deno.test("the five APNs alerts are the approved copy, verbatim", () => {
+Deno.test("the six APNs alerts are the approved copy, verbatim — E31-01 retired nudge", () => {
   assertEquals(notificationAlert("invite"), { title: "Blind Drop", body: "You have a group invite." });
-  assertEquals(notificationAlert("nudge"), { title: "Blind Drop", body: "Two hours left to drop a song." });
   assertEquals(notificationAlert("reveal"), {
     title: "Blind Drop",
     body: "Tonight's songs are out.",
@@ -89,4 +88,21 @@ Deno.test("the five APNs alerts are the approved copy, verbatim", () => {
     title: "Blind Drop",
     body: "Not enough drops tonight. Nothing revealed.",
   });
+  assertEquals(notificationAlert("guess_reminder"), {
+    title: "Blind Drop",
+    body: "Half an hour left to guess who dropped what.",
+  });
+});
+
+Deno.test("seal_reminder has two bodies, chosen by which firing it is", () => {
+  assertEquals(notificationAlert("seal_reminder", "first"), {
+    title: "Blind Drop",
+    body: "You haven't sealed a song yet. Two hours left.",
+  });
+  assertEquals(notificationAlert("seal_reminder", "second"), {
+    title: "Blind Drop",
+    body: "Half an hour left, and you haven't sealed a song.",
+  });
+  // The default is the first (2h) firing's copy — never silently empty.
+  assertEquals(notificationAlert("seal_reminder"), notificationAlert("seal_reminder", "first"));
 });

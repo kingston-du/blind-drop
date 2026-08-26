@@ -40,7 +40,7 @@ values (tests.person('Ana'), 'deletion-fixture-token', 'sandbox');
 insert into public.rate_limit_events (bucket)
 values ('route:DELETE /:u:' || tests.person('Ana')::text);
 insert into public.notification_outbox (round_id, kind, audience)
-values (tests.round_on(date '2026-08-10'), 'nudge',
+values (tests.round_on(date '2026-08-10'), 'seal_reminder',
         jsonb_build_array(tests.person('Ana'), tests.person('Ben')));
 
 select tests.set_test_now('2026-08-10T19:00:00Z');
@@ -99,11 +99,11 @@ select is((select count(*)::int from public.rate_limit_events
           0, 'short-lived per-user rate-limit rows are removed');
 select ok(not (select audience ? 'a0000000-0000-4000-8000-000000000001'
                  from public.notification_outbox
-                where round_id = tests.round_on(date '2026-08-10') and kind = 'nudge'),
+                where round_id = tests.round_on(date '2026-08-10') and kind = 'seal_reminder'),
           'the deleted id is removed from frozen notification audiences');
 select ok((select audience ? 'a0000000-0000-4000-8000-000000000002'
               from public.notification_outbox
-             where round_id = tests.round_on(date '2026-08-10') and kind = 'nudge'),
+             where round_id = tests.round_on(date '2026-08-10') and kind = 'seal_reminder'),
           'other notification recipients are untouched');
 
 select lives_ok(

@@ -93,7 +93,9 @@ request — it is a break, and it needs the owner:
 - Any display of who has or hasn't submitted, in any phase
 - Any submission count before the reveal
 - Letting non-submitters guess
-- A fourth daily notification
+- A seventh notification kind, or any push that mentions another member's status or a count
+  (`seal_reminder`/`guess_reminder` are addressed to the recipient about their own status only —
+  `docs/05` §3; `E31-01` lifted the old three-a-day cap, not the closed set or the no-leak rule)
 - Making the reveal or the score time client-decided
 - Removing the two-hour guess window, or moving anything past 22:00
 - Ranking readability

@@ -106,24 +106,35 @@ Transition and enqueue happen in **one transaction**. Never enqueue first.
 
 ## 3. The round notifications and invitations
 
-> **Amended by the owner — ADR-011, `CLAUDE.md` §2.6.** Three *deliveries* per user in a rolling
-> 24-hour window, across **all** their circles, grouped by kind where their scheduled instants
-> coincide. The budget did not grow with the circle count; `E23-02` enforces it centrally.
+> **Amended by the owner — `docs/17-NEXT-FEATURES.md` §5, on the same footing as ADR-011,
+> `CLAUDE.md` §2.6.** The unconditional `nudge` is retired for two conditional reminders,
+> `seal_reminder` (up to twice a round) and `guess_reminder` (once a round), and the old
+> 3-deliveries/24h cap is lifted to admit them: a fully disengaged member in one circle can now
+> see up to five pushes in an evening. What the cap protected — a quiet app, and one grouped push
+> per coincident same-kind event across circles — is unchanged; only the fixed ceiling is gone.
+> `E23-02`'s cross-circle grouping still applies, per kind.
 
-Three deliveries per user in a rolling 24-hour window, maximum, across every circle. This app
-earns trust by being quiet. Round transitions make the four kinds below; `invite` is the one
-prompt kind, created with a direct invitation rather than by `tick_rounds()`. Its enqueue path
-counts every existing delivery for the recipient and coalesces invitations waiting to send, so a
-person invited to several circles together receives one notification. `E23-02` applies the
-same cross-circle grouping to coincident scheduled round deliveries. A grouped scheduled
-delivery uses the first deterministic round as its deep-link target; the switcher exposes the
-other circles that changed at the same instant.
+This app earns trust by being quiet, not by a fixed daily number. Round transitions make the
+five kinds below; `invite` is the one prompt kind, created with a direct invitation rather than
+by `tick_rounds()`. `E23-02` applies cross-circle grouping to coincident scheduled deliveries of
+the same kind — a person in three circles that reveal at the same hour gets **one** `reveal`
+push, not three, and a person invited to several circles together gets **one** `invite`. A
+grouped scheduled delivery uses the first deterministic round as its deep-link target; the
+switcher exposes the other circles that changed at the same instant.
 
 | # | When | Audience | Title / body | Deep link |
 |---|---|---|---|---|
 | 1 | `reveals_at` | all active members | *Tonight's songs are out.* | `blinddrop://circle/<GROUP_ID>/round/current` |
 | 2 | `scores_at` | members who **submitted or guessed** | *Tonight's answers are in.* | `blinddrop://circle/<GROUP_ID>/round/current/results` |
-| 3 | `reveals_at − 2h` | all active members | *Two hours left to drop a song.* | `blinddrop://circle/<GROUP_ID>/round/current` |
+| 3 | `reveals_at − 2h` | members who **haven't submitted yet** | *You haven't sealed a song yet. Two hours left.* | `blinddrop://circle/<GROUP_ID>/round/current` |
+| 4 | `reveals_at − 30m` | members who **haven't submitted yet** | *Half an hour left, and you haven't sealed a song.* | `blinddrop://circle/<GROUP_ID>/round/current` |
+| 5 | `scores_at − 30m` | submitters who **haven't finished guessing yet** | *Half an hour left to guess who dropped what.* | `blinddrop://circle/<GROUP_ID>/round/current` |
+
+Rows 3 and 4 are both `seal_reminder` — the same kind, firing at most twice a round, at two
+different scheduled instants. Row 5 is `guess_reminder`, firing at most once. Worst case for a
+fully disengaged member in one circle, in one evening — drops right before reveal, never opens
+the guess sheet: both `seal_reminder`s, `reveal`, `guess_reminder`, `results`. Five pushes,
+stated here plainly rather than left for someone to discover later.
 
 Plus one conditional, replacing #1:
 
@@ -133,17 +144,37 @@ Plus one conditional, replacing #1:
 |---|---|---|---|---|
 | `invite` | direct invitation created | that invitation's recipient | *You have a group invite.* | `blinddrop://invite/<INVITATION_ID>` |
 
-That is the complete closed set. **No** streak reminders, **no** "your friend just posted", **no**
-re-engagement nags, **no** "someone dropped a song". Adding a sixth notification is a product
-change requiring the owner, not an agent.
+That is the complete closed set — six kinds. **No** streak reminders, **no** "your friend just
+posted", **no** re-engagement nags, **no** "someone dropped a song". Adding a seventh
+notification is a product change requiring the owner, not an agent.
 
-### The nudge leaves a choice open
+### The reminders are personal, not a headcount
 
-Notification #3 goes to every active member, including someone who has already dropped. It is a
-quiet invitation to open the round and replace their song before reveal, not a signal about who
-else has or has not submitted. Its audience is resolved and frozen at `reveals_at − 2h`; a later
-join or leave does not rewrite it. The body stays personal and neutral: *"Two hours left to drop
-a song."* — never "you're the last one" or "3 people have dropped".
+`seal_reminder` and `guess_reminder` are each addressed to the recipient about their **own**
+status — unlike the old `nudge`, which went to every active member including people who'd
+already dropped, these two only ever reach someone whose own condition (no submission; an
+incomplete guess sheet) is still true when the reminder is enqueued. That is why the copy may say
+"you haven't sealed a song yet" — it is never a claim about anyone else, and never a count.
+`CLAUDE.md` §2.1's no-leak rule still applies in full: no mention of another member's status, no
+number that moves with participation.
+
+### Audiences can change between enqueue and send — a deliberate, scoped break
+
+Every notification kind before this slice had its audience **frozen forever** at enqueue: "a
+later join or leave does not rewrite it" held without exception, because `reveal`/`void`/`results`
+are decided by the same transaction that freezes their audience, and the old `nudge` didn't care
+who had submitted. `seal_reminder` and `guess_reminder` are enqueued up to two hours (or thirty
+minutes) before the condition they describe is checked again, and that condition can turn true in
+between — someone drops a song, or finishes their guess sheet, before the worker actually sends.
+Re-sending "you haven't sealed a song yet" to someone who sealed ten minutes ago would be wrong,
+not merely stale, so `claim_notification_outbox` re-checks each of these two kinds' recipients at
+claim time and drops anyone whose condition has since resolved before the push goes out —
+mirroring the `settled_invitations` pattern that already retires a pending-invitation row whose
+invitation is no longer pending, but at the granularity of one recipient inside a shared audience
+rather than a whole row, since a `seal_reminder`/`guess_reminder` row commonly holds several
+recipients at once and only some may have resolved
+(`20260826120100_conditional_reminders.sql`). `reveal`, `void`, `results`, and `invite` keep the
+old frozen-forever guarantee, unchanged.
 
 ---
 
@@ -198,13 +229,15 @@ something happens at 8:00 PM and has a reason to want to be told.
 
 ### There are no notification settings
 
-> **ADR-011, `CLAUDE.md` §2.6.** Three *deliveries* per user in a rolling 24-hour window across
-> **all** their circles, grouped where the kind and scheduled instant coincide. The budget does
-> not grow with the circle count.
+> **ADR-011, `CLAUDE.md` §2.6; amended by `E31-01`.** Deliveries are grouped where the kind and
+> scheduled instant coincide across **all** a user's circles — that part of ADR-011 stands. The
+> fixed daily delivery ceiling it also introduced does not: `E31-01` lifted it to admit
+> `seal_reminder`/`guess_reminder` (§3).
 
-No per-type toggles, no quiet hours, no in-app preference screen. Three pushes a day is
-already quiet; a settings screen implies there is something to manage. Users who want silence
-use iOS notification settings.
+No per-type toggles, no quiet hours, no in-app preference screen. A handful of pushes a day,
+every one of them about something that actually happened or is about to, is already quiet; a
+settings screen implies there is something to manage. Users who want silence use iOS
+notification settings.
 
 ---
 
