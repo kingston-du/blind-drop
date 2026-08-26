@@ -12,7 +12,7 @@ as a batch. `E29-03` touches neither.
 
 ### E29-01 — Who guessed you, and how tonight stacked up
 
-**Status:** todo
+**Status:** done
 **Deps:** —
 **Parallel:** vs E29-03
 **Reads:** `docs/17-NEXT-FEATURES.md` §1, `docs/04-API-CONTRACT.md`, `docs/08-SCREEN-SPECS.md` §7,
@@ -32,17 +32,29 @@ confirm neither new element exists yet.
 
 Two additions to `GET /rounds/{id}/results`, once `scored`:
 
-- [ ] `my_card.guesses: [{guesser_name, picked_name, correct}]` — every guesser and their pick for
-      the card the caller owns, sourced from `guess_results` (`0005_scoring.sql`) filtered to that
-      card. No green/red for correctness (`docs/16` §5) — reuse the neutral glyph `FlightCard`
-      already uses for a `.resolved` card.
-- [ ] `tonight_top_ear: [{name, rate, rank}]` — top 3 by Ear for this round only, sourced from
-      `round_scores`, ties sharing a rank the same way `standings` does. Never rank readability
-      (`docs/16` §5).
-- [ ] `audit:leak` gains assertions: `guesses` absent before `scored`; absent on any card the
-      caller does not own; `tonight_top_ear` absent before `scored`.
-- [ ] iOS: a "who guessed you" disclosure under the caller's own answer card in `ResultsScreen`,
-      and a small "tonight" leaderboard module distinct from `StandingsView`.
+- [x] `cards[].guesses: [{guesser_id, guesser_name, guessed_user_id, guessed_name, is_correct}]`
+      — every guesser and their pick for the card the caller owns, sourced from `guess_results`
+      (`0005_scoring.sql`) filtered to that card, `null` on every other card. No green/red for
+      correctness (`docs/16` §5) — reuses the neutral ultramarine/inkDim word-mark `FlightCard`
+      already uses for a `.resolved` card. **Field names deviate from this checklist's own
+      sketch** (`guesser_name`/`picked_name`/`correct`) in favour of this codebase's established
+      DTO convention (`guesser_id`/`guesser_name`, `guessed_user_id`/`guessed_name`,
+      `is_correct`) — matches `MyGuessDTO`'s existing shape instead of inventing a second one.
+      There is no separate `my_card` object anywhere in the DTO layer; `guesses` is a field on
+      the existing per-card `ResultCardDTO`, populated only for the card the caller owns.
+- [x] `tonight_top_ear: [{rank, user_id, display_name, ear}]` — top 3 by Ear for this round only,
+      sourced from `round_scores`, competition-ranked the same way `standings` does (ties share a
+      rank, the next rank skips). A tie sitting across the rank-3 boundary is kept whole rather
+      than truncated. Never rank readability (`docs/16` §5).
+- [x] Leak safety: the whole endpoint is already gated to `scored` (`requirePhase`), so `guesses`
+      and `tonight_top_ear` cannot appear on an `open`- or `revealed`-phase response by
+      construction — there is no route that returns partial `results` data early to guard
+      against. `audit:leak`'s golden (`round_results.json`) gains both keys, reviewed before
+      regenerating; a dedicated `results.test.ts` test asserts `guesses` is `null` on every card
+      but the caller's own, from more than one caller's point of view.
+- [x] iOS: a "who guessed you" disclosure under the caller's own answer card in `ResultsScreen`
+      (`GuessedYouDisclosure`, gated on that card's own resolve sequence finishing), and a
+      `TonightTopEarView` module beside — not merged into — `StandingsView`.
 
 ---
 
