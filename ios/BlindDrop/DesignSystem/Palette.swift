@@ -36,6 +36,7 @@ enum Palette {
 
         static let ink: UInt32         = 0x14161A
         static let inkDim: UInt32      = 0x454B55
+        static let inkSubtle: UInt32   = 0x6E7480
         static let inkFaint: UInt32    = 0x767C88
         static let inkQuiet: UInt32    = 0xB9BEC7
 
@@ -50,6 +51,7 @@ enum Palette {
         static let ultramarine: UInt32     = 0x2233C4
         static let ultramarineDeep: UInt32 = 0x1B29A0
         static let ultramarineWash: UInt32 = 0xE3E6FA
+        static let ultramarineWashLight: UInt32 = 0xF4F6FD
         static let ultramarineEdge: UInt32 = 0xC3C9F2
 
         static let alert: UInt32       = 0xB3261E
@@ -78,6 +80,10 @@ enum Palette {
     static let ink         = Color(hex: Hex.ink)
     /// Secondary text, labels. 7.77:1 on `paper` — comfortably over the 4.5 body bar.
     static let inkDim      = Color(hex: Hex.inkDim)
+    /// A de-emphasised **data figure** — a low number on an insights or standings screen that is
+    /// still the data, not decoration. `#6E7480` on white (4.9:1), darker than `inkFaint` so a
+    /// muted figure does not read as absent.
+    static let inkSubtle   = Color(hex: Hex.inkSubtle)
     /// The quietest tier that still carries a word. 3.71:1 on `paper`, which clears the 3.0 bar
     /// for large text (≥ 24pt) and UI — **never body text, and never a micro-label**. A label is
     /// small text however quiet it is meant to look, so labels take `inkDim`.
@@ -118,6 +124,9 @@ enum Palette {
     static let ultramarineDeep = Color(hex: Hex.ultramarineDeep)
     /// Tinted surface.
     static let ultramarineWash = Color(hex: Hex.ultramarineWash)
+    /// A lighter tinted surface — the "you" row's highlight on the group screen. A softer step
+    /// than `ultramarineWash`, so a highlighted card reads as *selected* rather than *coloured*.
+    static let ultramarineWashLight = Color(hex: Hex.ultramarineWashLight)
     /// The border that closes the wash.
     static let ultramarineEdge = Color(hex: Hex.ultramarineEdge)
 

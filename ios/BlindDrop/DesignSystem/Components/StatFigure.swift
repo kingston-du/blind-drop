@@ -22,17 +22,18 @@ struct StatFigure: View {
     /// The proportion bar's fill, `0...1`, or `nil` to omit the bar entirely — an unavailable
     /// figure (`—`) has nothing to show a fraction of.
     var progress: Double?
+    /// Ultramarine on the number and its bar when this is the one figure being celebrated — the
+    /// profile's Ear. Only one figure in a set ever takes it, so it never reads as a scoreboard.
+    var isAccented = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
             SectionLabel(label)
             Text(verbatim: value)
                 .typeStyle(.numberL)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(isAccented ? Palette.ultramarine : Palette.ink)
             if let progress {
-                // Neutral, on purpose: a coloured bar on a screen with no accent to spend would
-                // read as a third accent nobody named (`CLAUDE.md` §2.5).
-                ProportionTrack(progress: progress)
+                ProportionTrack(progress: progress, fill: isAccented ? Palette.ultramarine : Palette.inkDim)
             }
             if let detail {
                 Text(verbatim: detail)
@@ -52,6 +53,9 @@ struct StatFigure: View {
 struct ProportionTrack: View {
     let progress: Double
     var height: CGFloat = ProportionTrack.regularHeight
+    /// The bar's fill. Neutral by default — a profile stat has no accent to spend — but Insights
+    /// passes the revealed-data accent, or the muted figure grey for a low number.
+    var fill: Color = Palette.inkDim
 
     /// The bar under a profile stat's `.numberL` numeral.
     static let regularHeight: CGFloat = 6
@@ -64,7 +68,7 @@ struct ProportionTrack: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Palette.track)
                 Capsule()
-                    .fill(Palette.inkDim)
+                    .fill(fill)
                     .frame(width: proxy.size.width * min(1, max(0, progress)))
             }
         }
@@ -76,18 +80,31 @@ struct ProportionTrack: View {
 /// The one mono line under a screen's title — `12 MEMBERS · 144 ROUNDS` — over a rule (`E28-08`).
 /// It replaces a deleted subtitle sentence with a fact instead, in the same apparatus voice
 /// `SectionLabel` already speaks.
-struct SheetMeta: View {
+///
+/// A trailing control can sit on the same line, to the right of the fact — the Group screen's
+/// Record chip — which is why the fact and the trailing control are separate accessibility
+/// elements rather than one combined phrase: the fact is a static label, the control is a button,
+/// and a button folded into a static text element could not be reached.
+struct SheetMeta<Trailing: View>: View {
     let text: String
+    @ViewBuilder let trailing: Trailing
+
+    init(text: String, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+        self.text = text
+        self.trailing = trailing()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text(verbatim: text)
-                .typeStyle(.label)
-                .foregroundStyle(Palette.inkDim)
+            HStack(alignment: .center, spacing: Space.md) {
+                Text(verbatim: text)
+                    .typeStyle(.label)
+                    .foregroundStyle(Palette.inkDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Space.sm)
+                trailing
+            }
             Rule()
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: text))
-        .accessibilityAddTraits(.isStaticText)
     }
 }

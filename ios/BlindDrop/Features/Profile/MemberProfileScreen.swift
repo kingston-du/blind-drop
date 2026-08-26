@@ -105,7 +105,8 @@ struct MemberProfileContent: View {
                     label: "results.ear.label",
                     value: profile.ear.value != nil ? ScoringFormat.percent(profile.ear.value) : ScoringFormat.unavailable,
                     detail: profile.ear.value != nil ? Copy.format("profile.samples", profile.ear.samples) : Copy.string("profile.rounds.none"),
-                    progress: profile.ear.value
+                    progress: profile.ear.value,
+                    isAccented: true
                 ))
                 Rule()
                 statRow(StatFigure(

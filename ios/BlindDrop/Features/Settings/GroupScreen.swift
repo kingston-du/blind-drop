@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A circle is a leaderboard first and a settings screen second. Admin-only controls are absent
 /// for members; the server remains the authority for every mutation.
@@ -97,7 +98,9 @@ struct GroupDetailView: View {
     var onLeave: () async -> Bool = { true }
     /// The Record's entry point, moved here from the header menu (`E28-06`, amendment A3) — a
     /// list of songs sits with the leaderboard it complements rather than beside the three
-    /// screens the menu is otherwise for. `Route.record` and its deep link are unchanged.
+    /// screens the menu is otherwise for, and in the header rather than at the foot so it is
+    /// next to the fact that introduces the standings. `Route.record` and its deep link are
+    /// unchanged.
     var onOpenRecord: () -> Void = {}
     /// Test-only construction path. It keeps snapshots on the same hierarchy while omitting the
     /// `ScrollView` and UIKit-backed controls `ImageRenderer` cannot draw.
@@ -115,7 +118,9 @@ struct GroupDetailView: View {
                 content(isSnapshot: true)
             } else {
                 ScrollView {
-                    content(isSnapshot: false).padding(Layout.screenInset)
+                    content(isSnapshot: false)
+                        .padding(Layout.screenInset)
+                        .background(ScrollViewTouchesProbe().frame(width: .zero, height: .zero))
                 }
             }
         }
@@ -146,16 +151,16 @@ struct GroupDetailView: View {
     /// container that would turn a meaningful golden into blank paper.
     var snapshotContent: some View { content(isSnapshot: true) }
 
-    // **Order** (`E28-06`): leaderboard first — it is what a circle is for — then the name a
-    // person can change, then the reveal hour and timezone that describe when the game happens,
-    // then The Record, then Leave, which stays last as the one destructive action on the screen.
+    // **Order** (`E28-06`, `E28-08`): the meta fact and The Record's entry point share the header
+    // row, then the leaderboard — what a circle is for — then the name a person can change, then
+    // the reveal hour and timezone that describe when the game happens, then Leave, which stays
+    // last as the one destructive action on the screen.
     @ViewBuilder private func content(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            SheetMeta(text: meta)
+            SheetMeta(text: meta) { recordButton }
             leaderboard(isSnapshot: isSnapshot)
             nameSection(isSnapshot: isSnapshot)
             details(isSnapshot: isSnapshot)
-            recordLink
             if let errorKey {
                 Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
             }
@@ -173,16 +178,34 @@ struct GroupDetailView: View {
         return "\(members) · \(Copy.format("group.meta.rounds", roundsPlayed))".uppercased()
     }
 
-    private var recordLink: some View {
+    /// The Record's entry point, in the header's top-right corner beside the meta fact. A pill
+    /// chip rather than a bare link: `surface` + `edge` is the app's only elevation, so the chip
+    /// reads as a raised control, and the `music.note.list` glyph is the archive itself — a list
+    /// of every song dropped. The chevron keeps the app's "this pushes a screen" affordance.
+    private var recordButton: some View {
         Button(action: onOpenRecord) {
-            HStack {
-                Text("record.title").typeStyle(.bodyL).foregroundStyle(Palette.ink)
-                Spacer(minLength: Space.sm)
-                Image(systemName: "chevron.right").foregroundStyle(Palette.inkDim)
+            HStack(spacing: Space.xs) {
+                Image(systemName: "music.note.list")
+                    .font(Font(Typography.uiFont(.bodyM)))
+                    .foregroundStyle(Palette.inkDim)
+                Text("record.title")
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.ink)
+                Image(systemName: "chevron.right")
+                    .font(Font(Typography.uiFont(.bodyM)))
+                    .foregroundStyle(Palette.inkDim)
             }
-            .minimumTouchTarget()
+            .padding(.horizontal, Space.md)
+            .frame(minHeight: Layout.chipHeight)
+            .background(RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).fill(Palette.surface))
+            .overlay(RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).stroke(Palette.edge, lineWidth: Stroke.border))
+            // 38pt drawn, 44pt tapped — the chip's breathing room is part of its hit region, the
+            // same contract `NameChip` keeps so a row of targets has no dead gaps (`docs/12` §5).
+            .frame(minHeight: Layout.minimumTouchTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder private func nameSection(isSnapshot: Bool) -> some View {
@@ -220,7 +243,6 @@ struct GroupDetailView: View {
 
     @ViewBuilder private func leaderboard(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            SectionLabel("results.standings.ear")
             if standingsLoading {
                 RoundSkeleton()
             } else if let standingsErrorKey {
@@ -240,6 +262,8 @@ struct GroupDetailView: View {
                     if let member = group.members.first(where: { $0.userID == standing.userID }) {
                         MemberStandingRow(member: member, standing: standing,
                                           readability: readabilityByUserID[standing.userID],
+                                          isCurrentUser: member.userID == currentUserID,
+                                          reservesActionSlot: group.isAdmin,
                                           actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
                                           managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                           manage: { manage($0, member: member) })
@@ -353,30 +377,159 @@ struct MemberStandingRow: View {
     let member: MemberDTO
     let standing: EarStandingDTO
     let readability: ReadabilityStandingDTO?
+    var isCurrentUser = false
+    /// Whether the trailing action slot is reserved even when this row has no actions, so the ear
+    /// figure and the readability bar share one right edge with every other row.
+    var reservesActionSlot = false
     var actions: [MemberManagementAction] = []
     var rendersForSnapshot = false
     var managementDisabled = false
     let select: () -> Void
     var manage: (MemberManagementAction) -> Void = { _ in }
+    /// True from the instant a finger touches down — reported by a zero-duration long press, which
+    /// still yields to the scroll view when the finger moves.
+    @State private var isTouching = false
     var body: some View {
-        HStack(spacing: Space.sm) {
-            Button(action: select) {
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    StandingRowContent(standing: standing, readability: readability)
-                    Text(member.isAdmin ? "group.role.admin" : "group.role.member")
-                        .typeStyle(.caption).foregroundStyle(Palette.inkDim)
+        Button(action: select) {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                HStack(spacing: Space.sm) {
+                    GroupMemberRowContent(
+                        standing: standing,
+                        isAdmin: member.isAdmin,
+                        isCurrentUser: isCurrentUser
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Reserve the ⋯ slot so the ear figure ends where every other row's does.
+                    if reservesActionSlot {
+                        Color.clear.frame(width: Layout.minimumTouchTarget)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                readabilityBar
             }
-            .buttonStyle(.plain).accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(standing: standing, readability: readability)))
-            .accessibilityHint(Copy.string("a11y.group.row.hint")).accessibilityAddTraits(.isButton)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(standing: standing, readability: readability)))
+        .accessibilityHint(Copy.string("a11y.group.row.hint"))
+        .accessibilityAddTraits(.isButton)
+        .onLongPressGesture(minimumDuration: 0, perform: {}) { pressing in
+            isTouching = pressing
+        }
+        // The "more" menu stays a separate control overlaid at the top-right, so tapping it never
+        // triggers the card.
+        .overlay(alignment: .topTrailing) {
             if !actions.isEmpty {
                 MemberActionMenu(actions: actions, disabled: managementDisabled,
                                  rendersForSnapshot: rendersForSnapshot, manage: manage)
             }
         }
-        .rowSurface()
+        // The caller's own row wears the revealed-data wash so "you" reads without a second line.
+        .rowSurface(fill: isCurrentUser ? Palette.ultramarineWashLight : Palette.surface,
+                    border: isCurrentUser ? Palette.ultramarineEdge : Palette.edge)
+        // The press wash sits on the whole card — padding, content and border — and never hits,
+        // so it cannot swallow the card tap or the "more" menu.
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                .fill(Palette.ink.opacity(isTouching ? 0.06 : 0))
+                .allowsHitTesting(false)
+        )
+    }
+
+    /// Readability is a trait, not a rank — the marker draws a position on a scale with no good
+    /// end, and the figure sits *under* the bar so the bar runs the card's full width. A member who
+    /// has never dropped gets an honest "Read —".
+    @ViewBuilder private var readabilityBar: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            if let readability {
+                StatMeter(value: readability.readabilityAllTime, band: readability.band, showsBand: false)
+            }
+            SectionLabel(verbatim: Copy.format("results.standings.read.row", ScoringFormat.percent(readability?.readabilityAllTime)))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+
+
+/// The ranked member's top line — rank, identity, ear — undressed of the readability bar, which
+/// lives on the row above so it can span the card's full width. The rank is the game's number,
+/// not a settings index; the ear value is a figure in the revealed-data accent.
+private struct GroupMemberRowContent: View {
+    let standing: EarStandingDTO
+    let isAdmin: Bool
+    let isCurrentUser: Bool
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
+
+    var body: some View {
+        if isStacked {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                    rank
+                    identity
+                }
+                ear
+            }
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                rank
+                identity
+                Spacer(minLength: Space.sm)
+                ear
+            }
+        }
+    }
+
+    /// Zero-padded and tabular so a two-digit rank holds the name column still, set in the
+    /// display face and the revealed-data accent rather than neutral ink.
+    private var rank: some View {
+        Text(verbatim: String(format: "%02lld", standing.rank))
+            .typeStyle(.numberM)
+            .foregroundStyle(Palette.ultramarine)
+            .fixedSize()
+            .frame(minWidth: Space.xxl, alignment: .leading)
+            .accessibilityHidden(true)
+    }
+
+    private var identity: some View {
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            HStack(spacing: Space.xs) {
+                Text(verbatim: standing.displayName)
+                    .typeStyle(.bodyLStrong)
+                    .foregroundStyle(Palette.ink)
+                if isCurrentUser { youMark }
+            }
+            Text(roleKey).typeStyle(.caption).foregroundStyle(Palette.inkDim)
+        }
+    }
+
+    private var roleKey: LocalizedStringKey {
+        isAdmin ? "group.role.admin" : "group.role.member"
+    }
+
+    /// The word for the caller's own row. The wash behind the card carries the same fact for the
+    /// eye; this pill names it without adding a line.
+    private var youMark: some View {
+        Text("results.you.title")
+            .typeStyle(.labelSmall)
+            .foregroundStyle(Palette.ultramarine)
+            .padding(.horizontal, Space.sm)
+            .padding(.vertical, Space.xxs)
+            .background(Capsule().fill(Palette.surface))
+            .overlay(Capsule().stroke(Palette.ultramarineEdge, lineWidth: Stroke.border))
+    }
+
+    private var ear: some View {
+        VStack(alignment: .trailing, spacing: Space.xxs) {
+            SectionLabel("results.ear.label")
+            Text(verbatim: String(ScoringFormat.percentValue(standing.earAllTime)))
+                .typeStyle(.numberM)
+                .foregroundStyle(Palette.ultramarine)
+        }
+        .fixedSize()
     }
 }
 
@@ -457,5 +610,31 @@ struct GroupSkeleton: View {
                 .fill(Palette.paperSunk).frame(height: Layout.buttonHeight * 2)
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// A zero-size probe that reaches the enclosing `UIScrollView` and disables `delaysContentTouches`,
+/// so a member card under a finger highlights on contact the way a `UITableViewCell` does, rather
+/// than waiting for the scroll view to rule out a scroll. The leaderboard is a list; its press wash
+/// is only honest if it fires on contact.
+private struct ScrollViewTouchesProbe: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let probe = UIView()
+        probe.isUserInteractionEnabled = false
+        return probe
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // The probe joins the hierarchy after its first layout pass, so the walk runs next runloop.
+        DispatchQueue.main.async {
+            var view: UIView? = uiView.superview
+            while let current = view {
+                if let scrollView = current as? UIScrollView {
+                    scrollView.delaysContentTouches = false
+                    return
+                }
+                view = current.superview
+            }
+        }
     }
 }

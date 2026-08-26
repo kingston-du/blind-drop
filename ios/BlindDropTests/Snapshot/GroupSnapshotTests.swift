@@ -36,9 +36,13 @@ private let sizes = SnapshotRenderer.typeSizes
     /// is the same rule, asserted on the type; this is the same rule, drawn).
     @Test(arguments: devices, sizes)
     func twelveMembersWithATie(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
-        // At 3×, the wide accessibility-five case is over ImageIO's simulator PNG limit. The
-        // fixed raster cap preserves its layout at a representable scale.
-        verify(named: "Group-twelve-tied", device, size, maximumPixelCount: 7_000_000) {
+        // At 3×, the wide accessibility-five case is over ImageIO's simulator PNG limit
+        // (`SnapshotRenderer` docs: encoding fails above roughly 8000px of height). `E33`'s
+        // per-row readability bar made each of the twelve rows taller, which pushed the
+        // unconstrained render to ~9375px — past the old 7,000,000px cap's own encode ceiling,
+        // since that cap only trimmed height by a fraction of a percent this close to its bound.
+        // Retuned to leave real headroom under the ~8000px line rather than hug it.
+        verify(named: "Group-twelve-tied", device, size, maximumPixelCount: 4_500_000) {
             GroupFixture.content(group: GroupFixture.twelveMembers, standings: GroupFixture.twelveRanked)
         }
     }

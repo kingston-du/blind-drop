@@ -443,7 +443,8 @@ either must be able to happen without the other.
 | `profile.recent` | Recent songs |
 | `profile.recent.empty` | No scored songs here yet. |
 | `insights.title` | Insights |
-| `insights.subtitle` | Your group dynamics |
+| `insights.headline` | Who reads who. |
+| `insights.subtitle` | Who are your real friends? |
 | `insights.yourreads` | Your reads |
 | `insights.youknow` | You read best |
 | `insights.knowsyou` | Reads you best |

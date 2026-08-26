@@ -69,44 +69,38 @@ struct InsightsContent: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
-            Text("insights.title").typeStyle(.displayL).foregroundStyle(Palette.ink)
+            Text("insights.headline").typeStyle(.displayL).foregroundStyle(Palette.ink)
             Text("insights.subtitle").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
         }
     }
 
-    /// **One panel, not three** (`E28-08`) — the three cards used to be three separately
-    /// bordered boxes under one heading, which is the cards-in-cards clutter the rest of this
-    /// screen was drawn with too. A single ruled panel, one row per stat, is the shape
-    /// `StandingsView.table` already gives a set of numbers; each row keeps its own centred
-    /// content and its own tap targets, only the outer border is shared now.
+    /// Three cards, not one ruled panel — a relationship is a thing with a person on it, and each
+    /// one gets its own surface so the name and the rate read together. The two strong reads take
+    /// the revealed-data accent; the low one takes `inkSubtle`, because a low read is still data.
     private var yourReads: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            SectionLabel("insights.yourreads")
-            VStack(spacing: Space.none) {
-                InsightReadCard(
-                    titleKey: "insights.youknow", read: insights.youKnowBest,
-                    entries: insights.yourReads, select: select, openLeaderboard: openLeaderboard
-                )
-                Rule()
-                InsightReadCard(
-                    titleKey: "insights.knowsyou", read: insights.knowsYouBest,
-                    entries: insights.readsYou, select: select, openLeaderboard: openLeaderboard
-                )
-                Rule()
-                InsightReadCard(
-                    titleKey: "insights.hardest", read: insights.hardestToRead,
-                    entries: insights.hardestToReadRanked, select: select, openLeaderboard: openLeaderboard
-                )
-            }
-            .cardSurface(radius: Radius.panel, inset: Layout.rowInset)
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
+            InsightReadCard(
+                titleKey: "insights.youknow", read: insights.youKnowBest,
+                entries: insights.yourReads, accent: Palette.ultramarine,
+                select: select, openLeaderboard: openLeaderboard
+            )
+            InsightReadCard(
+                titleKey: "insights.knowsyou", read: insights.knowsYouBest,
+                entries: insights.readsYou, accent: Palette.ultramarine,
+                select: select, openLeaderboard: openLeaderboard
+            )
+            InsightReadCard(
+                titleKey: "insights.hardest", read: insights.hardestToRead,
+                entries: insights.hardestToReadRanked, accent: Palette.inkSubtle,
+                select: select, openLeaderboard: openLeaderboard
+            )
         }
     }
 
     private var mutualReads: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            SectionLabel("insights.mutual")
-            InsightPairList(title: "insights.mutual.recognition", pairs: insights.mutualRecognition, select: select)
-            InsightPairList(title: "insights.mutual.misses", pairs: insights.mutualMisses, select: select)
+        VStack(alignment: .leading, spacing: Layout.itemGap) {
+            InsightPairList(title: "insights.mutual.recognition", pairs: insights.mutualRecognition, accent: Palette.ultramarine, select: select)
+            InsightPairList(title: "insights.mutual.misses", pairs: insights.mutualMisses, accent: Palette.inkSubtle, select: select)
         }
     }
 
@@ -118,12 +112,11 @@ struct InsightsContent: View {
     }
 }
 
-/// One "Your reads" card, opened from a scored rate (`E28-07`). Drawn in the profile page's
-/// `StatFigure` shape — a leading label, the percentage as an oversized numeral, a proportion
-/// bar, the detail — because these are the same kind of fact those are. **The card itself is the
-/// tap target for the leaderboard**, and the name is a second, nested control that goes straight
-/// to a profile instead, the same "tap the person, not the row" split `FlightCard` already draws
-/// between its card tap and its inline controls.
+/// One "Your reads" card, now drawn the way the flight sheet draws a person — the name is the
+/// hero figure and the rate is the comparable numeral beside it, with the proportion bar
+/// underneath. **The card itself is the tap target for the leaderboard**, and the name is a
+/// second, nested control that goes straight to a profile instead, the same "tap the person, not
+/// the row" split `FlightCard` already draws between its card tap and its inline controls.
 private struct InsightReadCard: View {
     let titleKey: String
     let read: InsightReadDTO?
@@ -132,22 +125,28 @@ private struct InsightReadCard: View {
     /// straight to the leaderboard rather than re-fetched, because it is the same list this
     /// card's own number came from.
     let entries: [InsightReadDTO]
+    /// The revealed-data accent for the two strong reads; `inkSubtle` for the low one.
+    let accent: Color
     let select: (MemberDTO) -> Void
     let openLeaderboard: (InsightLeaderboardTarget) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            SectionLabel(verbatim: Copy.string(titleKey))
+        Group {
             if let read {
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(verbatim: ScoringFormat.percent(read.rate))
-                        .typeStyle(.numberL).foregroundStyle(Palette.ink)
-                    ProportionTrack(progress: read.rate)
-                    Button { select(read.member) } label: {
-                        Text(verbatim: read.member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    SectionLabel(verbatim: Copy.string(titleKey))
+                    HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                        Button { select(read.member) } label: {
+                            Text(verbatim: read.member.displayName)
+                                .typeStyle(.displayS).foregroundStyle(Palette.ink)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("insights.member.\(read.member.userID)")
+                        Spacer(minLength: Space.sm)
+                        Text(verbatim: ScoringFormat.percent(read.rate))
+                            .typeStyle(.numberM).foregroundStyle(accent)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("insights.member.\(read.member.userID)")
+                    ProportionTrack(progress: read.rate, fill: accent)
                     Text(verbatim: Copy.format("insights.detail", read.correct, read.possible))
                         .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
                 }
@@ -177,8 +176,7 @@ private struct InsightReadCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, Space.sm)
+        .cardSurface(radius: Radius.panel, inset: Space.lg)
     }
 }
 
@@ -242,6 +240,9 @@ struct InsightLeaderboardScreen: View {
 private struct InsightPairList: View {
     let title: LocalizedStringKey
     let pairs: [InsightPairDTO]
+    /// The revealed-data accent for "they read each other"; `inkSubtle` for "neither has read
+    /// the other", whose rate is zero by definition.
+    let accent: Color
     let select: (MemberDTO) -> Void
 
     var body: some View {
@@ -252,28 +253,29 @@ private struct InsightPairList: View {
             } else {
                 VStack(spacing: Space.none) {
                     ForEach(pairs) { pair in
-                        // The percentage-bar shape "Your reads" uses, at the smaller size a pair
-                        // of names wants: the names are the row's label, the number and bar carry
-                        // the "how often" that the old rank numeral used to point at.
-                        VStack(alignment: .leading, spacing: Space.xs) {
-                            HStack(spacing: Space.xs) {
-                                ForEach(Array(pair.members.enumerated()), id: \.element.userID) { memberIndex, member in
-                                    if memberIndex > 0 {
-                                        Text("insights.pair.separator").typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                        // A list row, not a card: the names and their denominator lead, and the
+                        // rate rides the trailing edge in the data voice.
+                        HStack(spacing: Space.md) {
+                            VStack(alignment: .leading, spacing: Space.xxs) {
+                                HStack(spacing: Space.xs) {
+                                    ForEach(Array(pair.members.enumerated()), id: \.element.userID) { memberIndex, member in
+                                        if memberIndex > 0 {
+                                            Text("insights.pair.separator").typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                                        }
+                                        Button { select(member) } label: {
+                                            Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("insights.member.\(member.userID)")
+                                        .accessibilityHint(Copy.string("insights.profile.hint"))
                                     }
-                                    Button { select(member) } label: {
-                                        Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("insights.member.\(member.userID)")
-                                    .accessibilityHint(Copy.string("insights.profile.hint"))
                                 }
+                                Text(verbatim: Copy.format("insights.detail", pair.correct, pair.possible))
+                                    .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
                             }
+                            Spacer(minLength: Space.sm)
                             Text(verbatim: ScoringFormat.percent(pair.rate))
-                                .typeStyle(.numberM).foregroundStyle(Palette.ink)
-                            ProportionTrack(progress: pair.rate, height: ProportionTrack.compactHeight)
-                            Text(verbatim: Copy.format("insights.detail", pair.correct, pair.possible))
-                                .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
+                                .typeStyle(.monoM).foregroundStyle(accent)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, Space.sm)
