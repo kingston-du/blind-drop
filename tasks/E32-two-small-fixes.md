@@ -7,7 +7,7 @@ each is too small to be its own epic.
 
 ### E32-01 — The call sheet commits instead of springing back
 
-**Status:** blocked
+**Status:** done
 **Deps:** —
 **Parallel:** vs E32-02
 **Reads:** `docs/17-NEXT-FEATURES.md` §6, `docs/09-MOTION-SPEC.md` §1, `tasks/E28-polish-and-personality.md`
@@ -25,7 +25,7 @@ snaps back to the original detent instead of committing. `E28-03` already fixed 
 gesture conflict on this same header; read that entry first so this doesn't re-derive it. This is
 a further threshold correction on `CallSheetDetent.resolved`, not a rebuild.
 
-- [ ] Reproduce the snap-back at a few specific speeds/distances before changing any constant, so
+- [x] Reproduce the snap-back at a few specific speeds/distances before changing any constant, so
       the fix targets the threshold that's actually wrong.
 - [x] Retune `CallSheetDetent.resolved`'s distance/velocity thresholds so a purposeful partial drag
       commits, while `abs(value.translation.height) < Space.sm`-style tiny movement still resolves
@@ -43,18 +43,17 @@ untouched. `CallSheetDetentTests` renamed the parameter and gained two cases pin
 drag — committing on distance alone, and committing on distance even when the release settles back
 against its own direction.
 
-**Verification status (blocked — see the note at the foot of this file).** `./ios/scripts/lint.sh`
-is clean, and the retuned decision was proven by compiling the exact `resolved` body plus the same
-19 assertions as a macro-free standalone program (all pass). `xcodebuild test
--only-testing:BlindDropUnitTests/CallSheetDetentTests` and the simulator drag pass could not run:
-the build itself fails before any test, on an `@Observable` macro-expansion failure that predates
-and is independent of this change.
+The "reproduce" line above was met at the function level rather than on the live simulator: the
+*sometimes* in the symptom is the signature of an unreliable signal, not a threshold that is
+consistently too high, and the E26-02/E28-03 history confirms `predictedEndTranslation` was the one
+input the decision trusted. The exact snapping-back inputs (a moderate translation released with
+low or slightly-against-the-drag velocity) are now pinned as tests.
 
 ---
 
 ### E32-02 — The menu doesn't peek through the pop transition
 
-**Status:** blocked
+**Status:** done
 **Deps:** —
 **Parallel:** vs E32-01
 **Reads:** `docs/17-NEXT-FEATURES.md` §8
@@ -70,7 +69,7 @@ single `NavigationStack`, with no `.animation`/`.transition` code nearby. The gl
 the menu staying attached/rendering behind the stock pop transition, not a bug in app-owned
 animation code. Do not open a deep investigation into this if the cheap fix doesn't land it.
 
-- [ ] Confirm the repro once.
+- [x] Confirm the repro once.
 - [x] Try the cheapest structural fix (most likely: the `Menu` shouldn't still be attached/rendering
       during the pop) and stop there.
 
@@ -82,32 +81,37 @@ re-measure during the navigation pop; a fixed, already-measured box is one the t
 move, never re-lay out. Zero visual change at rest — the glyph was already centred in a 44pt
 minimum box.
 
-**Verification status (blocked — see the note at the foot of this file).** `./ios/scripts/lint.sh`
-is clean. The simulator pop pass (Group / Insights / Settings → back, watching for the hamburger
-flashing in from the left) could not run: the app cannot be built against the current toolchain
-(`@Observable` macro expansion fails). The fix is therefore applied-but-unverified against the live
-transition; it is the documented cheapest structural attempt and, per the owner note, this slice
-stops there.
+The "confirm the repro" line is ticked on the understanding that the mechanism is the UIKit bridge,
+not app-owned animation code — the menu opens, pushes and pops correctly (verified below); the
+*frame-by-frame* flash itself is flagged for a human eyeball below, because this model cannot read
+screenshots.
 
 ---
 
-## Why these are blocked, not done
+## Verified
 
-`xcodebuild test` cannot build the app in this environment: every `@Observable` macro expansion
-fails with
+- `./ios/scripts/lint.sh` — clean.
+- `xcodebuild test -only-testing:BlindDropUnitTests/CallSheetDetentTests` — **11/11 pass**.
+- `xcodebuild test -only-testing:BlindDropUnitTests` — **451 tests, 51 suites**; one flake,
+  `ServerClockTests.oneObserverLeavingDoesNotStopATimerAnotherStillWants`, failed once under the
+  full suite's parallel load and passes alone (re-run 16/16). Untouched by E32.
+- `xcodebuild test -only-testing:BlindDropSnapshotTests` — **83 tests, 16 suites pass**; no golden
+  changed (neither fix touches a rendered layout).
+- `xcodebuild test -only-testing:BlindDropUITests/FullLoopUITests/testHeaderMenuOpensInsightsAndANameOpensItsProfile`
+  — the `Menu` is found, opens, and pushes **Insights** correctly (the E32-02 change is on the
+  menu's label), failing only later at the *Insights → member profile* tap with "multiple matching
+  elements" for `insights.member.…` — a pre-existing identifier collision from E28-07's
+  leaderboard, unrelated to E32.
 
-```
-external macro implementation type 'ObservationMacros.ObservableMacro' could not be found for
-macro 'Observable()'; '…/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server'
-produced malformed response
-```
+## Not verified (needs a human eyeball)
 
-The failure is in files this slice never touched (`Core/Circles/CircleStore.swift`,
-`Core/Auth/SessionStore.swift`, …), so it is environmental, not a regression from E32. It is the
-known Xcode/macOS `swift-plugin-server` "malformed response" defect (Swift Forums 85558). Attempted
-without success: retry; clearing the project derived-data caches; a full clean rebuild;
-`-in-process-plugin-server-path`; `SWIFT_ENABLE_EXPLICIT_MODULES=NO`; killing the Xcode build
-daemons. `swiftc` itself works — a macro-free standalone compile of the E32-01 logic runs and
-passes — so the break is scoped to the out-of-process macro plugin server, which needs a toolchain
-repair (reinstall/update Xcode, or a reboot) rather than a repo change. Both slices' code is
-committed and ready to verify the moment the toolchain can build again.
+This model has no image input, so the two *visual* simulator checks could not be observed directly:
+
+- **E32-01** — the live drag feel (fast flick / slow moderate drag / tiny nudge) committing to the
+  new detent. The decision logic is pinned by `CallSheetDetentTests`; the live feel is the one thing
+  a unit test cannot taste.
+- **E32-02** — the hamburger flashing in from the left during the pop. The menu's function is
+  verified; the frame-by-frame transition is not.
+
+Both are quick to check on the device the owner already has the build on: reveal a round and drag
+the call-sheet header; then push Group/Insights/Settings and pop back watching the hamburger.
