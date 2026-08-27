@@ -203,7 +203,20 @@ struct GuessSheet: View {
         // `minimumDistance: Space.none` recognises on touch-down, and `onEnded` is the one place
         // that decides, from how far the finger actually travelled, whether the touch was a tap
         // (toggle) or a drag (commit or spring back).
-        DragGesture(minimumDistance: Space.none)
+        //
+        // **`.global`, and it is not a detail.** `DragGesture` defaults to `.local` — the
+        // coordinate space of the view the gesture is attached to — and that view is inside the
+        // one `body` slides by `restingOffset + dragOffset`. So the ruler moved with the finger:
+        // the drag offsets the sheet, the sheet carries the local space down with it, and the
+        // next `translation` comes back short by exactly the offset the drag just produced. Once
+        // it re-anchors mid-drag, the same gesture delivers two interleaved streams a fixed
+        // distance apart — measured at 14pt on a slow drag — and `dragOffset`, assigned straight
+        // from `translation` below, alternates between them at event rate. That is the flicker a
+        // slow partial drag showed, and why it stopped at either end: the clamps pin both streams
+        // to the same value there. It corrupts `velocity` and `predictedEndTranslation` too —
+        // a finger at a true 80 pt/s reported 16.6 and 49.8 on consecutive events — which is the
+        // signal `E28-03` and `E32-01` were both tuning thresholds against.
+        DragGesture(minimumDistance: Space.none, coordinateSpace: .global)
             .onChanged { value in
                 guard canCollapse else { return }
                 let translation = value.translation.height
