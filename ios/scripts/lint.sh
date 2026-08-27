@@ -94,6 +94,14 @@ lint_tree() {
   swift_files "$base/Core/Auth" \
     | scan "credential outside the Keychain" '(UserDefaults|FileManager|NSKeyedArchiver|\.write\(to:)' 'docs/14 §5'
 
+  # 10 — every DragGesture names its coordinate space. A gesture that defaults to `.local` on
+  #      a view its own translation displaces reads a ruler that moves with the finger — that
+  #      is what turned GuessSheet's header into a flicker: two interleaved readings of the same
+  #      touch, one drag offset apart. `coordinateSpace:` costs nothing to state and forces
+  #      whoever adds the next `DragGesture` to answer the question instead of inheriting an
+  #      accident.
+  scan_draggesture_space "$base"
+
   lint_strings "$base/Resources/Localizable.strings"
 
   [ ! -s "$FAIL_FILE" ]
@@ -132,6 +140,31 @@ lint_strings() {
   if [ "$hit_word" = 1 ]; then
     printf '  %sbanned word in copy — docs/11 voice: "Drop a song → Seal it → Sealed"%s\n\n' "$DIM" "$OFF"
     printf 'banned word\n' >> "$FAIL_FILE"
+  fi
+  return 0
+}
+
+# 10 — `DragGesture(` without `coordinateSpace:` on the same line. Not expressible as a single
+#      `scan()` pattern: the rule is "matches A but not B", and this script's grep is plain ERE
+#      (no lookahead) so it can't be one regex. `< <(...)` keeps the loop in this shell rather
+#      than a pipeline subshell, so `hit` accumulates across every file, the same reason
+#      `lint_strings` below reads its file with `< "$f"` instead of piping into it.
+scan_draggesture_space() {
+  local base="$1" file n line hit=0
+  while IFS= read -r file; do
+    [ -f "$file" ] || continue
+    while IFS=: read -r n line; do
+      [ -n "$n" ] || continue
+      case "$line" in *coordinateSpace*) continue ;; esac
+      printf '%s%s:%d%s  %s\n' "$RED" "${file#"$ROOT"/}" "$n" "$OFF" \
+        "$(printf '%s' "$line" | sed 's/^[[:space:]]*//')"
+      hit=1
+    done < <(sed -E -e 's,//.*$,,' -e 's,/\*.*$,,' "$file" | grep -nE 'DragGesture\(')
+  done < <(swift_files "$base")
+  if [ "$hit" = 1 ]; then
+    printf '  %s%s — %s%s\n\n' "$DIM" "DragGesture without an explicit coordinateSpace" \
+      "the E32 callsheet-flicker follow-up" "$OFF"
+    printf 'DragGesture without an explicit coordinateSpace\n' >> "$FAIL_FILE"
   fi
   return 0
 }
@@ -178,6 +211,8 @@ self_test() {
 '
   expect_catch "a token in UserDefaults"      "Core/Auth/S.swift" 'UserDefaults.standard.set(token, forKey: "refresh")
 '
+  expect_catch "a DragGesture with no coordinateSpace" "Features/S.swift" 'DragGesture(minimumDistance: 0)
+'
   expect_catch "an exclamation mark in copy"  "Resources/Localizable.strings" '"a.b" = "Sealed!";
 '
   expect_catch "a banned word in copy"        "Resources/Localizable.strings" '"a.b" = "Submit your song";
@@ -194,6 +229,13 @@ struct SubmitScreen: View {
             .foregroundStyle(Palette.ink)
         Text(verbatim: title)
             .accessibilityLabel(Text("a11y.sealed"))
+    }
+}
+
+// A DragGesture with an explicit coordinateSpace must not fire the rule above.
+struct DragClean: View {
+    var body: some View {
+        Color.clear.gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global))
     }
 }
 EOF

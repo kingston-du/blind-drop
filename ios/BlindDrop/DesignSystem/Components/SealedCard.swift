@@ -86,7 +86,12 @@ struct SealedCard: View {
         // crosses the edge is, which distance-from-start could not tell apart on a target this
         // size.
         .gesture(
-            DragGesture(minimumDistance: 0)
+            // `.local` is correct here, not a default left unexamined: this view is never
+            // displaced by its own gesture's translation (unlike GuessSheet's header, where an
+            // unstated `.local` moved the ruler with the finger and produced the flicker
+            // `docs/09` and the E32 follow-up describe). Named so the lint rule that now
+            // requires this on every `DragGesture` reads as a decision, not an oversight.
+            DragGesture(minimumDistance: 0, coordinateSpace: .local)
                 .onChanged { value in
                     guard !hasLeftTarget else { return }
                     let withinCard = cardSize == .zero

@@ -130,7 +130,12 @@ struct ResultsScreen: View {
             // wait for names to arrive above them. The minimum distance keeps a tap from
             // counting: a tap on a card is not somebody scrolling past it.
             .simultaneousGesture(
-                DragGesture(minimumDistance: Layout.scrollSkipDistance)
+                // `.local` is correct: this gesture only detects that a scroll is happening
+                // (`skipResolve?()`) and never reads a position or translation off `value`, so
+                // it has nothing a moving coordinate space could corrupt. Explicit per the lint
+                // rule requiring every `DragGesture` to declare its space — see GuessSheet's
+                // headerGesture for the case where the space actually matters.
+                DragGesture(minimumDistance: Layout.scrollSkipDistance, coordinateSpace: .local)
                     .onChanged { _ in skipResolve?() }
             )
         }
