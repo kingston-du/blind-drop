@@ -10,7 +10,7 @@ invite the next agent to fill them in.
 
 | Feature | Why it's deferred | What you may **not** do now |
 |---|---|---|
-| **Themed prompts** ("a song that reminds you of summer") | Changes the game's texture; needs its own design pass | No UI, no prompt selection, no admin field. The nullable column in §2 is the entire allowance. |
+| ~~**Themed prompts**~~ | **Promoted to scope 2026-08-27 by the owner** — `docs/18-CUES.md` supersedes this row and `E27-04`'s "defer" recommendation, the same footing as ADR-011. Built under `E35`. | The ban is lifted for the shape `docs/18-CUES.md` describes: a fixed, seeded catalog, deterministic assignment, no admin authoring. Anything outside that shape (custom cues, per-member cues) is still out of scope. |
 | ~~**Multiple groups per user**~~ | **Promoted to scope 2026-08-17 by the owner — ADR-011 supersedes ADR-005.** Built in `E18`–`E21`, capped per ADR-011. | The ban is lifted. What replaces it: every group-scoped route proves membership of *that* group explicitly, and nothing aggregates across circles. |
 | **Reactions or comments on songs** | The group already has a group chat. Do not compete with it. | No reaction model, no comment table, no "hold to react" |
 | **Head-to-head or cross-group play** | No | No cross-group anything |
@@ -18,17 +18,17 @@ invite the next agent to fill them in.
 
 ---
 
-## 2. The one allowed piece of scaffolding
+## 2. Cues — spent allowance, now built
 
 ```sql
-Round.prompt text   -- nullable, always NULL in v1, no UI
+Round.prompt text   -- nullable; NULL when a round has no cue, exactly as before this shipped
 ```
 
-That is the complete allowance, quoted from the PRD. It exists so that adding themed prompts
-later is a migration-free change on the storage side.
-
-There is **no** corresponding field in any API response, no field in any DTO, and no UI. If
-you find yourself adding `prompt` to `RoundDTO`, stop.
+This was originally scaffolded as the entire allowance for a future "themed prompts" feature,
+with an explicit instruction to stop if `prompt` ever reached `RoundDTO`. The owner spent that
+allowance 2026-08-27 — see `docs/18-CUES.md` for what "cues" actually are, the selection
+formula, the API shape, and the `E35` epic that built it. The instruction to stop is satisfied;
+what replaced it is `docs/18-CUES.md` itself, not silence.
 
 ---
 

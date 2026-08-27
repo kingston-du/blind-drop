@@ -23,6 +23,7 @@ a manual check. Each AC names the test that proves it.
 | Response byte-length for `GET /rounds/current` is invariant across 0/1/5/11 other submitters (holding `my_submission` fixed) | `tests/functions/leak.test.ts` |
 | Response latency shows no correlation (|r| < 0.2) with submitter count over 100 samples | `tests/functions/leak_timing.test.ts` |
 | Accessibility labels on `SubmitScreen`/`SealedScreen` contain no digit other than the countdown | `A11yLabelTests.swift` |
+| `cue` (when present) is byte-identical across every member's `GET /rounds/current` during `open`, and its presence/absence does not vary by whether the caller has submitted; a round whose circle has `cue_cadence = 0` carries no `cue` key at all (absent, not null) | `tests/functions/leak.test.ts`, `tests/db/cues.sql` |
 
 `npm run audit:leak` runs the whole group. **It is the single most important command in this
 repo.**

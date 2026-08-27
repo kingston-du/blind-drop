@@ -36,7 +36,9 @@ decoration.
 
 Public discovery · feeds · multiple groups per user · in-app audio hosting or a real player ·
 streaks, badges, XP, levels, cosmetics · comments or chat (the group already has a group
-chat; do not compete with it) · themed prompts · Android · web · iPad-specific layouts.
+chat; do not compete with it) · Android · web · iPad-specific layouts.
+
+(Themed prompts — "cues" — were promoted to scope 2026-08-27; see `docs/18-CUES.md`.)
 
 See `16-OUT-OF-SCOPE.md` for the enforceable list.
 

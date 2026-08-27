@@ -12,12 +12,11 @@ features, and they need the owner.
 
 ## Seeded from the PRD
 
-### Themed prompts
-*"A song that reminds you of summer."* Changes the game's texture from taste-reading to
-prompt-answering, which is a different product and needs its own design pass. The nullable
-`Round.prompt` column exists; nothing else does. **Blind window cost:** none — a prompt is
-public. **`E27-04` is a spike** — decide whether to test it, on evidence from the beta, before
-anyone builds a prompt UI. Still frozen until that spike says otherwise.
+### ~~Themed prompts~~ — promoted 2026-08-27, as "cues"
+Now `docs/18-CUES.md`, built under `E35`. The warning that stood here — a prompt changes the
+game's texture and needs its own design pass — was answered by that design pass rather than
+dropped: a fixed, seeded catalog, deterministic per-circle assignment, no admin authoring, off
+switch in circle settings.
 
 ### ~~Multiple groups per user~~ — promoted 2026-08-17
 Now `E18`–`E21`, under ADR-011. The warning that stood here was right and survives into the

@@ -114,10 +114,13 @@ E31 conditional reminders       one slice, amends CLAUDE.md §2.6 — see the ep
 E32 two small fixes             two independent slices
 E33 record chip                 done — landed, goldens re-recorded
 E34 marketing website           one slice — mostly outside this repo
+E35 cues                        six slices, mostly sequential — see the epic file; promotes
+                                 "themed prompts" from docs/16 §1 to scope, owner amendment
 ```
 
-None of `E29`–`E34` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
-is the spec all six were cut from.
+None of `E29`–`E35` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
+is the spec `E29`–`E34` were cut from; `E35` is cut from `docs/18-CUES.md`, written separately
+after an owner request.
 
 ---
 
@@ -487,6 +490,21 @@ amendment in the epic file.
 |---|---|---|---|---|
 | E34-01 Coordinate this repo's half | todo | — | yes | — |
 
+## E35 — Cues · [file](E35-cues.md)
+
+Promotes "themed prompts" from `docs/16` §1 to scope — owner amendment, 2026-08-27, recorded in
+`docs/18-CUES.md` and this epic's header, the same footing as ADR-011. On by default for every
+circle, existing and new, at `cue_cadence = 2` ("every other night").
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E35-01 Docs and copy deck | done | — | yes | — |
+| E35-02 Database: catalog, cadence, assignment | todo | E35-01 | no | — |
+| E35-03 API: rounds, results, record, settings | todo | E35-02 | no | AC-1 (leak) |
+| E35-04 iOS: CueDTO, CueBanner, placements | todo | E35-03 | vs E35-05, E35-06 | — |
+| E35-05 Circle settings: cadence control | todo | E35-03 | vs E35-04, E35-06 | — |
+| E35-06 seal_reminder carries the cue | todo | E35-03 | vs E35-04, E35-05 | — |
+
 ---
 
 ## Progress
@@ -535,4 +553,5 @@ amendment in the epic file.
 | E32 two small fixes | 2 / 2 |
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
-| **Next-progression total** | **8 / 9** |
+| E35 cues | 1 / 6 |
+| **Next-progression total** | **8 / 15** |
