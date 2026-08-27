@@ -939,7 +939,14 @@ struct RoundHeader<Badge: View>: View {
                         Image(systemName: "line.3.horizontal")
                             .font(Font(Typography.uiFont(.bodyLStrong)))
                             .foregroundStyle(Palette.inkDim)
-                            .minimumTouchTarget()
+                            // A fixed frame, not a `min` one (`E32-02`). `Menu` renders its label
+                            // through a UIKit platform node, and a label sized by a *minimum* is
+                            // one SwiftUI is free to re-measure during the navigation pop; pinning
+                            // the label to an explicit 44×44 box keeps it a stable, already-measured
+                            // view, so the transition moves it with the rest of the header instead
+                            // of re-laying it out mid-slide.
+                            .frame(width: Layout.minimumTouchTarget, height: Layout.minimumTouchTarget)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel(Text("menu.title"))
                 }

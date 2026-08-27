@@ -19,32 +19,33 @@ enum CallSheetDetent: Equatable, Sendable {
     /// Where a drag release lands the detent — the decision `GuessSheet`'s `dragGesture` makes,
     /// pulled out as a free function so it is directly testable.
     ///
-    /// **Crossing `threshold` on projected velocity commits**, not raw distance travelled: a
-    /// short, fast flick can predict well past the threshold while `translation` itself is still
-    /// small, and that is the gesture this exists to recognise — `DragGesture.Value.finalize()`
-    /// (`predictedEndTranslation`) is UIKit's decelerated projection of where the pan would land,
-    /// the same quantity a scroll view uses to decide whether to keep coasting. A release that
-    /// does not cross it is **non-committing** and returns `current` unchanged, which is what
-    /// tells the caller to spring the sheet back rather than flip its detent.
+    /// **Crossing `threshold` on actual distance commits.** The finger's own `translation` is the
+    /// signal — not `DragGesture.Value.predictedEndTranslation`, which this originally read
+    /// (`E26-02`) and which under-reports the one drag that matters here: a *deliberate* drag ends
+    /// with the finger decelerating to a stop, so the projected end sits short of — or behind —
+    /// where the finger actually went, and a moderate drag that plainly crossed the threshold
+    /// read as a spring-back instead (`E32-01`). A release that does not cross the threshold is
+    /// **non-committing** and returns `current` unchanged, which is what tells the caller to
+    /// spring the sheet back rather than flip its detent.
     ///
-    /// **`velocity` is the second, faster path in** (`E28-03`). A short, fast flick can end well
-    /// short of `threshold` in raw translation *and* in its own projection — the touch is on the
-    /// header for only a few points before it lifts — while still being unmistakably a flick
-    /// rather than a nudge. `250` pt/s is a light flick on this device class; crossing it in the
-    /// direction that already matches `current`'s one legal move commits immediately, distance
-    /// aside. `0` is the default so every existing caller — and every prior test — is unchanged.
+    /// **`velocity` is the flick path** (`E28-03`). A short, fast flick can end well short of
+    /// `threshold` in translation — the touch is on the header for only a few points before it
+    /// lifts — while still being unmistakably a flick rather than a nudge. `250` pt/s is a light
+    /// flick on this device class; crossing it in the direction that already matches `current`'s
+    /// one legal move commits immediately, distance aside. `0` is the default so every existing
+    /// caller — and every prior test — is unchanged.
     static func resolved(
         from current: CallSheetDetent,
-        predictedEndTranslation: CGFloat,
+        translation: CGFloat,
         collapseDistance: CGFloat,
         velocity: CGFloat = 0
     ) -> CallSheetDetent {
         let threshold = max(Space.xxl, collapseDistance * 0.2)
         let flickThreshold: CGFloat = 250
-        if current == .open, predictedEndTranslation > threshold || velocity > flickThreshold {
+        if current == .open, translation > threshold || velocity > flickThreshold {
             return .peek
         }
-        if current == .peek, predictedEndTranslation < -threshold || velocity < -flickThreshold {
+        if current == .peek, translation < -threshold || velocity < -flickThreshold {
             return .open
         }
         return current
@@ -223,7 +224,7 @@ struct GuessSheet: View {
                 } else {
                     let resolved = CallSheetDetent.resolved(
                         from: detent,
-                        predictedEndTranslation: value.predictedEndTranslation.height,
+                        translation: value.translation.height,
                         collapseDistance: collapseDistance,
                         velocity: value.velocity.height
                     )
