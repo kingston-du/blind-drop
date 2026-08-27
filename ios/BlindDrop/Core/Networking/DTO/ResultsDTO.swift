@@ -148,6 +148,22 @@ struct ResultsDTO: Decodable, Sendable, Equatable {
         case cards, me, people
         case tonightTopEar = "tonight_top_ear"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        roundID = try container.decode(String.self, forKey: .roundID)
+        localDate = try container.decode(String.self, forKey: .localDate)
+        submitterCount = try container.decode(Int.self, forKey: .submitterCount)
+        cards = try container.decode([ResultCardDTO].self, forKey: .cards)
+        me = try container.decode(PersonalScoreDTO.self, forKey: .me)
+        people = try container.decode([PersonScoreDTO].self, forKey: .people)
+        // `tonight_top_ear` arrived in `E29-01`. It is the one field here the client needs but a
+        // backend deployed a step behind this build may not yet send; rather than fail the whole
+        // results screen on that single absent ranking, decode it to `[]` and show the answers.
+        // (Same reason `ResultCardDTO.guesses` is optional — a missing `E29-01` field must not
+        // turn a past night's answers into "That didn't work.")
+        tonightTopEar = try container.decodeIfPresent([TonightEarDTO].self, forKey: .tonightTopEar) ?? []
+    }
 }
 
 /// How legible somebody is, in words (`docs/02` §4.5).

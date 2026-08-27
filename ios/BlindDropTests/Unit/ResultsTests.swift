@@ -75,6 +75,22 @@ import Testing
         #expect(results.tonightTopEar.map(\.rank) == [1, 2, 3, 3])
     }
 
+    /// `tonight_top_ear` arrived in `E29-01`; a backend deployed a step behind this build may not
+    /// send it yet. That one absent ranking must not turn a whole night's answers into "That
+    /// didn't work" — the screen decodes to an empty list and shows the rest.
+    @Test func aResultsPayloadWithoutTonightTopEarStillDecodes() throws {
+        var object = try #require(
+            JSONSerialization.jsonObject(with: RoundFixture.payload("results")) as? [String: Any]
+        )
+        object.removeValue(forKey: "tonight_top_ear")
+        let stripped = try JSONSerialization.data(withJSONObject: object)
+
+        let results = try JSONDecoder.api.decode(ResultsDTO.self, from: stripped)
+
+        #expect(results.tonightTopEar.isEmpty)
+        #expect(results.cards.count == 8)
+    }
+
     // MARK: - "%lld of %lld got it", and the two nights that get a sentence
 
     @Test func theCountReadsAsAFraction() {

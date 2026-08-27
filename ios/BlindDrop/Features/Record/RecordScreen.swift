@@ -41,7 +41,8 @@ struct RecordScreen: View {
     @ViewBuilder
     private func content(_ store: RecordStore) -> some View {
         VStack(spacing: Space.none) {
-            if let error = store.state.error {
+            if let error = store.state.error, store.state.value != nil {
+                // A pagination refresh failed over the list we already have: flag it, keep it.
                 OfflineBanner(error: error)
                     .padding(.horizontal, Layout.screenInset)
                     .padding(.top, Space.sm)
@@ -49,6 +50,18 @@ struct RecordScreen: View {
             if store.state.isLoading {
                 RecordSkeleton()
                     .padding(Layout.screenInset)
+            } else if let error = store.state.error {
+                // The first load failed with nothing to fall back on. A plain line, not a
+                // boxed banner — the same failed-state treatment Group, Insights and Profile
+                // already use. No grey panel around the words, just the words.
+                VStack(alignment: .leading, spacing: Layout.blockGap) {
+                    Text(LocalizedStringKey(error.copyKey))
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.inkDim)
+                    PrimaryButton("error.retry", fill: .neutral) { Task { await store.load() } }
+                }
+                .padding(Layout.screenInset)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else if store.days.isEmpty {
                 empty(store)
             } else {
