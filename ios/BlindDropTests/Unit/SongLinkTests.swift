@@ -76,16 +76,18 @@ import Testing
     /// `E29-03`: the reveal/guessing-phase card exposes the same Apple Music/Spotify menu the
     /// answer card and The Record rows already do. `FlightCard` is a view and its reveal branch is
     /// not directly instantiable from a unit test, so the invariant is pinned against the source —
-    /// the `RoundInsetTests` pattern. Two facts: the `flightRow` branch draws `linksMenu`, and the
-    /// VoiceOver re-exposure gates on the shared `hasLinks` condition rather than the old
-    /// `isAnswer` gate, which would have left a reveal card's links reachable by touch and by
-    /// nobody swiping.
+    /// the `RoundInsetTests` pattern. Two facts, each scoped to the block it claims to be about:
+    /// the `flightRow` branch draws `linksMenu`, and the VoiceOver `.accessibilityActions` block
+    /// gates on the shared `hasLinks` condition rather than the old `isAnswer` gate, which would
+    /// have left a reveal card's links reachable by touch and by nobody swiping.
     @Test func everyCardStateExposesTheSameLinkMenu() throws {
         let source = try source("DesignSystem/Components/FlightCard.swift")
         let flightRow = try #require(flightRowSource(source))
         #expect(flightRow.contains("linksMenu"), "the reveal flight row must draw the link menu")
-        // The shared gate is what makes the menu and the VoiceOver re-exposure agree on one fact.
-        #expect(source.contains("if hasLinks {"), "the links gate on the shared hasLinks condition")
+
+        let actions = try #require(accessibilityActionsSource(source))
+        #expect(actions.contains("if hasLinks {"), "the actions gate on the shared hasLinks condition")
+        #expect(!actions.contains("if isAnswer {"), "the old answer-card-only gate is gone from the actions")
     }
 
     private func source(_ path: String) throws -> String {
@@ -104,6 +106,20 @@ import Testing
         guard let start = source.range(of: "private var flightRow: some View {"),
               let end = source.range(
                   of: "private var answerCard: some View {",
+                  range: start.upperBound..<source.endIndex
+              )
+        else { return nil }
+        return String(source[start.lowerBound..<end.lowerBound])
+    }
+
+    /// The `.accessibilityActions { … }` modifier block, from its opening to the next modifier
+    /// (`.accessibilityChildren {`). Scoped so the gate assertion checks the actions block itself,
+    /// not `linksMenu`'s own `if hasLinks {` — the two can drift, and the regression this test
+    /// guards is the actions block reverting to `isAnswer` while the menu keeps drawing.
+    private func accessibilityActionsSource(_ source: String) -> String? {
+        guard let start = source.range(of: ".accessibilityActions {"),
+              let end = source.range(
+                  of: ".accessibilityChildren {",
                   range: start.upperBound..<source.endIndex
               )
         else { return nil }
