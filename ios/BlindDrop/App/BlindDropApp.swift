@@ -72,6 +72,9 @@ struct BlindDropApp: App {
                     // `docs/05` §4: `POST /devices` on every authenticated launch, a cheap upsert
                     // that refreshes `last_seen_at`. It **never prompts**.
                     await env.push.registerIfAuthorized()
+                    // One-time catch-up for installs already stuck in the `skip()` dead end
+                    // before this fix — see `PushRegistrar.offerNotificationRecoveryOnLaunchIfNeeded`.
+                    await env.push.offerNotificationRecoveryOnLaunchIfNeeded()
                 }
                 // docs/05 §5: a deep link is a navigation hint, not an authorization. It is
                 // stored here and applied only after the round has loaded.

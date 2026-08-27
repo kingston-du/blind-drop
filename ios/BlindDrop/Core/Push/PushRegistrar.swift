@@ -113,6 +113,23 @@ final class PushRegistrar {
         }
     }
 
+    /// > **Owner-directed, bounded, 2026-08-27.** This app's users are a known, small circle of
+    /// > friends, several of whom are already stuck in the `skip()` dead end `canRecoverNotifications`
+    /// > describes. Waiting for each of them to find the row in `Settings` is real friction for a
+    /// > problem this build already knows how to name — so the first time this build launches for
+    /// > a stuck install, the pre-prompt is shown again automatically, the same sheet as the
+    /// > original ask. This is **not** a second ask in the sense `docs/05` §4 forbids: the person
+    /// > was never actually asked at the system level the first time, which is exactly the bug
+    /// > being caught up on. It fires at most once, ever, per install
+    /// > (`LocalFlags.hasOfferedNotificationRecoveryOnLaunch`) — after that, `Settings`' row is the
+    /// > only path back, same as for anyone who declines from here on.
+    func offerNotificationRecoveryOnLaunchIfNeeded() async {
+        guard !flags.hasOfferedNotificationRecoveryOnLaunch else { return }
+        flags.hasOfferedNotificationRecoveryOnLaunch = true
+        guard await canRecoverNotifications else { return }
+        isPrompting = true
+    }
+
     // MARK: - The token
 
     /// APNs handed us a token. `POST /devices` — a 204 whatever happened, with no read side, so

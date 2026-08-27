@@ -42,6 +42,19 @@ final class LocalFlags {
         set { defaults.set(newValue, forKey: Key.declinedNotifications) }
     }
 
+    /// Whether the one-time launch catch-up (2026-08-27) has already run on this install.
+    ///
+    /// `skip()` used to leave a decliner permanently unrecoverable — not even through iOS
+    /// Settings, since the app had never registered there. For everyone already stuck in that
+    /// state before the fix, the pre-prompt is offered again automatically, once, the first time
+    /// this build launches, rather than waiting for them to find the row in `Settings`. This flag
+    /// is what makes it *once*: set the moment the check runs, whatever it decides, so a person
+    /// with nothing to recover does not pay for the check on every future launch either.
+    var hasOfferedNotificationRecoveryOnLaunch: Bool {
+        get { defaults.bool(forKey: Key.offeredNotificationRecoveryOnLaunch) }
+        set { defaults.set(newValue, forKey: Key.offeredNotificationRecoveryOnLaunch) }
+    }
+
     // MARK: - Reveal (`docs/09` §3)
 
     /// Whether this install has already begun the unseal for a round. The check and write live
@@ -90,6 +103,7 @@ final class LocalFlags {
     private enum Key {
         static let askedAboutNotifications = "flags.notifications.asked"
         static let declinedNotifications = "flags.notifications.declined"
+        static let offeredNotificationRecoveryOnLaunch = "flags.notifications.offered-recovery-on-launch"
         static let seenUnsealRounds = "flags.reveal.seen-unseal-rounds"
         static let seenResolveRounds = "flags.results.seen-resolve-rounds"
         static let activeCircleID = "flags.circles.active-id"

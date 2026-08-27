@@ -250,6 +250,16 @@ notification settings.
 > of the install, same as everything else in this section. It is not a preference to manage and
 > is not per-type — it is the one place this rule's own "use iOS Settings" escape hatch was
 > unreachable. See `PushRegistrar.canRecoverNotifications` and `SettingsStore.swift`.
+>
+> **Further amended by the owner, 2026-08-27, same day.** This app's users are a known, small
+> circle, several of whom were already stuck in that dead end before the fix above landed.
+> Rather than leave them to discover the `Settings` row on their own, the pre-prompt is shown
+> again automatically — the same sheet, not a new one — the first time this build launches for
+> a stuck install. This is a bounded, one-time catch-up (`LocalFlags
+> .hasOfferedNotificationRecoveryOnLaunch`), not a standing "ask again" policy: it fires at most
+> once, ever, per install, and after that the `Settings` row is the only way back, exactly as
+> above. See `PushRegistrar.offerNotificationRecoveryOnLaunchIfNeeded`, called once per launch
+> from `BlindDropApp`.
 
 ---
 

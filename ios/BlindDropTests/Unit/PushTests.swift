@@ -113,6 +113,48 @@ import Testing
         #expect(await !registrar.canRecoverNotifications, "refused for real now — Settings owns it")
     }
 
+    // MARK: - Catching up installs stuck before the fix (launch)
+
+    /// A stuck install — declined, and iOS never actually asked — gets the pre-prompt shown
+    /// again automatically on launch, without waiting for `Settings`.
+    @Test func launchOffersRecoveryOnceForAStuckInstall() async {
+        let (registrar, _, flags, _) = makeRegistrar()
+        await registrar.promptAfterFirstSeal()
+        registrar.skip()
+        #expect(!registrar.isPrompting, "closed after `skip()`, same as any other dismissal")
+
+        await registrar.offerNotificationRecoveryOnLaunchIfNeeded()
+
+        #expect(registrar.isPrompting)
+        #expect(flags.hasOfferedNotificationRecoveryOnLaunch)
+    }
+
+    /// The catch-up fires **at most once, ever** — a second launch (or a second dismissal) does
+    /// not bring it back; `Settings`' row is the only path from here on.
+    @Test func launchOffersRecoveryAtMostOnce() async {
+        let (registrar, _, _, _) = makeRegistrar()
+        await registrar.promptAfterFirstSeal()
+        registrar.skip()
+        await registrar.offerNotificationRecoveryOnLaunchIfNeeded()
+        registrar.skip() // dismissing the auto-offered sheet again
+
+        await registrar.offerNotificationRecoveryOnLaunchIfNeeded()
+
+        #expect(!registrar.isPrompting, "a second launch must not reopen it")
+    }
+
+    /// Nothing to catch up on — never prompted, nothing declined — so the launch check is a
+    /// no-op, and it still marks itself done rather than re-checking on every future launch.
+    @Test func launchOffersNothingWhenThereIsNoDeadEndToRecover() async {
+        let (registrar, center, flags, _) = makeRegistrar()
+
+        await registrar.offerNotificationRecoveryOnLaunchIfNeeded()
+
+        #expect(!registrar.isPrompting)
+        #expect(!center.didRequestAuthorization)
+        #expect(flags.hasOfferedNotificationRecoveryOnLaunch)
+    }
+
     /// Granting spends the system dialog and registers for a token.
     @Test func allowingRequestsAuthorizationAndRegisters() async {
         let (registrar, center, flags, _) = makeRegistrar()
