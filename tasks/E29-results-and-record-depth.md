@@ -60,7 +60,7 @@ Two additions to `GET /rounds/{id}/results`, once `scored`:
 
 ### E29-02 — Preview playback on past results
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** vs E29-03
 **Reads:** `docs/17-NEXT-FEATURES.md` §2, `docs/16-OUT-OF-SCOPE.md` §3
@@ -90,7 +90,7 @@ no `player`, so it defaults to `nil` and past rounds get no preview playback at 
 
 ### E29-03 — Song links, consistent across every card state
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** vs E29-01, E29-02
 **Reads:** `docs/17-NEXT-FEATURES.md` §3, `docs/06-MUSIC-INTEGRATION.md`

@@ -450,8 +450,8 @@ Nine improvements the owner named as the next progression for the app, spec'd in
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E29-01 Who guessed you, and how tonight stacked up | done | — | vs E29-03 | AC-1, AC-8 |
-| E29-02 Preview playback on past results | todo | — | vs E29-03 | — |
-| E29-03 Song links, consistent across every card state | todo | — | vs E29-01, E29-02 | — |
+| E29-02 Preview playback on past results | wip | — | vs E29-03 | — |
+| E29-03 Song links, consistent across every card state | wip | — | vs E29-01, E29-02 | — |
 
 ## E30 — A share card worth sharing · [file](E30-share-card-redesign.md)
 
