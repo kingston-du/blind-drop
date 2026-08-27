@@ -263,6 +263,55 @@ import Testing
         #expect(store.cards.count == 8)
         #expect(store.state.error == .offline)
     }
+
+    // MARK: - The share entry (docs/10 §4–5)
+
+    /// **The gap this closes.** `ResultsStore.viewState(resolve:)` used to never populate
+    /// `share`, so **Share tonight** never rendered on any screen that only ever asked the store
+    /// for it — which, before `RoundScreen`'s own `ResultsHost` grew a second, duplicate copy of
+    /// this same construction, was every one of them. Once the answers and the group have both
+    /// landed, the button's ingredients are there.
+    @Test func theShareEntryAppearsOnceTheAnswersAndTheGroupHaveLanded() async throws {
+        let (env, session) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        session.armExact("/groups/\(groupID)", try RoundFixture.envelope("group_current"))
+        session.arm(routes: [
+            "/results": try RoundFixture.envelope("results"),
+            "/standings": try RoundFixture.envelope("standings"),
+        ])
+        let store = ResultsStore(
+            api: env.api, roundID: "r", circles: env.circles, artworkLoader: CountingArtworkLoader()
+        )
+
+        await store.load()
+
+        let share = try #require(store.viewState(resolve: nil).share)
+        #expect(share.content.groupName == "The Cove")
+        // Derived the same way `shareEntry` derives it, rather than a literal string — the date
+        // this produces is `Locale.current`-dependent (`GroupCalendarTests` is the suite that
+        // pins a locale), so what is worth asserting here is that the store used the fixture
+        // group's own zone and the round's own `local_date`, not a hand-typed guess at either.
+        let expectedDate = GroupCalendar(timezone: "America/New_York").shareDate(localDate: "2026-08-08")
+        #expect(share.content.date == expectedDate)
+    }
+
+    /// No group, no share — `docs/10` §4's *"nothing about a round that is not `scored` is ever
+    /// renderable"* extended to *"and nothing before the group is known either"*: the button
+    /// does not appear ahead of having anything to put on the card. The answers still load on
+    /// their own, the same independence `aFailedStandingsDoesNotTakeTheAnswersDown` already
+    /// covers for `standings`.
+    @Test func thereIsNoShareEntryWithoutTheGroup() async throws {
+        let (env, session) = RoundFixture.environment()
+        session.arm([try RoundFixture.envelope("results")])
+        let store = ResultsStore(
+            api: env.api, roundID: "r", circles: env.circles, artworkLoader: CountingArtworkLoader()
+        )
+
+        await store.load()
+
+        #expect(store.cards.count == 8, "the answers still load on their own")
+        #expect(store.viewState(resolve: nil).share == nil)
+    }
 }
 
 /// The §4.4 results, decoded from the fixture the server serves.

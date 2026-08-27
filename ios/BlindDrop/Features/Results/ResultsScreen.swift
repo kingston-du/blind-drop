@@ -38,6 +38,13 @@ struct ResultsViewState: Equatable, Sendable {
     let markedCards: Set<Int>
     let barredCards: Set<Int>
 
+    /// The share card and the thing that renders it, or `nil` when there is nothing to share yet
+    /// (`docs/10` §4–5). Built by `ResultsStore.viewState(resolve:)`, not here — the store is the
+    /// one place that has both the answers and the group, and building it there rather than per
+    /// call site is what makes The Record's history path get the same **Share tonight** button
+    /// the live round already had, instead of a second, divergent copy of the same guard.
+    let share: ShareEntry?
+
     init(
         cards: [ResultCardDTO],
         me: PersonalScoreDTO? = nil,
@@ -45,7 +52,8 @@ struct ResultsViewState: Equatable, Sendable {
         tonightTopEar: [TonightEarDTO] = [],
         namedCards: Set<Int>? = nil,
         markedCards: Set<Int>? = nil,
-        barredCards: Set<Int>? = nil
+        barredCards: Set<Int>? = nil,
+        share: ShareEntry? = nil
     ) {
         self.cards = cards
         self.me = me
@@ -57,6 +65,7 @@ struct ResultsViewState: Equatable, Sendable {
         self.namedCards = namedCards ?? all
         self.markedCards = markedCards ?? all
         self.barredCards = barredCards ?? all
+        self.share = share
     }
 }
 
@@ -74,14 +83,6 @@ struct ResultsScreen: View {
     /// Any scroll gesture completes the name-resolve (`docs/09` §4). `nil` once there is nothing
     /// left to skip, which is also what a golden passes.
     var skipResolve: (() -> Void)?
-    /// The share card and the thing that renders it, or `nil` when there is nothing to share.
-    ///
-    /// **`docs/10` §5: *"nothing about a round that is not `scored` is ever renderable — the
-    /// share entry point does not exist in any other phase."*** This screen is the only place
-    /// the entry point is built and this screen only exists under `.scored`, so the rule is a
-    /// property of where the code lives rather than a condition somebody has to keep true.
-    /// `ShareRendererTests` scans `Features/` to keep it that way.
-    var share: ShareEntry?
     /// The 30-second preview (`Core/Audio/PreviewPlayer.swift`). `nil` in every golden, which
     /// renders `snapshotContent` directly and never this `body` — the same shared instance
     /// `RevealScreen` and Submit's search sheet already play through, so dropping into an answer
@@ -297,19 +298,34 @@ struct GuessedYouDisclosure: View {
 ///
 /// The two halves arrive together or not at all: a button with content and no renderer would be
 /// a control that cannot do its one thing, and a renderer with no content has nothing to draw.
-struct ShareEntry {
+struct ShareEntry: Equatable {
     let content: ShareCardContent
-    /// Owned by the host rather than made here, so the files it has written survive a body
+    /// Owned by `ResultsStore` rather than made here, so the files it has written survive a body
     /// re-evaluation and can all be deleted when the sheet closes (`docs/10` §5).
     let renderer: ShareRenderer
+
+    /// By identity on `renderer`, not by value: two entries built from the same store visit
+    /// share the one renderer that owns their temporary files, and that is the fact this
+    /// equality is meant to capture, not a deep comparison of an object with no `Equatable` of
+    /// its own.
+    static func == (lhs: ShareEntry, rhs: ShareEntry) -> Bool {
+        lhs.content == rhs.content && lhs.renderer === rhs.renderer
+    }
 }
 
 extension ResultsScreen {
     /// *"One `PrimaryButton`: **Share tonight**. This is the app's distribution mechanism and one
     /// of its best-looking surfaces. It is not an afterthought and it is not buried in a menu."*
     /// (`docs/08` §7.4)
+    ///
+    /// **`docs/10` §5: *"nothing about a round that is not `scored` is ever renderable — the
+    /// share entry point does not exist in any other phase."*** `state.share` comes from
+    /// `ResultsStore.viewState(resolve:)`, and a `ResultsStore` only ever exists because the
+    /// server already said `scored` — so the rule is a property of when that value can be
+    /// non-`nil` at all, rather than a condition this view has to keep true. `ShareRendererTests`
+    /// scans `Features/` to keep it that way.
     @ViewBuilder fileprivate var shareAction: some View {
-        if let share {
+        if let share = state.share {
             PrimaryButton("results.share", accent: .revealed) { isSharing = true }
                 .sheet(isPresented: $isSharing) {
                     ShareSheet(content: share.content, renderer: share.renderer)

@@ -220,8 +220,11 @@ import UIKit
     /// A source scan rather than a UI test, for the same reason `PaletteContrastTests` scans the
     /// tree: the rule is about where the code is allowed to be, and the failure it guards
     /// against is somebody adding a share button to the sealed screen because it would be nice
-    /// there. `Features/Results/` is `scored`-only by construction — `RoundScreen` builds it
-    /// under `case .scored` and nowhere else.
+    /// there. `Features/Results/` is `scored`-only by construction — a `ResultsStore` only ever
+    /// exists because the server already said `scored`, and `ResultsStore` (inside
+    /// `Features/Results/`) is now the **only** place a `ShareEntry` is built: `RoundScreen` and
+    /// `RecordScreen` both just ask a `ResultsStore` for one rather than building their own, so
+    /// neither needs to reach these types directly any more.
     @Test func nothingOutsideResultsCanRenderAShareCard() throws {
         let features = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // Unit
@@ -237,8 +240,8 @@ import UIKit
                 || source.contains("ShareSheet(")
         }
 
-        #expect(offenders.map(\.lastPathComponent).sorted() == ["RoundScreen.swift"],
-                "only the round's phase switch may reach the share card, and only under .scored")
+        #expect(offenders.isEmpty,
+                "only Features/Results/ may reach the share card, and only under .scored")
     }
 
     private func swiftFiles(in directory: URL) throws -> [URL] {

@@ -261,6 +261,13 @@ struct FixtureRoundTests {
         let eli = try #require(people.first { $0.displayName == "Eli" })
         #expect(eli.ear == nil)
         #expect(eli.readability != nil)
+
+        // **The share entry point exists once a round is `scored`** (`docs/10` §5). The store
+        // both the live round and The Record's history path ask now builds the **Share tonight**
+        // card's ingredients from the answers and the group, so a scored round offers the button
+        // on every path that reaches it — not only the live round's own host.
+        let share = try #require(results.viewState(resolve: nil).share)
+        #expect(share.content.groupName == "The Cove")
     }
 
     private func resolvedTrack(_ store: SubmitStore) async -> TrackDTO? {

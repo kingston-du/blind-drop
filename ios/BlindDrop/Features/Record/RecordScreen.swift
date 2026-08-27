@@ -286,6 +286,10 @@ struct RecordScreen: View {
 
 private struct RecordResultsScreen: View {
     @Environment(AppEnvironment.self) private var env
+    /// Handed to `ResultsStore`, which is where the share entry for this round is actually built
+    /// (`ResultsStore.shareEntry`) — a night three weeks old gets the same **Share tonight**
+    /// button as tonight's, because both paths now ask the same store for it.
+    @Environment(\.artworkLoader) private var artworkLoader
     let roundID: String
     @State private var store: ResultsStore?
 
@@ -305,9 +309,16 @@ private struct RecordResultsScreen: View {
         .background(Palette.paper)
         .toolbar(.visible, for: .navigationBar)
         .task {
-            let built = store ?? ResultsStore(api: env.api, roundID: roundID, circles: env.circles)
+            let built = store ?? ResultsStore(
+                api: env.api, roundID: roundID, circles: env.circles, artworkLoader: artworkLoader
+            )
             store = built
             await built.load()
+        }
+        .onDisappear {
+            // Same rule as the live round's results (`docs/10` §5): leaving this screen takes
+            // its share card's temporary files with it, whether or not a share sheet ever opened.
+            store?.discardShareRender()
         }
     }
 }

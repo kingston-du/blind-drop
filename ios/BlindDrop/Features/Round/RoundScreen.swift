@@ -751,7 +751,9 @@ private struct ResultsHost: View {
     @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
     /// The same loader every card on the screen already reads from, so the share render finds
-    /// most of its artwork in the cache the flight above it filled.
+    /// most of its artwork in the cache the flight above it filled. Handed to `ResultsStore`,
+    /// which is the one place the share entry is built (`ResultsStore.shareEntry`) — this host no
+    /// longer builds one of its own.
     @Environment(\.artworkLoader) private var artworkLoader
 
     let context: RoundContext
@@ -762,9 +764,6 @@ private struct ResultsHost: View {
 
     @State private var store: ResultsStore?
     @State private var resolve: ResolveAnimation?
-    /// One renderer for the whole visit, so every temporary file it writes is one thing to
-    /// delete (`docs/10` §5) and switching thumbnails does not re-render what is already on disk.
-    @State private var renderer: ShareRenderer?
 
     private var roundID: String { context.round.id }
 
@@ -776,7 +775,6 @@ private struct ResultsHost: View {
                     // Withdrawn once the sequence has landed, so a scroll through settled
                     // answers is a plain scroll and not a gesture with a handler on it.
                     skipResolve: resolve?.isRunning == true ? { resolve?.skip() } : nil,
-                    share: shareEntry(store),
                     player: player
                 )
             } else {
@@ -786,12 +784,10 @@ private struct ResultsHost: View {
             }
         }
         .task(id: "\(roundID)#\(loadToken)") {
-            let built = store ?? ResultsStore(api: env.api, roundID: roundID, circles: env.circles)
+            let built = store ?? ResultsStore(
+                api: env.api, roundID: roundID, circles: env.circles, artworkLoader: artworkLoader
+            )
             store = built
-            // Made here rather than lazily in `body`: `@State` is not a thing a view mutates
-            // while it is being evaluated, and the renderer has to be the *same* one across
-            // every evaluation or the files it wrote stop being anybody's to delete.
-            if renderer == nil { renderer = ShareRenderer(loader: artworkLoader) }
             await built.load()
             // Armed only once the cards are known: the sequence is defined by them, and one
             // built over an empty list would spend the round's single run on nothing.
@@ -810,28 +806,8 @@ private struct ResultsHost: View {
         .onDisappear {
             // Leaving the results takes the temporary files with it, whether or not a share
             // sheet ever opened (`docs/10` §5).
-            renderer?.discard()
+            store?.discardShareRender()
         }
-    }
-
-    /// The share card's ingredients, once the answers have landed.
-    ///
-    /// `nil` until then, which is also what makes the button appear with the content rather than
-    /// ahead of it — there is no moment where **Share tonight** offers a card of nothing.
-    private func shareEntry(_ store: ResultsStore) -> ShareEntry? {
-        guard let results = store.state.value,
-              let date = context.calendar.shareDate(localDate: results.localDate)
-        else { return nil }
-
-        guard let renderer else { return nil }
-        return ShareEntry(
-            content: ShareCardContent(
-                results: results,
-                groupName: context.group.name,
-                date: date
-            ),
-            renderer: renderer
-        )
     }
 }
 
