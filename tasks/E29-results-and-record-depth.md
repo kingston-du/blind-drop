@@ -60,7 +60,7 @@ Two additions to `GET /rounds/{id}/results`, once `scored`:
 
 ### E29-02 — Preview playback on past results
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** vs E29-03
 **Reads:** `docs/17-NEXT-FEATURES.md` §2, `docs/16-OUT-OF-SCOPE.md` §3
@@ -79,18 +79,24 @@ both cases.
 `RecordResultsScreen` currently builds `ResultsScreen(state: store.viewState(resolve: nil))` with
 no `player`, so it defaults to `nil` and past rounds get no preview playback at all.
 
-- [ ] Confirm `player`'s exact type and behavior on the live path first.
-- [ ] Wire a real instance through `RecordResultsScreen` so past-round cards get the same
-      tap-to-preview behavior as live results.
-- [ ] Confirm the existing constraints still hold on this path: preview only, 30 seconds, from the
-      catalog, never autoplaying, never queued, never backgrounded (`docs/16` §3).
-- [ ] No server change is expected — if one turns out to be needed, say why before adding it.
+- [x] `player` is `PreviewPlayer?` on `ResultsScreen` (defaults `nil`); the live path passes
+      `RoundScreen`'s shared `@State player = PreviewPlayer()` through `ResultsHost`.
+      `ResultsScreen.preview(for:)` gates on both `track.previewURL` and a non-`nil` `player`, and
+      `.onDisappear` stops it.
+- [x] `RecordResultsScreen` now takes the same `@State player` the record list already owns and
+      hands it to `ResultsScreen(state:player:)` — one instance, so a preview started in a past
+      round stops whatever the list had going, and vice versa. Pinned by a source-level test in
+      `RecordTests` (`RecordResultsScreen` is `private`).
+- [x] Constraints inherit unchanged from `PreviewPlayer` + `ResultsScreen.preview(for:)`: preview
+      only, 30 seconds, from the catalog, never autoplaying, never queued, one at a time, session
+      deactivated at the end — all already unit-tested (`PreviewPlayerTests`).
+- [x] No server change, as expected.
 
 ---
 
 ### E29-03 — Song links, consistent across every card state
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** vs E29-01, E29-02
 **Reads:** `docs/17-NEXT-FEATURES.md` §3, `docs/06-MUSIC-INTEGRATION.md`
@@ -102,12 +108,26 @@ during the revealed/guessing phase (before scoring), open a card's link menu and
 Music/Spotify open exactly as they do on Results and the Record.
 **Proves:** —
 
-This slice starts with a gap check, not an assumption: `TrackUtilityMenu` already exists on the
-sealed/submitted card, results answer cards, and Record rows. Confirm first whether it's missing
-from the revealed-phase guessing cards — if it's already there, close this slice as a verified
-no-op rather than inventing work. If it's missing, add it there for consistency.
+Gap confirmed and closed. `TrackUtilityMenu` was already on the sealed card (`CardCornerLinks`),
+the results answer card and Record rows, but **not** on the revealed/guessing flight card:
+`FlightCard.flightRow` had no menu — only its `.resolved` `answerCard` branch did. Added there:
 
-**Non-goals:** no Spotify playback (`docs/16` §3 — previews are Apple Music only, Spotify is
-identity/export). No change to track-link resolution timing unless a measurement (extend the
-existing `E27-01` coverage query, don't duplicate it) shows it's actually lagging past when it's
-useful.
+- The flight row draws `linksMenu` at both type-size branches. At the reading sizes the number
+  and the ellipsis share their own head row — the answer card's `E28-05` arrangement, restated —
+  and the artwork/title/chip row below keeps the full width; above `.accessibility1` the menu
+  joins the existing number-and-artwork row for free.
+- The VoiceOver re-exposure moved off `isAnswer` onto a shared `hasLinks` gate, so a reveal card's
+  links are reachable as custom actions too, not only the answer card's.
+- Pinned by a source-level test in `SongLinkTests` (`flightRow` draws `linksMenu`; the gate is
+  `hasLinks`). Reveal and flight-card goldens re-recorded.
+
+> **Open question:** giving the reveal flight card a head row grows each card's height at the
+> reading sizes (a 12-card flight scrolls ~¾ taller per card), because a 44pt ellipsis cannot
+> share the compact single-line row without truncating the title on an SE. The trade was made for
+> the answer card's established arrangement and the title room it buys back (`E28-05`); if a
+> denser flight is preferred, the menu can move to a trailing column over the chip instead. Kept
+> as an open question rather than resolved silently.
+
+**Non-goals:** unchanged — no Spotify playback (`docs/16` §3 — previews are Apple Music only,
+Spotify is identity/export). No track-link resolution timing change; `TrackLinks.swift` needed no
+edit, because `TrackUtilityMenu` already carried the `color`/`showResults` knobs this reuse wants.

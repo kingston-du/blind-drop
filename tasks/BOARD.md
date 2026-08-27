@@ -450,8 +450,8 @@ Nine improvements the owner named as the next progression for the app, spec'd in
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E29-01 Who guessed you, and how tonight stacked up | done | — | vs E29-03 | AC-1, AC-8 |
-| E29-02 Preview playback on past results | wip | — | vs E29-03 | — |
-| E29-03 Song links, consistent across every card state | wip | — | vs E29-01, E29-02 | — |
+| E29-02 Preview playback on past results | done | — | vs E29-03 | — |
+| E29-03 Song links, consistent across every card state | done | — | vs E29-01, E29-02 | — |
 
 ## E30 — A share card worth sharing · [file](E30-share-card-redesign.md)
 
@@ -529,10 +529,10 @@ amendment in the epic file.
 
 | Next-progression epic | Done / Total |
 |---|---|
-| E29 results & record depth | 1 / 3 |
+| E29 results & record depth | 3 / 3 |
 | E30 share card | 1 / 1 |
 | E31 conditional reminders | 1 / 1 |
 | E32 two small fixes | 0 / 2 |
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
-| **Next-progression total** | **4 / 9** |
+| **Next-progression total** | **6 / 9** |
