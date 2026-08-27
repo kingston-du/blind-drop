@@ -60,6 +60,7 @@ async function sealed(
     name,
     timezone: zoneWhereLocalHourIs(17),
     reveal_hour: 18,
+    cue_cadence: 0,
   });
   const people = [user];
   for (const person of ["Ben", "Cal", "Dee"].slice(0, appleMusicIds.length - 1)) {

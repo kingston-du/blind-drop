@@ -108,7 +108,7 @@ export async function newNamedUser(displayName: string): Promise<TestUser> {
 /** A user in a group of their own, which is the state most handlers assume. */
 export async function newGroupOwner(
   displayName: string,
-  group: { name?: string; timezone?: string; reveal_hour?: number } = {},
+  group: { name?: string; timezone?: string; reveal_hour?: number; cue_cadence?: number } = {},
 ): Promise<{ user: TestUser; group: Record<string, unknown> }> {
   const user = await newNamedUser(displayName);
   const created = await call("groups", "/", {
@@ -123,7 +123,20 @@ export async function newGroupOwner(
   if (created.status !== 200) {
     throw new Error(`could not create a group: ${created.status} ${JSON.stringify(created.body)}`);
   }
-  return { user, group: created.body.data as Record<string, unknown> };
+  const createdGroup = created.body.data as Record<string, unknown>;
+  // A cadence is set through the PATCH path after creation, before any round exists, so a test
+  // can pin cue presence deterministically rather than gambling on the random group id's hash.
+  if (group.cue_cadence !== undefined) {
+    const patched = await call("groups", `/${createdGroup.id}`, {
+      method: "PATCH",
+      token: user.token,
+      body: { cue_cadence: group.cue_cadence },
+    });
+    if (patched.status !== 200) {
+      throw new Error(`could not set cue_cadence: ${patched.status} ${JSON.stringify(patched.body)}`);
+    }
+  }
+  return { user, group: createdGroup };
 }
 
 /** Somebody else in an existing group, by invite code. */

@@ -49,6 +49,7 @@ async function room(name: string, opts: { demo: boolean }): Promise<Room> {
     name,
     timezone: zoneWhereLocalHourIs(17),
     reveal_hour: 18,
+    cue_cadence: 0,
   });
 
   const members: TestUser[] = [];

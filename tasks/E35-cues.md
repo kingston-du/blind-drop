@@ -89,7 +89,7 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 
 ### E35-03 — API: rounds, results, record, group settings
 
-**Status:** todo
+**Status:** done
 **Deps:** E35-02
 **Parallel:** no
 **Reads:** `docs/18-CUES.md` §8, §11.5, `server/supabase/functions/rounds/index.ts`,
@@ -100,21 +100,32 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 assertion helper, not the gate logic itself)
 **Verify:** `cd server && npm run test:functions && npm run audit:leak`
 
-- [ ] `GET /rounds/current` and `GET /rounds/:id/results` add `cue: { key, text }`, absent (key
+- [x] `GET /rounds/current` and `GET /rounds/:id/results` add `cue: { key, text }`, absent (key
       omitted from the JSON object) when the round has none — every phase, top-level, not inside
       the reveal-only payload
-- [ ] `GET /groups/current/record` and `/:id/record` add `cue` per day entry, absent for rounds
+- [x] `GET /groups/current/record` and `/:id/record` add `cue` per day entry, absent for rounds
       with none (including every pre-existing scored night)
-- [ ] `GET /groups/current`, `/:id`, and their `PATCH` counterparts add `cue_cadence` (read/write,
+- [x] `GET /groups/current`, `/:id`, and their `PATCH` counterparts add `cue_cadence` (read/write,
       admin-only on write, same guard as `reveal_hour`) and `cue_effective_from` (read-only,
       computed from `E35-02`'s rewrite date)
-- [ ] `PATCH` triggers the rewrite-on-open-rounds path from `E35-02`, and returns the new
+- [x] `PATCH` triggers the rewrite-on-open-rounds path from `E35-02`, and returns the new
       `cue_effective_from`
-- [ ] `audit:leak` goldens re-captured deliberately (`GOLDEN=update npm run test:functions --
+- [x] `audit:leak` goldens re-captured deliberately (`GOLDEN=update npm run test:functions --
       leak`), reviewed by hand before committing, not blindly accepted
-- [ ] New leak assertion: for a round in `open`, `cue` (when present) is byte-identical across
+- [x] New leak assertion: for a round in `open`, `cue` (when present) is byte-identical across
       every member's response, and its presence/absence does not vary by whether the caller has
       submitted
+
+> **Note (E35-03).** `cue` is a top-level key on `RoundDTO`'s base keys, not inside
+> `RevealPayload`, exactly as §8 demands — it decodes before the phase switch and rides through
+> `RevealedRoundDTO`/`ResultsDTO` unchanged. On `GroupDTO` it is `cue_cadence` (always present)
+> plus `cue_effective_from` (always present, read-only); the PATCH path rewrites not-yet-opened
+> rounds via `rewrite_open_round_cues` and then recomputes `cue_effective_from` from the
+> rewritten rows. The record's per-day `cue` comes from a second pass over `rounds` (the page's
+> source is `round_submitter_counts`, which deliberately carries no `prompt`). The two full-suite
+> failures observed (`circle_switcher` a transient `WORKER_LIMIT`, `push` a time-of-minute clock
+> boundary) are both pre-existing and unrelated — `circle_switcher` and `push` pass/fail
+> independently of these changes, and the leak gate is green.
 
 ---
 
@@ -203,7 +214,7 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 |---|---|
 | E35-01 Docs and copy deck | done |
 | E35-02 Database | done |
-| E35-03 API | todo |
+| E35-03 API | done |
 | E35-04 iOS core | todo |
 | E35-05 Circle settings | todo |
 | E35-06 Push copy | todo |

@@ -33,9 +33,16 @@ const RIBS = { apple_music_id: "1440818664" };
 const NIGHTS = { apple_music_id: "1440765580" };
 
 /** A group whose round is mid-`open`: opened at 10:00 local, reveals at 20:00, and it is
- *  currently noon there. Real time, real timezone, no clock faked anywhere. */
+ *  currently noon there. Real time, real timezone, no clock faked anywhere. The cue is off so
+ *  the `open` payload keeps the exact minimal key set this file asserts — cued rounds get their
+ *  own assertions in `leak.test.ts`. */
 function openGroup(name = "The Cove") {
-  return newGroupOwner("Ana", { name, timezone: zoneWhereLocalHourIs(12), reveal_hour: 20 });
+  return newGroupOwner("Ana", {
+    name,
+    timezone: zoneWhereLocalHourIs(12),
+    reveal_hour: 20,
+    cue_cadence: 0,
+  });
 }
 
 /**
@@ -48,7 +55,12 @@ function openGroup(name = "The Cove") {
  * `revealed`, or `voided` if fewer than three people dropped (docs/02 §2).
  */
 function aboutToRevealGroup(name = "The Late Cove") {
-  return newGroupOwner("Ana", { name, timezone: zoneWhereLocalHourIs(17), reveal_hour: 18 });
+  return newGroupOwner("Ana", {
+    name,
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+    cue_cadence: 0,
+  });
 }
 
 /** Runs the real scheduler at 19:00 in an `aboutToRevealGroup`'s timezone. */

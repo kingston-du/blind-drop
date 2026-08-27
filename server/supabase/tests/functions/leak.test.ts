@@ -103,7 +103,15 @@ async function assertGolden(name: string, body: Record<string, unknown>, about: 
 // ─── the captures ────────────────────────────────────────────────────────────
 
 function openGroup(name: string) {
-  return newGroupOwner("Ana", { name, timezone: zoneWhereLocalHourIs(12), reveal_hour: 20 });
+  // Cue off: the round goldens below assert the exact minimal `open` key set, so a cued round
+  // would be a non-deterministic extra key (the hash-derived cadence parity is coin-flip). The
+  // cued shape gets its own golden and its own assertion further down.
+  return newGroupOwner("Ana", {
+    name,
+    timezone: zoneWhereLocalHourIs(12),
+    reveal_hour: 20,
+    cue_cadence: 0,
+  });
 }
 
 Deno.test("golden: GET /rounds/current, open, caller has sealed a song", async () => {
@@ -142,11 +150,76 @@ Deno.test("golden: GET /rounds/current, open, caller has not submitted", async (
   );
 });
 
+Deno.test("golden: GET /rounds/current, open, cued", async () => {
+  // cadence 1 → every night is cued, so the `cue` key is deterministically present. This is
+  // the widened `open` payload `docs/18-CUES.md` §8 adds: the base key set plus one top-level
+  // `cue: {key, text}`, and nothing else.
+  const { user } = await newGroupOwner("Ana", {
+    name: "Golden Open Cued",
+    timezone: zoneWhereLocalHourIs(12),
+    reveal_hour: 20,
+    cue_cadence: 1,
+  });
+  await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: user.token,
+    body: { apple_music_id: "1440818664" },
+  });
+  const res = await call("rounds", "/current", { token: user.token });
+  assertEquals(res.status, 200);
+  await assertGolden(
+    "round_open_cued",
+    res.body,
+    "GET /rounds/current during `open` for a cued round. One top-level `cue: {key, text}` " +
+      "beside the base keys — identical for every member, independent of who has submitted.",
+  );
+});
+
+Deno.test("a cue is byte-identical for every member and independent of participation", async () => {
+  // docs/18-CUES.md §2, §11.5. A cue is assigned before the round opens and never touches
+  // submission or guess state, so it must be byte-identical whether or not the caller has
+  // submitted, and its presence must not vary by participation either.
+  const { user: ana, group } = await newGroupOwner("Ana", {
+    name: "Cue Identity",
+    timezone: zoneWhereLocalHourIs(12),
+    reveal_hour: 20,
+    cue_cadence: 1,
+  });
+  const ben = await newMember(group.invite_code as string, "Ben");
+  await call("rounds", "/current/submission", {
+    method: "PUT",
+    token: ana.token,
+    body: { apple_music_id: "1440818664" },
+  });
+
+  const forAna = (await call("rounds", "/current", { token: ana.token })).body.data;
+  const forBen = (await call("rounds", "/current", { token: ben.token })).body.data;
+
+  // Both see the cue, and it is the same object.
+  assertEquals(typeof forAna.cue, "object");
+  assertEquals(forAna.cue, forBen.cue);
+
+  // The whole body differs only in `my_submission` — the cue does not budge.
+  const strip = (d: Record<string, unknown>) => ({ ...d, my_submission: null });
+  assertEquals(strip(forAna), strip(forBen));
+
+  // And a round with the cue off has no `cue` key at all — absent, not null.
+  const off = await newGroupOwner("Cal", {
+    name: "Cue Off",
+    timezone: zoneWhereLocalHourIs(12),
+    reveal_hour: 20,
+    cue_cadence: 0,
+  });
+  const offRound = (await call("rounds", "/current", { token: off.user.token })).body.data;
+  assertEquals("cue" in offRound, false);
+});
+
 Deno.test("golden: GET /rounds/current, voided", async () => {
   const { user } = await newGroupOwner("Ana", {
     name: "Golden Voided",
     timezone: zoneWhereLocalHourIs(17),
     reveal_hour: 18,
+    cue_cadence: 0,
   });
   await call("rounds", "/current/submission", {
     method: "PUT",
@@ -349,6 +422,7 @@ Deno.test("golden: GET /rounds/current, revealed", async () => {
     name: "Golden Revealed",
     timezone: zoneWhereLocalHourIs(17),
     reveal_hour: 18,
+    cue_cadence: 0,
   });
   const others = [
     await newMember(group.invite_code as string, "Ben"),

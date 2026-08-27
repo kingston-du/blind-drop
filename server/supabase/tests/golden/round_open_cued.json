@@ -1,0 +1,42 @@
+{
+  "about": "GET /rounds/current during `open` for a cued round. One top-level `cue: {key, text}` beside the base keys — identical for every member, independent of who has submitted.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "cue",
+    "local_date",
+    "my_submission",
+    "opens_at",
+    "reveals_at",
+    "round_id",
+    "scores_at",
+    "state"
+  ],
+  "nested": {
+    "my_submission": [
+      "sealed_at",
+      "track"
+    ],
+    "my_submission.track": [
+      "album",
+      "apple_music_id",
+      "apple_music_url",
+      "artist",
+      "artwork_bg_color",
+      "artwork_url",
+      "duration_ms",
+      "isrc",
+      "preview_url",
+      "spotify_id",
+      "spotify_url",
+      "title",
+      "track_key"
+    ],
+    "cue": [
+      "key",
+      "text"
+    ]
+  }
+}

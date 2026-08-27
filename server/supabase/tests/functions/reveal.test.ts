@@ -73,6 +73,7 @@ async function revealedRound(
     name,
     timezone: zoneWhereLocalHourIs(17),
     reveal_hour: 18,
+    cue_cadence: 0,
   });
   const code = group.invite_code as string;
   const names = ["Ben", "Cal", "Dee", "Eli", "Fay", "Gus", "Hal", "Ivy", "Jo", "Kit", "Lou"];

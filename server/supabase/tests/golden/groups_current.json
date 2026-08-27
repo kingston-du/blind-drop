@@ -5,6 +5,8 @@
     "server_now"
   ],
   "data": [
+    "cue_cadence",
+    "cue_effective_from",
     "id",
     "invite_code",
     "is_admin",

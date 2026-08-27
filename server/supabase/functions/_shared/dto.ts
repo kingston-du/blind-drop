@@ -79,12 +79,26 @@ export interface GroupDTO {
   invite_code: string;
   is_admin: boolean;
   members: RosterMemberDTO[];
+  /** How often this circle's rounds carry a cue — 0 off, 1 every night, 2 every other night,
+   *  3 now and then (`docs/18-CUES.md` §4). Circle-scoped and admin-set, like `reveal_hour`. */
+  cue_cadence: number;
+  /** The local date from which the current cadence is in effect — always "tomorrow" for an
+   *  already-open round, computed from the rewrite date (`docs/18-CUES.md` §10). */
+  cue_effective_from: string;
 }
 
 export function groupDTO(
-  group: { id: string; name: string; timezone: string; reveal_hour: number; invite_code: string },
+  group: {
+    id: string;
+    name: string;
+    timezone: string;
+    reveal_hour: number;
+    invite_code: string;
+    cue_cadence: number;
+  },
   isAdmin: boolean,
   members: RosterMemberDTO[],
+  cueEffectiveFrom: string,
 ): GroupDTO {
   return {
     id: group.id,
@@ -94,6 +108,8 @@ export function groupDTO(
     invite_code: group.invite_code,
     is_admin: isAdmin,
     members,
+    cue_cadence: group.cue_cadence,
+    cue_effective_from: cueEffectiveFrom,
   };
 }
 
@@ -118,6 +134,8 @@ export function groupPatchDTO(group: GroupDTO, effectiveFrom: string | null): Gr
     invite_code: group.invite_code,
     is_admin: group.is_admin,
     members: group.members,
+    cue_cadence: group.cue_cadence,
+    cue_effective_from: group.cue_effective_from,
     effective_from: effectiveFrom,
   };
 }
@@ -272,6 +290,24 @@ export function submissionDTO(row: { track_meta: unknown; updated_at: string }):
 }
 
 /**
+ * One cue, frozen onto a round at assignment time (`docs/18-CUES.md` §5, §8).
+ *
+ * `key` is the catalog key (for joins and future localisation); `text` is what actually
+ * shipped that night, so retiring or editing a catalog line never rewrites a past round's
+ * cue. `null` — and therefore the whole `cue` key absent from the wire — when the round has
+ * none, which is the same absent-value state `prompt` has always had.
+ */
+export interface CueDTO {
+  key: string;
+  text: string;
+}
+
+export function cueDTO(row: { prompt_key: string | null; prompt: string | null }): CueDTO | null {
+  if (row.prompt_key === null || row.prompt === null) return null;
+  return { key: row.prompt_key, text: row.prompt };
+}
+
+/**
  * **The `open`-phase payload, in full.** docs/04 §4, and the single most security-sensitive
  * shape in the codebase.
  *
@@ -297,6 +333,10 @@ export interface RoundDTO {
   reveals_at: string;
   scores_at: string;
   my_submission: SubmissionDTO | null;
+  /** Present only when the round carries a cue; the key is omitted — not null — otherwise
+   *  (`docs/18-CUES.md` §8). A cue is identical for every member and independent of anyone's
+   *  participation, so it is as safe during `open` as `opens_at` itself. */
+  cue?: CueDTO;
 }
 
 export function roundDTO(
@@ -307,9 +347,12 @@ export function roundDTO(
     opens_at: string;
     reveals_at: string;
     scores_at: string;
+    prompt_key: string | null;
+    prompt: string | null;
   },
   mySubmission: SubmissionDTO | null,
 ): RoundDTO {
+  const cue = cueDTO(round);
   return {
     round_id: round.id,
     local_date: round.local_date,
@@ -318,11 +361,14 @@ export function roundDTO(
     reveals_at: rfc3339(round.reveals_at),
     scores_at: rfc3339(round.scores_at),
     my_submission: mySubmission,
+    ...(cue ? { cue } : {}),
   };
 }
 
 /** The `open`/`voided` key set, for the golden-file test. Exported so the assertion and the
- *  builder cannot drift apart. */
+ *  builder cannot drift apart. `cue` is deliberately not in this list: it is present only on
+ *  a cued round, and its absence is itself the assertion that a round with no cue ships no
+ *  `cue` key. */
 export function roundFields(): readonly string[] {
   return [
     "round_id",
@@ -449,6 +495,7 @@ export function revealedRoundDTO(
     reveals_at: base.reveals_at,
     scores_at: base.scores_at,
     my_submission: base.my_submission,
+    ...(base.cue ? { cue: base.cue } : {}),
     my_card_no: parts.myCardNo,
     // Derived from the reason rather than passed alongside it, so the two cannot contradict
     // each other — a `can_guess: true` with a reason set would be a client bug nobody could
@@ -664,10 +711,12 @@ export interface ResultsDTO {
   me: PersonalScoreDTO;
   people: PersonScoreDTO[];
   tonight_top_ear: TonightEarDTO[];
+  /** Present only when the round carried a cue (`docs/18-CUES.md` §8). */
+  cue?: CueDTO;
 }
 
 export function resultsDTO(
-  round: { id: string; local_date: string },
+  round: { id: string; local_date: string; prompt_key: string | null; prompt: string | null },
   parts: {
     submitterCount: number;
     cards: ResultCardDTO[];
@@ -676,6 +725,7 @@ export function resultsDTO(
     tonightTopEar: TonightEarDTO[];
   },
 ): ResultsDTO {
+  const cue = cueDTO(round);
   return {
     round_id: round.id,
     local_date: round.local_date,
@@ -684,6 +734,7 @@ export function resultsDTO(
     me: parts.me,
     people: parts.people,
     tonight_top_ear: parts.tonightTopEar,
+    ...(cue ? { cue } : {}),
   };
 }
 
@@ -937,18 +988,26 @@ export function recordEntryDTO(member: MemberDTO, meta: unknown): RecordEntryDTO
 }
 
 /** One night, in full. `round_id` is here so the screen can link back to that night's results
- *  (docs/11 `record.results`) without a second lookup. */
+ *  (docs/11 `record.results`) without a second lookup. `cue` is the night's cue, present only
+ *  when it had one — every night before `E35` shipped simply has none (`docs/18-CUES.md` §8). */
 export interface RecordDayDTO {
   local_date: string;
   round_id: string;
   entries: RecordEntryDTO[];
+  cue?: CueDTO;
 }
 
 export function recordDayDTO(
   day: { local_date: string; round_id: string },
   entries: RecordEntryDTO[],
+  cue: CueDTO | null = null,
 ): RecordDayDTO {
-  return { local_date: day.local_date, round_id: day.round_id, entries };
+  return {
+    local_date: day.local_date,
+    round_id: day.round_id,
+    entries,
+    ...(cue ? { cue } : {}),
+  };
 }
 
 /**

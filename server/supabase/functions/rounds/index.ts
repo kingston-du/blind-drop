@@ -155,8 +155,11 @@ interface RoundRow {
   reveals_at: string;
   scores_at: string;
   card_order: string[] | null;
+  prompt_key: string | null;
+  prompt: string | null;
 }
-const ROUND_COLUMNS = "id, local_date, state, opens_at, reveals_at, scores_at, card_order";
+const ROUND_COLUMNS =
+  "id, local_date, state, opens_at, reveals_at, scores_at, card_order, prompt_key, prompt";
 
 /**
  * Today's round, and whether the group it belongs to is the App Review demo group.

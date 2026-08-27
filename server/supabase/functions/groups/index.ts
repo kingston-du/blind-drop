@@ -68,6 +68,8 @@ import {
 import {
   type CallerCircleState,
   circleSummaryDTO,
+  type CueDTO,
+  cueDTO,
   earStandingDTO,
   type ExportTrackDTO,
   exportDTO,
@@ -110,8 +112,9 @@ interface GroupRow {
   timezone: string;
   reveal_hour: number;
   invite_code: string;
+  cue_cadence: number;
 }
-const GROUP_COLUMNS = "id, name, timezone, reveal_hour, invite_code";
+const GROUP_COLUMNS = "id, name, timezone, reveal_hour, invite_code, cue_cadence";
 
 /** The active roster: `user_id`, `display_name` and `role` — the last is `E21-01`'s addition,
  *  static circle governance rather than participation, so it carries none of `joined_at`'s
@@ -158,7 +161,12 @@ async function loadGroup(db: Db, groupId: string): Promise<GroupRow> {
 
 async function currentGroupDTO(ctx: MemberCtx, group?: GroupRow): Promise<GroupDTO> {
   const row = group ?? (await loadGroup(ctx.db, ctx.groupId));
-  return groupDTO(row, ctx.role === "admin", await roster(ctx.db, ctx.groupId));
+  return groupDTO(
+    row,
+    ctx.role === "admin",
+    await roster(ctx.db, ctx.groupId),
+    await cueEffectiveFrom(ctx.db, row),
+  );
 }
 
 /**
@@ -182,6 +190,31 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
   const today = localDate(group.timezone, serverNow());
   if (!data) return today;
   return data.local_date >= today ? nextDate(data.local_date) : today;
+}
+
+/**
+ * The local date from which the current cue cadence is in effect (`docs/18-CUES.md` §10).
+ *
+ * Unlike `effectiveFrom` — which names the first round that does not exist yet, because a
+ * `reveal_hour` change can only land on a fresh round — a cadence change *rewrites* the cue on
+ * every existing open round that has not yet opened (`rewrite_open_round_cues`). So the date is
+ * the earliest such round, which in the ordinary case is tomorrow's already-materialised round;
+ * when none exists (a brand-new group, or one read before its first round is created) it falls
+ * back to the first not-yet-created date.
+ */
+async function cueEffectiveFrom(db: Db, group: GroupRow): Promise<string> {
+  const { data, error } = await db
+    .from("rounds")
+    .select("local_date")
+    .eq("group_id", group.id)
+    .eq("state", "open")
+    .gt("opens_at", serverNow().toISOString())
+    .order("local_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw dbFailure("groups.cueEffectiveFrom", error);
+  if (data) return data.local_date;
+  return effectiveFrom(db, group);
 }
 
 // ─── the switcher — docs/04 §3, docs/02 §2, `E18-02` ─────────────────────────
@@ -595,10 +628,30 @@ async function archiveEntries(
 function daysWithEntries(
   rounds: ArchiveRound[],
   entries: Map<string, RecordEntryDTO[]>,
+  cues: Map<string, CueDTO | null>,
 ): RecordDayDTO[] {
   return rounds
-    .map((round) => recordDayDTO(round, entries.get(round.round_id) ?? []))
+    .map((round) => recordDayDTO(round, entries.get(round.round_id) ?? [], cues.get(round.round_id) ?? null))
     .filter((day) => day.entries.length > 0);
+}
+
+/**
+ * The cue each round carried, keyed by round id. Reads `rounds` directly — the archive's page
+ * comes from `round_submitter_counts`, which deliberately has no `prompt`/`prompt_key`, so the
+ * frozen cue text has to be fetched in one extra pass over exactly the nights on the page. A
+ * pre-`E35` night, and any night whose circle had the cue off, is `null` — and the `cue` key is
+ * then absent from its day, not null (`docs/18-CUES.md` §8).
+ */
+async function cueByRoundId(db: Db, roundIds: string[]): Promise<Map<string, CueDTO | null>> {
+  if (roundIds.length === 0) return new Map();
+  const { data, error } = await db
+    .from("rounds")
+    .select("id, prompt_key, prompt")
+    .in("id", roundIds);
+  if (error) throw dbFailure("groups.record.cues", error);
+  return new Map(
+    data.map((row) => [row.id as string, cueDTO({ prompt_key: row.prompt_key, prompt: row.prompt })]),
+  );
 }
 
 /**
@@ -632,11 +685,12 @@ async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
   const body = await parseBody(req, {
     name: optional(str({ min: 1, max: 40 })),
     reveal_hour: optional(int({ min: 18, max: 21 })),
+    cue_cadence: optional(int({ min: 0, max: 3 })),
   });
   // `timezone` is immutable after creation (docs/04 §3). It is not in the schema above, so
   // sending it is an unknown key and fails with INVALID_INPUT naming the field — which is
   // exactly the answer the UI needs to show `settings.timezone.locked`.
-  if (body.name === undefined && body.reveal_hour === undefined) {
+  if (body.name === undefined && body.reveal_hour === undefined && body.cue_cadence === undefined) {
     throw new ApiError("INVALID_INPUT", { field: "body" });
   }
 
@@ -647,6 +701,7 @@ async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
     patch.name = name;
   }
   if (body.reveal_hour !== undefined) patch.reveal_hour = body.reveal_hour;
+  if (body.cue_cadence !== undefined) patch.cue_cadence = body.cue_cadence;
 
   const { data, error } = await ctx.db
     .from("groups")
@@ -657,6 +712,20 @@ async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
   if (error) throw dbFailure("groups.patch", error);
 
   const group = data as GroupRow;
+
+  // A cadence change rewrites the cue on every round that has not yet opened — never one
+  // somebody may already have sealed against (docs/18-CUES.md §10). The helper returns the
+  // earliest date it touched; `currentGroupDTO` recomputes `cue_effective_from` from the
+  // rewritten rows, so the response names the exact "from" date rather than an indeterminate
+  // one.
+  if (body.cue_cadence !== undefined) {
+    const { error: cueError } = await ctx.db.rpc("rewrite_open_round_cues", {
+      p_group_id: ctx.groupId,
+      p_cadence: body.cue_cadence,
+    });
+    if (cueError) throw dbFailure("groups.patch.cue", cueError);
+  }
+
   return ok(
     groupPatchDTO(
       await currentGroupDTO(ctx, group),
@@ -758,9 +827,12 @@ async function recordForGroup(req: Request, ctx: MemberCtx): Promise<Response> {
   const page = fitPage(planned, limit, member);
   const more = planned.length > page.length;
 
-  const entries = await archiveEntries(ctx.db, page.map((round) => round.round_id), member);
+  const [entries, cues] = await Promise.all([
+    archiveEntries(ctx.db, page.map((round) => round.round_id), member),
+    cueByRoundId(ctx.db, page.map((round) => round.round_id)),
+  ]);
   const cursor = more && page.length > 0 ? encodeCursor(page[page.length - 1].local_date) : null;
-  return ok(recordDTO(daysWithEntries(page, entries), cursor));
+  return ok(recordDTO(daysWithEntries(page, entries, cues), cursor));
 }
 
 // ─── member profiles — E24-02 ───────────────────────────────────────────────
@@ -1329,7 +1401,9 @@ async function acceptInvitation(ctx: ProfileCtx, invitationId: string): Promise<
   const outcome = data as { outcome: "accepted" | "expired"; group_id?: string };
   if (outcome.outcome !== "accepted" || !outcome.group_id) throw new ApiError("NOT_FOUND");
   const group = await loadGroup(ctx.db, outcome.group_id);
-  return ok(groupDTO(group, false, await roster(ctx.db, group.id)));
+  return ok(
+    groupDTO(group, false, await roster(ctx.db, group.id), await cueEffectiveFrom(ctx.db, group)),
+  );
 }
 
 /** `POST /groups/invitations/:invitation_id/decline` — terminal, and re-invitable: the next
@@ -1440,9 +1514,12 @@ serveFunction("groups", {
       if (!error) {
         const group = data as GroupRow;
         return ok(
-          groupDTO(group, true, [
-            rosterMemberDTO({ user_id: ctx.userId, display_name: ctx.displayName, role: "admin" }),
-          ]),
+          groupDTO(
+            group,
+            true,
+            [rosterMemberDTO({ user_id: ctx.userId, display_name: ctx.displayName, role: "admin" })],
+            await cueEffectiveFrom(ctx.db, group),
+          ),
         );
       }
       if (isCircleLimitReached(error)) throw new ApiError("CIRCLE_LIMIT_REACHED");
@@ -1499,7 +1576,9 @@ serveFunction("groups", {
     if (isUniqueViolation(joinError)) throw new ApiError("ALREADY_IN_GROUP");
     if (joinError) throw dbFailure("groups.join", joinError);
 
-    return ok(groupDTO(group, false, await roster(ctx.db, group.id)));
+    return ok(
+      groupDTO(group, false, await roster(ctx.db, group.id), await cueEffectiveFrom(ctx.db, group)),
+    );
   },
 
   // ─── the switcher ──────────────────────────────────────────────────────────

@@ -5,7 +5,17 @@ import { call, keysOf, newGroupOwner, newMember, newNamedUser, newUser } from ".
 
 const groups = (path: string, opts: Parameters<typeof call>[2] = {}) => call("groups", path, opts);
 
-const GROUP_KEYS = ["id", "invite_code", "is_admin", "members", "name", "reveal_hour", "timezone"];
+const GROUP_KEYS = [
+  "cue_cadence",
+  "cue_effective_from",
+  "id",
+  "invite_code",
+  "is_admin",
+  "members",
+  "name",
+  "reveal_hour",
+  "timezone",
+];
 
 // ─── create ──────────────────────────────────────────────────────────────────
 
@@ -275,6 +285,29 @@ Deno.test("PATCH /groups/current changes name and reveal_hour, and echoes effect
     day: "2-digit",
   }).format(new Date());
   assertEquals(rehoured.body.data.effective_from, today);
+});
+
+Deno.test("PATCH /groups/current changes the cue cadence and names the effective date", async () => {
+  const { user, group } = await newGroupOwner("Ana");
+
+  const res = await groups("/current", {
+    method: "PATCH",
+    token: user.token,
+    body: { cue_cadence: 1 },
+  });
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.cue_cadence, 1);
+  assertEquals(typeof res.body.data.cue_effective_from, "string");
+
+  // Admin-only, the same guard reveal_hour gets (docs/18-CUES.md §4).
+  const ben = await newMember(group.invite_code as string, "Ben");
+  const refused = await groups("/current", {
+    method: "PATCH",
+    token: ben.token,
+    body: { cue_cadence: 3 },
+  });
+  assertEquals(refused.status, 403);
+  assertEquals(refused.body.error.code, "NOT_ADMIN");
 });
 
 Deno.test("PATCH /groups/current refuses to change the timezone", async () => {
