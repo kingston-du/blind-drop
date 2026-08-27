@@ -472,8 +472,8 @@ amendment in the epic file.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E32-01 The call sheet commits instead of springing back | wip | — | vs E32-02 | — |
-| E32-02 The menu doesn't peek through the pop transition | wip | — | vs E32-01 | — |
+| E32-01 The call sheet commits instead of springing back | blocked | — | vs E32-02 | — |
+| E32-02 The menu doesn't peek through the pop transition | blocked | — | vs E32-01 | — |
 
 ## E33 — Finish the record chip · [file](E33-record-chip-finish.md)
 
