@@ -34,7 +34,7 @@ struct RecordScreen: View {
         }
         .onDisappear { player.stop() }
         .navigationDestination(item: $resultsRoute) { route in
-            RecordResultsScreen(roundID: route.id)
+            RecordResultsScreen(roundID: route.id, player: player)
         }
     }
 
@@ -291,12 +291,16 @@ private struct RecordResultsScreen: View {
     /// button as tonight's, because both paths now ask the same store for it.
     @Environment(\.artworkLoader) private var artworkLoader
     let roundID: String
+    /// The same 30-second preview the record list plays through (`docs/06` §4), shared so
+    /// starting a preview here stops whatever the list had going — and so a past round's cards
+    /// get the same tap-to-preview the live results already had (`docs/17` §2, `E29-02`).
+    let player: PreviewPlayer
     @State private var store: ResultsStore?
 
     var body: some View {
         Group {
             if let store, store.state.value != nil {
-                ResultsScreen(state: store.viewState(resolve: nil))
+                ResultsScreen(state: store.viewState(resolve: nil), player: player)
             } else if let error = store?.state.error {
                 Text(LocalizedStringKey(error.copyKey))
                     .typeStyle(.bodyM)

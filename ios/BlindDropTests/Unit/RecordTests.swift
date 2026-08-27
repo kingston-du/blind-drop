@@ -353,6 +353,26 @@ struct RecordTests {
         #expect(filterQuery?.first { $0.name == "member" }?.value == member.userID)
     }
 
+    /// `E29-02`: the Record's past-round results screen must hand a real `PreviewPlayer` to
+    /// `ResultsScreen`. `RecordResultsScreen` is `private`, so this is a source-level invariant
+    /// in the same style as `RoundInsetTests`: without it, a past round's cards render with no
+    /// preview control at all, because `ResultsScreen` defaults its `player` to `nil`.
+    @Test func recordResultsScreenWiresTheSharedPreviewPlayerThrough() throws {
+        let source = try source("Record/RecordScreen.swift")
+        #expect(source.contains("RecordResultsScreen(roundID: route.id, player: player)"))
+        #expect(source.contains("ResultsScreen(state: store.viewState(resolve: nil), player: player)"))
+        #expect(source.contains("let player: PreviewPlayer"))
+    }
+
+    private func source(_ path: String) throws -> String {
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // Unit
+            .deletingLastPathComponent()   // BlindDropTests
+            .deletingLastPathComponent()   // ios
+            .appending(path: "BlindDrop/Features/\(path)")
+        return try String(contentsOf: file, encoding: .utf8)
+    }
+
     private func exportPayload(service: String, count: Int, unresolved: Int) throws -> ExportDTO {
         let tracks: [[String: Any]] = (0..<count).map { index in
             [
