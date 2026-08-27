@@ -129,11 +129,11 @@ struct FlightCard: View {
                     Button(action: clearGuess) { Text(verbatim: Copy.A11y.clearGuess) }
                 }
                 // `linksMenu` is `accessibilityHidden` — these are how the two links inside it
-                // stay reachable on an answer card. Both services, each present only when the
-                // payload actually carries it: an action that opens nothing is the same lie as
-                // a menu item that does. Apple Music first here, as on the sealed card's corner,
-                // where the order is the platform's store before the other one.
-                if isAnswer {
+                // stay reachable on any card, answered or not (`E29-03`). Both services, each
+                // present only when the payload actually carries it: an action that opens nothing
+                // is the same lie as a menu item that does. Apple Music first here, as on the
+                // sealed card's corner, where the order is the platform's store before the other one.
+                if hasLinks {
                     if let apple = TrackLinkDestination.appleMusic(track: track) {
                         Button(action: { TrackLinkRouter.open(apple, using: SystemTrackLinkOpener()) }) {
                             Text("link.apple")
@@ -199,23 +199,41 @@ struct FlightCard: View {
         .onTapGesture { chooseGuess?() }
     }
 
-    /// One line of tonight's flight.
+    /// One line of tonight's flight — with the number and the corner menu on a head row of their
+    /// own at the reading sizes (`E29-03`).
+    ///
+    /// The reveal card got the same link menu the answer card already had, and the answer card's
+    /// arrangement is the only one that fits a 44pt ellipsis without stealing title width: the
+    /// number and the menu share their own row, and the artwork/title/chip row below keeps the
+    /// full width — the same move `E28-05` made for the answer card, restated here. Above
+    /// `.accessibility1` the flight already stacks (`docs/12` §1), and there the menu joins the
+    /// number-and-artwork row for free: it is the one row on the card with empty width to spare.
     private var flightRow: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             if isStacked {
                 // `docs/12` §1: the text comes off the line and the chip with it. The number and
                 // the artwork **stay** on a line together — neither grows with the type size, so
                 // stacking them would add height and buy nothing. What has to move is the title,
-                // because at `.accessibility5` a title and a name cannot share a 375pt row.
+                // because at `.accessibility5` a title and a name cannot share a 375pt row. The
+                // menu sits beside them at the far edge, the one corner nothing else claims.
                 HStack(alignment: .center, spacing: Space.md) {
                     cardNumber
                     artwork
+                    Spacer(minLength: Space.sm)
+                    linksMenu
                 }
                 metadata
                 assignmentChip
             } else {
-                HStack(alignment: .center, spacing: Space.md) {
+                // The number and the corner menu share their own row, as on the answer card, so
+                // the title below gets the card's full width back instead of surrendering another
+                // 44pt to a menu crowded in beside the chip.
+                HStack(alignment: .center, spacing: Space.sm) {
                     cardNumber
+                    Spacer(minLength: Space.sm)
+                    linksMenu
+                }
+                HStack(alignment: .center, spacing: Space.md) {
                     artwork
                     metadata
                     // The chip takes its natural width and the title gives way, which is the
@@ -283,6 +301,15 @@ struct FlightCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Whether this track carries either service, and therefore whether the ellipsis menu has
+    /// anything to open. One condition for both card states — the answer card and the reveal
+    /// flight row (`E29-03`) — so they cannot drift: a link absent from the payload is absent
+    /// from the menu, and from the card's accessibility actions, whichever state the card is in.
+    private var hasLinks: Bool {
+        TrackLinkDestination.appleMusic(track: track) != nil
+            || TrackLinkDestination.spotify(track: track) != nil
+    }
+
     /// The card's overflow, hidden from VoiceOver here and re-exposed through `body`'s
     /// `.accessibilityActions` — the whole card is one VoiceOver element (`docs/12` §2), and a
     /// menu reachable only by direct touch inside that collapse would not be reachable by anyone
@@ -291,8 +318,7 @@ struct FlightCard: View {
     /// Absent, not empty, when the payload carries neither service: an ellipsis that opens onto
     /// nothing is worse than no ellipsis. The same test `CardCornerLinks` makes before it draws.
     @ViewBuilder private var linksMenu: some View {
-        if TrackLinkDestination.appleMusic(track: track) != nil
-            || TrackLinkDestination.spotify(track: track) != nil {
+        if hasLinks {
             TrackUtilityMenu(track: track)
                 .accessibilityHidden(true)
         }
