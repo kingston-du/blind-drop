@@ -69,6 +69,50 @@ import Testing
         #expect(!registrar.isPrompting, "a second seal does not ask again")
     }
 
+    // MARK: - Recovering from a declined pre-prompt (Settings)
+
+    /// `skip()` never touches `UNUserNotificationCenter`, so iOS was never asked either — the
+    /// dead end Settings' recovery row exists for.
+    @Test func declineWithoutARealAskIsRecoverable() async {
+        let (registrar, _, _, _) = makeRegistrar()
+        await registrar.promptAfterFirstSeal()
+        registrar.skip()
+
+        #expect(await registrar.canRecoverNotifications)
+    }
+
+    /// Somebody who never reached the pre-prompt has nothing to recover — they simply have not
+    /// been asked yet, which is not the same dead end.
+    @Test func neverAskedIsNotRecoverable() async {
+        let (registrar, _, _, _) = makeRegistrar()
+
+        #expect(await !registrar.canRecoverNotifications)
+    }
+
+    /// Somebody already decided at the system level — granted elsewhere, or refused for real —
+    /// is not offered the row either: iOS Settings already has them, same as any other app.
+    @Test func adecisionAlreadyMadeAtTheSystemLevelIsNotRecoverable() async {
+        let (registrar, _, _, _) = makeRegistrar(status: .denied)
+        await registrar.promptAfterFirstSeal()
+
+        #expect(await !registrar.canRecoverNotifications)
+    }
+
+    /// Tapping the recovery row spends the real dialog, same as `allow()` — and whatever it
+    /// answers, the dead end is closed and the row does not come back.
+    @Test func recoveringAsksIOSAndClosesTheDeadEndEitherWay() async {
+        let (registrar, center, flags, _) = makeRegistrar(grants: false)
+        await registrar.promptAfterFirstSeal()
+        registrar.skip()
+        #expect(await registrar.canRecoverNotifications)
+
+        await registrar.allow()
+
+        #expect(center.didRequestAuthorization)
+        #expect(flags.hasDeclinedNotifications)
+        #expect(await !registrar.canRecoverNotifications, "refused for real now — Settings owns it")
+    }
+
     /// Granting spends the system dialog and registers for a token.
     @Test func allowingRequestsAuthorizationAndRegisters() async {
         let (registrar, center, flags, _) = makeRegistrar()
@@ -195,7 +239,7 @@ import Testing
 final class FakeNotificationAuthority: NotificationAuthority {
     enum Status { case notDetermined, authorized, denied }
 
-    private let status: Status
+    private var status: Status
     private let grants: Bool
     private(set) var didRequestAuthorization = false
     private(set) var didRegister = false
@@ -211,6 +255,9 @@ final class FakeNotificationAuthority: NotificationAuthority {
 
     func requestAuthorization() async -> Bool {
         didRequestAuthorization = true
+        // The real dialog always resolves the status, same as `UNUserNotificationCenter`: a
+        // second read of `isNotDetermined` after this must see the answer, not the stale state.
+        status = grants ? .authorized : .denied
         return grants
     }
 

@@ -498,6 +498,58 @@ struct AuthHarness {
         #expect(requests.map(\.httpMethod) == ["DELETE", "DELETE"])
     }
 
+    // MARK: - Notifications recovery (Settings)
+
+    /// `docs/05` §4 — `SettingsStore.load()` surfaces the recovery row only when `skip()` left
+    /// the pre-prompt declined without iOS ever actually being asked.
+    @Test func settingsLoadSurfacesNotificationRecoveryOnlyWhenDeclinedWithoutARealAsk() async {
+        let h = AuthHarness()
+        let flags = LocalFlags(defaults: RoundFixture.scratchDefaults())
+        let center = FakeNotificationAuthority(status: .notDetermined, grants: true)
+        let push = PushRegistrar(api: h.api, flags: flags, center: center)
+        await push.promptAfterFirstSeal()
+        push.skip()
+        let store = SettingsStore(api: h.api, session: h.session, router: Router(), push: push)
+
+        await store.load()
+
+        #expect(store.showsNotificationRecovery)
+    }
+
+    /// Nobody who has not declined the pre-prompt sees the row — including somebody who has
+    /// never been asked at all, which is `load()`'s default and must stay `false` without a
+    /// registrar call proving it.
+    @Test func settingsLoadHidesTheRowWhenNothingWasDeclined() async {
+        let h = AuthHarness()
+        let flags = LocalFlags(defaults: RoundFixture.scratchDefaults())
+        let center = FakeNotificationAuthority(status: .notDetermined, grants: true)
+        let push = PushRegistrar(api: h.api, flags: flags, center: center)
+        let store = SettingsStore(api: h.api, session: h.session, router: Router(), push: push)
+
+        await store.load()
+
+        #expect(!store.showsNotificationRecovery)
+    }
+
+    /// Tapping the row's button spends the real dialog and closes the row — `SettingsStore` is a
+    /// thin read of `PushRegistrar`'s state, not a second copy of it.
+    @Test func turningOnNotificationsFromSettingsClosesTheRecoveryRow() async {
+        let h = AuthHarness()
+        let flags = LocalFlags(defaults: RoundFixture.scratchDefaults())
+        let center = FakeNotificationAuthority(status: .notDetermined, grants: true)
+        let push = PushRegistrar(api: h.api, flags: flags, center: center)
+        await push.promptAfterFirstSeal()
+        push.skip()
+        let store = SettingsStore(api: h.api, session: h.session, router: Router(), push: push)
+        await store.load()
+        #expect(store.showsNotificationRecovery)
+
+        await store.turnOnNotifications()
+
+        #expect(center.didRequestAuthorization)
+        #expect(!store.showsNotificationRecovery)
+    }
+
     /// The other ending. `APIClient` calls it when a 401 survives its one refresh, and there is
     /// nothing to revoke because the credential is already dead — so it must not spend a round
     /// trip finding that out.

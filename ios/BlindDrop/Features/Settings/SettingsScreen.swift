@@ -21,9 +21,13 @@ struct SettingsScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if store == nil {
-                store = SettingsStore(
+                let newStore = SettingsStore(
                     api: env.api, session: env.session, router: env.router, push: env.push
                 )
+                // Awaited before `store` is set, so the recovery row (when it applies) is there
+                // on first paint rather than popping in a beat after the rest of the screen.
+                await newStore.load()
+                store = newStore
             }
         }
         .alert("settings.delete.confirm.title", isPresented: $confirmsDeletion) {
@@ -60,6 +64,20 @@ struct SettingsScreen: View {
                     PrimaryButton("settings.save", fill: .neutral, isEnabled: store.canSave) {
                         nameFocused = false
                         Task { await store.saveName() }
+                    }
+                }
+
+                if store.showsNotificationRecovery {
+                    section("settings.notifications") {
+                        Text("settings.notifications.help")
+                            .typeStyle(.bodyM)
+                            .foregroundStyle(Palette.inkDim)
+                        PrimaryButton(
+                            "push.permission.allow", fill: .neutral,
+                            isEnabled: !store.isRequestingNotifications
+                        ) {
+                            Task { await store.turnOnNotifications() }
+                        }
                     }
                 }
 

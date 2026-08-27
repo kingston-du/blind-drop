@@ -239,6 +239,18 @@ every one of them about something that actually happened or is about to, is alre
 settings screen implies there is something to manage. Users who want silence use iOS
 notification settings.
 
+> **Amended by the owner, 2026-08-27.** That last sentence assumes the app is registered with
+> iOS — but `PushRegistrar.skip()` (the pre-prompt's **Not now**) never calls
+> `requestAuthorization()`, so a person who declines the pre-prompt is never asked at the system
+> level either, and never appears in Settings → Notifications at all. Combined with "no second
+> ask, ever," that person had zero way back in, forever, from a single soft tap. `Settings` now
+> shows one narrow, self-erasing row — **only** while `hasDeclinedNotifications` is true and
+> `authorizationStatus` is still `.notDetermined`, i.e. only in that exact dead end. It calls the
+> same `allow()` the pre-prompt does; once the real dialog answers, the row is gone for the life
+> of the install, same as everything else in this section. It is not a preference to manage and
+> is not per-type — it is the one place this rule's own "use iOS Settings" escape hatch was
+> unreachable. See `PushRegistrar.canRecoverNotifications` and `SettingsStore.swift`.
+
 ---
 
 ## 5. Deep links

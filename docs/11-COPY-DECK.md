@@ -473,6 +473,8 @@ either must be able to happen without the other.
 | `settings.name.help` | This is the name people guess with. |
 | `settings.save` | Save name |
 | `settings.saved` | Saved. |
+| `settings.notifications` | Notifications |
+| `settings.notifications.help` | Notifications aren't set up on this device. The prompt was dismissed before iOS asked. |
 | `settings.account` | Account |
 | `settings.signout` | Sign out |
 | `settings.delete` | Delete account |

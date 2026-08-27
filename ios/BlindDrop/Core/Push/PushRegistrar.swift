@@ -74,7 +74,8 @@ final class PushRegistrar {
     }
 
     /// **Turn on notifications** — the pre-prompt's primary action, which spends the system's one
-    /// dialog.
+    /// dialog. Also what Settings' recovery row calls when `canRecoverNotifications` is true:
+    /// same action, same one-shot dialog, just reached a second way.
     func allow() async {
         isPrompting = false
         flags.hasAskedAboutNotifications = true
@@ -91,6 +92,25 @@ final class PushRegistrar {
         isPrompting = false
         flags.hasAskedAboutNotifications = true
         flags.hasDeclinedNotifications = true
+    }
+
+    // MARK: - Recovery
+
+    /// Whether `skip()` left this install in a dead end: declined the pre-prompt, and because
+    /// `skip()` never touches `UNUserNotificationCenter`, iOS was never actually asked either.
+    /// That is the one case where the ordinary escape hatch — go to iOS Settings and turn it
+    /// back on — does not exist, because Blind Drop has never registered there to turn on.
+    ///
+    /// `Settings` reads this to show a single narrow recovery action, and **only** in this
+    /// state. It is not a notifications preference: once `isNotDetermined` goes false — granted
+    /// or refused, it does not matter which — this goes false too and the row disappears for
+    /// good, same as the pre-prompt itself (`docs/05` §4: no per-type toggles, no in-app
+    /// preference screen).
+    var canRecoverNotifications: Bool {
+        get async {
+            guard flags.hasDeclinedNotifications else { return false }
+            return await center.isNotDetermined
+        }
     }
 
     // MARK: - The token
