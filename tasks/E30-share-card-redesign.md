@@ -72,3 +72,13 @@ round is reachable end-to-end today) — verified those two cases instead via th
 caption, correct tile count, no truncation), then discarded the throwaway test scaffolding
 before commit. Flagged as a separate follow-up task; not blocking here since it touches
 `ResultsScreen.swift`/`ResultsStore.swift`, outside this slice's `Touches` list.
+
+**Closed by a follow-up commit.** The gap was narrower than the note above states — the live
+round's own `ResultsHost` did build a `ShareEntry` and pass it to `ResultsScreen`, but The
+Record's history path (`RecordResultsScreen`) never did, and the two call sites were free to
+drift apart. The fix moves construction into `ResultsStore` alone: `viewState(resolve:)` now
+populates `ResultsViewState.share` from a best-effort `GroupDTO` fetch and a store-owned
+`ShareRenderer`, and both `RoundScreen` and `RecordScreen` read it from the store instead of
+building their own. `ResultsTests` proves the entry appears once the answers and the group land
+(and is absent without the group); `ShareRendererTests` now asserts nothing outside
+`Features/Results/` reaches the share card at all.
