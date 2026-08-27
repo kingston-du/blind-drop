@@ -121,12 +121,11 @@ the results answer card and Record rows, but **not** on the revealed/guessing fl
 - Pinned by a source-level test in `SongLinkTests` (`flightRow` draws `linksMenu`; the gate is
   `hasLinks`). Reveal and flight-card goldens re-recorded.
 
-> **Open question:** giving the reveal flight card a head row grows each card's height at the
-> reading sizes (a 12-card flight scrolls ~¾ taller per card), because a 44pt ellipsis cannot
-> share the compact single-line row without truncating the title on an SE. The trade was made for
-> the answer card's established arrangement and the title room it buys back (`E28-05`); if a
-> denser flight is preferred, the menu can move to a trailing column over the chip instead. Kept
-> as an open question rather than resolved silently.
+> **Owner decision, 2026-08-26:** the head-row arrangement stands. The cost — each reading-size
+> flight card grows ~56pt (a 44pt ellipsis cannot share the compact single-line row without
+> truncating the title on an SE) — was raised and the owner kept the answer card's established
+> arrangement (`E28-05`) and the title room it buys back, over the denser trailing-column
+> alternative (~42pt/card, but it moves the guess chip).
 
 **Non-goals:** unchanged — no Spotify playback (`docs/16` §3 — previews are Apple Music only,
 Spotify is identity/export). No track-link resolution timing change; `TrackLinks.swift` needed no
