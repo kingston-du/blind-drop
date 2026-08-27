@@ -7,7 +7,7 @@ each is too small to be its own epic.
 
 ### E32-01 — The call sheet commits instead of springing back
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** vs E32-02
 **Reads:** `docs/17-NEXT-FEATURES.md` §6, `docs/09-MOTION-SPEC.md` §1, `tasks/E28-polish-and-personality.md`
@@ -37,7 +37,7 @@ a further threshold correction on `CallSheetDetent.resolved`, not a rebuild.
 
 ### E32-02 — The menu doesn't peek through the pop transition
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** vs E32-01
 **Reads:** `docs/17-NEXT-FEATURES.md` §8
