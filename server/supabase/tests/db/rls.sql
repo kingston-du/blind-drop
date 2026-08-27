@@ -5,11 +5,12 @@
 -- tests/functions/postgrest_locked.test.ts; what is provable in SQL is proved here.
 begin;
 set search_path = public, extensions, tests;
--- Table count and every `unnest(array[...])` table list below grew by one for
--- `public.invitations` (E20-01, `20260819100000_invitations.sql`) — four new assertions: one
--- more row apiece in the two `pg_class`-driven RLS-enabled/forced checks (automatic, no array
--- to edit) and one more row apiece in the two hand-enumerated read-denial checks below.
-select plan(65);
+-- Table count and every `unnest(array[...])` table list below grows by one whenever a table
+-- lands: `invitations` (E20-01), `cue_catalog` (E35-02, `20260827120000_cues.sql`) — four new
+-- assertions per table: one more row apiece in the two `pg_class`-driven RLS-enabled/forced
+-- checks (automatic, no array to edit) and one more row apiece in the two hand-enumerated
+-- read-denial checks below.
+select plan(69);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -25,8 +26,8 @@ order by c.relname;
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'),
-  13,
-  'exactly thirteen tables in public — nothing has been added without a doc change');
+  14,
+  'exactly fourteen tables in public — nothing has been added without a doc change');
 
 -- ─── zero policies. Not "the right policies". Zero. ──────────────────────────
 select is_empty($$
@@ -148,7 +149,11 @@ select set_eq(
        -- notification one transaction; it is not exposed to either client-facing role.
        ('enqueue_invitation_notification'::information_schema.sql_identifier),
        ('accept_invitation'::information_schema.sql_identifier),
-       ('decline_invitation'::information_schema.sql_identifier) $$,
+       ('decline_invitation'::information_schema.sql_identifier),
+       -- E35-02 (20260827120000_cues.sql). Called by the cadence PATCH path after updating
+       -- groups.cue_cadence; `cue_for_round` is deliberately absent — it is an internal
+       -- helper reached only through the definer functions, never by a client RPC.
+       ('rewrite_open_round_cues'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
 
 select is_empty($$
@@ -176,7 +181,7 @@ select throws_ok(
          format('authenticated cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts','demo_companions','invitations']) as t,
+                  'pilot_cohorts','demo_companions','invitations','cue_catalog']) as t,
      lateral (select set_config('role', 'authenticated', true)) as _;
 reset role;
 
@@ -187,7 +192,7 @@ select throws_ok(
          format('anon cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts','demo_companions','invitations']) as t,
+                  'pilot_cohorts','demo_companions','invitations','cue_catalog']) as t,
      lateral (select set_config('role', 'anon', true)) as _;
 reset role;
 

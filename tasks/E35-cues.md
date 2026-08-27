@@ -43,7 +43,7 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 
 ### E35-02 — Database: catalog, cadence, deterministic assignment
 
-**Status:** todo
+**Status:** done
 **Deps:** E35-01
 **Parallel:** no — everything downstream reads this schema
 **Reads:** `docs/18-CUES.md` §3, §5, §6, §11.4, `server/supabase/migrations/0002_core_tables.sql`,
@@ -51,28 +51,39 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 **Touches:** a new `server/supabase/migrations/NNNN_cues.sql`, `server/supabase/tests/db/`
 **Verify:** `cd server && npm run db:start && npm run test:db`
 
-- [ ] `cue_catalog` table, seeded with all 61 rows from `docs/18-CUES.md` §6, `text` capped at 56
+- [x] `cue_catalog` table, seeded with all 61 rows from `docs/18-CUES.md` §6, `text` capped at 56
       chars by check constraint
-- [ ] `groups.cue_cadence smallint not null default 2 check (between 0 and 3)`
-- [ ] `rounds.prompt_key text references cue_catalog(key)`; `rounds.prompt` continues to hold the
+- [x] `groups.cue_cadence smallint not null default 2 check (between 0 and 3)`
+- [x] `rounds.prompt_key text references cue_catalog(key)`; `rounds.prompt` continues to hold the
       frozen text, now written on insert per the formula in `docs/18-CUES.md` §3
-- [ ] `ensure_rounds()` assigns `prompt_key`/`prompt` per §3's formula when `cue_cadence > 0`;
+- [x] `ensure_rounds()` assigns `prompt_key`/`prompt` per §3's formula when `cue_cadence > 0`;
       leaves both `null` when `cue_cadence = 0`, exactly as every round does today
-- [ ] A cadence PATCH (server function in `E35-03`, but the SQL-side helper lands here) rewrites
+- [x] A cadence PATCH (server function in `E35-03`, but the SQL-side helper lands here) rewrites
       `prompt_key`/`prompt` only on rows where `state = 'open' AND opens_at > now_()` — never a
       round that has already opened
-- [ ] Demo groups (`demo_lifecycle`, `demo_always_open`) get a fixed, reproducible cue derivation
+- [x] Demo groups (`demo_lifecycle`, `demo_always_open`) get a fixed, reproducible cue derivation
       rather than the `hashtext(group_id)`-derived one — pick and record which of
       `docs/18-CUES.md` §11.4's two options (`cue_cadence = 0` vs. a pinned seed) in this file's
       checklist notes once decided
-- [ ] pgTAP: `count(*) from cue_catalog where active` is prime (protects §3's no-repeat-before-
+- [x] pgTAP: `count(*) from cue_catalog where active` is prime (protects §3's no-repeat-before-
       exhaustion property against a future catalog edit)
-- [ ] pgTAP: over a simulated run of `N` rounds at `cue_cadence = 1`, every cue key appears exactly
+- [x] pgTAP: over a simulated run of `N` rounds at `cue_cadence = 1`, every cue key appears exactly
       once before any repeats
-- [ ] pgTAP: `ensure_rounds()` run twice never changes `prompt_key` on a round already `state !=
+- [x] pgTAP: `ensure_rounds()` run twice never changes `prompt_key` on a round already `state !=
       'open'`, and never touches a round whose `opens_at <= now_()`
-- [ ] pgTAP: the demo-group derivation returns the same cue across repeated calls at different
+- [x] pgTAP: the demo-group derivation returns the same cue across repeated calls at different
       simulated `now_()` values (reproducibility for App Review)
+
+> **Demo decision (E35-02).** `cue_cadence = 0` for demo groups, not a pinned seed. A demo
+> group's id is minted fresh on each App Review provisioning, so a `hashtext(group_id)`-derived
+> cue would differ across review runs; off is the most reproducible derivation there is, and a
+> demo round's job is the loop, not the cue. Implemented as a migration `update` for existing
+> demo groups plus `assign_pilot_cohort()` carrying `cue_cadence = 0` onto any demo group it
+> mints. `cue_for_round()` is the §3 formula as one pure SQL function of `(group_id, ordinal,
+> cadence)`; the `stride` is forced odd — and therefore coprime with the prime catalog size 61 —
+> so the sequence exhausts all 61 cues before any repeat. `rewrite_open_round_cues()` is the
+> SQL-side half of the cadence PATCH, returning the earliest not-yet-opened round's date as the
+> effective-from.
 
 ---
 
@@ -191,7 +202,7 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 | Slice | Status |
 |---|---|
 | E35-01 Docs and copy deck | done |
-| E35-02 Database | todo |
+| E35-02 Database | done |
 | E35-03 API | todo |
 | E35-04 iOS core | todo |
 | E35-05 Circle settings | todo |
