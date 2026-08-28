@@ -9,6 +9,9 @@ import SwiftUI
 /// about a person, and they are read together the way you would read them out loud.
 struct StandingsView: View {
     let standings: StandingsDTO
+    /// Opens the tapped member's profile. Defaults to a no-op so every existing call site (and
+    /// every snapshot) keeps rendering the same static table until it opts in.
+    var select: (MemberDTO) -> Void = { _ in }
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.displayScale) private var displayScale
@@ -42,7 +45,8 @@ struct StandingsView: View {
                 if index > 0 { Rule() }
                 StandingRow(
                     standing: standing,
-                    readability: readabilityByUser[standing.userID]
+                    readability: readabilityByUser[standing.userID],
+                    select: select
                 )
             }
         }
@@ -59,23 +63,35 @@ struct StandingsView: View {
 }
 
 /// One person: where they sit on ear, what they are called, and the two numbers.
+///
+/// Tappable (`E35`) — reopens the question `E24-01`'s comment on `StandingRowContent` answers:
+/// the same fact about the same person now opens their profile from *both* the all-time table
+/// and `GroupScreen`'s roster, and it is still one shared layout doing it, just wrapped in a
+/// `Button` here too instead of the old static `accessibilityAddTraits(.isStaticText)`.
 private struct StandingRow: View {
     let standing: EarStandingDTO
     /// `nil` when the readability list does not carry this person — someone who has never had a
     /// song of theirs in a round has an ear and no readability, and a zero would be a lie.
     let readability: ReadabilityStandingDTO?
+    let select: (MemberDTO) -> Void
 
     var body: some View {
-        StandingRowContent(standing: standing, readability: readability)
-            .padding(.horizontal, Layout.rowInset + Space.xs)
-            .padding(.vertical, Layout.rowInset)
-            // One stop per person. The rank, the name and the numbers are one fact about one
-            // member, and four swipes to hear it is three too many (`docs/12` §2).
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(
-                standing: standing, readability: readability
-            )))
-            .accessibilityAddTraits(.isStaticText)
+        Button {
+            select(MemberDTO(userID: standing.userID, displayName: standing.displayName, role: nil))
+        } label: {
+            StandingRowContent(standing: standing, readability: readability)
+                .padding(.horizontal, Layout.rowInset + Space.xs)
+                .padding(.vertical, Layout.rowInset)
+        }
+        .buttonStyle(.plain)
+        // One stop per person. The rank, the name and the numbers are one fact about one
+        // member, and four swipes to hear it is three too many (`docs/12` §2).
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: StandingRowContent.announcement(
+            standing: standing, readability: readability
+        )))
+        .accessibilityHint(Copy.string("insights.profile.hint"))
+        .accessibilityAddTraits(.isButton)
     }
 }
 

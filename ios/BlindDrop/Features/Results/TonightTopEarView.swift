@@ -7,6 +7,9 @@ import SwiftUI
 /// Never a readability counterpart, here or anywhere else (`docs/02` §4.5).
 struct TonightTopEarView: View {
     let rows: [TonightEarDTO]
+    /// Opens the tapped member's profile. Defaults to a no-op so existing call sites and
+    /// snapshots keep rendering the same table until they opt in.
+    var select: (MemberDTO) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
@@ -21,7 +24,7 @@ struct TonightTopEarView: View {
         VStack(spacing: Space.none) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                 if index > 0 { Rule() }
-                TonightEarRow(row: row)
+                TonightEarRow(row: row, select: select)
             }
         }
         .background(
@@ -41,32 +44,40 @@ struct TonightTopEarView: View {
 /// along here; there is no per-round readability ranking to carry, `docs/02` §4.5).
 private struct TonightEarRow: View {
     let row: TonightEarDTO
+    let select: (MemberDTO) -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.md) {
-            Text(verbatim: String(format: "%02lld", row.rank))
-                .typeStyle(.numberM)
-                .foregroundStyle(Palette.ultramarine)
+        Button {
+            select(MemberDTO(userID: row.userID, displayName: row.displayName, role: nil))
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                Text(verbatim: String(format: "%02lld", row.rank))
+                    .typeStyle(.numberM)
+                    .foregroundStyle(Palette.ultramarine)
+                    .fixedSize()
+                    .frame(minWidth: Space.xxl, alignment: .leading)
+                    .accessibilityHidden(true)
+                Text(verbatim: row.displayName)
+                    .typeStyle(.bodyLStrong)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SectionLabel(
+                    verbatim: Copy.format("results.standings.ear.row", ScoringFormat.percentValue(row.ear)),
+                    color: Palette.ultramarine
+                )
                 .fixedSize()
-                .frame(minWidth: Space.xxl, alignment: .leading)
-                .accessibilityHidden(true)
-            Text(verbatim: row.displayName)
-                .typeStyle(.bodyLStrong)
-                .foregroundStyle(Palette.ink)
-                .lineLimit(2)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            SectionLabel(
-                verbatim: Copy.format("results.standings.ear.row", ScoringFormat.percentValue(row.ear)),
-                color: Palette.ultramarine
-            )
-            .fixedSize()
+            }
+            .padding(.horizontal, Layout.rowInset + Space.xs)
+            .padding(.vertical, Layout.rowInset)
         }
-        .padding(.horizontal, Layout.rowInset + Space.xs)
-        .padding(.vertical, Layout.rowInset)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim:
             "\(row.displayName). \(Copy.format("results.standings.ear.row", ScoringFormat.percentValue(row.ear)))"
         ))
+        .accessibilityHint(Copy.string("insights.profile.hint"))
+        .accessibilityAddTraits(.isButton)
     }
 }

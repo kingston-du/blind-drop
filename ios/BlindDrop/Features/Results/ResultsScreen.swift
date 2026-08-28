@@ -94,6 +94,11 @@ struct ResultsScreen: View {
     private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
 
     @State private var isSharing = false
+    /// Every named person on this screen — tonight's top ear, the all-time standings, who
+    /// guessed you — leads to their existing profile (`E35`), the same rule `InsightsScreen`
+    /// already states for its own names. `nil` on every golden: `snapshotContent` renders `body`
+    /// directly with no `NavigationStack` around it, so this never needs a value there.
+    @State private var selectedMember: MemberDTO?
 
     private let accent = PhaseAccent.revealed
 
@@ -142,6 +147,7 @@ struct ResultsScreen: View {
         // A preview left playing after the results are dismissed is a sound with no visible way
         // to stop it — the same rule `RevealScreen` and `SearchSheet` already hold.
         .onDisappear { player?.stop() }
+        .navigationDestination(item: $selectedMember) { MemberProfileScreen(member: $0) }
     }
 
     /// The screen without its scroll container.
@@ -164,10 +170,10 @@ struct ResultsScreen: View {
                 PersonalStats(me: me)
             }
             if !state.tonightTopEar.isEmpty {
-                TonightTopEarView(rows: state.tonightTopEar)
+                TonightTopEarView(rows: state.tonightTopEar, select: { selectedMember = $0 })
             }
             if let standings = state.standings {
-                StandingsView(standings: standings)
+                StandingsView(standings: standings, select: { selectedMember = $0 })
             }
             shareAction
         }
@@ -217,7 +223,7 @@ struct ResultsScreen: View {
                     // own last resolve event (`docs/09` §4) — so the disclosure arrives once that
                     // card has settled rather than popping in underneath one still resolving.
                     if let guesses = card.guesses, state.barredCards.contains(card.cardNumber) {
-                        GuessedYouDisclosure(guesses: guesses)
+                        GuessedYouDisclosure(guesses: guesses, select: { selectedMember = $0 })
                     }
                 }
             }
@@ -249,6 +255,10 @@ struct ResultsScreen: View {
 /// reason `PersonalStats` is not `private` either.
 struct GuessedYouDisclosure: View {
     let guesses: [CardGuessDTO]
+    /// Opens the tapped member's profile — the guesser or whoever they guessed, both real
+    /// members of the circle (`E35`). Defaults to a no-op so snapshots keep rendering the same
+    /// row.
+    var select: (MemberDTO) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -269,31 +279,46 @@ struct GuessedYouDisclosure: View {
         .cardSurface(radius: Radius.panel, inset: Space.lg)
     }
 
+    /// Two people, two separate destinations — the guesser and whoever they named — so this can
+    /// no longer be one combined static announcement (`docs/12` §2's old one-stop-per-row rule
+    /// still holds *within* each name; it just now names two people instead of one).
     private func row(_ guess: CardGuessDTO) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.md) {
-            Text(verbatim: guess.guesserName)
-                .typeStyle(.bodyLStrong)
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            VStack(alignment: .trailing, spacing: Space.xs) {
-                Text(verbatim: guess.guessedName)
-                    .typeStyle(.bodyL)
-                    .foregroundStyle(guess.isCorrect ? Palette.ultramarine : Palette.inkDim)
-                    .strikethrough(!guess.isCorrect, color: Palette.inkQuiet)
+            Button {
+                select(MemberDTO(userID: guess.guesserID, displayName: guess.guesserName, role: nil))
+            } label: {
+                Text(verbatim: guess.guesserName)
+                    .typeStyle(.bodyLStrong)
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(1)
-                SectionLabel(
-                    guess.isCorrect ? "results.card.hit" : "results.card.miss",
-                    color: guess.isCorrect ? Palette.ultramarine : Palette.amberText
-                )
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .buttonStyle(.plain)
+            .accessibilityHint(Copy.string("insights.profile.hint"))
+            Button {
+                select(MemberDTO(userID: guess.guessedUserID, displayName: guess.guessedName, role: nil))
+            } label: {
+                VStack(alignment: .trailing, spacing: Space.xs) {
+                    Text(verbatim: guess.guessedName)
+                        .typeStyle(.bodyL)
+                        .foregroundStyle(guess.isCorrect ? Palette.ultramarine : Palette.inkDim)
+                        .strikethrough(!guess.isCorrect, color: Palette.inkQuiet)
+                        .lineLimit(1)
+                    SectionLabel(
+                        guess.isCorrect ? "results.card.hit" : "results.card.miss",
+                        color: guess.isCorrect ? Palette.ultramarine : Palette.amberText
+                    )
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim:
+                "\(guess.guessedName). \(Copy.string(guess.isCorrect ? "results.card.hit" : "results.card.miss"))"
+            ))
+            .accessibilityHint(Copy.string("insights.profile.hint"))
         }
         .padding(.vertical, Space.sm)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim:
-            "\(guess.guesserName). \(Copy.string(guess.isCorrect ? "results.card.hit" : "results.card.miss")) — \(guess.guessedName)"
-        ))
     }
 }
 
