@@ -250,6 +250,11 @@ struct HowToSheet: View {
                 note("howto.note.watch")
                 Rule()
                 note("howto.note.record")
+                Rule()
+                // One neutral sentence on what a cue is. It does **not** adopt the four-phase
+                // accent carve-out above — like the other notes it is about the app rather than
+                // of a round, so it stays neutral (`docs/18-CUES.md` §7).
+                note("howto.cue.body")
             }
             .cardSurface()
         }

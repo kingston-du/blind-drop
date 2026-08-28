@@ -3,6 +3,7 @@
     {
       "local_date": "2026-08-08",
       "round_id": "c0000000-0000-4000-8000-000000000001",
+      "cue": { "key": "song_you_hate", "text": "A song you hate" },
       "entries": [
         {
           "user_id": "a0000000-0000-4000-8000-000000000004",

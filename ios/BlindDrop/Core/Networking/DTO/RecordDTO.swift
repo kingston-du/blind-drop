@@ -22,6 +22,9 @@ struct RecordEntryDTO: Decodable, Sendable, Equatable, Identifiable {
 struct RecordDayDTO: Decodable, Sendable, Equatable, Identifiable {
     let localDate: String
     let roundID: String
+    /// The cue that steered this night's drops, when there was one (`docs/18-CUES.md` §8).
+    /// `nil` for every night before the feature shipped and for uncued nights after it.
+    let cue: CueDTO?
     let entries: [RecordEntryDTO]
 
     var id: String { roundID }
@@ -29,6 +32,7 @@ struct RecordDayDTO: Decodable, Sendable, Equatable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case localDate = "local_date"
         case roundID = "round_id"
+        case cue
         case entries
     }
 }

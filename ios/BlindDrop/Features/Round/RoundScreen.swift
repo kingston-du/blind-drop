@@ -133,34 +133,51 @@ struct RoundScreen: View {
         // for the phases whose screens do not (`Phase.bleedsToScreenEdge`). `Layout.screenInset`
         // is applied exactly once on any path from here to a pixel, and `RoundInsetTests` keeps
         // it that way by cross-checking the flag against which screens write the token.
-        return phase(store: store, timer: timer, submit: submit, seal: seal)
-            .padding(.horizontal, phaseInset(store))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .safeAreaInset(edge: .top, spacing: Space.none) {
-                VStack(alignment: .leading, spacing: Layout.blockGap) {
-                    RoundHeader(
-                        groupName: headerName(store),
-                        dateHeadline: store.state.value?.dateHeadline,
-                        path: $router.path,
-                        showHowTo: { isShowingHowTo = true },
-                        openSwitcher: openSwitcher,
-                        otherCircleNeedsAction: circleSwitcher(store).otherNeedsAction
-                    ) {
-                        badge(store: store, timer: timer)
-                    }
-                    // A banner belongs over a stale screen: it qualifies data that is still
-                    // useful enough to show. A first-load failure has no data beneath it and is
-                    // rendered by `phase(…)` as a full error state with its own retry action.
-                    if store.state.value != nil, let error = store.state.error {
-                        OfflineBanner(error: error)
-                    }
-                }
-                .padding(.horizontal, Layout.screenInset)
-                .padding(.top, Layout.chromeTop)
-                .padding(.bottom, Layout.itemGap)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.paper)
+        //
+        // The cue banner below is a sibling of `phase(…)`, not a child of its padding, so it
+        // carries its own `Layout.screenInset` — on **every** phase, including the two that
+        // bleed. `RoundInsetTests` scans the phase screens' own files, not this one, so the
+        // banner's inset is not part of the flag's accounting.
+        return VStack(alignment: .leading, spacing: Space.none) {
+            // The cue (`docs/18-CUES.md` §7): one placement above whichever phase screen is up,
+            // shared by Submit, Sealed, Voided, Reveal and (via the `.scored` branch) Results.
+            // Only over a loaded round — never the skeleton or error — and only when there is a
+            // cue: `CueBanner` renders `EmptyView` for `nil`, and the padding here is applied to
+            // the banner's line rather than to that empty view, so an uncued night adds no gap.
+            if let cue = store.state.value?.round.cue {
+                CueBanner(cue: cue)
+                    .padding(.horizontal, Layout.screenInset)
+                    .padding(.bottom, Layout.itemGap)
             }
+            phase(store: store, timer: timer, submit: submit, seal: seal)
+                .padding(.horizontal, phaseInset(store))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .safeAreaInset(edge: .top, spacing: Space.none) {
+            VStack(alignment: .leading, spacing: Layout.blockGap) {
+                RoundHeader(
+                    groupName: headerName(store),
+                    dateHeadline: store.state.value?.dateHeadline,
+                    path: $router.path,
+                    showHowTo: { isShowingHowTo = true },
+                    openSwitcher: openSwitcher,
+                    otherCircleNeedsAction: circleSwitcher(store).otherNeedsAction
+                ) {
+                    badge(store: store, timer: timer)
+                }
+                // A banner belongs over a stale screen: it qualifies data that is still
+                // useful enough to show. A first-load failure has no data beneath it and is
+                // rendered by `phase(…)` as a full error state with its own retry action.
+                if store.state.value != nil, let error = store.state.error {
+                    OfflineBanner(error: error)
+                }
+            }
+            .padding(.horizontal, Layout.screenInset)
+            .padding(.top, Layout.chromeTop)
+            .padding(.bottom, Layout.itemGap)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.paper)
+        }
         .task(id: phaseDeadlineID(store)) { await refreshAtPhaseDeadline(store) }
         // Open, sealed, reveal and voided already render this timer. Its concrete deadline is
         // the reliable transition signal; results is covered by the task above because it has

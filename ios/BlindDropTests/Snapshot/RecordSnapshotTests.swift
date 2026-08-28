@@ -68,12 +68,22 @@ private struct RecordSnapshotContent: View {
         VStack(alignment: .leading, spacing: Space.none) {
             ForEach(days) { day in
                 // The sticky strip the screen draws, background included: a header pinned over a
-                // scrolling list has to be visibly on top of it rather than floating in it.
-                SectionLabel(verbatim: GroupCalendar(timezone: "America/New_York")
-                    .shareDate(localDate: day.localDate) ?? day.localDate)
-                    .padding(.vertical, Space.sm)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Palette.paperSunk)
+                // scrolling list has to be visibly on top of it rather than floating in it. A
+                // cued night carries its cue under the date, mirroring `RecordScreen.dateHeader`
+                // (`docs/18-CUES.md` §7).
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    SectionLabel(verbatim: GroupCalendar(timezone: "America/New_York")
+                        .shareDate(localDate: day.localDate) ?? day.localDate)
+                    if let cue = day.cue {
+                        Text(verbatim: cue.text)
+                            .typeStyle(.bodyS)
+                            .foregroundStyle(Palette.inkDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, Space.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Palette.paperSunk)
 
                 let entries = Array(day.entries.prefix(3))
                 ForEach(entries) { entry in

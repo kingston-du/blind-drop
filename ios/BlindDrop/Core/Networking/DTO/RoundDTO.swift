@@ -80,6 +80,15 @@ struct RevealPayload: Sendable, Equatable {
     let myGuesses: [GuessDTO]
 }
 
+/// One cue attached to some rounds (`docs/18-CUES.md` §8): a short, neutral line identical for
+/// every member, that steers what people drop without changing how the game is scored. It is a
+/// value the server sends — `key` is for joins and future localisation, `text` is what shipped
+/// that night and is what every surface renders.
+struct CueDTO: Decodable, Sendable, Equatable {
+    let key: String
+    let text: String
+}
+
 /// `GET /rounds/current` — the workhorse (`docs/04` §4), decoded so that **impossible states
 /// are unrepresentable** (`docs/13` §3).
 ///
@@ -97,6 +106,10 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
     let opensAt: Date
     let revealsAt: Date
     let scoresAt: Date
+    /// Tonight's cue, present (or absent) identically across all four phases — it sits on the
+    /// base keys, not inside `RevealPayload`, because it is the same value on every screen
+    /// (`docs/18-CUES.md` §8). `nil` when the round has none.
+    let cue: CueDTO?
     let phase: Phase
 
     /// The four phases, each carrying exactly what `docs/04` §4 says it carries.
@@ -155,6 +168,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         return RoundDTO(
             id: id, localDate: localDate,
             opensAt: opensAt, revealsAt: revealsAt, scoresAt: scoresAt,
+            cue: cue,
             phase: adopted
         )
     }
@@ -167,6 +181,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
     private init(
         id: String, localDate: String,
         opensAt: Date, revealsAt: Date, scoresAt: Date,
+        cue: CueDTO?,
         phase: Phase
     ) {
         self.id = id
@@ -174,6 +189,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         self.opensAt = opensAt
         self.revealsAt = revealsAt
         self.scoresAt = scoresAt
+        self.cue = cue
         self.phase = phase
     }
 
@@ -184,6 +200,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         case opensAt = "opens_at"
         case revealsAt = "reveals_at"
         case scoresAt = "scores_at"
+        case cue
         case mySubmission = "my_submission"
         case myCardNumber = "my_card_no"
         case canGuess = "can_guess"
@@ -200,6 +217,10 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         opensAt = try container.decode(Date.self, forKey: .opensAt)
         revealsAt = try container.decode(Date.self, forKey: .revealsAt)
         scoresAt = try container.decode(Date.self, forKey: .scoresAt)
+        // A base key, decoded before the phase switch alongside `id`/`localDate`/etc. — it is
+        // present (or absent) identically on every phase, and `decodeIfPresent` reads a missing
+        // key as `nil` with nothing to throw (`docs/18-CUES.md` §8).
+        cue = try container.decodeIfPresent(CueDTO.self, forKey: .cue)
 
         let mine = try container.decodeIfPresent(SubmissionDTO.self, forKey: .mySubmission)
 

@@ -147,10 +147,22 @@ struct RecordScreen: View {
 
     /// The sticky date strip. A step darker than `paper` so a header pinned over a scrolling
     /// list is visibly on top of it rather than floating in it.
+    ///
+    /// A cued night carries its cue under the date — one neutral line, nothing when there was
+    /// none (`docs/18-CUES.md` §7). The label the live round shows ("Tonight's cue:") is not
+    /// repeated here: the date already names the night, so the cue text alone is the line.
     private func dateHeader(_ day: RecordDayDTO, store: RecordStore) -> some View {
-        SectionLabel(
-            verbatim: store.calendar?.shareDate(localDate: day.localDate) ?? day.localDate
-        )
+        VStack(alignment: .leading, spacing: Space.xs) {
+            SectionLabel(
+                verbatim: store.calendar?.shareDate(localDate: day.localDate) ?? day.localDate
+            )
+            if let cue = day.cue {
+                Text(verbatim: cue.text)
+                    .typeStyle(.bodyS)
+                    .foregroundStyle(Palette.inkDim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
         .padding(.horizontal, Layout.screenInset)
         .padding(.vertical, Space.sm)
         .frame(maxWidth: .infinity, alignment: .leading)

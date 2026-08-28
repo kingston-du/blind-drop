@@ -151,6 +151,14 @@
 "howto.note.replace" = "You can swap your song as many times as you want before the reveal.";
 "howto.note.watch" = "If you don't drop a song, you don't get to play. Maybe you should participate next time.";
 "howto.note.record" = "Again, every song dropped goes into \"The Record\" or a group playlist. It's exportable to Apple Music, or Spotify (bit iffy).";
+
+/* ── Cues (docs/11 §Cues, docs/18) ──────────────────────────────────────────── */
+/* The cue catalog itself is data, served per-round by the backend — only the two UI */
+/* strings land here. `round.cue.label` is the CueBanner's label; `howto.cue.body` is the */
+/* one neutral sentence on the How to play page. */
+
+"round.cue.label" = "Tonight's cue:";
+"howto.cue.body" = "Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring.";
 "group.title" = "Group";
 "group.members" = "Members";
 "group.loading" = "Loading the group.";

@@ -195,6 +195,8 @@ import Testing
         #expect(!record.days.isEmpty)
         #expect(record.days.allSatisfy { !$0.entries.isEmpty })
         #expect(record.nextCursor == nil)
+        #expect(record.days.first?.cue?.text == "A song you hate", "a cued night carries its cue per day")
+        #expect(record.days.last?.cue == nil, "an uncued night carries no cue, not an empty one")
 
         let spotify = try await load("record_export_spotify", .export("g1", .spotify))
         #expect(spotify.playlistName.hasSuffix("Blind Drop"))
@@ -230,6 +232,9 @@ import Testing
         }
         #expect(mine?.track.title == "Kill Bill")
         #expect(open.state == .open)
+        // `cue` is a base key: present on every phase, decoded before the phase switch
+        // (`docs/18-CUES.md` §8).
+        #expect(open.cue == CueDTO(key: "song_you_hate", text: "A song you hate"))
 
         let nosub = try await round("round_open_nosub")
         guard case .open(nil) = nosub.phase else {
@@ -244,6 +249,8 @@ import Testing
             Issue.record("a voided payload must decode as .voided"); return
         }
         #expect(returned != nil, "a voided round returns the caller's own song")
+        // Absent key → `nil`, with nothing to throw (`decodeIfPresent`).
+        #expect(voided.cue == nil, "an uncued round decodes to nil, not an empty cue")
 
         let revealed = try await round("round_revealed")
         guard case let .revealed(_, payload) = revealed.phase else {
@@ -257,6 +264,7 @@ import Testing
         #expect(payload.namePool.count == 8)
         // Cards are ascending and identical for everyone; the numbering is the game's spine.
         #expect(payload.cards.map(\.cardNumber) == Array(1...8))
+        #expect(revealed.cue?.key == "song_you_hate", "the revealed round carries the same base-key cue")
 
         let nonSubmitter = try await round("round_revealed_nosub")
         guard case let .revealed(_, blocked) = nonSubmitter.phase else {
@@ -276,6 +284,7 @@ import Testing
         guard case .scored = scored.phase else {
             Issue.record("a scored payload must decode as .scored"); return
         }
+        #expect(scored.cue?.text == "A song you hate", "the scored round carries the same base-key cue")
     }
 
     /// A `cards` array on an `open` payload — the shape a leak would take — is dropped rather
