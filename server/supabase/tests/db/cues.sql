@@ -7,12 +7,14 @@
 --      modular arithmetic, and the 56-char cap is the SE-at-accessibility5 discipline.
 --   2. Over 61 rounds at `cue_cadence = 1`, every cue appears exactly once before any repeat.
 --   3. `ensure_rounds()` assigns a cue on insert and never rewrites one afterwards.
---   4. A cadence change rewrites only not-yet-opened rounds, and a demo group ships with the
+--   4. `ensure_rounds()` assigns the true chronological ordinal across repeated day-to-day
+--      rollovers, not just a single instant — 20260827130000 fixed a permanent off-by-one here.
+--   5. A cadence change rewrites only not-yet-opened rounds, and a demo group ships with the
 --      cue off, reproducibly, whatever the clock says.
 
 begin;
 set search_path = public, extensions, tests;
-select plan(23);
+select plan(27);
 
 create or replace function tests.is_prime(n int) returns boolean
 language sql immutable as $$
@@ -178,7 +180,40 @@ select is((select prompt_key from public.rounds
               and local_date = date '2026-09-01'), null,
   'a round that is no longer open keeps its cue — ensure_rounds() never rewrites one');
 
--- ─── 4 · a cadence change rewrites only not-yet-opened rounds ────────────────
+-- ─── 4 · the ordinal survives repeated day-to-day rollovers ──────────────────
+-- 20260827130000: a tick that runs before "today"'s own reveal sees both today (already
+-- materialised) and tomorrow as candidates. The original formula double-counted today —
+-- once in its batch `count(*)`, once in the shared `row_number()` — so the very first round
+-- inserted after a rollover got `n + 1` instead of `n`, permanently. Three rollovers, each
+-- ticked well before that day's own reveal, is what it takes to exercise the bug: a single
+-- `ensure_rounds()` call (as in §3 above) never sees "today" as both existing and a candidate
+-- for the *next* insertion in the same call.
+
+insert into public.groups (id, name, timezone, reveal_hour, invite_code, created_by, cue_cadence)
+values ('e1000000-0000-4000-8000-0000000000f4','Cue rollover','America/New_York',20,'CUER64',
+        tests.person('Ana'), 1);
+
+select tests.set_test_now('2026-09-01T13:00:00Z');   -- 09:00 in New York, well before reveal
+select lives_ok('select public.ensure_rounds()', 'rollover day 1: today and tomorrow materialise');
+
+select tests.set_test_now('2026-09-02T13:00:00Z');   -- 09:00 the next day, before its own reveal
+select lives_ok('select public.ensure_rounds()',
+  'rollover day 2: a new day rolls over while today already exists');
+
+select tests.set_test_now('2026-09-03T13:00:00Z');   -- 09:00 the day after that, same shape
+select lives_ok('select public.ensure_rounds()', 'rollover day 3: one more rollover');
+
+select is(
+  (select pg_catalog.array_agg(prompt_key order by local_date)
+     from public.rounds where group_id = 'e1000000-0000-4000-8000-0000000000f4'),
+  (select pg_catalog.array_agg(cue.prompt_key order by gs)
+     from pg_catalog.generate_series(0, 3) as gs
+     cross join lateral public.cue_for_round(
+       'e1000000-0000-4000-8000-0000000000f4', gs, 1::smallint) as cue),
+  'four rounds across three rollovers get ordinals 0..3, in order — no skipped n'
+);
+
+-- ─── 5 · a cadence change rewrites only not-yet-opened rounds ────────────────
 
 insert into public.groups (id, name, timezone, reveal_hour, invite_code, created_by, cue_cadence)
 values ('e1000000-0000-4000-8000-0000000000f3','Cue rewrite','America/New_York',20,'CUER63',
@@ -210,7 +245,7 @@ select is(
   (select prompt_key from public.cue_for_round('e1000000-0000-4000-8000-0000000000f3', 1, 3::smallint)),
   'the not-yet-opened round is rewritten under the new cadence');
 
--- ─── 5 · demo groups ship with the cue off, reproducibly ─────────────────────
+-- ─── 6 · demo groups ship with the cue off, reproducibly ─────────────────────
 
 update public.pilot_cohorts set enabled = true where name = 'App Review';
 insert into auth.users (id) values ('d0000000-0000-4000-8000-000000000002');

@@ -554,4 +554,4 @@ circle, existing and new, at `cue_cadence = 2` ("every other night").
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
 | E35 cues | 3 / 6 |
-| **Next-progression total** | **8 / 15** |
+| **Next-progression total** | **11 / 15** |

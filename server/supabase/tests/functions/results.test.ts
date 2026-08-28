@@ -312,6 +312,67 @@ Deno.test("tonight_top_ear ranks the round alone, ties share a rank, and a tied 
   assertRate(tonight[2].ear, 0.75, "Cal tonight");
 });
 
+Deno.test("results carries the round's cue, top-level and byte-identical to the round's own", async () => {
+  // docs/18-CUES.md §8: `cue` rides through `ResultsDTO` unchanged from `RoundDTO`'s base keys,
+  // not recomputed. Cadence 1 makes the cue deterministic rather than gambling on the fresh
+  // group id's hash landing on a cued night; a second group at cadence 0 checks the other side —
+  // absent, not null, once the round is scored.
+  const { user: ana, group } = await newGroupOwner("Ana", {
+    name: "Results Cue",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+    cue_cadence: 1,
+  });
+  const code = group.invite_code as string;
+  const people = [ana, await newMember(code, "Ben"), await newMember(code, "Cal")];
+  const tracks = ["1440818664", "1440765580", "1452874255"];
+  for (const [i, person] of people.entries()) {
+    const res = await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: person.token,
+      body: { apple_music_id: tracks[i] },
+    });
+    assertEquals(res.status, 200, `could not seal a song: ${JSON.stringify(res.body)}`);
+  }
+
+  const beforeReveal = await call("rounds", "/current", { token: ana.token });
+  const cue = beforeReveal.body.data.cue;
+  assert(cue && typeof cue === "object", "cadence 1 must cue every night");
+
+  await tickRoundsAt(2);
+  const revealed = await call("rounds", "/current", { token: ana.token });
+  const roundId = revealed.body.data.round_id as string;
+
+  await tickRoundsAt(4);
+  const res = await call("rounds", `/${roundId}/results`, { token: ana.token });
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.cue, cue, "the results cue matches the round's, byte-identical");
+
+  const { user: ben, group: offGroup } = await newGroupOwner("Ben", {
+    name: "Results No Cue",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+    cue_cadence: 0,
+  });
+  const offCode = offGroup.invite_code as string;
+  const offPeople = [ben, await newMember(offCode, "Cal"), await newMember(offCode, "Dee")];
+  for (const [i, person] of offPeople.entries()) {
+    const off = await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: person.token,
+      body: { apple_music_id: tracks[i] },
+    });
+    assertEquals(off.status, 200);
+  }
+  await tickRoundsAt(2);
+  const offRevealed = await call("rounds", "/current", { token: ben.token });
+  const offRoundId = offRevealed.body.data.round_id as string;
+  await tickRoundsAt(4);
+  const offRes = await call("rounds", `/${offRoundId}/results`, { token: ben.token });
+  assertEquals(offRes.status, 200);
+  assertEquals("cue" in offRes.body.data, false, "an uncued round's results have no cue key");
+});
+
 Deno.test("my_guess is the caller's own, with the name and whether it landed", async () => {
   const data = await resultsAs("Ana");
 

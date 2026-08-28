@@ -85,6 +85,33 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 > SQL-side half of the cadence PATCH, returning the earliest not-yet-opened round's date as the
 > effective-from.
 
+> **Post-hoc fix (verification pass, 2026-08-27).** `ensure_rounds()`'s ordinal computation had a
+> permanent off-by-one: `n` was `v_n + row_number() over (order by local_date) - 1`, with `v_n` a
+> single `count(*)` taken once per invocation and `row_number()` run over both two-day
+> candidates. On any tick before today's own reveal — most of every day, since `reveal_hour` is
+> always evening — today is both an already-existing row (counted in `v_n`) and a counted
+> candidate (counted again by `row_number()`), so the first round inserted after a day rolls over
+> got `n+1` instead of `n`, permanently: `n=2` was never produced, and `cue_for_round`'s modular
+> sequence would repeat an early cue before exhausting the catalog, breaking the exact guarantee
+> this section's second pgTAP bullet claims. None of the original tests caught it — they only
+> called `ensure_rounds()` at a single instant or `cue_for_round()` directly, never across a real
+> day-to-day rollover. Fixed in `20260827130000_fix_cue_ordinal.sql`. A first attempt there
+> replaced the batch `row_number()` with a plain correlated `count(*)` of earlier-dated rows, the
+> same computation `rewrite_open_round_cues()` uses — correct once at least one candidate is
+> already committed, but a fresh circle's *very first* tick inserts today and tomorrow together
+> in one `INSERT … SELECT`, and a correlated subquery inside that statement cannot see the other
+> row it is inserting alongside it in the same statement (same snapshot) — both landed on `n=0`,
+> a duplicate cue on a brand-new circle's first two nights. The landed fix sums two counts:
+> rows already committed with an earlier date, plus same-batch candidates earlier still that are
+> not yet committed (0 or 1, since the window is only ever {today, tomorrow}). A new pgTAP
+> section in `tests/db/cues.sql` (§4, "the ordinal survives repeated day-to-day rollovers")
+> exercises three simulated rollovers — including the from-scratch two-in-one-statement case —
+> and asserts the resulting ordinals are exactly `0..3`; all 27 assertions in that file pass, as
+> does the full `test:db` (739/739) and `audit:leak` (AC-1 satisfied). `record.test.ts` and
+> `results.test.ts` also gained a cued-round assertion each — the original E35-03 suite never
+> checked that `cue` actually appears on `/results` or the Record, only that `rounds/current` and
+> the leak golden did.
+
 ---
 
 ### E35-03 — API: rounds, results, record, group settings

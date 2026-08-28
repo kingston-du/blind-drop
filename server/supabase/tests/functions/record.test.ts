@@ -139,6 +139,46 @@ Deno.test("a voided night never enters the record", async () => {
   }
 });
 
+Deno.test("a scored night's Record entry carries its cue, byte-identical to the round's", async () => {
+  // docs/18-CUES.md §7: the Record's per-day cue is a second pass over `rounds`, not the same
+  // query the round-list keys come from — this is the check that the two agree. Cadence 1
+  // makes the cue deterministic rather than gambling on the fresh group id's hash landing on a
+  // cued night.
+  const { user, group } = await newGroupOwner("Ana", {
+    name: "Record Cue",
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 18,
+    cue_cadence: 1,
+  });
+  const people: TestUser[] = [user];
+  for (const person of ["Ben", "Cal"]) {
+    people.push(await newMember(group.invite_code as string, person));
+  }
+  for (const [i, person] of people.entries()) {
+    const res = await call("rounds", "/current/submission", {
+      method: "PUT",
+      token: person.token,
+      body: { apple_music_id: TRACKS[i] },
+    });
+    assertEquals(res.status, 200, `could not seal a song: ${JSON.stringify(res.body)}`);
+  }
+
+  const beforeReveal = await call("rounds", "/current", { token: user.token });
+  assertEquals(beforeReveal.status, 200);
+  const cue = beforeReveal.body.data.cue;
+  assert(cue && typeof cue === "object", "cadence 1 must cue every night");
+
+  await tickRoundsAt(2);
+  await tickRoundsAt(4);
+
+  const scored = await record(user.token);
+  assertEquals(scored.status, 200);
+  assertEquals(scored.body.data.days.length, 1);
+  const day = scored.body.data.days[0];
+  assertEquals(keysOf(day), [...DAY_KEYS, "cue"].sort(), "a cued night's day gains one key");
+  assertEquals(day.cue, cue, "the Record's cue matches the round's, byte-identical");
+});
+
 // ─── the seed's three nights ─────────────────────────────────────────────────
 // 2026-08-08 (8 songs), 2026-08-09 (6) and 2026-08-10 (3). The seed leaves the last two
 // mid-flight; one run of the real scheduler finishes them, and `scored` is terminal, so from
