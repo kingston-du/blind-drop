@@ -190,6 +190,39 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 - [x] Every string in `CueBanner`/Record/How to play comes from `docs/11-COPY-DECK.md`'s
       `cue.catalog`/`round.cue.label` entries added in `E35-01` — no hardcoded string
 
+> **Verification pass (2026-08-28).** Both gaps named in the E35-04 note below are now closed,
+> and closing the first one found a real bug.
+>
+> 1. **The crash does not reproduce.** With `CueSnapshots` already `.serialized`, the Submit and
+>    Sealed cases render fine — the 12 goldens had simply never been written to disk. Because
+>    `SnapshotRenderer` records an issue for a missing golden, `E35-04` was marked `done` with
+>    **12 failing tests on `main`**, against `CLAUDE.md` §1 and §7. They now exist and the suite
+>    is green.
+> 2. **Recording them surfaced a layout bug.** `CueBanner` put its label and the cue text in one
+>    `HStack`, and at `.accessibility1`+ on a narrow device the label wrapped *mid-word* —
+>    "Tonight'" on one line, "s cue:" on the next, beside a ragged second column. This is the
+>    failure mode `docs/07` §3 sets up by capping only the display face, and the codebase already
+>    had the remedy: the `isStacked: dynamicTypeSize >= .accessibility1` reflow used by
+>    `FlightCard` (`FlightCard.swift:100`) and `GroupScreen` (`GroupScreen.swift:520`).
+>    `CueBanner` now stacks the same way. Only the `accessibility1`/`accessibility5` goldens
+>    changed; both `-large` renders are byte-identical, which is the evidence the fix touches
+>    nothing but the large-type path.
+> 3. **The visual pass was performed.** Goldens opened and reviewed at both devices and all three
+>    type sizes, plus a live simulator run against the fixture server: the cue renders on the
+>    Sealed round screen (neutral ink under the amber `SEALED` badge, correctly inset) and on the
+>    Record's sticky date header ("August 8 / A song you hate", label correctly not repeated).
+>    The settings cadence row was reviewed from `Group-admin-cuecadence-effective` — "TONIGHT'S
+>    CUE" mirrors "REVEAL HOUR" exactly: same mono section label, same picker, same
+>    effective-from line.
+>
+> Re-verified end to end after the fix: `lint.sh` clean, `node scripts/lint.mjs` clean, iOS
+> unit+snapshot **88 tests / 17 suites green**, `test:db` **739/739**, `test:functions`
+> **286/286** (the E31-01 clock-boundary flake did not fire), `audit:leak` **AC-1 satisfied**.
+> One unrelated pre-existing bug was found and left for its own task: `RevealScreen`'s display
+> headline letter-wraps ("Ton/igh/t's/dro/p") at `accessibility5` on SE because the countdown
+> badge shares its row — visible in `__Snapshots__/Reveal/Reveal-3-SE-accessibility5.png`, with
+> no cue involved.
+
 > **Note (E35-04).** The implementation landed in `d045226` (CueDTO, CueBanner, Round/Record/
 > How-to placements, fixture payloads, `NetworkingTests` cue decode assertions, `CueSnapshotTests`,
 > updated `RecordSnapshotTests`); the goldens followed in `ef61cde`. Verification run for real:
