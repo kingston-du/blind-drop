@@ -16,8 +16,12 @@ private let sizes = SnapshotRenderer.typeSizes
 /// the four phases is a picture rather than a claim. The cue value comes off the round's own
 /// JSON (`ios/Fixtures/payloads`, which `E35-04` made cued) through the real decoder, not built
 /// by hand — `RoundDTO`'s memberwise initialiser is private on purpose (`docs/13` §2).
+/// `.serialized` — the four parameterised tests fan out to 24 `ImageRenderer` draws, and run
+/// in parallel they crash the test process (`IOSurfaceClientSetSurfaceNotify failed`, then
+/// "Restarting after unexpected exit, crash, or test timeout") with only a couple of goldens
+/// written. Serial like `RoundStoreTests`, so every golden lands.
 @MainActor
-@Suite struct CueSnapshots {
+@Suite(.serialized) struct CueSnapshots {
 
     // MARK: - Submit (open, nothing dropped)
 
