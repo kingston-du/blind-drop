@@ -110,12 +110,34 @@ struct RevealScreen: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.blindDropForcesReducedMotion) private var forceReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || forceReduceMotion }
+    /// Set only by `snapshotContent(typeSize:)`. See `effectiveTypeSize`.
+    ///
+    /// Not `fileprivate` — unlike `GuessSheet`'s equivalent field, `RevealScreen` has no explicit
+    /// `init` of its own, so every call site (`RoundScreen.swift`, in a different file) relies on
+    /// the compiler-synthesized memberwise one. That synthesized init takes the narrowest access
+    /// level among the stored properties it covers; a `fileprivate` one here would have dragged
+    /// the whole initializer down to `fileprivate` and made `RevealScreen(...)` uncallable from
+    /// outside this file.
+    var typeSizeOverride: DynamicTypeSize?
 
     private let accent = PhaseAccent.revealed
 
+    /// The type size `header` reflows against.
+    ///
+    /// `@Environment` is only populated on a view SwiftUI itself instantiated. `body` gets there
+    /// the ordinary way — SwiftUI binds the environment before calling it — but the snapshot
+    /// path does not: it reads `snapshotContent` directly off a `RevealScreen` *value*, which
+    /// evaluates `header` (and the `isStacked` branch it picks) as a plain Swift property access,
+    /// before `SnapshotRenderer` ever attaches `.dynamicTypeSize(_:)` to the result. `dynamicTypeSize`
+    /// there is whatever the property's default happens to be — `.large` — so a golden labelled
+    /// `accessibility5` quietly rendered the `large` row, badge and all, squeezing the title into
+    /// the fragment of the row `Spacer(minLength:)` left it. `GuessSheet.effectiveTypeSize`
+    /// documents the same trap; `snapshotContent(typeSize:)` is the fix here.
+    private var effectiveTypeSize: DynamicTypeSize { typeSizeOverride ?? dynamicTypeSize }
+
     /// `FlightCard`, `ResultsScreen` and `StandingsView` all draw the same line at
     /// `.accessibility1`, and this row belongs on the same side of it.
-    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
+    private var isStacked: Bool { effectiveTypeSize >= .accessibility1 }
 
     var body: some View {
         GeometryReader { proxy in
@@ -272,8 +294,14 @@ struct RevealScreen: View {
     /// Snapshot tests render this outside `body`; reading an `@Namespace` there is invalid and
     /// produces identifiers that can never match. The production path above keeps the rotor,
     /// while this path isolates the purely visual layout the goldens are meant to verify.
-    var snapshotContent: some View {
-        flightContent(includeRotorEntries: false)
+    ///
+    /// Takes the type size directly, for the same reason `GuessSheet.content(layout:typeSize:)`
+    /// does: reading it here off `@Environment` instead would see `effectiveTypeSize`'s default
+    /// rather than whatever `SnapshotRenderer` asked for — see `effectiveTypeSize`.
+    func snapshotContent(typeSize: DynamicTypeSize = .large) -> some View {
+        var copy = self
+        copy.typeSizeOverride = typeSize
+        return copy.flightContent(includeRotorEntries: false)
     }
 
     private func flightContent(includeRotorEntries: Bool) -> some View {
