@@ -64,7 +64,7 @@ private let sizes = SnapshotRenderer.typeSizes
         let image = SnapshotRenderer.image(
             of: VStack(alignment: .leading, spacing: Space.none) {
                 CueBanner(cue: cue).padding(.bottom, Layout.itemGap)
-                RevealScreen(store: store, timer: timer).snapshotContent
+                RevealScreen(store: store, timer: timer).snapshotContent(typeSize: size)
             },
             device: device,
             typeSize: size
