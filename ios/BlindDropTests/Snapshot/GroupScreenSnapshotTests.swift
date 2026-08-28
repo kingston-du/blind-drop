@@ -14,7 +14,9 @@ import Testing
         #expect(decoded.members.dropFirst().allSatisfy { !$0.isAdmin })
     }
 
-    private func group(isAdmin: Bool, revealHour: Int = 20, memberCount: Int = 3) throws -> GroupDTO {
+    private func group(
+        isAdmin: Bool, revealHour: Int = 20, memberCount: Int = 3, cueCadence: Int = 2
+    ) throws -> GroupDTO {
         let allMembers = [
             ("u_ana", "Ana", "admin"),
             ("u_ben", "Ben", "member"),
@@ -31,6 +33,7 @@ import Testing
           "reveal_hour": \(revealHour),
           "invite_code": "K7MQ2X",
           "is_admin": \(isAdmin),
+          "cue_cadence": \(cueCadence),
           "members": [\(members)]
         }
         """
@@ -60,6 +63,20 @@ import Testing
             rendersForSnapshot: true
         )
         verify(named: "Group-admin-revealhour-effective", device, size) { view }
+    }
+
+    /// The cue-cadence row states precisely when a just-made change lands (`docs/18-CUES.md` §10),
+    /// the same "from tomorrow" honesty the reveal-hour section already states — a cadence change
+    /// rewrites only rounds that have not yet opened.
+    @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
+    func cueCadenceEffectiveDate(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        let view = GroupDetailView(
+            group: try group(isAdmin: true, cueCadence: 1),
+            cueEffectiveFrom: "2026-08-20",
+            currentUserID: "u_ana",
+            rendersForSnapshot: true
+        )
+        verify(named: "Group-admin-cuecadence-effective", device, size) { view }
     }
 
     /// The last-admin refusal (`E21-01`'s open question) — unreachable through this app's own

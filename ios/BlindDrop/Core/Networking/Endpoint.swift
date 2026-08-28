@@ -81,7 +81,11 @@ private struct CreateGroupBody: Encodable, Sendable {
     let reveal_hour: Int?
 }
 private struct JoinBody: Encodable, Sendable { let invite_code: String }
-private struct PatchGroupBody: Encodable, Sendable { let name: String?; let reveal_hour: Int? }
+private struct PatchGroupBody: Encodable, Sendable {
+    let name: String?
+    let reveal_hour: Int?
+    let cue_cadence: Int?
+}
 private struct MemberRoleBody: Encodable, Sendable { let role: String }
 private struct InvitePersonBody: Encodable, Sendable { let user_id: String }
 private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignment] }
@@ -154,10 +158,12 @@ extension Endpoint {
         .init(.get, scoped("/groups", groupID), retry: .twice)
     }
 
-    static func updateGroup(_ groupID: String, name: String?, revealHour: Int?) -> Endpoint<GroupPatchDTO> {
+    static func updateGroup(
+        _ groupID: String, name: String?, revealHour: Int?, cueCadence: Int? = nil
+    ) -> Endpoint<GroupPatchDTO> {
         .init(
             .patch, scoped("/groups", groupID),
-            body: json(PatchGroupBody(name: name, reveal_hour: revealHour))
+            body: json(PatchGroupBody(name: name, reveal_hour: revealHour, cue_cadence: cueCadence))
         )
     }
 

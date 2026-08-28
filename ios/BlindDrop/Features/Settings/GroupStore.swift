@@ -11,6 +11,7 @@ final class GroupStore {
     private(set) var isManagingMember = false
     private(set) var errorKey: String?
     private(set) var revealHourEffectiveFrom: String?
+    private(set) var cueEffectiveFrom: String?
 
     /// Four or fewer completed rounds used to be shown without percentages or rank.
     // Restore before public beta (`E28-06`, amendment A1): the test stage wants every number a
@@ -97,6 +98,24 @@ final class GroupStore {
             let patch = try await api.send(.updateGroup(groupID, name: nil, revealHour: hour))
             state = .loaded(patch.group)
             revealHourEffectiveFrom = patch.effectiveFrom
+            return true
+        } catch {
+            errorKey = error.copyKey
+            return false
+        }
+    }
+
+    func setCueCadence(_ cadence: Int) async -> Bool {
+        guard let groupID = group?.id, !isSaving else { return false }
+        isSaving = true
+        errorKey = nil
+        defer { isSaving = false }
+        do {
+            let patch = try await api.send(
+                .updateGroup(groupID, name: nil, revealHour: nil, cueCadence: cadence)
+            )
+            state = .loaded(patch.group)
+            cueEffectiveFrom = patch.group.cueEffectiveFrom
             return true
         } catch {
             errorKey = error.copyKey

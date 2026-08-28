@@ -63,12 +63,52 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
     let inviteCode: String
     let isAdmin: Bool
     let members: [MemberDTO]
+    /// How often this circle's rounds carry a cue — `0` off, `1` every night, `2` every other
+    /// night, `3` now and then (`docs/18-CUES.md` §4). Always present from the server; the
+    /// decoder defaults to `2` (the product default) so fixtures that predate the field keep
+    /// decoding rather than throwing.
+    let cueCadence: Int
+    /// The local date from which the current cadence is in effect (`docs/18-CUES.md` §10).
+    /// Read-only; only the PATCH response is acted on, the same way `GroupPatchDTO.effectiveFrom`
+    /// is for a reveal-hour change.
+    let cueEffectiveFrom: String?
+
+    init(
+        id: String, name: String, timezone: String, revealHour: Int,
+        inviteCode: String, isAdmin: Bool, members: [MemberDTO],
+        cueCadence: Int = 2, cueEffectiveFrom: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.timezone = timezone
+        self.revealHour = revealHour
+        self.inviteCode = inviteCode
+        self.isAdmin = isAdmin
+        self.members = members
+        self.cueCadence = cueCadence
+        self.cueEffectiveFrom = cueEffectiveFrom
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name, timezone, members
         case revealHour = "reveal_hour"
         case inviteCode = "invite_code"
         case isAdmin = "is_admin"
+        case cueCadence = "cue_cadence"
+        case cueEffectiveFrom = "cue_effective_from"
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        timezone = try c.decode(String.self, forKey: .timezone)
+        revealHour = try c.decode(Int.self, forKey: .revealHour)
+        inviteCode = try c.decode(String.self, forKey: .inviteCode)
+        isAdmin = try c.decode(Bool.self, forKey: .isAdmin)
+        members = try c.decode([MemberDTO].self, forKey: .members)
+        cueCadence = try c.decodeIfPresent(Int.self, forKey: .cueCadence) ?? 2
+        cueEffectiveFrom = try c.decodeIfPresent(String.self, forKey: .cueEffectiveFrom)
     }
 }
 

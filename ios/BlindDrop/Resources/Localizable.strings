@@ -159,6 +159,12 @@
 
 "round.cue.label" = "Tonight's cue:";
 "howto.cue.body" = "Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring.";
+"settings.cue.title" = "Tonight's cue";
+"settings.cue.effective" = "Starts %@.";
+"settings.cue.cadence.off" = "Off";
+"settings.cue.cadence.rare" = "Now and then";
+"settings.cue.cadence.alternate" = "Every other night";
+"settings.cue.cadence.daily" = "Every night";
 "group.title" = "Group";
 "group.members" = "Members";
 "group.loading" = "Loading the group.";

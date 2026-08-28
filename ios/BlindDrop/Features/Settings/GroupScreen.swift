@@ -44,11 +44,13 @@ struct GroupScreen: View {
                 isManagingMember: store.isManagingMember,
                 errorKey: store.errorKey,
                 revealHourEffectiveFrom: store.revealHourEffectiveFrom,
+                cueEffectiveFrom: store.cueEffectiveFrom,
                 currentUserID: env.session.user?.userID,
                 select: { selectedMember = $0 },
                 onRetryStandings: { await store.load() },
                 onSaveName: { await store.rename(to: $0) },
                 onPickRevealHour: { await store.setRevealHour($0) },
+                onPickCueCadence: { await store.setCueCadence($0) },
                 onSetRole: { member, role in await store.setRole(role, for: member.userID) },
                 onRemove: { member in await store.remove(member.userID) },
                 onLeave: {
@@ -88,11 +90,13 @@ struct GroupDetailView: View {
     var isManagingMember = false
     var errorKey: String?
     var revealHourEffectiveFrom: String?
+    var cueEffectiveFrom: String?
     var currentUserID: String?
     var select: (MemberDTO) -> Void = { _ in }
     var onRetryStandings: () async -> Void = {}
     var onSaveName: (String) async -> Bool = { _ in true }
     var onPickRevealHour: (Int) async -> Bool = { _ in true }
+    var onPickCueCadence: (Int) async -> Bool = { _ in true }
     var onSetRole: (MemberDTO, String) async -> Bool = { _, _ in true }
     var onRemove: (MemberDTO) async -> Bool = { _ in true }
     var onLeave: () async -> Bool = { true }
@@ -313,6 +317,7 @@ struct GroupDetailView: View {
     private func details(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
             if group.isAdmin { revealHourSection(isSnapshot: isSnapshot) }
+            cueSection(isSnapshot: isSnapshot)
             timezoneSection
         }
     }
@@ -348,6 +353,37 @@ struct GroupDetailView: View {
         }
     }
 
+    /// The cue cadence row (`docs/18-CUES.md` §10): admin-editable like the reveal hour, but —
+    /// unlike the reveal hour — **visible to members as static text**, because the cue's cadence
+    /// is a fact about what a member can expect on any given night, not a scheduling control only
+    /// the admin operates. The "Starts %@" line stays admin-only, since only an admin can change
+    /// the cadence and therefore only they have a change to date.
+    private func cueSection(isSnapshot: Bool) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionLabel("settings.cue.title")
+            if group.isAdmin {
+                if isSnapshot {
+                    controlRow(chevron: true) { Text(CueCadence.label(group.cueCadence)) }
+                } else {
+                    Menu {
+                        Picker("settings.cue.title", selection: Binding(get: { group.cueCadence }, set: { cadence in
+                            Task { await onPickCueCadence(cadence) }
+                        })) {
+                            ForEach(CueCadence.options, id: \.self) { Text(CueCadence.label($0)).tag($0) }
+                        }
+                    } label: { controlRow(chevron: true) { Text(CueCadence.label(group.cueCadence)) } }
+                    .disabled(isSaving).accessibilityLabel(Text("settings.cue.title"))
+                }
+            } else {
+                controlRow { Text(CueCadence.label(group.cueCadence)) }
+            }
+            if group.isAdmin, let effective = cueEffectiveFrom,
+               let date = GroupCalendar(timezone: group.timezone).shareDate(localDate: effective) {
+                Text(verbatim: Copy.format("settings.cue.effective", date)).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+            }
+        }
+    }
+
     private func controlRow(chevron: Bool = false, @ViewBuilder content: () -> some View) -> some View {
         HStack {
             content().typeStyle(.bodyL).foregroundStyle(Palette.ink)
@@ -357,6 +393,25 @@ struct GroupDetailView: View {
         .padding(.horizontal, Space.lg).frame(minHeight: Layout.buttonHeight).frame(maxWidth: .infinity)
         .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(Palette.surface))
         .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).stroke(Palette.edge, lineWidth: Stroke.border))
+    }
+}
+
+/// The four cue cadences, in display order (`docs/18-CUES.md` §4, `docs/11` `settings.cue.cadence.*`).
+///
+/// The raw values are `cue_cadence` on the wire — `0` off, `3` now and then, `2` every other
+/// night, `1` every night — but the picker lists them in the order a person thinks about them,
+/// not in numeric order, the same way `RevealHour.allowed` is an ordered set rather than a range
+/// of values.
+enum CueCadence {
+    static let options: [Int] = [0, 3, 2, 1]
+
+    static func label(_ cadence: Int) -> LocalizedStringKey {
+        switch cadence {
+        case 0: "settings.cue.cadence.off"
+        case 3: "settings.cue.cadence.rare"
+        case 1: "settings.cue.cadence.daily"
+        default: "settings.cue.cadence.alternate"
+        }
     }
 }
 
