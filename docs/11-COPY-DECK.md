@@ -664,6 +664,12 @@ at enqueue time (no submission; an incomplete guess sheet), never a headcount an
 else's status. An `invite` is one recipient's pending invitation, never a membership or a group
 activity signal.
 
+On a **single-circle** `seal_reminder` for a round with a cue, the body is the firing's base
+sentence followed by the cue suffix `Tonight: %@` — e.g. *"You haven't sealed a song yet. Two
+hours left. Tonight: A song you hate"* — where `%@` is the round's cue text (which carries no
+trailing period). A **grouped** (multi-circle) `seal_reminder` always uses the base body alone,
+never one circle's cue (`docs/18-CUES.md` §11.1).
+
 ---
 
 ## VoiceOver

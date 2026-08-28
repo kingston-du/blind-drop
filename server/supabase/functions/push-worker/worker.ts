@@ -49,6 +49,13 @@ export interface ClaimedNotification {
    */
   scheduled_for: string | null;
   invitation_expires_at: string | null;
+  /**
+   * The round's frozen cue text, present only for a *single-circle* `seal_reminder` claim.
+   * Null for every other kind and for a grouped (multi-circle) delivery, which must never name
+   * one circle's cue arbitrarily (E35-06, docs/18-CUES.md §11.1). Computed by
+   * `claim_notification_outbox`; the worker just relays it into the alert body.
+   */
+  cue_text: string | null;
 }
 
 export interface PushDevice {
@@ -180,7 +187,7 @@ export function apnsRequest(
     body: JSON.stringify({
       aps: {
         alert: row.kind === "seal_reminder"
-          ? notificationAlert(row.kind, sealReminderFiring(row))
+          ? notificationAlert(row.kind, sealReminderFiring(row), row.cue_text ?? undefined)
           : notificationAlert(row.kind),
         sound: "default",
         "interruption-level": "active",
@@ -296,6 +303,7 @@ async function claim(db: Db, claimId: string): Promise<ClaimedNotification[]> {
     invitation_expires_at: typeof row.invitation_expires_at === "string"
       ? row.invitation_expires_at
       : null,
+    cue_text: typeof row.cue_text === "string" ? row.cue_text : null,
   }));
 }
 

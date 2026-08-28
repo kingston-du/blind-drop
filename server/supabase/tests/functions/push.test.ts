@@ -52,6 +52,7 @@ const row: ClaimedNotification = {
   scores_at: "2026-08-11T22:00:00Z",
   scheduled_for: "2026-08-11T20:00:00Z",
   invitation_expires_at: null,
+  cue_text: null,
 };
 const device: PushDevice = {
   id: "00000000-0000-4000-8000-000000000004",
@@ -122,6 +123,16 @@ Deno.test("APNs headers, expiration, and custom payload are exact", async () => 
     apnsRequest(sealFirst, device, "jwt", "topic").headers.get("apns-collapse-id"),
     apnsRequest(sealSecond, device, "jwt", "topic").headers.get("apns-collapse-id"),
   );
+
+  // E35-06 (docs/18-CUES.md §11.1): a single-circle seal_reminder relays the round's cue into
+  // the body as a "Tonight: <cue>" suffix on whichever firing's base sentence applies.
+  const sealFirstCued = { ...sealFirst, cue_text: "A song you hate" };
+  const sealFirstCuedBody = await apnsRequest(sealFirstCued, device, "jwt", "topic").json();
+  assertEquals(sealFirstCuedBody.aps.alert.body, "You haven't sealed a song yet. Two hours left. Tonight: A song you hate");
+
+  const sealSecondCued = { ...sealSecond, cue_text: "A song you hate" };
+  const sealSecondCuedBody = await apnsRequest(sealSecondCued, device, "jwt", "topic").json();
+  assertEquals(sealSecondCuedBody.aps.alert.body, "Half an hour left, and you haven't sealed a song. Tonight: A song you hate");
 
   // guess_reminder expires at scoring — a reminder to guess is pointless once the round scored.
   const guessReminder = {
@@ -501,6 +512,16 @@ function stubApns(answer: (token: string) => { status: number; body?: string }) 
     return { ok: status >= 200 && status < 300, status, text: async () => body ?? "" };
   };
   return { tokens, fetchApns };
+}
+
+/** An `ApnsFetch` that records every request and always succeeds — for asserting on bodies. */
+function captureApns() {
+  const requests: Request[] = [];
+  const fetchApns = async (request: Request) => {
+    requests.push(request);
+    return { ok: true, status: 200, text: async () => "" };
+  };
+  return { requests, fetchApns };
 }
 
 interface OutboxRow {
@@ -892,4 +913,173 @@ Deno.test("a delivered row is one push per device and is never delivered twice",
   const again = await drainPushOutbox(serviceClient(), stub.fetchApns);
   assertEquals(again.claimed, 0, "a sent row is not claimed a second time");
   assertEquals(stub.tokens.length, 2);
+});
+
+// ─── E35-06 · seal_reminder carries the cue when single-circle, never when grouped ──
+// docs/18-CUES.md §11.1. `claim_notification_outbox` returns `cue_text` only for a
+// single-circle seal_reminder claim; the worker relays it into the body verbatim. The four
+// cases the checklist names are covered here end-to-end through the real claim + drain path.
+
+Deno.test("a single-circle seal_reminder carries the round's cue on both firings — E35-06", async () => {
+  await clearPending();
+  const { user } = await newGroupOwner("Cue Solo", {
+    name: `Cue Solo ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 20,
+    cue_cadence: 1,
+  });
+  const current = await call("rounds", "/current", { token: user.token });
+  const roundId = current.body.data.round_id as string;
+  const cueText = current.body.data.cue.text as string;
+  assert(typeof cueText === "string" && cueText.length > 0, "cadence 1 pins a cue on the round");
+  const revealsAt = Date.parse(current.body.data.reveals_at as string);
+  const deviceToken = await registerDevice(user.token);
+
+  // Tick at fixed offsets from the round's own reveal, not from the wall clock: the two firing
+  // windows are only 90 and 30 minutes wide, so an offset from `now` can drift past reveal when
+  // the current minute-of-hour is high (the same time-of-minute boundary the pre-existing
+  // E31-01 test can hit).
+  await rpc("tick_rounds_at", { p_at: new Date(revealsAt - 1.5 * 3_600_000).toISOString() });
+  const [firstFiring] = await sealReminderRows(roundId);
+  assert(firstFiring?.id, "the 2h firing is enqueued");
+  await clearPending(firstFiring.id);
+  const first = captureApns();
+  await drainPushOutbox(serviceClient(), first.fetchApns);
+  assertEquals(first.requests.map(addressedToken), [deviceToken]);
+  assertEquals(
+    (await first.requests[0].json()).aps.alert.body,
+    `You haven't sealed a song yet. Two hours left. Tonight: ${cueText}`,
+  );
+
+  await rpc("tick_rounds_at", { p_at: new Date(revealsAt - 60_000).toISOString() });
+  const [, secondFiring] = await sealReminderRows(roundId);
+  assert(secondFiring?.id, "the 30m firing is enqueued");
+  await clearPending(secondFiring.id);
+  const second = captureApns();
+  await drainPushOutbox(serviceClient(), second.fetchApns);
+  assertEquals(
+    (await second.requests[0].json()).aps.alert.body,
+    `Half an hour left, and you haven't sealed a song. Tonight: ${cueText}`,
+  );
+});
+
+Deno.test("a single-circle seal_reminder with no cue keeps the generic body — E35-06", async () => {
+  await clearPending();
+  const { user } = await newGroupOwner("Cue Off Solo", {
+    name: `Cue Off Solo ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zoneWhereLocalHourIs(17),
+    reveal_hour: 20,
+    cue_cadence: 0,
+  });
+  const current = await call("rounds", "/current", { token: user.token });
+  const roundId = current.body.data.round_id as string;
+  assertEquals(current.body.data.cue, undefined, "cue_cadence 0 ships no cue key");
+  const deviceToken = await registerDevice(user.token);
+
+  await tickRoundsAt(1.5);
+  const [firstFiring] = await sealReminderRows(roundId);
+  assert(firstFiring?.id, "the firing is enqueued");
+  await clearPending(firstFiring.id);
+  const { requests, fetchApns } = captureApns();
+  await drainPushOutbox(serviceClient(), fetchApns);
+  assertEquals(requests.map(addressedToken), [deviceToken]);
+  assertEquals(
+    (await requests[0].json()).aps.alert.body,
+    "You haven't sealed a song yet. Two hours left.",
+  );
+});
+
+/** A member shared by two coincident circles, plus both rounds and the member's device. */
+async function coincidentCirclesWithSharedMember(
+  label: string,
+  cadence: 0 | 1,
+): Promise<{
+  roundAId: string;
+  roundBId: string;
+  sam: { id: string; token: string };
+  samDevice: string;
+}> {
+  const zone = zoneWhereLocalHourIs(17);
+  const { user: ana, group: groupA } = await newGroupOwner(`${label} Ana`, {
+    name: `${label} A ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zone,
+    reveal_hour: 20,
+    cue_cadence: cadence,
+  });
+  const { user: bob, group: groupB } = await newGroupOwner(`${label} Bob`, {
+    name: `${label} B ${crypto.randomUUID().slice(0, 8)}`,
+    timezone: zone,
+    reveal_hour: 20,
+    cue_cadence: cadence,
+  });
+  const sam = await newMember(groupA.invite_code as string, `${label} Sam`);
+  assertEquals(
+    (await call("groups", "/join", {
+      method: "POST",
+      token: sam.token,
+      body: { invite_code: groupB.invite_code },
+    })).status,
+    200,
+  );
+  const roundAId =
+    (await call("rounds", "/current", { token: ana.token })).body.data.round_id as string;
+  const roundBId =
+    (await call("rounds", "/current", { token: bob.token })).body.data.round_id as string;
+  const samDevice = await registerDevice(sam.token);
+  return { roundAId, roundBId, sam, samDevice };
+}
+
+Deno.test("a grouped seal_reminder never names one circle's cue — E35-06", async () => {
+  await clearPending();
+  const { roundAId, roundBId, sam, samDevice } = await coincidentCirclesWithSharedMember(
+    "Cue Pair",
+    1,
+  );
+
+  await tickRoundsAt(1.5);
+  const rowsA = await sealReminderRows(roundAId);
+  const rowsB = await sealReminderRows(roundBId);
+  assertEquals([rowsA.length, rowsB.length], [1, 1], "each circle enqueues one firing");
+  const samRow = [...rowsA, ...rowsB].find((r) => r.audience.includes(sam.id));
+  assert(samRow, "Sam is coalesced into exactly one of the two circles' rows");
+  const otherRow = [...rowsA, ...rowsB].find((r) => r.id !== samRow.id);
+  assertEquals(
+    otherRow!.audience.includes(sam.id),
+    false,
+    "the coalesce keeps Sam out of the other circle's row",
+  );
+
+  await clearPending(samRow.id);
+  const { requests, fetchApns } = captureApns();
+  await drainPushOutbox(serviceClient(), fetchApns);
+  const samRequests = requests.filter((r) => addressedToken(r) === samDevice);
+  assertEquals(samRequests.length, 1, "Sam gets exactly one reminder");
+  assertEquals(
+    (await samRequests[0].json()).aps.alert.body,
+    "You haven't sealed a song yet. Two hours left.",
+    "a grouped delivery never picks one circle's cue",
+  );
+});
+
+Deno.test("a grouped seal_reminder with no cues keeps the generic body — E35-06", async () => {
+  await clearPending();
+  const { roundAId, roundBId, sam, samDevice } = await coincidentCirclesWithSharedMember(
+    "NoCue Pair",
+    0,
+  );
+
+  await tickRoundsAt(1.5);
+  const rows = [...(await sealReminderRows(roundAId)), ...(await sealReminderRows(roundBId))];
+  const samRow = rows.find((r) => r.audience.includes(sam.id));
+  assert(samRow, "Sam is coalesced into one row");
+
+  await clearPending(samRow.id);
+  const { requests, fetchApns } = captureApns();
+  await drainPushOutbox(serviceClient(), fetchApns);
+  const samRequests = requests.filter((r) => addressedToken(r) === samDevice);
+  assertEquals(samRequests.length, 1, "Sam gets exactly one reminder");
+  assertEquals(
+    (await samRequests[0].json()).aps.alert.body,
+    "You haven't sealed a song yet. Two hours left.",
+  );
 });

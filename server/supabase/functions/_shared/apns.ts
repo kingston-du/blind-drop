@@ -90,13 +90,23 @@ const SEAL_REMINDER_BODIES = {
 
 export type SealReminderFiring = keyof typeof SEAL_REMINDER_BODIES;
 
-/** The only six notification alerts the product permits (docs/11 §"Notifications"). */
+/**
+ * The only six notification alerts the product permits (docs/11 §"Notifications").
+ *
+ * `cueText` is the round's frozen cue (E35-06, docs/18-CUES.md §11.1). When a single-circle
+ * `seal_reminder` fires for a round that has one, the cue rides as a `" Tonight: <cue>"` suffix
+ * on whichever firing's base sentence applies. A grouped (multi-circle) delivery, and any round
+ * with no cue, passes no cue text and keeps the base body unchanged — the same body as before.
+ */
 export function notificationAlert(
   kind: NotificationKind,
   sealReminderFiring: SealReminderFiring = "first",
+  cueText?: string,
 ): { title: "Blind Drop"; body: string } {
   if (kind === "seal_reminder") {
-    return { title: "Blind Drop", body: SEAL_REMINDER_BODIES[sealReminderFiring] };
+    const base = SEAL_REMINDER_BODIES[sealReminderFiring];
+    const body = cueText && cueText.trim().length > 0 ? `${base} Tonight: ${cueText}` : base;
+    return { title: "Blind Drop", body };
   }
   return { title: "Blind Drop", body: BODIES[kind] };
 }

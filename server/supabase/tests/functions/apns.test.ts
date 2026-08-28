@@ -106,3 +106,22 @@ Deno.test("seal_reminder has two bodies, chosen by which firing it is", () => {
   // The default is the first (2h) firing's copy — never silently empty.
   assertEquals(notificationAlert("seal_reminder"), notificationAlert("seal_reminder", "first"));
 });
+
+Deno.test("seal_reminder carries the cue as a Tonight: suffix, and is unchanged without one", () => {
+  // E35-06, docs/18-CUES.md §11.1: a single-circle seal_reminder appends " Tonight: <cue>" to
+  // whichever firing's base sentence applies.
+  assertEquals(notificationAlert("seal_reminder", "first", "A song you hate"), {
+    title: "Blind Drop",
+    body: "You haven't sealed a song yet. Two hours left. Tonight: A song you hate",
+  });
+  assertEquals(notificationAlert("seal_reminder", "second", "A song you hate"), {
+    title: "Blind Drop",
+    body: "Half an hour left, and you haven't sealed a song. Tonight: A song you hate",
+  });
+  // No cue — or a grouped delivery, which the claim function maps to a null cue — keeps the
+  // base body exactly as it was before this feature.
+  assertEquals(notificationAlert("seal_reminder", "first", undefined), {
+    title: "Blind Drop",
+    body: "You haven't sealed a song yet. Two hours left.",
+  });
+});
