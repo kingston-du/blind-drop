@@ -501,9 +501,9 @@ circle, existing and new, at `cue_cadence = 2` ("every other night").
 | E35-01 Docs and copy deck | done | — | yes | — |
 | E35-02 Database: catalog, cadence, assignment | done | E35-01 | no | — |
 | E35-03 API: rounds, results, record, settings | done | E35-02 | no | AC-1 (leak) |
-| E35-04 iOS: CueDTO, CueBanner, placements | todo | E35-03 | vs E35-05, E35-06 | — |
-| E35-05 Circle settings: cadence control | todo | E35-03 | vs E35-04, E35-06 | — |
-| E35-06 seal_reminder carries the cue | todo | E35-03 | vs E35-04, E35-05 | — |
+| E35-04 iOS: CueDTO, CueBanner, placements | wip | E35-03 | vs E35-05, E35-06 | — |
+| E35-05 Circle settings: cadence control | wip | E35-03 | vs E35-04, E35-06 | — |
+| E35-06 seal_reminder carries the cue | wip | E35-03 | vs E35-04, E35-05 | — |
 
 ---
 

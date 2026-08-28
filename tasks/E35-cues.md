@@ -158,7 +158,7 @@ assertion helper, not the gate logic itself)
 
 ### E35-04 — iOS: CueDTO, CueBanner, and every placement
 
-**Status:** todo
+**Status:** wip
 **Deps:** E35-03
 **Parallel:** vs E35-05, E35-06
 **Reads:** `docs/18-CUES.md` §7, §8, §11.7, `ios/BlindDrop/Core/Networking/DTO/RoundDTO.swift`,
@@ -194,7 +194,7 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 
 ### E35-05 — Circle settings: cadence control
 
-**Status:** todo
+**Status:** wip
 **Deps:** E35-03
 **Parallel:** vs E35-04, E35-06
 **Reads:** `docs/18-CUES.md` §4, §10, `ios/BlindDrop/Features/Settings/GroupScreen.swift`,
@@ -216,7 +216,7 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 
 ### E35-06 — `seal_reminder` carries the cue
 
-**Status:** todo
+**Status:** wip
 **Deps:** E35-03
 **Parallel:** vs E35-04, E35-05 — separable, may land after the rest
 **Reads:** `docs/18-CUES.md` §11.1, `server/supabase/functions/push-worker/worker.ts`,
