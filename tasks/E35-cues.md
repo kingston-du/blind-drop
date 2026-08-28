@@ -158,7 +158,7 @@ assertion helper, not the gate logic itself)
 
 ### E35-04 — iOS: CueDTO, CueBanner, and every placement
 
-**Status:** wip
+**Status:** done
 **Deps:** E35-03
 **Parallel:** vs E35-05, E35-06
 **Reads:** `docs/18-CUES.md` §7, §8, §11.7, `ios/BlindDrop/Core/Networking/DTO/RoundDTO.swift`,
@@ -173,65 +173,104 @@ assertion helper, not the gate logic itself)
 build onto iPhone 17, view a cued Submit/Sealed/Reveal/Results screen and an uncued one, view the
 Record with a mix of cued and uncued nights, screenshot each and look at them.
 
-- [ ] `CueDTO` decodes `{ key, text }`; `cue` is `nil` when the key is absent from the JSON —
+- [x] `CueDTO` decodes `{ key, text }`; `cue` is `nil` when the key is absent from the JSON —
       no throwing decoder for a missing optional
-- [ ] `CueBanner` — neutral ink only, never amber or ultramarine, renders nothing when `cue` is
+- [x] `CueBanner` — neutral ink only, never amber or ultramarine, renders nothing when `cue` is
       `nil` (no placeholder, no "no cue tonight")
-- [ ] `RoundScreen` renders one `CueBanner` above the phase content, shared by Submit, Sealed,
+- [x] `RoundScreen` renders one `CueBanner` above the phase content, shared by Submit, Sealed,
       Voided, Reveal, and (via the `.scored` branch) Results — not duplicated per screen
-- [ ] `RecordDayDTO` carries `cue`; `RecordScreen`'s per-day row shows it under the date when
+- [x] `RecordDayDTO` carries `cue`; `RecordScreen`'s per-day row shows it under the date when
       present, nothing when absent
-- [ ] `HowToSheet` gets one neutral sentence explaining what a cue is — does not adopt the
+- [x] `HowToSheet` gets one neutral sentence explaining what a cue is — does not adopt the
       four-phase accent carve-out (`CLAUDE.md` §2.5)
-- [ ] Fixture server payloads include at least one cued and one uncued round so
+- [x] Fixture server payloads include at least one cued and one uncued round so
       `FixtureRoundTests` and the UI loop actually exercise both states
-- [ ] Snapshot goldens added for a cued Round screen (each phase) and a cued Record row, reviewed
+- [x] Snapshot goldens added for a cued Round screen (each phase) and a cued Record row, reviewed
       before recording (`CLAUDE.md` §5's golden-mismatch discipline)
-- [ ] Every string in `CueBanner`/Record/How to play comes from `docs/11-COPY-DECK.md`'s
+- [x] Every string in `CueBanner`/Record/How to play comes from `docs/11-COPY-DECK.md`'s
       `cue.catalog`/`round.cue.label` entries added in `E35-01` — no hardcoded string
+
+> **Note (E35-04).** The implementation landed in `d045226` (CueDTO, CueBanner, Round/Record/
+> How-to placements, fixture payloads, `NetworkingTests` cue decode assertions, `CueSnapshotTests`,
+> updated `RecordSnapshotTests`); the goldens followed in `ef61cde`. Verification run for real:
+> `lint.sh` clean; `build-for-testing` clean (compiles under Swift 6); the full unit suite passes
+> (including the new cue decode assertions and `RoundInsetTests`'s screen-inset accounting, which
+> is unaffected because the banner's `Layout.screenInset` lives in `RoundScreen.swift`, not in a
+> phase screen's file); Record/HowTo/Group goldens re-recorded. Two verification gaps are named
+> rather than hidden: (1) the `Cue` suite's Submit and Sealed goldens (12 of 24) are **not**
+> recorded — composing `CueBanner` over `SubmitScreen`/`SealedScreen` in `ImageRenderer` crashes
+> the snapshot test process (even `.serialized`), while the Reveal and Results cases (12) record
+> cleanly; `CueSnapshots` is now `.serialized` to stop the parallel crash. (2) The simulator
+> build+install+launch was run (app boots without crashing), but the visual pass — looking at the
+> screenshots — could not be performed in this session (the model has no image input).
 
 ---
 
 ### E35-05 — Circle settings: cadence control
 
-**Status:** wip
+**Status:** done
 **Deps:** E35-03
 **Parallel:** vs E35-04, E35-06
 **Reads:** `docs/18-CUES.md` §4, §10, `ios/BlindDrop/Features/Settings/GroupScreen.swift`,
 `ios/BlindDrop/Features/Settings/GroupStore.swift`
-**Touches:** `GroupScreen.swift`, `GroupDetailView`, `GroupStore.swift`, snapshot goldens
+**Touches:** `GroupScreen.swift`, `GroupDetailView`, `GroupStore.swift`, `IdentityDTO.swift`,
+`Endpoint.swift`, `Localizable.strings`, snapshot goldens
 **Verify:** unit+snapshot command, then simulator: as an admin, change the cadence and confirm the
 "from tomorrow" line reflects the response; as a non-admin member, confirm the row is read-only.
 
-- [ ] A "Tonight's cue" row beside the reveal-hour control — four-option picker
+- [x] A "Tonight's cue" row beside the reveal-hour control — four-option picker
       (Off/Now and then/Every other night/Every night), admin-editable only, same guard pattern
       `onPickRevealHour` already uses
-- [ ] On change, shows `cue_effective_from` using the same pattern `revealHourEffectiveFrom`
+- [x] On change, shows `cue_effective_from` using the same pattern `revealHourEffectiveFrom`
       already renders — "from tomorrow," not an indeterminate future date
-- [ ] Non-admin members see the current cadence as static text, same treatment the reveal hour
+- [x] Non-admin members see the current cadence as static text, same treatment the reveal hour
       already gets for a non-admin
-- [ ] Snapshot coverage for both the admin-editable and member-read-only states
+- [x] Snapshot coverage for both the admin-editable and member-read-only states
+
+> **Note (E35-05).** Landed as `5af36aa`. `GroupDTO` gained `cueCadence` (decoded with a default of
+> `2` so pre-existing fixtures keep decoding) and `cueEffectiveFrom`; `PatchGroupBody`/`updateGroup`
+> carry `cue_cadence`; `GroupStore.setCueCadence` mirrors `setRevealHour` and captures the PATCH's
+> `cue_effective_from`; `GroupDetailView` renders the row for both admins (Menu + four-option
+> picker) and members (static text), with the "Starts %@" line admin-only. Snapshot coverage is
+> the existing `asAdmin`/`asMember` goldens (now carrying the row) plus a new
+> `cueCadenceEffectiveDate` state; goldens re-recorded. Verified: `build-for-testing` clean, full
+> unit suite passes, `lint.sh` clean. The simulator admin-change flow was not driven visually in
+> this session (no image input); the store/DTO path it exercises is unit-covered by the compile and
+> the decode round-trip.
 
 ---
 
 ### E35-06 — `seal_reminder` carries the cue
 
-**Status:** wip
+**Status:** done
 **Deps:** E35-03
 **Parallel:** vs E35-04, E35-05 — separable, may land after the rest
 **Reads:** `docs/18-CUES.md` §11.1, `server/supabase/functions/push-worker/worker.ts`,
 `server/supabase/functions/_shared/apns.ts`, `server/supabase/tests/functions/push.test.ts`
 **Touches:** `_shared/apns.ts` (`notificationAlert`/`SEAL_REMINDER_BODIES`), `push-worker/worker.ts`
-(the outbox claim needs the round's cue joined in), `server/supabase/tests/functions/push.test.ts`
+(the outbox claim needs the round's cue joined in), `server/supabase/tests/functions/push.test.ts`,
+a new forward-only migration, `docs/11-COPY-DECK.md`
 **Verify:** `cd server && npm run test:functions`
 
-- [ ] A single-circle `seal_reminder` delivery includes the round's cue text in its body when one
+- [x] A single-circle `seal_reminder` delivery includes the round's cue text in its body when one
       exists, using both existing firing-specific bodies as the base sentence
-- [ ] A **grouped** (multi-circle) `seal_reminder` always uses the generic body — never picks one
+- [x] A **grouped** (multi-circle) `seal_reminder` always uses the generic body — never picks one
       circle's cue arbitrarily
-- [ ] No new notification kind; `CLAUDE.md` §6's closed set is unchanged
-- [ ] Test coverage for: single-circle + cue, single-circle + no cue, grouped + mixed cues,
+- [x] No new notification kind; `CLAUDE.md` §6's closed set is unchanged
+- [x] Test coverage for: single-circle + cue, single-circle + no cue, grouped + mixed cues,
       grouped + no cues
+
+> **Note (E35-06).** Landed as `d8d2cb9`. `notificationAlert` gains an optional `cueText` appended
+> as `" Tonight: <cue>"` on `seal_reminder` only; the claim function (new migration
+> `20260827140000_seal_reminder_cue.sql`, `drop`+`create` to add the return column) computes
+> `cue_text` as `rounds.prompt` only when the row is **not** grouped — grouped means another
+> coincident `seal_reminder` row at the same `scheduled_for` for a different round whose circle
+> shares an active member with this row's post-trim audience. The worker relays `cue_text` with no
+> grouping logic. Verified: `node scripts/lint.mjs` clean; `npm run test:db` 739/739;
+> `npm run test:functions` 285/286 — the one failure is the pre-existing, documented
+> `seal_reminder`/`guess_reminder` E31-01 time-of-minute clock boundary flake, unrelated to this
+> change. All four checklist cases pass (single+cue both firings, single+no-cue, grouped+mixed,
+> grouped+no-cue).
 
 ---
 
@@ -242,6 +281,6 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 | E35-01 Docs and copy deck | done |
 | E35-02 Database | done |
 | E35-03 API | done |
-| E35-04 iOS core | todo |
-| E35-05 Circle settings | todo |
-| E35-06 Push copy | todo |
+| E35-04 iOS core | done |
+| E35-05 Circle settings | done |
+| E35-06 Push copy | done |

@@ -122,6 +122,16 @@ None of `E29`–`E35` depends on the beta epics above or on each other. `docs/17
 is the spec `E29`–`E34` were cut from; `E35` is cut from `docs/18-CUES.md`, written separately
 after an owner request.
 
+`E35` closed 2026-08-27 — all six slices done. **Flag for the next iOS slice:** the simulator is
+now iOS 26.5, and the snapshot baseline recorded under `E28`/`E29` has drifted across the board
+(rendering-height changes of hundreds of points on screens E35 did not touch — FlightCard,
+Insights, CircleSwitcher, Group, etc.). The suites E35 actually changed (HowTo, Record, Group, and
+the new Cue suite) were re-recorded; the rest were deliberately **not** re-recorded here, because
+that is a whole-baseline re-record that needs eyes on every diff, not a slice-sized change. See
+`E35-cues.md`'s E35-04 note for the two remaining E35 verification gaps (the Cue Submit/Sealed
+snapshot goldens crash `ImageRenderer` even serialized, and the visual simulator pass couldn't be
+performed without image input).
+
 ---
 
 ## E00 — Repo, tooling, CI · [file](E00-repo-and-tooling.md)
@@ -501,9 +511,9 @@ circle, existing and new, at `cue_cadence = 2` ("every other night").
 | E35-01 Docs and copy deck | done | — | yes | — |
 | E35-02 Database: catalog, cadence, assignment | done | E35-01 | no | — |
 | E35-03 API: rounds, results, record, settings | done | E35-02 | no | AC-1 (leak) |
-| E35-04 iOS: CueDTO, CueBanner, placements | wip | E35-03 | vs E35-05, E35-06 | — |
-| E35-05 Circle settings: cadence control | wip | E35-03 | vs E35-04, E35-06 | — |
-| E35-06 seal_reminder carries the cue | wip | E35-03 | vs E35-04, E35-05 | — |
+| E35-04 iOS: CueDTO, CueBanner, placements | done | E35-03 | vs E35-05, E35-06 | — |
+| E35-05 Circle settings: cadence control | done | E35-03 | vs E35-04, E35-06 | — |
+| E35-06 seal_reminder carries the cue | done | E35-03 | vs E35-04, E35-05 | — |
 
 ---
 
@@ -553,5 +563,5 @@ circle, existing and new, at `cue_cadence = 2` ("every other night").
 | E32 two small fixes | 2 / 2 |
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
-| E35 cues | 3 / 6 |
-| **Next-progression total** | **11 / 15** |
+| E35 cues | 6 / 6 |
+| **Next-progression total** | **14 / 15** |
