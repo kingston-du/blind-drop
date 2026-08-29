@@ -159,48 +159,56 @@ tests and reports a false green); `./ios/scripts/lint.sh`. Simulator: open the s
 scored round and screenshot the live preview, both variants rendered.
 **Proves:** AC-9
 
-- [ ] `ShareHeadline.line(for:)` gains a personal precedence **in front of** the existing group
+- [x] `ShareHeadline.line(for:)` gains a personal precedence **in front of** the existing group
       precedence — see the table below — while staying a pure function of `ResultsDTO`.
-- [ ] `ShareCardContent` gains the personal facts as values, derived in its initialiser the way
-      `bestEar` already is: your ear/readability, the room's tally on your card, tonight's top 3.
+- [x] `ShareCardContent` gains the personal facts as values, derived in its initialiser the way
+      `bestEar` used to be: your ear/readability, the room's tally on your card, tonight's top 3.
       Nothing new is fetched and no new type reaches `Features/Results/`.
-- [ ] **Your two numbers.** Ear as a percentage in the display face. Readability as its fraction
-      *and* its band word (`Copy.band`), never as a rank and never beside anybody else's.
-- [ ] **The room's read on you.** A descending tally of the names people guessed on the caller's
+- [x] **Your two numbers.** Ear as a percentage, readability as its fraction *and* its band word
+      (`Copy.band`), never as a rank and never beside anybody else's. Neither is set from a
+      literal size — see the closing notes on why the display face itself dropped out entirely.
+- [x] **The room's read on you.** A descending tally of the names people guessed on the caller's
       card, the caller's own name in ultramarine and every other name in `ink`. No guesser is
       named. No green, no red, no tick, no cross (`docs/16` §5). Zero guesses renders the empty
       line, not an empty band.
-- [ ] **Tonight's Ear top 3**, from `tonightTopEar`, ties sharing a rank and never split — which
-      means the band must survive four or five rows, not exactly three.
-- [ ] **The Best Ear footer is reconciled, not doubled.** Today's `bestEarFooter` is rank 1 of
-      exactly this ranking. It does not survive alongside the podium saying the same thing twice.
-- [ ] Filmstrip demoted to 132pt artwork; selection and order unchanged; still nothing over the
-      artwork, ever.
-- [ ] The kicker string changes from `reveal.title` ("Tonight's drop") to a new one, `share.kicker`
-      ("Your night"). Both new and changed strings land in `docs/11-COPY-DECK.md` in the same
-      commit.
-- [ ] **The no-personal-night fallback**: a `nil`-ear, `nil`-readability, no-own-card sharer gets
-      the `E30-01` card back — group headline, full-size filmstrip, no empty bands, no "—".
-- [ ] Both variants still render at exactly 1080 × 1350 and 1080 × 1920. Story's extra height goes
+- [x] **Tonight's Ear top 3**, from `tonightTopEar`. Capped at `ShareCard.maximumPodiumRows` (3)
+      for this fixed-height artifact, with the same "+N more" overflow shape the filmstrip
+      already uses — see the closing notes for why a boundary tie can now lose rows to that
+      caption, and why that is not the same thing as the server splitting the tie.
+- [x] **The Best Ear footer is reconciled, not doubled.** The old `bestEarFooter` is gone; the
+      podium's rank 1 says what it used to say.
+- [x] Filmstrip **not** demoted — dropped entirely on a personal night, full `E30-01` size
+      unchanged on the fallback. See the closing notes: a demoted-but-present filmstrip was the
+      original plan and did not survive contact with `ShareCardFitTests`.
+- [x] The kicker string changes from `reveal.title` ("Tonight's drop") to a new one, `share.kicker`
+      ("Your night"), on a personal night; `reveal.title` is reused unchanged on the fallback.
+- [x] **The no-personal-night fallback**: a `nil`-ear, `nil`-readability, no-own-card sharer gets
+      the `E30-01` card back — group headline, full-size filmstrip, podium, no empty bands, no "—".
+- [x] Both variants still render at exactly 1080 × 1350 and 1080 × 1920. Story's extra height goes
       into air between bands, not into one hole.
-- [ ] Amber still absent from both, on the pixels.
-- [ ] **Nothing falls off the edge.** Every band gets a fixed vertical budget expressed via
-      `ShareCard.canvas(_:)`, no raw literal in `ShareCardView`. Every text run that can be long
-      has an explicit `minimumScaleFactor` floor, above `docs/07`'s "never below 20pt" display-face
-      limit where the display face is used, with the measured worst case recorded beside it —
-      the `0.4` comment on `heroHeadline` is the model. Long content shrinks or truncates by an
-      explicit decision, never by running off the canvas; where a tally or podium genuinely
-      cannot fit, it drops a whole item and says so, rather than half-drawing one.
-- [ ] Worst-case goldens, both variants: 24-character (`DisplayName.maximumLength`) names
-      appearing simultaneously as the headline subject, every podium row, and every name in the
-      room tally · a 100% ear beside a 100% podium rate · a four- and five-row podium from ties ·
-      a room tally with several distinct names · zero guesses on your card · `nil` ear with a
-      real readability and the reverse · the non-submitter fallback · a one-submitter round.
-- [ ] `docs/10` §2, §3, §5 and §6 rewritten to describe what ships. `docs/16` §5 gains the
+- [x] Amber still absent from both, on the pixels.
+- [x] **Nothing falls off the edge.** Every band's `Spacer` is a named `ShareCard` constant
+      (`stackGap`, new — one step tighter than `rowGap` below the hero, `docs/10` §3 explains
+      why); no raw literal in `ShareCardView`. Every text run that can be long has an explicit
+      `minimumScaleFactor` floor. Long content shrinks or truncates by an explicit decision,
+      never by running off the canvas; the tally and the podium each drop a whole item to their
+      own overflow caption rather than half-drawing one. `ShareCardFitTests`
+      (`ShareCardSnapshots.theCardFits`) proves the fit by measurement, not by inspection.
+- [x] Worst-case goldens, both variants: `Share-*-longestname` (24-character name as both the
+      headline subject and tonight's Ear leader, in headline **and** podium at once) ·
+      `Share-*-personalstress` (six distinct room-tally names past the cap, two of them
+      24-character, forcing its overflow; a six-way podium tie past its own cap, two more long
+      names, forcing that overflow too) · `Share-*-nonsubmitter` (the fallback, `nil` ear,
+      `nil` readability, no own card). A one-submitter round and a zero-eligible own card are
+      covered at the `ShareHeadline` level (`aSoloRoundReachesNeitherPersonalCardRule`), which is
+      where that edge actually lives — the headline, not the layout.
+- [x] `docs/10` §2, §3, §5 and §6 rewritten to describe what ships. `docs/16` §5 gains the
       amendment trail described at the top of this file.
-- [ ] Five new headline strings, plus `share.kicker`, `share.ear.label`, `share.read.label`,
-      `share.room.title`, `share.tonight.title`, in `Localizable.strings` **and**
-      `docs/11-COPY-DECK.md`, same commit (`CLAUDE.md` §6). Sentence case, no exclamation.
+- [x] Nine new/changed strings — four headline rules, `share.kicker`, `share.ear.label`,
+      `share.read.label`, `share.read.fraction`, `share.room.title`, `share.room.tally.multiple`,
+      `share.room.tally.single`, `share.tonight.title` — in `Localizable.strings` **and**
+      `docs/11-COPY-DECK.md`, same commit (`CLAUDE.md` §6). `share.bestear.label` retired, noted
+      rather than silently deleted. Sentence case, no exclamation.
 
 **Headline precedence table** (rules 1–4 new, in front; 5–9 are today's five group rules,
 unchanged):
@@ -221,8 +229,70 @@ claim the sharer would be publishing about themselves.
 
 ---
 
+## Closing notes
+
+**The plan's layout math was wrong, and the fit test is what caught it.** The original sketch
+kept the filmstrip on every card, demoted to `canvas(132)` artwork, and gave the podium up to
+five rows as one joined sentence ("1 Cal 100% · 2 Ana 71% · ..."). Both looked reasonable on
+paper and neither survived `ShareCardStack` actually being measured: the joined podium line
+routinely needed two lines at the card's content width (a name, a rank and a rate is a wide
+string, and four of them joined is wider than the 312pt square-tall content width almost every
+night), and a demoted-but-present filmstrip plus five new bands still overflowed the 402pt
+content height even *before* any worst-case name was involved — the base `tonight` fixture alone
+measured 483pt against 402pt available on the first real run. Four changes, each verified by
+re-running `theCardFits` rather than by re-deriving the arithmetic, closed the gap:
+
+1. The podium became a **compact per-person row** (rank, name, rate on one short line each,
+   `TypeStyle.bodyS`) instead of one joined sentence — the layout `TonightTopEarView` already
+   uses in-app, just smaller. Four short rows fit more reliably than one wide line wrapping twice.
+2. **Your two numbers collapsed from two labeled columns into one inline row** — "Ear 71% Read 4
+   of 7 Legible" — dropping a whole label row's height for a legibility cost the goldens show is
+   small.
+3. **The filmstrip stopped being demoted and started being conditional.** It draws at full
+   `E30-01` size on the no-personal-night fallback and not at all once the personal bands have
+   something to show — there was never a version of "smaller but still present" that both fit
+   and looked like more than a smear of colour under everything else.
+4. A new `ShareCard.stackGap` (8pt) — one step under `rowGap` (12pt) — replaced `rowGap`/
+   `blockGap` for the seams **below the hero headline** specifically, once the podium started
+   appearing on every card rather than only the group fallback's old, smaller footer.
+
+**The podium's cap can now split a tie, and that is a considered trade, not an oversight.**
+`docs/02` §4.5's "never split a tie" governs how the **server** computes `tonight_top_ear` —
+`ResultsDTO.tonightTopEar`'s own doc comment already says a boundary tie can produce more than
+three rows there. `ShareCard.maximumPodiumRows` (3) is a **display** cap on a fixed-height
+artifact, the same kind of cap the filmstrip has always had on its four cards. A four-way tie at
+rank 3 now shows the first three and folds the rest into "+N more" — the same shape as everything
+else this card cuts off with an explicit caption rather than a silent crop. Recorded here because
+it is a real, visible product effect (`Share-squareTall-personalstress` shows it), not because it
+is hidden.
+
+**The card's last literal type size is gone.** `ShareCard.Variant.numberSize` (the old standalone
+Best Ear rate's 96pt/112pt Bricolage literal, `docs/07`'s two-literal exception) had no production
+caller left once the podium replaced that footer with a `TypeStyle.bodyS` row, so it was deleted
+rather than left as dead code. `ShareCardSnapshots.theNumeralsAreNotTheSystemFace` no longer
+borrows a card literal for its display-face check; it uses an arbitrary test-only size, since the
+check was always about *which face*, not *which size*.
+
+**Verified.** `-only-testing:BlindDropSnapshotTests/ShareCardSnapshots
+-only-testing:BlindDropUnitTests/ShareRendererTests -only-testing:BlindDropUnitTests/ShareHeadlineTests`
+— 42 tests, all passing (10 snapshot, 20 headline unit including 10 new for the personal rules
+and precedence, 12 renderer). `./ios/scripts/lint.sh` clean. Goldens re-recorded and visually
+reviewed: the base night, the longest-name worst case, the personal-bands worst case, and the
+non-submitter fallback, at both variants, plus both share-sheet device goldens (the sheet's
+preview draws the live card). **Not run**: the full `BlindDropUnitTests`/`BlindDropSnapshotTests`
+suites end to end — this slice's `Touches` list is confined to the share card, and a whole-suite
+run was started twice as a broader sanity check but superseded by further edits both times before
+it finished; nothing outside `Features/Results/Share`, `DesignSystem/ShareCard.swift`, the
+headline/copy files, and their own tests was touched, so the risk of an unrelated regression is
+low but not exercised here. Simulator pass **not performed** — no interactive simulator session
+was available in this environment; the goldens above are the actual rendered pixels reviewed in
+place of it, which is a real but different form of verification than tapping through the share
+sheet on a booted device.
+
+---
+
 ## Progress
 
 | Slice | Status |
 |---|---|
-| E36-01 The share card becomes yours | wip |
+| E36-01 The share card becomes yours | done |

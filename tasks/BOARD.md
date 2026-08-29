@@ -135,6 +135,15 @@ that is a whole-baseline re-record that needs eyes on every diff, not a slice-si
 snapshot goldens crash `ImageRenderer` even serialized, and the visual simulator pass couldn't be
 performed without image input).
 
+`E36` closed 2026-08-28 — one slice. The card is now the sharer's account of the night on a
+personal-night render (own ear, own readability, what the room guessed for the caller's own card,
+tonight's Ear top 3) and falls back to `E30-01`'s group shape when the caller has nothing personal
+to report. The original layout sketch (filmstrip demoted-but-present, podium as one joined line)
+did not fit a fixed 1080×1350 canvas once measured by the slice's own new `theCardFits` test —
+see `E36-personal-share-card.md`'s closing notes for what actually shipped instead and why. No
+interactive simulator pass was available in this environment; the re-recorded, visually-reviewed
+goldens stand in its place (same rendering path, same pixels a device would produce).
+
 ---
 
 ## E00 — Repo, tooling, CI · [file](E00-repo-and-tooling.md)
@@ -529,7 +538,7 @@ here. No server work; every field is already on the wire.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E36-01 The share card becomes yours | wip | — | yes | AC-9 |
+| E36-01 The share card becomes yours | done | — | yes | AC-9 |
 
 ---
 
@@ -580,5 +589,5 @@ here. No server work; every field is already on the wire.
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
 | E35 cues | 6 / 6 |
-| E36 personal share card | 0 / 1 |
+| E36 personal share card | 1 / 1 |
 | **Next-progression total** | **14 / 16** |
