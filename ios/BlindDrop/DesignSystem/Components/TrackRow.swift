@@ -17,6 +17,10 @@ struct TrackRow: View {
     /// track with no `preview_url` gets (`docs/06` §7: no control, never a disabled one).
     var preview: Preview?
     var attribution: String?
+    /// Makes `attribution` its own tap target, opening that member's profile. `nil` (the
+    /// default) leaves the name as plain text — search results and the profile screen's own
+    /// track list never pass this.
+    var onAttributionTap: (() -> Void)?
     /// How the row is drawn. See `Style`.
     var style: Style = .plain
     /// Whether this is the row the caller has picked. Only meaningful on `.surface`.
@@ -39,6 +43,7 @@ struct TrackRow: View {
         track: TrackDTO,
         preview: Preview? = nil,
         attribution: String? = nil,
+        onAttributionTap: (() -> Void)? = nil,
         style: Style = .plain,
         isChosen: Bool = false,
         action: (() -> Void)? = nil
@@ -46,6 +51,7 @@ struct TrackRow: View {
         self.track = track
         self.preview = preview
         self.attribution = attribution
+        self.onAttributionTap = onAttributionTap
         self.style = style
         self.isChosen = isChosen
         self.action = action
@@ -100,6 +106,12 @@ struct TrackRow: View {
                             action: preview.toggle
                         )
                     }
+                    if let attribution, let onAttributionTap {
+                        Button(action: onAttributionTap) {
+                            Text(verbatim: attribution)
+                        }
+                        .accessibilityHint(Copy.string("insights.profile.hint"))
+                    }
                 }
         }
     }
@@ -129,9 +141,7 @@ struct TrackRow: View {
                     // The archive reads as two columns — what the song was, and who is
                     // answerable for it — and a name tucked under the artist joins the wrong one.
                     if let attribution {
-                        Text(verbatim: attribution)
-                            .typeStyle(.bodyM)
-                            .foregroundStyle(Palette.ink)
+                        attributionText(attribution)
                             .lineLimit(1)
                             .fixedSize()
                     }
@@ -184,12 +194,29 @@ struct TrackRow: View {
             // At the accessibility sizes the row has already stacked, so the name comes back
             // under the artist where there is room for it to wrap.
             if let attribution, dynamicTypeSize >= .accessibility1 {
-                Text(verbatim: attribution)
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.ink)
+                attributionText(attribution)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// `attribution`, plain text unless `onAttributionTap` makes it a tap target to that
+    /// member's profile. The accessibility exposure for the tappable case lives in `body`'s
+    /// `accessibilityChildren`, alongside the preview control — this view is what sighted users
+    /// see; VoiceOver reaches the same button through the row's explicit children instead,
+    /// since the row itself collapses to one element (`accessibilityElement(children: .ignore)`).
+    @ViewBuilder
+    private func attributionText(_ attribution: String) -> some View {
+        let text = Text(verbatim: attribution)
+            .typeStyle(.bodyM)
+            .foregroundStyle(Palette.ink)
+        if let onAttributionTap {
+            Button(action: onAttributionTap) { text }
+                .buttonStyle(.plain)
+                .accessibilityHidden(true)
+        } else {
+            text
+        }
     }
 
     /// The artwork grows with the text, capped so that at `.accessibility5` the thumbnail does

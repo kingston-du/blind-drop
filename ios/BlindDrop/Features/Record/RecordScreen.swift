@@ -12,6 +12,7 @@ struct RecordScreen: View {
     @State private var store: RecordStore?
     @State private var player = PreviewPlayer()
     @State private var resultsRoute: RecordResultsRoute?
+    @State private var selectedMember: MemberDTO?
 
     var body: some View {
         Group {
@@ -36,6 +37,7 @@ struct RecordScreen: View {
         .navigationDestination(item: $resultsRoute) { route in
             RecordResultsScreen(roundID: route.id, player: player)
         }
+        .navigationDestination(item: $selectedMember) { MemberProfileScreen(member: $0) }
     }
 
     @ViewBuilder
@@ -125,7 +127,10 @@ struct RecordScreen: View {
                 TrackRow(
                     track: entry.track,
                     preview: preview(for: entry.track),
-                    attribution: entry.displayName
+                    attribution: entry.displayName,
+                    onAttributionTap: {
+                        selectedMember = MemberDTO(userID: entry.userID, displayName: entry.displayName, role: nil)
+                    }
                 )
                 TrackUtilityMenu(track: entry.track) {
                     resultsRoute = RecordResultsRoute(id: day.roundID)
