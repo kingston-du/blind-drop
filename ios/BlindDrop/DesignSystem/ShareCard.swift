@@ -4,21 +4,19 @@ import SwiftUI
 ///
 /// > | Variant | Size | Scale |
 /// > |---|---|---|
-/// > | Square-tall | 1080 × 1350 (4:5) | 3× |
+/// > | Square-tall | 1080 × 1800 (3:5) | 3× |
 /// > | Story | 1080 × 1920 (9:16) | 3× |
 ///
 /// **`docs/10`'s numbers are in the artifact's own pixel space; a SwiftUI view is laid out in
 /// points.** With `ImageRenderer.scale = 3` those differ by exactly three, so the view is 360
-/// points wide and every geometric number the spec writes down — *"180pt filmstrip artwork"*,
-/// *"72pt margins"*, *"240pt of bottom safe space"* — is divided once, here, by `canvas(_:)`.
+/// points wide and every geometric number the spec writes down — *"84px table artwork"*,
+/// *"72px margins"*, *"72px of bottom safe space"* — is divided once, here, by `canvas(_:)`.
 /// Doing it anywhere else would mean a card designed at 1080 points and rendered at 3 240
 /// pixels: a 12MB PNG where `docs/10` §1 asks for about 800KB.
 ///
 /// Everything that is *type* rather than geometry comes from `TypeStyle` at a pinned `.large`,
-/// because the card is an image and an image has no Dynamic Type. `E30-01` left one literal-size
-/// exception here (the old standalone Best Ear rate); `E36-01` retired it along with the footer
-/// it lived on — the podium that replaced it sets its rate from the same `TypeStyle` as its rank
-/// and its name, so there is no literal size left on this card at all.
+/// because the card is an image and an image has no Dynamic Type. The numbered flight is the
+/// one exception: it preserves the original share table's oversized Bricolage numerals.
 enum ShareCard {
 
     /// `ImageRenderer.scale` (`docs/10` §1, §4). The one number that ties the two spaces
@@ -36,8 +34,9 @@ enum ShareCard {
     /// surface most likely to want a second shape back, and because deleting a spec'd artifact to
     /// tidy up an enum is a product decision rather than a cleanup.
     enum Variant: String, CaseIterable, Identifiable, Sendable {
-        /// 1080 × 1350, and the one the share sheet draws — iMessage is where this actually gets
-        /// pasted.
+        /// 1080 × 1800, and the one the share sheet draws — the extra height carries the music,
+        /// the caller's own results and the room tally without compressing any of them into a
+        /// sentence.
         case squareTall
         /// 1080 × 1920, for Stories. Rendered on demand; not offered by the UI.
         case story
@@ -47,7 +46,7 @@ enum ShareCard {
         /// The artifact's pixel size — what a golden's dimensions are asserted against.
         var pixelSize: CGSize {
             switch self {
-            case .squareTall: CGSize(width: 1080, height: 1350)
+            case .squareTall: CGSize(width: 1080, height: 1800)
             case .story: CGSize(width: 1080, height: 1920)
             }
         }
@@ -57,65 +56,61 @@ enum ShareCard {
             CGSize(width: canvas(pixelSize.width), height: canvas(pixelSize.height))
         }
 
-        /// *"Generous margins: 72pt square-tall, 96pt story"* (`docs/10` §3).
+        /// Both tall artifacts use the same 72px inset so their table columns stay aligned.
         var margin: CGFloat {
-            switch self {
-            case .squareTall: canvas(72)
-            case .story: canvas(96)
-            }
+            canvas(72)
         }
 
-        /// *"an extra 240pt of bottom safe space so the Instagram UI does not cover the
-        /// wordmark"* (`docs/10` §3). Zero on the square-tall, which nothing overlays.
+        /// Story keeps a 72px footer reserve for sharing chrome. Square-tall has no overlay.
         var bottomSafeSpace: CGFloat {
             switch self {
             case .squareTall: 0
-            case .story: canvas(240)
+            case .story: canvas(72)
+            }
+        }
+
+        /// The numbered music rows' oversized numeral. Kept larger than the body title beside it,
+        /// but set a step under the 96px the original table used — the flight now shares the
+        /// canvas with the personal stats and the room tally, and a fixed-height card pays for
+        /// every point of numeral (`theCardFits` measures the worst case).
+        var numberSize: CGFloat {
+            switch self {
+            case .squareTall: canvas(84)
+            case .story: canvas(84)
             }
         }
     }
 
-    /// *"Bigger, bolder album-art treatment is fine"* (`E30-01`, `docs/17` §4). Roughly twice
-    /// the pre-redesign 96px thumbnail — the largest that still lets four of them sit in one
-    /// row inside the **story** variant's narrower content width, which is the binding
-    /// constraint (`docs/10` §3's margins are more generous there, but the canvas itself is the
-    /// same 1080px wide as square-tall). Drawn only on the no-personal-night fallback card
-    /// (`E36-01`) — a fixed-height canvas has no room for full artwork *and* the personal bands
-    /// at once (`ShareCardFitTests`), so a member with a night of their own gets the room tally
-    /// and the podium instead, and a member with nothing personal to show gets this back.
-    static let artwork = canvas(180)
+    /// Artwork inside one music-table row. It stays unmodified and large enough to read without
+    /// competing with the row number or title.
+    static let artwork = canvas(84)
 
-    /// *"up to 4 flight rows"* (`docs/10` §2), taken **by `card_no`** and never re-sorted. The
-    /// redesign keeps the count and drops everything each row used to say — the filmstrip is
-    /// four pictures, not four sentences.
+    /// *"up to 4 flight rows"* (`docs/10` §2), taken **by `card_no`** and never re-sorted.
     static let maximumRows = 4
 
-    /// The room tally's own overflow rule (`E36-01`, `docs/10` §2): at most this many distinct
-    /// names before the line folds the rest into "+N more", the same shape `maximumRows`/
-    /// `share.overflow` already gives the filmstrip. A circle can hold up to seven other
-    /// guessers, and a one-line tally of seven names is exactly the kind of run that pushes the
-    /// wordmark off a fixed-height card if nothing caps it.
-    static let maximumRoomTallyNames = 4
+    /// The room tally is a surfaced table rather than one wrapped sentence. Three full rows are
+    /// more useful than four cramped ones; additional distinct guesses keep the explicit
+    /// `+ N more` overflow treatment.
+    static let maximumRoomTallyNames = 3
 
-    /// The share card's own display cap on tonight's Ear top 3 (`E36-01`, `docs/10` §2) —
-    /// **not** the same thing as the server's own "never split a tie" rule. `TonightEarDTO`'s
-    /// own contract already keeps a boundary tie together (`ResultsDTO.tonightTopEar`'s doc
-    /// comment); this cap is what a *fixed-height artifact* does with a list that ties can make
-    /// longer than the card can hold — the same trade the filmstrip already makes (first four
-    /// by `card_no`, `share.overflow` naming the rest) rather than growing the card. A wide tie
-    /// past this cap loses rows to the overflow caption, not to a rule violation.
-    static let maximumPodiumRows = 3
+    /// The most width an owner name may take before the song title starts yielding.
+    static let ownerColumn = canvas(240)
 
-    /// The gap between the card's blocks, and between two frames inside the filmstrip. Both are
-    /// the app's own rhythm scaled into the card's space, so the artifact looks like the app.
-    static let blockGap = canvas(48)
+    /// The gap between the card's blocks and between columns inside a row. Both are the app's
+    /// own rhythm scaled into the card's space, so the artifact looks like the app.
+    static let blockGap = canvas(18)
     static let rowGap = canvas(36)
 
-    /// The gap between vertically stacked bands **below** the hero headline (`E36-01`) — one
-    /// step tighter than `rowGap`, which stays in use for `rowGap`'s other, horizontal jobs
-    /// (the header's two ends, the gap between filmstrip tiles). The podium sits on every card
-    /// now, where only the group fallback used to carry a footer this small; `blockGap`'s
-    /// original generosity and `rowGap`'s own value both measured out too tall once there were
-    /// five and six bands to fit rather than four (`ShareCardFitTests` is where this was found).
-    static let stackGap = canvas(24)
+    /// Tight vertical padding inside repeated table rows. The surfaced container provides the
+    /// larger block boundary; rows only need enough air to remain individually scannable.
+    static let rowPadding = canvas(3)
+    static let tallyRowPadding = canvas(9)
+
+    /// The gap between the compact personal bands below the headline.
+    static let stackGap = canvas(12)
+
+    /// The room tally's count numeral — one step under `TypeStyle.numberM`'s 26pt. The name
+    /// beside it is the row's important part; the count only needs to read clearly, not to
+    /// compete with it or with the personal stats' own numberM figures above.
+    static let tallyCountSize = canvas(72)
 }

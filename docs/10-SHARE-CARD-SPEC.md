@@ -15,7 +15,7 @@ the device.
 
 | Variant | Size | Scale | Target |
 |---|---|---|---|
-| **Square-tall** | 1080 × 1350 (4:5) | 3× | iMessage, group chats, camera roll |
+| **Square-tall** | 1080 × 1800 (3:5) | 3× | iMessage, group chats, camera roll |
 | **Story** | 1080 × 1920 (9:16) | 3× | Instagram / Snapchat Stories |
 
 Both are produced from one `ShareCardView` with a `variant` parameter, so a copy change lands
@@ -31,64 +31,41 @@ artwork.
 
 ## 2. Content
 
-`E30-01` redesigned this from a compact data table to one hero-scale moment: the headline
-sentence, set at the display face's largest size, with everything else built as quieter support
-underneath it. `E36-01` then made the card the **sharer's account of the night** rather than a
-purely group artifact — their own ear and readability, what the room guessed for their own card,
-and tonight's Ear top 3 — replacing this section's old "no scores for anyone but the headline"
-rule with the closed list below (owner amendment, `tasks/E36-personal-share-card.md`). Nothing from `E30-01`'s hierarchy changed: the headline is still
-the hero, the filmstrip is still texture, nothing is ever laid over artwork.
-
-**The card has two shapes, chosen by whether the caller has a night of their own to report** —
-`ShareHeadline.ownCard(in:)` finds it, or doesn't:
+The card returns to the original numbered song table, then uses the added height for the
+sharer's own results. It is one coherent artifact rather than a hero sentence with small facts
+around it: the flight establishes the night, the one-line headline summarizes it, and the two
+meters plus room table make the sharer's result legible at a glance.
 
 ```
-  ┌────────────────────────────────────┐   Personal — the caller submitted a card
+  ┌────────────────────────────────────┐
   │                                    │
-  │  THE COVE            10 AUGUST     │   masthead: displayS + label
+  │  The Cove             10 AUGUST    │   masthead
+  │  Tonight's drop                    │
   │                                    │
-  │  YOUR NIGHT                        │   label, inkDim, letterspaced — the kicker
-  │  Nobody got                        │   displayXL, ink — the card's hero
-  │  you                               │
+  │  01  ▓▓  Redbone             Dee   │   surfaced, numbered song table
+  │  02  ▓▓  Ribs                Ben   │   first four cards by card_no
+  │  03  ▓▓  Bags                Hal   │
+  │  04  ▓▓  Ribs                Ana   │
+  │  + 4 more                         │
   │                                    │
-  │  EAR 71%      READ 4 of 7 Legible  │   one row: your two numbers
+  │  You read the whole room           │   displayS, exactly one line
   │                                    │
-  │  THE ROOM THOUGHT YOU WERE         │   label, inkDim
-  │  Cal ×3 · Maya ×2 · Kingston ×2    │   a tally, caller's own name in ultramarine
+  │  YOUR EAR        READABILITY        │
+  │  100%            25%  1 of 4 · ... │
+  │  ━━━━━━━━━━      ━━━━━┃━━━━         │   native Results/Insights meters
   │                                    │
-  │  TONIGHT'S EAR                     │   label, inkDim
-  │  1  Cal      100%                  │   up to 3 compact rows, ties never split within them
-  │  2  Ana       71%                  │
-  │  3  Fay       57%                  │
+  │  THE ROOM THOUGHT YOU WERE         │
+  │  Kingston                       3  │   surfaced tally table
+  │  Leo                            2  │   correct row in ultramarine
+  │  Mira                           1  │
   │                                    │
   │  Blind Drop                        │   label, inkDim, bottom-left
   └────────────────────────────────────┘
-
-  ┌────────────────────────────────────┐   Fallback — no card of the caller's own
-  │                                    │
-  │  THE COVE            10 AUGUST     │
-  │                                    │
-  │  TONIGHT'S DROP                    │   the old kicker (`reveal.title`), unchanged
-  │  Cal read the                      │
-  │  whole room                        │
-  │                                    │
-  │  TONIGHT'S EAR                     │   the podium replaces the old standalone
-  │  1  Cal      100%                  │   Best Ear footer — that line was always
-  │  2  Ana       71%                  │   rank 1 of this same ranking, said twice
-  │  3  Fay       57%                  │
-  │                                    │
-  │  ▓▓▓▓  ▓▓▓▓  ▓▓▓▓  ▓▓▓▓            │   the filmstrip, full `E30-01` size —
-  │  + 4 more                          │   drawn only on this fallback card
-  │                                    │
-  │  Blind Drop                        │
-  └────────────────────────────────────┘
 ```
 
-Both shapes come from the same `ShareCardView`; `content.hasPersonalNight` picks the branch.
-A fixed 1080×1350 canvas does not have room for the filmstrip **and** the personal bands at
-once — measured by `ShareCardFitTests`, not assumed — so the filmstrip is the thing that gives:
-present at full size on the fallback, entirely absent once the personal bands have something to
-show instead.
+Both artifacts come from the same `ShareCardView`. A non-submitter keeps the masthead, song
+table, group headline and wordmark; the personal meters and room tally are omitted rather than
+replaced by unavailable values.
 
 ### The headline stat
 
@@ -118,17 +95,19 @@ true for them.
 
 ### What is on the card
 
-**Always:** group name · date · the headline, as the card's one hero element · tonight's Ear top
-3, ties sharing a rank up to `ShareCard.maximumPodiumRows` · the wordmark.
+**Always:** group name · date · "Tonight's drop" · the first four numbered song rows · overflow
+count · one-line headline · wordmark.
 
-**On a personal night** (`content.hasPersonalNight`): a "Your night" kicker in place of "Tonight's
-drop" · the caller's own ear (a percentage) and readability (a fraction and a band word, never a
-rank) · a tally of who the room guessed for the caller's own card, the caller's own name in
-ultramarine and everybody else in `ink` — the one legend this card needs, `docs/16` §5's
-green/red ban being why there's no other way to say it.
+**On a personal night** (`content.hasPersonalNight`): the caller's own ear as a percentage and
+left-fill proportion bar · readability as a percentage, fraction, band and neutral spectrum
+marker (never a rank) — each on its own `surface` panel, the same card treatment the results
+screen's two `StatTile`s wear · a surfaced tally table of who the room guessed for the caller's
+own card. The correct identity is ultramarine and every other row is `ink`.
 
-**On the fallback** (no personal night): up to 4 pieces of bare artwork (no title, no owner, no
-number) and an overflow count, in place of the personal bands.
+The readability detail prefers `N of M · Band`. If that entire phrase cannot fit beside the
+percentage, it falls back to the full band word; it never truncates the meaning into an ellipsis.
+
+**On the fallback** (no personal night): omit the personal meters and tally.
 
 ### What is not
 
@@ -142,25 +121,11 @@ readability is untouched; the caller's own readability is on the card because it
 all-time number for anybody**, the caller included — the card is about one night. The name at the
 bottom is the whole marketing.
 
-**Also gone as of `E30-01`, on purpose, and still true:** song titles, owner names, and the row
-number that used to sit beside each piece of artwork, on the fallback card's filmstrip. Anyone who
-wants the per-song detail already has the full Results screen; this artifact's job is to make
-somebody want to open it.
-
 ### Artwork shown
 
-The first 4 cards by `card_no`, not by any interest ranking, on the fallback card. Numbering is
-the game's spine, which is exactly why the filmstrip keeps the order even though it no longer
-prints the numeral — resorting it for the share card would misrepresent the night.
-
-### Tonight's Ear top 3
-
-The same round-scoped ranking `TonightTopEarView` already renders in-app (`E29-01`), capped to
-`ShareCard.maximumPodiumRows` for this fixed-height artifact — **not** the same thing as the
-server's own "never split a tie" rule, which governs how `ResultsDTO.tonightTopEar` is computed,
-not how much of it a given surface chooses to draw. A tie wide enough to push past the cap loses
-its overflow rows to a `share.overflow` caption, the same trade the filmstrip already makes with
-its own four-row cap. There is no readability counterpart, here or anywhere (`docs/02` §4.5).
+The first 4 cards by `card_no`, not by any interest ranking. Each row contains its zero-padded
+number, unmodified artwork, song title and owner. Nothing is laid over the artwork. Resorting the
+rows would misrepresent the night because numbering is the game's spine.
 
 ---
 
@@ -169,41 +134,28 @@ its own four-row cap. There is no readability counterpart, here or anywhere (`do
 Identical tokens to the app (`07-DESIGN-SYSTEM.md`) — the card must look like it came from
 the app, because that is the entire distribution mechanism.
 
-- Background `paper` throughout. No card surface, no hairlines — `E30-01` retired the table's
-  `surface` + `edge` frame along with the table itself; the filmstrip is artwork directly on
-  `paper`.
+- Background `paper`. The flight, the two personal scores and the room tally are `surface`
+  panels with an `edge` border; the flight and the tally add hairline row separators. No shadows.
 - Accent **ultramarine** only. The share card is a post-results artifact; nothing on it is
   sealed. **Amber must not appear.**
-- The headline is set in `TypeStyle.displayXL` (56pt), the largest step the display face has —
-  a token, not a literal, and the first place on this card that size has ever been used. It
-  shrinks (`minimumScaleFactor`, never truncates) on its longest possible sentence, for the same
-  reason everything fixed-size on this card shrinks rather than clips: the artifact is a fixed
-  rectangle, and a line that doesn't fit doesn't grow the card, it pushes the wordmark off it.
-- Every number below the headline is a `TypeStyle` token, not a literal — `E36-01` retired the
-  card's one literal-size exception (the old standalone Best Ear rate) along with the footer it
-  lived on; the podium's own rate is `bodyS`, the same as its rank and its name.
-- Filmstrip artwork at 180pt, `Radius.artwork`, unmodified — no scrim, no gradient, no rounding
-  beyond the token — on the no-personal-night fallback card, the only one that still draws it.
-  Bigger than the pre-`E30-01` 96pt thumbnail, which was the "bigger, bolder album art" half of
-  that redesign's brief; sized to the **story** variant's narrower content width, the binding
-  constraint for fitting four across in either shape.
-- Generous margins: 72pt square-tall, 96pt story with an extra 240pt of bottom safe space so
-  the Instagram UI does not cover the wordmark. Below the hero headline, the gap between
-  vertically stacked bands (`ShareCard.stackGap`, 8pt) is one step tighter than the gap
-  everywhere else on the card (`ShareCard.rowGap`, 12pt) — the room `E36-01`'s extra bands
-  needed, found and measured by `ShareCardFitTests` rather than assumed.
-- Nothing is ever laid over artwork — no caption, no number, no gradient. The filmstrip's
-  overflow count sits in its own line below the pictures, never on them.
+- The headline is `TypeStyle.displayS`, kept on one line with a measured scale floor. It stays
+  larger than the surrounding body copy without overwhelming the music table.
+- Percentages and tally counts use the app's Bricolage `numberM`; tally names use
+  `bodyLStrong`. The flight numbers keep the oversized Bricolage treatment, one step under the
+  original 96px so the flight shares the canvas with the personal bands and the tally without
+  cropping (`theCardFits` measures the worst case).
+- Artwork is 84px, `Radius.artwork`, unmodified — no scrim, gradient or overlay.
+- Both variants use 72px margins. Story reserves an extra 72px at the bottom for sharing chrome.
+- Ear uses `ProportionTrack`; readability uses `StatMeter` with one solid gray track and its
+  blue position marker. The distinct meter semantics remain: readability is not a better/worse
+  fill.
 - The one legend the card allows: in the room's tally, the caller's own name is set in
   `Palette.ultramarine`, every other name in `ink`. No tick, no cross, no colour pair — `docs/16`
   §5 bans green/red for correct/incorrect, and the accent already means "revealed" everywhere
   else on this card.
 
 ### Story variant differences
-Same content, more vertical air — the canvas is taller and the `Spacer`s between blocks absorb
-the difference, so nothing about the layout branches by shape beyond the margins, the bottom
-safe space and the Best Ear rate's literal size (all three already covered above). Nothing is
-added.
+Same content and columns. Story has a 72px bottom reserve; nothing is added.
 
 ---
 
@@ -250,13 +202,13 @@ ear and readability, from a private group. Consequences for the implementation:
 
 | Check | How |
 |---|---|
-| AC-9: renders at both dimensions | Snapshot tests at 1080×1350 and 1080×1920 against golden PNGs |
+| AC-9: renders at both dimensions | Snapshot tests at 1080×1800 and 1080×1920 against golden PNGs |
 | Display face present | Snapshot test asserts the numeral glyph is not SF Pro |
 | Artwork loaded | Unit test: renderer awaits all image loads before producing output |
 | Headline precedence | Unit test over every rule in §2 — the four personal rules and the five group rules, plus precedence-order and non-submitter-falls-through cases |
-| Longest name, in the headline and the podium at once | Snapshot with a 24-character display name (`DisplayName.maximumLength`) as both the headline subject and tonight's Ear leader |
-| The no-personal-night fallback | Snapshot with no own card and both rates `nil` — the `E30-01` shape, unchanged |
-| The room tally and the podium at their own worst case | Snapshot with six distinct guessed names (two of them `DisplayName.maximumLength`, forcing the tally's own overflow) and a six-way podium tie (two more long names, forcing the podium's) |
+| Longest name plus 100% | Snapshot with a 24-character display name (`DisplayName.maximumLength`) in the one-line headline and a visible 100% Ear value |
+| The no-personal-night fallback | Snapshot with no own card and both rates `nil` — flight and headline remain; personal bands disappear |
+| The room tally at its worst case | Snapshot with six distinct guessed names, two of them `DisplayName.maximumLength`, forcing the tally overflow |
 | **The card fits.** `ImageRenderer` does not clip a view that overflows its frame — it draws past the canvas and the pixels are gone — so this is measured, not assumed: `ShareCardStack`'s natural height, rendered without the fixed outer frame, must be no taller than the frame `ShareCardView` actually gives it, for every fixture above at both variants | `ShareCardSnapshots.theCardFits` |
 | Temp file cleanup | Unit test: file absent after share-sheet completion handler |
 | The sheet fits its detent | Snapshot test measures the rendered sheet on an SE against `Layout.shareSheetHeight` |

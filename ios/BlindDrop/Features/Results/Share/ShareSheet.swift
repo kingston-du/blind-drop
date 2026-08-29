@@ -119,7 +119,7 @@ struct ShareSheet: View {
         return ShareCardView(content: content, variant: variant)
             .scaleEffect(scale, anchor: .topLeading)
             // The scaled card still *reports* its full size, so the frame after it is what makes
-            // a 360 × 450 card occupy 184 × 230.
+            // a 360 × 600 card occupy 184 × 307.
             .frame(
                 width: Layout.sharePreviewWidth,
                 height: variant.size.height * scale,

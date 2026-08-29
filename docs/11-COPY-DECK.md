@@ -369,20 +369,20 @@ sharer's own night wherever it truthfully can (`docs/10` §2's rewritten precede
 | `share.headline.perfect` | %@ read the whole room |
 | `share.headline.unreadable` | %@ was unreadable |
 | `share.headline.fallback` | %lld songs, %lld guesses |
-| `share.overflow` | + %lld more | the cards whose artwork did not fit in the filmstrip (`docs/10` §2) |
-| `share.kicker` | Your night | the kicker above the headline on a personal night; `reveal.title` ("Tonight's drop") is reused for the group fallback |
-| `share.ear.label` | Ear | |
-| `share.read.label` | Read | |
+| `share.overflow` | + %lld more | additional song rows or guessed identities beyond the artifact's cap (`docs/10` §2) |
+| `share.kicker` | Your night | retained for compatibility; the redesigned card uses `reveal.title` ("Tonight's drop") for every night |
+| `share.ear.label` | Your ear | heading above the percentage and proportion bar |
+| `share.read.label` | Readability | heading above the percentage and neutral spectrum |
 | `share.read.fraction` | %lld of %lld | e.g. "4 of 7", paired with the band word from `band.*` |
 | `share.room.title` | The room thought you were | the tally of names guessed on the caller's own card |
-| `share.room.tally.multiple` | %@ ×%lld | one tally row, two or more guesses |
-| `share.room.tally.single` | %@ | one tally row, exactly one guess — no "×1" |
-| `share.tonight.title` | Tonight's ear | the top-3 podium; also carries what `share.bestear.label` used to say alone |
-| `share.tonight.row` | %lld %@ %@ | rank, name, rate — e.g. "1 Cal 100%" |
+| `share.room.tally.multiple` | %@ ×%lld | retained for older text presentations; the card table places the count in its own column |
+| `share.room.tally.single` | %@ | retained for older text presentations |
+| `share.tonight.title` | Tonight's ear | retained for the in-app results ranking; not drawn on the share card |
+| `share.tonight.row` | %lld %@ %@ | retained for the in-app results ranking |
 | `share.wordmark` | Blind Drop |
 
-`share.bestear.label` ("Best ear") is retired by `E36-01` — the standalone Best Ear line is now
-rank 1 of the `share.tonight.title` podium, not a second line saying the same thing.
+`share.bestear.label` ("Best ear") is retired on the share card. The personal artifact names
+the caller's metric `share.ear.label` ("Your ear") instead.
 
 `share.wordmark` is *"the name at the bottom is the whole marketing"* (`docs/10` §2). It is its
 own row rather than a reuse of `onboarding.title` because the two are different jobs: one is a

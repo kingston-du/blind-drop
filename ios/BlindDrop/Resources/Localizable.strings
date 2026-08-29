@@ -402,8 +402,8 @@
 "share.headline.fallback" = "%lld songs, %lld guesses";
 "share.overflow" = "+ %lld more";
 "share.kicker" = "Your night";
-"share.ear.label" = "Ear";
-"share.read.label" = "Read";
+"share.ear.label" = "Your ear";
+"share.read.label" = "Readability";
 "share.read.fraction" = "%lld of %lld";
 "share.room.title" = "The room thought you were";
 "share.room.tally.multiple" = "%@ ×%lld";

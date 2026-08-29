@@ -139,21 +139,21 @@ enum Layout {
     /// somebody compare two shapes at a glance. There is no picker any more (`ShareSheet`), so that
     /// reason is gone and the constraint with it: one preview only has to fit once, and the point
     /// of it is no longer comparison but recognition — *this is the thing you are about to send*.
-    /// 184 is a little over half the SE's content width, which is large enough to read the group
-    /// name and the flight rows on and still leaves the sheet shorter than its detent.
+    /// 184 is a little over half the SE's content width, which is large enough to recognise the
+    /// taller card and still leaves the sheet shorter than its detent.
     static let sharePreviewWidth: CGFloat = Space.x6 * 2 + Space.x4
 
     /// The share sheet's own detent (`docs/10` §4).
     ///
     /// A fixed height rather than `.medium`, because `.medium` is half of whatever screen it is
-    /// shown on and this sheet is the same size on every screen: a 184-point preview, one caption
+    /// shown on and this sheet is the same size on every screen: a 307-point preview, one caption
     /// line and one button, all of them fixed. Half of an SE is 333 points, which the preview no
     /// longer fits; half of a 15 Pro Max is 466, which is two hundred points of nothing under the
-    /// button. The number is the content, added up: `screenInset` 24, preview 230, `Space.sm` 8,
-    /// a 18-point caption line, `blockGap` 32, `buttonHeight` 56, `screenInset` 24 — 392, with the
+    /// button. The number is the content, added up: `screenInset` 24, preview 307, `Space.sm` 8,
+    /// an 18-point caption line, `blockGap` 32, `buttonHeight` 56, `screenInset` 24 — 469, with the
     /// remainder as slack. `ShareCardSnapshots.theSheetFitsItsDetent` measures the real render
     /// against this, so the arithmetic cannot quietly stop being true.
-    static let shareSheetHeight: CGFloat = 400
+    static let shareSheetHeight: CGFloat = 480
 
     /// The reveal call sheet's collapsed status row (`docs/08` §6).
     ///

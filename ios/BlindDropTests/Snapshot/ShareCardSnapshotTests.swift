@@ -5,7 +5,7 @@ import UIKit
 
 private let variants = ShareCard.Variant.allCases
 
-/// **AC-9** (`docs/15`, `docs/10` §6): the share card renders at exactly 1080 × 1350 and
+/// **AC-9** (`docs/15`, `docs/10` §6): the share card renders at exactly 1080 × 1800 and
 /// 1080 × 1920, at scale 3, in the display face, with the artwork actually loaded.
 ///
 /// This is the app's distribution mechanism (`docs/00` §5), so the goldens here are not a
@@ -33,11 +33,10 @@ private let variants = ShareCard.Variant.allCases
         verify(ShareCardFixture.render(variant: variant), named: "Share-\(variant.rawValue)")
     }
 
-    /// **The boundary the rate was never given a ceiling for.** The longest name the product
-    /// allows (`DisplayName.maximumLength`) as the night's headline subject and tonight's Ear
-    /// leader at once — the same shape `E26-01`'s report described: `ImageRenderer` does not
-    /// clip past the card's fixed edge, it draws past the canvas, so a squeezed line does not
-    /// look wrong, it just loses pixels nobody sees missing.
+    /// The longest name the product allows (`DisplayName.maximumLength`) in the one-line
+    /// headline, beside a literal 100% Ear result. The percentage is deliberately rendered,
+    /// not inferred from an off-card ranking: this golden catches the exact clipping boundary
+    /// that originally cut the final zero off the share image.
     @Test(arguments: variants)
     func theLongestNameAndAHundredPercentTogether(_ variant: ShareCard.Variant) {
         verify(
@@ -46,9 +45,8 @@ private let variants = ShareCard.Variant.allCases
         )
     }
 
-    /// **The no-personal-night fallback** (`E36-01`): a member with no card of their own gets
-    /// the `E30-01` card back — group headline, full-size filmstrip, no empty personal bands, no
-    /// dash where a number used to be.
+    /// **The no-personal-night fallback**: the numbered flight and group headline remain, while
+    /// the two personal meters and empty room table disappear instead of showing dashes.
     @Test(arguments: variants)
     func theNonSubmitterFallback(_ variant: ShareCard.Variant) {
         verify(
@@ -57,12 +55,9 @@ private let variants = ShareCard.Variant.allCases
         )
     }
 
-    /// **The personal bands' own worst case** (`E36-01`): six distinct names in the room's
-    /// tally (two of them `DisplayName.maximumLength`, forcing the +2 overflow), and a six-way
-    /// podium with a four-deep tie at the boundary (two more long names, forcing its own
-    /// overflow). The headline is deliberately short here (`me.readability` sits in the
-    /// `unreadable` band, rule 4) so this golden isolates the two new list bands from the
-    /// headline worst case `theLongestNameAndAHundredPercentTogether` already covers.
+    /// **The personal bands' own worst case**: six distinct names in the room's tally, two of
+    /// them `DisplayName.maximumLength`, forcing the explicit overflow line. The headline is
+    /// deliberately short so this golden isolates the metrics and room table.
     @Test(arguments: variants)
     func thePersonalBandsAtTheirWorstCase(_ variant: ShareCard.Variant) {
         verify(
@@ -97,8 +92,7 @@ private let variants = ShareCard.Variant.allCases
     /// same card, one forced onto the system face, must not produce the same pixels.
     ///
     /// The size is an arbitrary constant of this test's own — `E36-01` retired the card's last
-    /// literal-size number (`ShareCard.Variant.numberSize`, the old standalone Best Ear rate),
-    /// so this check no longer borrows a card literal; it only needs *a* display-face size.
+    /// numeral size from the card; it only needs *a* display-face size.
     @Test func theNumeralsAreNotTheSystemFace() throws {
         let testSize: CGFloat = 96
         let bricolage = ShareCardFixture.number(font: Typography.fixed(.display, size: testSize))
@@ -155,14 +149,15 @@ private let variants = ShareCard.Variant.allCases
     /// width, and that height has to be no taller than the frame actually gives it.
     ///
     /// Every fixture below is a worst case this card can reach: the longest name the product
-    /// allows, in every slot at once where that is realistic; a boundary tie wide enough to
-    /// need `ShareCard.maximumPodiumRows`'s own overflow; a room tally past
-    /// `ShareCard.maximumRoomTallyNames`; the fallback with none of the new bands at all.
+    /// allows, a full 100% rate, a room tally past `ShareCard.maximumRoomTallyNames`, and the
+    /// fallback with none of the personal bands at all.
     @Test(arguments: variants, ShareCardFixture.fitMatrix)
     func theCardFits(_ variant: ShareCard.Variant, _ content: ShareCardContent) throws {
         let available = variant.size.height - 2 * variant.margin - variant.bottomSafeSpace
         let measured = try ShareCardFixture.measuredHeight(
-            of: content, contentWidth: variant.size.width - 2 * variant.margin
+            of: content,
+            variant: variant,
+            contentWidth: variant.size.width - 2 * variant.margin
         )
         #expect(measured <= available,
                 "\(variant.rawValue) content is \(measured)pt tall against \(available)pt available")
@@ -244,11 +239,8 @@ enum ShareCardFixture {
         date: "10 August"
     )
 
-    /// `docs/10` §3's rate pair at both its extremes at once: `DisplayName.maximumLength`
-    /// beside 100%. Cal is already tonight's Ear leader in the base fixture (`ear: 1.0` in
-    /// `results.json`, rank 1 of `tonight_top_ear`) — only the name changes, in both places
-    /// that name Cal, so the golden is a picture of the exact boundary the layout has to hold
-    /// (the headline **and** the podium), not a rate fabricated for the test.
+    /// `docs/10` §3's width extremes at once: `DisplayName.maximumLength` in the headline and a
+    /// caller Ear value of exactly 100%. Both are visible on the artifact.
     static let longestName: ShareCardContent = {
         let name = String("Bartholomew Winterborneiii".prefix(DisplayName.maximumLength))
         #expect(name.count == DisplayName.maximumLength)
@@ -256,7 +248,9 @@ enum ShareCardFixture {
 
         var json = payload("results")
         json["people"] = rename(json["people"], id: calID, to: name, idKey: "user_id")
-        json["tonight_top_ear"] = rename(json["tonight_top_ear"], id: calID, to: name, idKey: "user_id")
+        var me = json["me"] as? [String: Any] ?? [:]
+        me["ear"] = 1.0
+        json["me"] = me
 
         return content(from: json)
     }()
@@ -280,13 +274,10 @@ enum ShareCardFixture {
         return content(from: json)
     }()
 
-    /// **The room tally and the podium at their own worst case** (`E36-01`). Built rather than
-    /// edited from the base night, because both lists need shapes `results.json` doesn't have:
-    /// six distinct names guessed on the caller's own card (past `maximumRoomTallyNames`, two of
-    /// them the longest the product allows) and a six-way podium with a four-deep tie at the
-    /// boundary (past `maximumPodiumRows`, two more long names). `me.readability` sits in the
-    /// `unreadable` band on purpose — rule 4 gives this fixture a short headline, so the golden
-    /// is a picture of these two bands' own limits, not the headline's.
+    /// **The room tally at its own worst case**. Six distinct names are guessed on the caller's
+    /// card (past `maximumRoomTallyNames`), two of them the longest the product allows.
+    /// `me.readability` sits in the `unreadable` band on purpose so the golden isolates the
+    /// table and metrics rather than repeating the headline stress case.
     static let personalStress: ShareCardContent = {
         let longA = String("Bartholomew Winterborneiii".prefix(DisplayName.maximumLength))
         let longB = String("Persephone Castellanosii".prefix(DisplayName.maximumLength))
@@ -319,14 +310,6 @@ enum ShareCardFixture {
             "readability": 0.14, "readability_correct": 1, "readability_possible": 7,
             "ear": 0.5, "ear_correct": 2, "ear_possible": 4,
         ]
-        json["tonight_top_ear"] = [
-            ["rank": 1, "user_id": "t-1", "display_name": longA, "ear": 1.0],
-            ["rank": 2, "user_id": ownerID, "display_name": "Ana", "ear": 0.71],
-            ["rank": 3, "user_id": "t-3a", "display_name": longB, "ear": 0.57],
-            ["rank": 3, "user_id": "t-3b", "display_name": "Cal", "ear": 0.57],
-            ["rank": 3, "user_id": "t-3c", "display_name": "Hal", "ear": 0.57],
-            ["rank": 3, "user_id": "t-3d", "display_name": "Fay", "ear": 0.57],
-        ]
         return content(from: json)
     }()
 
@@ -341,8 +324,12 @@ enum ShareCardFixture {
     /// `height: nil`) so it reports what the content actually needs, not what a canvas would
     /// crop it to.
     @MainActor
-    static func measuredHeight(of content: ShareCardContent, contentWidth: CGFloat) throws -> CGFloat {
-        let stack = ShareCardStack(content: content, variant: .squareTall)
+    static func measuredHeight(
+        of content: ShareCardContent,
+        variant: ShareCard.Variant,
+        contentWidth: CGFloat
+    ) throws -> CGFloat {
+        let stack = ShareCardStack(content: content, variant: variant)
             .frame(width: contentWidth, alignment: .topLeading)
             .environment(\.artworkLoader, StubArtworkLoader.shared)
             .environment(\.displayScale, ShareCard.scale)

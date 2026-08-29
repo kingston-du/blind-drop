@@ -36,6 +36,10 @@ struct StatMeter: View {
     /// unlabelled bar is a rank, and this is not one.
     var showsEnds = false
 
+    /// Share artifacts use one flat neutral so the meter survives image compression without
+    /// reading as a progress fill. Results and Insights keep the spectrum's subtle gradient.
+    var usesSolidTrack = false
+
     private var position: Double { min(1, max(0, value)) }
 
     private let trackHeight: CGFloat = 10
@@ -65,24 +69,27 @@ struct StatMeter: View {
         .accessibilityHidden(true)
     }
 
-    /// A shallow gradient rather than a flat fill: the left end is where the marker means
-    /// *nobody recognised you* and the right end where it means *everybody did*, and the
-    /// gradient is the only thing on the bar that says the two ends are different places. It
-    /// runs between two neutrals, so it never reads as good-to-bad.
+    /// The in-app spectrum uses two neutrals to distinguish its ends. A share artifact can ask
+    /// for one solid neutral instead; neither treatment fills from the left or implies rank.
     private var track: some View {
         GeometryReader { proxy in
             let usable = max(0, proxy.size.width - markerWidth)
             ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [Palette.track, Palette.edgeStrong],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                Group {
+                    if usesSolidTrack {
+                        Capsule().fill(Palette.edgeStrong)
+                    } else {
+                        Capsule().fill(
+                            LinearGradient(
+                                colors: [Palette.track, Palette.edgeStrong],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .frame(height: trackHeight)
-                    .frame(maxHeight: .infinity, alignment: .center)
+                    }
+                }
+                .frame(height: trackHeight)
+                .frame(maxHeight: .infinity, alignment: .center)
                 Capsule()
                     .fill(Palette.ultramarine)
                     .frame(width: markerWidth, height: markerHeight)
