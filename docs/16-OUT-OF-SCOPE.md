@@ -101,3 +101,12 @@ request — it is a break, and it needs the owner:
 - Ranking readability
 - Green/red for correct/incorrect
 - Anything layered on top of album artwork
+- Naming a guesser anywhere the guess wasn't already theirs to see — the share card's room
+  tally names who was *guessed*, never who *guessed* (`E36-01`)
+
+> **Owner amendment (2026-08-28), `E36-01`.** `docs/10-SHARE-CARD-SPEC.md` §2 used to read *"no
+> scores for anyone but the headline"* — the share card was a purely group artifact. That line
+> is amended, not deleted: the card may now also carry the caller's own ear and readability and
+> a tally of what the room guessed for the caller's own card, on the closed terms `docs/10` §2
+> spells out. Everything else on this section's list is untouched by that amendment — ranking
+> readability and naming a guesser are still bans, not relaxed by "it's the caller's own card."

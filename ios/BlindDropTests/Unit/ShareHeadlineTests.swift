@@ -10,7 +10,112 @@ import Testing
 @MainActor
 @Suite struct ShareHeadlineTests {
 
-    // MARK: - The five rules
+    // MARK: - The four personal rules (E36-01)
+
+    /// **1 — the caller's own card, and nobody got it.** Beats every group rule, including a
+    /// card nobody else got either — the sharer's own night comes first.
+    @Test func nobodyGotYouWinsFirst() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 0), (4, 0)],
+            people: [("Cal", readability: 0.4, ear: 1.0)],
+            ownCard: 4
+        )
+        #expect(ShareHeadline.line(for: night) == "Nobody got you")
+    }
+
+    /// **2 — the caller's own card, and everybody got it.**
+    @Test func everybodyGotYouIsSecond() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 3), (4, 7)],
+            people: [("Cal", readability: 0.4, ear: 0.6)],
+            ownCard: 4
+        )
+        #expect(ShareHeadline.line(for: night) == "Everybody got you")
+    }
+
+    /// A **one-submitter round** has an own card with `eligible_guesser_count == 0`. Neither
+    /// personal card rule fires on a zero denominator — "nobody got you" and "everybody got you"
+    /// are both false when there was nobody who could have — so the line falls through to
+    /// whatever the group rules say next; here, group rule 5 (`correctGuessCount == 0`), which
+    /// carries no such guard and is unchanged by `E36-01`.
+    @Test func aSoloRoundReachesNeitherPersonalCardRule() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 0)],
+            people: [("Ana", readability: nil, ear: nil)],
+            ownCard: 1,
+            eligibleGuesserCount: 0
+        )
+        #expect(ShareHeadline.line(for: night) == "Nobody got No. 1")
+    }
+
+    /// **3 — the caller read the whole room.** `me.ear == 1` with a non-zero denominator, ahead
+    /// of the group's own "somebody had a perfect ear" rule even when somebody else also did.
+    @Test func youReadTheWholeRoomIsThird() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 4)],
+            people: [("Ana", readability: 0.9, ear: 1.0), ("Cal", readability: 0.4, ear: 1.0)],
+            me: (readability: 0.9, ear: 1.0, earPossible: 7)
+        )
+        #expect(ShareHeadline.line(for: night) == "You read the whole room")
+    }
+
+    /// `ear == 1` out of nothing is not a perfect night — `earPossible` has to be positive.
+    @Test func aPerfectEarOutOfZeroDoesNotCount() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 4)],
+            people: [("Cal", readability: 0.4, ear: 1.0)],
+            me: (readability: nil, ear: 1.0, earPossible: 0)
+        )
+        #expect(ShareHeadline.line(for: night) == "Cal read the whole room")
+    }
+
+    /// **4 — the caller was unreadable**, and only when the band actually says so. Stricter than
+    /// the group's own rule 8, deliberately: *"You were unreadable"* on a 71% night is a claim
+    /// the sharer would be publishing about themselves, and it would be false.
+    @Test func youWereUnreadableIsFourthAndOnlyInBand() {
+        let unreadable = ShareHeadlineFixture.night(
+            cards: [(1, 4)],
+            people: [("Cal", readability: 0.4, ear: 0.6)],
+            me: (readability: 0.14, ear: 0.5, earPossible: 4)
+        )
+        #expect(ShareHeadline.line(for: unreadable) == "You were unreadable")
+
+        let legibleEnough = ShareHeadlineFixture.night(
+            cards: [(1, 4)],
+            people: [("Ben", readability: 0.05, ear: 0.6)],
+            me: (readability: 0.71, ear: 0.5, earPossible: 4)
+        )
+        // 71% is not the *caller's* unreadable band, so this falls through to the group's own
+        // rule 8, which is allowed to name whoever is least readable — Ben, at 5%.
+        #expect(ShareHeadline.line(for: legibleEnough) == "Ben was unreadable")
+    }
+
+    /// Precedence holds across the personal/group boundary: a night that matches a personal rule
+    /// **and** a group rule takes the personal one, and only the personal one.
+    @Test func aPersonalRuleBeatsAGroupRuleOnTheSameNight() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 0), (4, 0)],
+            people: [("Cal", readability: 0.4, ear: 1.0)],
+            ownCard: 4
+        )
+        let line = ShareHeadline.line(for: night)
+
+        #expect(line == "Nobody got you")
+        #expect(!line.contains("No. 1"))
+        #expect(!line.contains("whole room"))
+    }
+
+    /// A non-submitter — no own card, no personal rates — reaches no personal rule at all and
+    /// falls straight through to the group precedence, unchanged from before `E36-01`.
+    @Test func aNonSubmitterFallsThroughToTheGroupRulesUnchanged() {
+        let night = ShareHeadlineFixture.night(
+            cards: [(1, 4), (2, 3)],
+            people: [("Ana", readability: 0.9, ear: 0.5), ("Gus", readability: 0.1, ear: 0.2)]
+        )
+        #expect(ShareHeadline.line(for: night) == "Gus was unreadable")
+    }
+
+    // MARK: - The five group rules
 
     /// **1 — a card nobody got.** Beats everything, including a perfect ear in the same round.
     @Test func nobodyGotACardWins() {
@@ -164,9 +269,17 @@ enum ShareHeadlineFixture {
     ///   - cards: `(card_no, correct_guess_count)`. Every card has seven eligible guessers, the
     ///     `docs/02` §4.4 round's own denominator.
     ///   - people: `(name, readability, ear)`.
+    ///   - ownCard: which `card_no`, if any, is the caller's own — set non-`nil` `guesses` on it
+    ///     (`E36-01`'s `ShareHeadline.ownCard(in:)` finds a card this way, never by matching a
+    ///     user ID the card doesn't carry).
+    ///   - me: the caller's own two rates, `nil` by default — a non-submitter, which is also
+    ///     what every fixture before `E36-01` implicitly tested.
     static func night(
         cards: [(Int, Int)],
-        people: [(String, readability: Double?, ear: Double?)]
+        people: [(String, readability: Double?, ear: Double?)],
+        ownCard: Int? = nil,
+        me: (readability: Double?, ear: Double?, earPossible: Int?) = (nil, nil, nil),
+        eligibleGuesserCount: Int = 7
     ) -> ResultsDTO {
         let cardJSON = cards.map { number, correct -> [String: Any] in
             [
@@ -174,9 +287,9 @@ enum ShareHeadlineFixture {
                 "track": track,
                 "owner": ["user_id": "u\(number)", "display_name": "Owner \(number)"],
                 "correct_guess_count": correct,
-                "eligible_guesser_count": 7,
+                "eligible_guesser_count": eligibleGuesserCount,
                 "my_guess": NSNull(),
-                "guesses": NSNull(),
+                "guesses": number == ownCard ? [] : NSNull(),
             ]
         }
         let peopleJSON = people.map { name, readability, ear -> [String: Any] in
@@ -193,9 +306,12 @@ enum ShareHeadlineFixture {
             "submitter_count": cards.count,
             "cards": cardJSON,
             "me": [
-                "readability": NSNull(), "readability_correct": NSNull(),
-                "readability_possible": NSNull(), "ear": NSNull(),
-                "ear_correct": NSNull(), "ear_possible": NSNull(),
+                "readability": me.readability.map { $0 as Any } ?? NSNull(),
+                "readability_correct": NSNull(),
+                "readability_possible": NSNull(),
+                "ear": me.ear.map { $0 as Any } ?? NSNull(),
+                "ear_correct": NSNull(),
+                "ear_possible": me.earPossible.map { $0 as Any } ?? NSNull(),
             ],
             "people": peopleJSON,
             "tonight_top_ear": [],

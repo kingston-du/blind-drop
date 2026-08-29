@@ -388,15 +388,30 @@
 
 /* ── The share card (docs/11 §Share card headlines, docs/10 §2) ────────────── */
 /* One headline, chosen by precedence. Never more than one, and never a superlative that */
-/* needs a comparison the viewer cannot see on the card. */
+/* needs a comparison the viewer cannot see on the card. The four "you" rules (E36-01) are */
+/* checked first — the card leads with the sharer's own night wherever it truthfully can. */
 
+"share.headline.you.nobody" = "Nobody got you";
+"share.headline.you.everybody" = "Everybody got you";
+"share.headline.you.perfect" = "You read the whole room";
+"share.headline.you.unreadable" = "You were unreadable";
 "share.headline.nobody" = "Nobody got No. %lld";
 "share.headline.everybody" = "Everybody got No. %lld";
 "share.headline.perfect" = "%@ read the whole room";
 "share.headline.unreadable" = "%@ was unreadable";
 "share.headline.fallback" = "%lld songs, %lld guesses";
 "share.overflow" = "+ %lld more";
-"share.bestear.label" = "Best ear";
+"share.kicker" = "Your night";
+"share.ear.label" = "Ear";
+"share.read.label" = "Read";
+"share.read.fraction" = "%lld of %lld";
+"share.room.title" = "The room thought you were";
+"share.room.tally.multiple" = "%@ ×%lld";
+"share.room.tally.single" = "%@";
+"share.tonight.title" = "Tonight's ear";
+"share.tonight.row" = "%lld %@ %@";
+/* share.bestear.label retired by E36-01 — the Best Ear footer is now rank 1 of the */
+/* "Tonight's ear" podium above, not a separate line saying the same thing twice. */
 "share.wordmark" = "Blind Drop";
 
 /* ── Readability bands (docs/11 §Readability bands) ────────────────────────── */

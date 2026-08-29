@@ -132,8 +132,11 @@ The fixture is `02-DOMAIN-RULES.md` §4.4, loaded by `server/supabase/seed.sql`.
 | Golden-image diff for both variants | same |
 | Numerals render in Bricolage, not the system face | same |
 | All artwork loaded before render; placeholder path only on timeout | `ShareRendererTests.swift` |
-| Headline precedence, five fixtures | `ShareHeadlineTests.swift` |
-| Longest display name (24 chars) + a 100% Best Ear rate does not overflow | snapshot |
+| Headline precedence — four personal rules and five group rules, precedence order, non-submitter fallback (`E36-01`) | `ShareHeadlineTests.swift` |
+| Longest display name (24 chars) in the headline and tonight's Ear podium at once does not overflow | snapshot |
+| The no-personal-night fallback renders the `E30-01` shape, no empty personal bands | snapshot |
+| The room tally and the podium each fit at their own worst case (six distinct names, a six-way tie, two 24-char names) | snapshot |
+| The card's content never exceeds the frame it renders into, at every fixture above and both variants — `ImageRenderer` does not clip an overflow, so this is measured rather than assumed | `ShareCardSnapshotTests.theCardFits` |
 | Temp file deleted after the share sheet completes | `ShareRendererTests.swift` |
 
 ### AC-10 — Full loop under 90 seconds

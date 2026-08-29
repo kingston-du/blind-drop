@@ -34,20 +34,40 @@ private let variants = ShareCard.Variant.allCases
     }
 
     /// **The boundary the rate was never given a ceiling for.** The longest name the product
-    /// allows (`DisplayName.maximumLength`) next to the rate's widest string, 100% — which is
-    /// exactly the shape `E26-01`'s report described: before `.lineLimit(1)`/
-    /// `.minimumScaleFactor(0.7)` on the rate, `ImageRenderer` does not clip past the card's
-    /// fixed edge, it draws past the canvas, so a squeezed rate does not look wrong, it just
-    /// loses pixels nobody sees missing. `E30-01` retired the row table's own long-title/
-    /// long-owner truncation golden alongside it — `heroHeadline` and this pair are now the only
-    /// text on the card whose length the layout doesn't already bound, so this fixture (the same
-    /// long name doubling as the night's headline subject, since Cal is both `bestEar` and the
-    /// `ear: 1.0` person the headline names) is the one worst case left to prove.
+    /// allows (`DisplayName.maximumLength`) as the night's headline subject and tonight's Ear
+    /// leader at once — the same shape `E26-01`'s report described: `ImageRenderer` does not
+    /// clip past the card's fixed edge, it draws past the canvas, so a squeezed line does not
+    /// look wrong, it just loses pixels nobody sees missing.
     @Test(arguments: variants)
     func theLongestNameAndAHundredPercentTogether(_ variant: ShareCard.Variant) {
         verify(
-            ShareCardFixture.render(variant: variant, content: ShareCardFixture.longestBestEar),
-            named: "Share-\(variant.rawValue)-longestbestear"
+            ShareCardFixture.render(variant: variant, content: ShareCardFixture.longestName),
+            named: "Share-\(variant.rawValue)-longestname"
+        )
+    }
+
+    /// **The no-personal-night fallback** (`E36-01`): a member with no card of their own gets
+    /// the `E30-01` card back — group headline, full-size filmstrip, no empty personal bands, no
+    /// dash where a number used to be.
+    @Test(arguments: variants)
+    func theNonSubmitterFallback(_ variant: ShareCard.Variant) {
+        verify(
+            ShareCardFixture.render(variant: variant, content: ShareCardFixture.nonSubmitter),
+            named: "Share-\(variant.rawValue)-nonsubmitter"
+        )
+    }
+
+    /// **The personal bands' own worst case** (`E36-01`): six distinct names in the room's
+    /// tally (two of them `DisplayName.maximumLength`, forcing the +2 overflow), and a six-way
+    /// podium with a four-deep tie at the boundary (two more long names, forcing its own
+    /// overflow). The headline is deliberately short here (`me.readability` sits in the
+    /// `unreadable` band, rule 4) so this golden isolates the two new list bands from the
+    /// headline worst case `theLongestNameAndAHundredPercentTogether` already covers.
+    @Test(arguments: variants)
+    func thePersonalBandsAtTheirWorstCase(_ variant: ShareCard.Variant) {
+        verify(
+            ShareCardFixture.render(variant: variant, content: ShareCardFixture.personalStress),
+            named: "Share-\(variant.rawValue)-personalstress"
         )
     }
 
@@ -75,13 +95,14 @@ private let variants = ShareCard.Variant.allCases
     /// `ImageRenderer` falls back silently if the bundled font is not registered, and a card of
     /// SF Pro numerals looks *fine* — which is exactly why this is a test. Two renders of the
     /// same card, one forced onto the system face, must not produce the same pixels.
+    ///
+    /// The size is an arbitrary constant of this test's own — `E36-01` retired the card's last
+    /// literal-size number (`ShareCard.Variant.numberSize`, the old standalone Best Ear rate),
+    /// so this check no longer borrows a card literal; it only needs *a* display-face size.
     @Test func theNumeralsAreNotTheSystemFace() throws {
-        let bricolage = ShareCardFixture.number(font: Typography.fixed(
-            .display, size: ShareCard.Variant.squareTall.numberSize
-        ))
-        let system = ShareCardFixture.number(font: .systemFont(
-            ofSize: ShareCard.Variant.squareTall.numberSize, weight: .semibold
-        ))
+        let testSize: CGFloat = 96
+        let bricolage = ShareCardFixture.number(font: Typography.fixed(.display, size: testSize))
+        let system = ShareCardFixture.number(font: .systemFont(ofSize: testSize, weight: .semibold))
 
         #expect(Typography.uiFont(.displayXL).familyName == Typography.displayFamily,
                 "the bundled face is registered at all")
@@ -121,6 +142,32 @@ private let variants = ShareCard.Variant.allCases
                 "the sheet is \(image.size.height)pt tall against a \(Layout.shareSheetHeight)pt detent")
     }
 
+    // MARK: - Nothing falls off the edge (E36-01)
+
+    /// **The card fits, measured — not eyeballed.**
+    ///
+    /// `ImageRenderer` does not clip a view that overflows its frame: it draws past the canvas
+    /// and the pixels are simply gone, so an overflowing card does not look broken, it looks
+    /// *edited*. `E30-01` found exactly this twice by staring at renders (the headline's scale
+    /// factor, the Best Ear rate's missing ceiling) before a test existed for it. This is that
+    /// test: `ShareCardStack` — the card's content, rendered **without** the fixed outer frame
+    /// `ShareCardView` wraps it in — is asked for its natural height at the variant's content
+    /// width, and that height has to be no taller than the frame actually gives it.
+    ///
+    /// Every fixture below is a worst case this card can reach: the longest name the product
+    /// allows, in every slot at once where that is realistic; a boundary tie wide enough to
+    /// need `ShareCard.maximumPodiumRows`'s own overflow; a room tally past
+    /// `ShareCard.maximumRoomTallyNames`; the fallback with none of the new bands at all.
+    @Test(arguments: variants, ShareCardFixture.fitMatrix)
+    func theCardFits(_ variant: ShareCard.Variant, _ content: ShareCardContent) throws {
+        let available = variant.size.height - 2 * variant.margin - variant.bottomSafeSpace
+        let measured = try ShareCardFixture.measuredHeight(
+            of: content, contentWidth: variant.size.width - 2 * variant.margin
+        )
+        #expect(measured <= available,
+                "\(variant.rawValue) content is \(measured)pt tall against \(available)pt available")
+    }
+
     /// One sheet, built once: it holds a renderer, and every test that draws it wants the same
     /// stubbed one rather than a fresh temporary directory each time.
     private static let sheet = ShareSheet(
@@ -139,7 +186,11 @@ private let variants = ShareCard.Variant.allCases
 
 // MARK: - Fixtures
 
-@MainActor
+/// **Not** `@MainActor`, on purpose: `fitMatrix` has to be usable as an `@Test(arguments:)` list,
+/// which is evaluated outside actor isolation, and every static fixture here is plain value
+/// construction (JSON in, a `ShareCardContent` out) that never needed the actor in the first
+/// place. Only `render`/`number`/`measuredHeight` actually touch `ImageRenderer`, which is
+/// `@MainActor`-only — those three carry the annotation themselves instead.
 enum ShareCardFixture {
 
     /// The card, rendered the way `docs/10` §1 and §4 say to render it.
@@ -152,7 +203,7 @@ enum ShareCardFixture {
     /// The artwork loader answers from memory, which is not a shortcut but the same rule the
     /// production renderer follows: `ImageRenderer` never runs `.task`, so an image is on the
     /// card only if something put it in the cache first (`docs/10` §4).
-    static func render(
+    @MainActor static func render(
         variant: ShareCard.Variant,
         content: ShareCardContent = tonight
     ) -> UIImage {
@@ -173,7 +224,7 @@ enum ShareCardFixture {
 
     /// One card number drawn on its own, for the display-face check. Small, so the comparison is
     /// about the glyph rather than about everything around it.
-    static func number(font: UIFont) -> UIImage {
+    @MainActor static func number(font: UIFont) -> UIImage {
         let view = Text(verbatim: "4")
             .font(Font(font))
             .foregroundStyle(Palette.ink)
@@ -188,31 +239,165 @@ enum ShareCardFixture {
 
     /// The `docs/02` §4.4 night: eight cards, four rows and four more.
     static let tonight = ShareCardContent(
-        results: ResultsSnapshotFixture.results,
+        results: results,
         groupName: "The Cove",
         date: "10 August"
     )
 
-    /// `docs/10` §3's Best Ear pair at both its extremes at once: `DisplayName.maximumLength`
-    /// beside 100%. Cal is already tonight's leader in the base fixture (`ear: 1.0` in
-    /// `results.json`) — only the name changes, so the golden is a picture of the exact
-    /// boundary the layout has to hold, not a rate fabricated for the test.
-    static let longestBestEar: ShareCardContent = {
+    /// `docs/10` §3's rate pair at both its extremes at once: `DisplayName.maximumLength`
+    /// beside 100%. Cal is already tonight's Ear leader in the base fixture (`ear: 1.0` in
+    /// `results.json`, rank 1 of `tonight_top_ear`) — only the name changes, in both places
+    /// that name Cal, so the golden is a picture of the exact boundary the layout has to hold
+    /// (the headline **and** the podium), not a rate fabricated for the test.
+    static let longestName: ShareCardContent = {
         let name = String("Bartholomew Winterborneiii".prefix(DisplayName.maximumLength))
         #expect(name.count == DisplayName.maximumLength)
+        let calID = "a0000000-0000-4000-8000-000000000003"
 
-        var json = ResultsSnapshotFixture.payload("results")
-        var people = json["people"] as? [[String: Any]] ?? []
-        for index in people.indices where people[index]["display_name"] as? String == "Cal" {
-            people[index]["display_name"] = name
+        var json = payload("results")
+        json["people"] = rename(json["people"], id: calID, to: name, idKey: "user_id")
+        json["tonight_top_ear"] = rename(json["tonight_top_ear"], id: calID, to: name, idKey: "user_id")
+
+        return content(from: json)
+    }()
+
+    /// **The no-personal-night fallback** (`E36-01`, `docs/10` §2): the caller never dropped a
+    /// song, so no card is theirs, `me`'s two rates are both `nil`, and the card falls all the
+    /// way back to `E30-01`'s shape.
+    static let nonSubmitter: ShareCardContent = {
+        var json = payload("results")
+        json["cards"] = (json["cards"] as? [[String: Any]] ?? []).map { card -> [String: Any] in
+            var card = card
+            card["my_guess"] = NSNull()
+            card["guesses"] = NSNull()
+            return card
         }
-        json["people"] = people
+        json["me"] = [
+            "readability": NSNull(), "readability_correct": NSNull(),
+            "readability_possible": NSNull(), "ear": NSNull(),
+            "ear_correct": NSNull(), "ear_possible": NSNull(),
+        ]
+        return content(from: json)
+    }()
 
+    /// **The room tally and the podium at their own worst case** (`E36-01`). Built rather than
+    /// edited from the base night, because both lists need shapes `results.json` doesn't have:
+    /// six distinct names guessed on the caller's own card (past `maximumRoomTallyNames`, two of
+    /// them the longest the product allows) and a six-way podium with a four-deep tie at the
+    /// boundary (past `maximumPodiumRows`, two more long names). `me.readability` sits in the
+    /// `unreadable` band on purpose — rule 4 gives this fixture a short headline, so the golden
+    /// is a picture of these two bands' own limits, not the headline's.
+    static let personalStress: ShareCardContent = {
+        let longA = String("Bartholomew Winterborneiii".prefix(DisplayName.maximumLength))
+        let longB = String("Persephone Castellanosii".prefix(DisplayName.maximumLength))
+        #expect(longA.count == DisplayName.maximumLength)
+        #expect(longB.count == DisplayName.maximumLength)
+        let ownerID = "a0000000-0000-4000-8000-000000000001"
+
+        var json = payload("results")
+        json["cards"] = (json["cards"] as? [[String: Any]] ?? []).map { card -> [String: Any] in
+            var card = card
+            guard card["card_no"] as? Int == 4 else { return card }
+            // Six distinct guessed people, the caller's own name (`ownerID`) the only repeat —
+            // the tally's "isMe" highlight is exactly this row.
+            let guessed: [(id: String, name: String, count: Int)] = [
+                (ownerID, "Ana", 2), ("g-long-1", longA, 1), ("g-long-2", longB, 1),
+                ("g-ben", "Ben", 1), ("g-dee", "Dee", 1), ("g-fay", "Fay", 1),
+            ]
+            card["guesses"] = guessed.flatMap { entry in
+                (0..<entry.count).map { _ -> [String: Any] in
+                    [
+                        "guesser_id": "g-guesser", "guesser_name": "Guesser",
+                        "guessed_user_id": entry.id, "guessed_name": entry.name,
+                        "is_correct": entry.id == ownerID,
+                    ]
+                }
+            }
+            return card
+        }
+        json["me"] = [
+            "readability": 0.14, "readability_correct": 1, "readability_possible": 7,
+            "ear": 0.5, "ear_correct": 2, "ear_possible": 4,
+        ]
+        json["tonight_top_ear"] = [
+            ["rank": 1, "user_id": "t-1", "display_name": longA, "ear": 1.0],
+            ["rank": 2, "user_id": ownerID, "display_name": "Ana", "ear": 0.71],
+            ["rank": 3, "user_id": "t-3a", "display_name": longB, "ear": 0.57],
+            ["rank": 3, "user_id": "t-3b", "display_name": "Cal", "ear": 0.57],
+            ["rank": 3, "user_id": "t-3c", "display_name": "Hal", "ear": 0.57],
+            ["rank": 3, "user_id": "t-3d", "display_name": "Fay", "ear": 0.57],
+        ]
+        return content(from: json)
+    }()
+
+    /// Every fixture `theCardFits` checks — the base night plus every worst case above. A
+    /// `Sequence` literal rather than `allCases`: these are hand-picked stress shapes, not an
+    /// enum's every member.
+    static let fitMatrix: [ShareCardContent] = [tonight, longestName, nonSubmitter, personalStress]
+
+    /// `ShareCardStack`'s natural height at a given content width, with **no ceiling** — the
+    /// measurement `theCardFits` compares against the frame `ShareCardView` actually gives it.
+    /// `ImageRenderer` is asked for an unbounded height (`ProposedViewSize(width:height:)` with
+    /// `height: nil`) so it reports what the content actually needs, not what a canvas would
+    /// crop it to.
+    @MainActor
+    static func measuredHeight(of content: ShareCardContent, contentWidth: CGFloat) throws -> CGFloat {
+        let stack = ShareCardStack(content: content, variant: .squareTall)
+            .frame(width: contentWidth, alignment: .topLeading)
+            .environment(\.artworkLoader, StubArtworkLoader.shared)
+            .environment(\.displayScale, ShareCard.scale)
+
+        let renderer = ImageRenderer(content: stack)
+        renderer.scale = 1
+        renderer.proposedSize = ProposedViewSize(width: contentWidth, height: nil)
+        renderer.isOpaque = false
+        let image = try #require(renderer.uiImage, "ImageRenderer produced no content stack")
+        return image.size.height
+    }
+
+    /// The `docs/02` §4.4 night's own contract payload.
+    ///
+    /// Loaded here rather than reused from `ResultsSnapshotFixture` **on purpose**: that type is
+    /// `@MainActor` (it builds `ResultsScreen` views), and `fitMatrix` above has to be a plain
+    /// value usable outside actor isolation for `@Test(arguments:)`. `ResultsSnapshotFixture`'s
+    /// own comment already names the reason two fixture loaders exist here rather than one —
+    /// `BlindDropTests/Unit` and `BlindDropTests/Snapshot` share no code, and now two fixture
+    /// types inside `Snapshot` don't either, for the same actor-isolation reason.
+    static let results: ResultsDTO = {
+        try! JSONDecoder.api.decode(ResultsDTO.self, from: data("results"))
+    }()
+
+    /// A payload as loose JSON, for a fixture that needs to **edit** the contract before
+    /// decoding it.
+    static func payload(_ name: String) -> [String: Any] {
+        try! JSONSerialization.jsonObject(with: data(name)) as? [String: Any] ?? [:]
+    }
+
+    private static func data(_ name: String) -> Data {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // Snapshot
+            .deletingLastPathComponent()   // BlindDropTests
+            .deletingLastPathComponent()   // ios
+        return try! Data(contentsOf: root.appending(path: "Fixtures/payloads/\(name).json"))
+    }
+
+    /// Edits one member's `display_name` by id, in either `people` or `tonight_top_ear` — both
+    /// arrays under the same two keys (`user_id`, `display_name`).
+    private static func rename(_ list: Any?, id: String, to name: String, idKey: String) -> [[String: Any]] {
+        (list as? [[String: Any]] ?? []).map { row -> [String: Any] in
+            var row = row
+            if row[idKey] as? String == id { row["display_name"] = name }
+            return row
+        }
+    }
+
+    /// Loose JSON, decoded and wrapped — every stress fixture above ends here.
+    private static func content(from json: [String: Any]) -> ShareCardContent {
         let results = try! JSONDecoder.api.decode(
             ResultsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)
         )
         return ShareCardContent(results: results, groupName: "The Cove", date: "10 August")
-    }()
+    }
 
     /// Whether a colour token appears anywhere in the image.
     ///

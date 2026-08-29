@@ -355,16 +355,34 @@ readability or commiserates a low one.
 
 ### Share card headlines
 
+`E36-01` put four personal rules in front of the original five — the card leads with the
+sharer's own night wherever it truthfully can (`docs/10` §2's rewritten precedence table).
+
 | Key | String |
 |---|---|
+| `share.headline.you.nobody` | Nobody got you |
+| `share.headline.you.everybody` | Everybody got you |
+| `share.headline.you.perfect` | You read the whole room |
+| `share.headline.you.unreadable` | You were unreadable |
 | `share.headline.nobody` | Nobody got No. %lld |
 | `share.headline.everybody` | Everybody got No. %lld |
 | `share.headline.perfect` | %@ read the whole room |
 | `share.headline.unreadable` | %@ was unreadable |
 | `share.headline.fallback` | %lld songs, %lld guesses |
 | `share.overflow` | + %lld more | the cards whose artwork did not fit in the filmstrip (`docs/10` §2) |
-| `share.bestear.label` | Best ear |
+| `share.kicker` | Your night | the kicker above the headline on a personal night; `reveal.title` ("Tonight's drop") is reused for the group fallback |
+| `share.ear.label` | Ear | |
+| `share.read.label` | Read | |
+| `share.read.fraction` | %lld of %lld | e.g. "4 of 7", paired with the band word from `band.*` |
+| `share.room.title` | The room thought you were | the tally of names guessed on the caller's own card |
+| `share.room.tally.multiple` | %@ ×%lld | one tally row, two or more guesses |
+| `share.room.tally.single` | %@ | one tally row, exactly one guess — no "×1" |
+| `share.tonight.title` | Tonight's ear | the top-3 podium; also carries what `share.bestear.label` used to say alone |
+| `share.tonight.row` | %lld %@ %@ | rank, name, rate — e.g. "1 Cal 100%" |
 | `share.wordmark` | Blind Drop |
+
+`share.bestear.label` ("Best ear") is retired by `E36-01` — the standalone Best Ear line is now
+rank 1 of the `share.tonight.title` podium, not a second line saying the same thing.
 
 `share.wordmark` is *"the name at the bottom is the whole marketing"* (`docs/10` §2). It is its
 own row rather than a reuse of `onboarding.title` because the two are different jobs: one is a
