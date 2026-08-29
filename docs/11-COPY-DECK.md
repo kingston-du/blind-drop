@@ -421,68 +421,49 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | `embarrassed_to_love` | A song you're embarrassed to love |
 | `never_play_in_their_car` | A song you'd never play in someone else's car |
 | `hate_and_know_words` | A song you hate and know every word of |
-| `deny_liking` | A song you'd deny liking if asked directly |
-| `guilty_pleasure_alone` | A guilty pleasure you play alone |
+| `deny_liking` | A song you'd lie about liking |
+| `guilty_pleasure_alone` | A song you only play with headphones on |
 | `song_you_hate` | A song you hate |
 | `loved_by_all_not_you` | A song everyone loves that you don't |
 | `worst_by_favorite_artist` | The worst song by an artist you love |
-| `aged_badly` | A song that has aged badly |
-| `tired_of_hearing` | A song you're tired of hearing |
+| `tired_of_hearing` | A song that got ruined for you |
 | `nobody_guesses_yours` | A song nobody here would guess is yours |
 | `genre_you_never_listen` | A song from a genre you never listen to |
 | `parents_would_play` | A song your parents would put on |
-| `doesnt_match_taste` | A song that doesn't match your taste at all |
-| `unexpected_from_you` | A song people wouldn't expect from you |
-| `outside_comfort_zone` | A song outside your comfort zone |
+| `unexpected_from_you` | A song that would give the wrong impression of you |
 | `aux_song` | Your go-to aux song |
 | `get_ready_to` | The song you get ready to |
 | `driving_at_night` | A song for driving at night |
-| `walk_home_alone` | A song for the walk home alone |
-| `end_the_night_on` | A song to end the night on |
-| `cleaning_the_house` | A song for cleaning the house |
-| `long_car_ride` | A song for a long car ride |
-| `play_at_a_party` | A song to play at a party |
-| `rainy_day` | A song for a rainy day |
-| `doing_chores` | A song for doing chores |
+| `play_at_a_party` | The song you'd put on to save a party |
 | `one_specific_summer` | A song stuck to one specific summer |
-| `someone_got_you_into` | A song someone else got you into |
-| `reminds_you_of_school` | A song that reminds you of school |
-| `road_trip` | A song from a road trip |
+| `someone_got_you_into` | A song you got someone else into |
+| `first_phone_song` | A song from your first phone |
 | `tied_to_someone` | A song tied to a specific person |
 | `middle_school` | A song from middle school |
-| `family_always_played` | A song your family always played |
-| `most_played_this_year` | Your most played song this year |
-| `skipped_the_most` | The song you've skipped the most |
+| `family_always_played` | A song that was always on in your house |
+| `most_played_this_year` | Your favorite song this year |
+| `skipped_the_most` | The song you skip the most |
 | `oldest_you_still_play` | The oldest song you still play |
 | `before_you_were_born` | A song from before you were born |
-| `found_this_month` | A song you found this month |
-| `first_you_remember_loving` | The first song you remember loving |
+| `first_you_remember_loving` | A song you loved as a kid |
 | `never_tired_of` | A song you never get tired of |
-| `on_repeat` | A song you could listen to on repeat |
+| `on_repeat` | A song you've had on repeat this week |
 | `language_you_dont_speak` | A song in a language you don't speak |
 | `should_be_more_famous` | A song that should be more famous |
-| `one_word_title` | A song with a one-word title |
-| `shorter_than_three` | A song shorter than three minutes |
-| `longer_than_six` | A song longer than six minutes |
-| `one_hit_wonder` | A one-hit wonder you still love |
-| `from_a_movie` | A song from a movie |
-| `from_a_video_game` | A song from a video game |
+| `from_a_movie` | A song you only know because of a movie |
 | `know_all_the_lyrics` | A song you know all the lyrics to |
 | `nobody_has_heard` | A song nobody has heard of |
-| `decade_you_were_born` | A song from the decade you were born |
-| `different_decade` | A song that feels like a different decade |
-| `loved_as_a_kid` | A song you loved as a kid |
-| `older_sibling_put_you_on` | A song your older sibling or friend put you onto |
+| `loved_as_a_kid` | A song you were obsessed with at 13 |
+| `older_sibling_put_you_on` | A song your friend put you onto |
 | `slow_morning` | A song for a slow morning |
 | `getting_hyped` | A song for getting hyped up |
-| `favorite_hype_song` | Your favorite hype song |
-| `workout` | A song for a workout |
+| `workout` | A song that makes you walk faster |
 | `falling_asleep` | A song for falling asleep |
-| `good_mood` | A song for a good mood |
 
-61 lines, prime by construction — the no-repeat-before-exhaustion property in
+41 lines, prime by construction — the no-repeat-before-exhaustion property in
 `docs/18-CUES.md` §3 depends on it. Every text is 56 characters or fewer, the same discipline
-`docs/12` asks of every string, so nothing overflows on an SE at `accessibility5`.
+`docs/12` asks of every string, so nothing overflows on an SE at `accessibility5`. Revised from
+the original 61 on 2026-08-28 — see the dated note in `tasks/E35-cues.md`'s E35-02 section.
 
 ### Circle settings
 

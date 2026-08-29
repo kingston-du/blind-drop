@@ -112,6 +112,32 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 > checked that `cue` actually appears on `/results` or the Record, only that `rounds/current` and
 > the leak golden did.
 
+> **Catalog revision, 2026-08-28.** Owner cut the catalog from 61 cues to 41: 20 entries removed
+> outright (mostly `Function`/`Trivia`/`Mood` lines that only restated a neighbour — "a song for
+> cleaning the house" next to "a song for doing chores", "shorter than three minutes" next to
+> "longer than six", etc.), one swapped for a sharper replacement (`reminds_you_of_school` → the
+> new `first_phone_song`, "A song from your first phone" — the old one was too vague once you'd
+> just left it), and 15 re-texted in place to read easier for an ~18
+> audience and less like it's trying to be hip (e.g. `deny_liking`: "A song you'd deny liking if
+> asked directly" → "A song you'd lie about liking"; `most_played_this_year`: "Your most played
+> song this year" → "Your favorite song this year"). Full before/after list is in the chat log
+> that produced this revision; the landed state is `docs/18-CUES.md` §6 and
+> `docs/11-COPY-DECK.md`'s `cue.catalog` table, both verbatim-matched by `tests/db/cues.sql`'s
+> `bag_eq`. 61 and 41 are both prime, so §3's guarantee is untouched by the resize — only the
+> constants in `cue_for_round()` (the modulus and the stride's bounding divisor) needed to move
+> with it. No key was renamed or deleted, only deactivated or re-texted, so no existing
+> `rounds.prompt_key` reference breaks. Landed in
+> `20260828150000_cue_catalog_revision.sql` — `20260827120000_cues.sql` itself is unedited, per
+> CLAUDE.md §4's forward-only rule. `tests/db/cues.sql`'s catalog `bag_eq` and its
+> cadence-1-exhaustion view (`generate_series(0, 60)` → `generate_series(0, 40)`, `61` → `41`
+> throughout) were updated to match; `docs/18-CUES.md` §6 and the copy deck both note the
+> revision date inline. Verified: `db:reset` applies the new migration cleanly on top of
+> `20260827140000_seal_reminder_cue.sql`, `npm run test:db` is **739/739** (all 27 `cues.sql`
+> assertions pass, including the resized exhaustion cycle and the catalog `bag_eq`), and
+> `node scripts/lint.mjs` is clean. `test:functions`/`audit:leak` were not re-run — nothing in
+> this revision touches an Edge Function or a golden fixture (grepped for a stray `61` in
+> `tests/functions`/`tests/golden`; the one hit was an unrelated ISRC digit string).
+
 ---
 
 ### E35-03 — API: rounds, results, record, group settings

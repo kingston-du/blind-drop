@@ -60,7 +60,7 @@ cue   = catalog[(i * stride(group_id) + seed(group_id)) mod N]
 coprime with `N` by construction — see §5) so two circles on the same cadence don't draw the same
 cue on the same night, and a circle doesn't always start its cycle on cue #0.
 
-**Why this is enough, with no drawn-history table.** `N` is prime (61, see §6), so any nonzero
+**Why this is enough, with no drawn-history table.** `N` is prime (41, see §6), so any nonzero
 stride below `N` is coprime with it, which means the sequence `i ↦ catalog[(i·stride + seed) mod
 N]` visits every one of the `N` cues exactly once before any repeats — a full period. Nothing
 needs to be recorded to guarantee "no repeat before exhaustion" or "no two cue nights in a row
@@ -109,58 +109,56 @@ alter table public.rounds
 $1` for `n`) and set `prompt_key`/`prompt` on insert. A group with `cue_cadence = 0` inserts
 `null` for both, exactly as every round does today.
 
-## 6. The catalog — 61 cues, prime by construction
+## 6. The catalog — 41 cues, prime by construction
 
 Sentence case, no trailing period, **56 characters or fewer** (a pgTAP/lint assertion, so nothing
 overflows on SE at `accessibility5` — the same discipline `docs/12` already asks of every string).
 Every one answerable in the time it takes to think of a song — nothing that needs research, a
-specific memory a person might not have, or a joke that only lands with the right timing. `N = 61`
+specific memory a person might not have, or a joke that only lands with the right timing. `N = 41`
 is prime; a test in `E35-02` asserts `count(*) from cue_catalog where active` is prime on every
 migration, so the catalog can grow later without silently breaking the no-repeat-before-exhaustion
 property in §3.
 
+> **Revision, 2026-08-28.** Cut from the original 61 to sharpen for the actual audience (~18,
+> easy to answer, not straining for hip) and cut duplicate-feeling entries. See the dated note in
+> `tasks/E35-cues.md`'s E35-02 section for the full before/after and which migration carries it.
+
 **Confession**
 A song you're embarrassed to love · A song you'd never play in someone else's car · A song you
-hate and know every word of · A song you'd deny liking if asked directly · A guilty pleasure you
-play alone
+hate and know every word of · A song you'd lie about liking · A song you only play with
+headphones on
 
 **Refusal**
 A song you hate · A song everyone loves that you don't · The worst song by an artist you love · A
-song that has aged badly · A song you're tired of hearing
+song that got ruined for you
 
 **Misdirection**
 A song nobody here would guess is yours · A song from a genre you never listen to · A song your
-parents would put on · A song that doesn't match your taste at all · A song people wouldn't expect
-from you · A song outside your comfort zone
+parents would put on · A song that would give the wrong impression of you
 
 **Function**
-Your go-to aux song · The song you get ready to · A song for driving at night · A song for the
-walk home alone · A song to end the night on · A song for cleaning the house · A song for a long
-car ride · A song to play at a party · A song for a rainy day · A song for doing chores
+Your go-to aux song · The song you get ready to · A song for driving at night · The song you'd put
+on to save a party
 
 **Memory**
-A song stuck to one specific summer · A song someone else got you into · A song that reminds you
-of school · A song from a road trip · A song tied to a specific person · A song from middle school
-· A song your family always played
+A song stuck to one specific summer · A song you got someone else into · A song from your first
+phone · A song tied to a specific person · A song from middle school · A song that was always on
+in your house
 
 **Superlative**
-Your most played song this year · The song you've skipped the most · The oldest song you still
-play · A song from before you were born · A song you found this month · The first song you
-remember loving · A song you never get tired of · A song you could listen to on repeat
+Your favorite song this year · The song you skip the most · The oldest song you still play · A
+song from before you were born · A song you loved as a kid · A song you never get tired of · A
+song you've had on repeat this week
 
 **Trivia**
-A song in a language you don't speak · A song that should be more famous · A song with a one-word
-title · A song shorter than three minutes · A song longer than six minutes · A one-hit wonder you
-still love · A song from a movie · A song from a video game · A song you know all the lyrics to ·
-A song nobody has heard of
+A song in a language you don't speak · A song that should be more famous · A song you only know
+because of a movie · A song you know all the lyrics to · A song nobody has heard of
 
 **Mood**
-A song from the decade you were born · A song that feels like a different decade · A song you
-loved as a kid · A song your older sibling or friend put you onto · A song for a slow morning · A
-song for getting hyped up · Your favorite hype song · A song for a workout · A song for falling
-asleep · A song for a good mood
+A song you were obsessed with at 13 · A song your friend put you onto · A song for a slow morning
+· A song for getting hyped up · A song that makes you walk faster · A song for falling asleep
 
-61 lines. `docs/11-COPY-DECK.md` gets its own `cue.catalog` table matching this list verbatim —
+41 lines. `docs/11-COPY-DECK.md` gets its own `cue.catalog` table matching this list verbatim —
 one source of truth, the seed migration reads from it, and `E35-02`'s verify includes a test
 diffing the two so they cannot drift.
 
