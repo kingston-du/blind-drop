@@ -116,11 +116,14 @@ E33 record chip                 done — landed, goldens re-recorded
 E34 marketing website           one slice — mostly outside this repo
 E35 cues                        six slices, mostly sequential — see the epic file; promotes
                                  "themed prompts" from docs/16 §1 to scope, owner amendment
+E36 personal share card         one slice — amends docs/10 §2's "no scores for anyone but the
+                                 headline", owner amendment; see the epic file
 ```
 
-None of `E29`–`E35` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
+None of `E29`–`E36` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
 is the spec `E29`–`E34` were cut from; `E35` is cut from `docs/18-CUES.md`, written separately
-after an owner request.
+after an owner request. `E36` is cut from an owner request of 2026-08-28 and revisits `E30`'s
+surface — it is the only epic here that depends on another (`E30`, done).
 
 `E35` closed 2026-08-27 — all six slices done. **Flag for the next iOS slice:** the simulator is
 now iOS 26.5, and the snapshot baseline recorded under `E28`/`E29` has drifted across the board
@@ -515,6 +518,19 @@ circle, existing and new, at `cue_cadence = 2` ("every other night").
 | E35-05 Circle settings: cadence control | done | E35-03 | vs E35-04, E35-06 | — |
 | E35-06 seal_reminder carries the cue | done | E35-03 | vs E35-04, E35-05 | — |
 
+## E36 — The share card becomes yours · [file](E36-personal-share-card.md)
+
+Amends `docs/10` §2's *"no scores for anyone but the headline"* — owner amendment, 2026-08-28,
+same footing as ADR-011 and `E31`'s cap change. The card stops being a purely group artifact and
+becomes the sharer's account of the night: their own ear and readability, what the room guessed
+for their card, and tonight's Ear top 3. The closed list of what that permits — and everything it
+still bans, including naming a guesser and ranking readability — is in the epic file's header, not
+here. No server work; every field is already on the wire.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E36-01 The share card becomes yours | wip | — | yes | AC-9 |
+
 ---
 
 ## Progress
@@ -564,4 +580,5 @@ circle, existing and new, at `cue_cadence = 2` ("every other night").
 | E33 record chip | 1 / 1 |
 | E34 marketing website | 0 / 1 |
 | E35 cues | 6 / 6 |
-| **Next-progression total** | **14 / 15** |
+| E36 personal share card | 0 / 1 |
+| **Next-progression total** | **14 / 16** |
