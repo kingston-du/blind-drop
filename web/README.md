@@ -30,3 +30,15 @@ The path claim is `/j/*` and nothing else. The entitlement can only claim a whol
 this file is the only place the app's reach into `blinddrop.app` is actually narrowed —
 `App/DeepLink.swift` narrows it a second time on the client, and refuses any URL on the domain
 that is not `/j/<CODE>`.
+
+## Where the landing page lives
+
+Not here. The page served at `blinddrop.app/j/<CODE>` and at the bare domain is
+**<https://github.com/kingston-du/blinddrop-site>** (`E34-01`, `docs/17` §9). This directory
+still exists only to hold the association file above.
+
+That repository carries its own copy of `apple-app-site-association`, because it is what will
+serve the domain. **This file is the source of truth**: the App ID prefix here has to match the
+production provisioning profile and the `applinks:blinddrop.app` entitlement, and the copy has
+to match this file. `verify.sh` in the site repo diffs the deployed file against its copy,
+which is the check that catches drift.

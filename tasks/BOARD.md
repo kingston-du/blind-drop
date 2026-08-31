@@ -510,7 +510,7 @@ amendment in the epic file.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E34-01 Coordinate this repo's half | todo | — | yes | — |
+| E34-01 Coordinate this repo's half | wip | — | yes | — |
 
 ## E35 — Cues · [file](E35-cues.md)
 
