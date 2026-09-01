@@ -178,7 +178,7 @@ struct CreateGroupScreen: View {
 /// created: the creator is already a member by then, so routing on `has_group` would take them
 /// straight to today's round with the code they need nowhere on screen.
 ///
-/// **Share invite** shares the `https://blinddrop.app/j/<CODE>` URL and not the bare code
+/// **Share invite** shares the `https://blinddrop-site.vercel.app/j/<CODE>` URL and not the bare code
 /// (`docs/05` §5). Six characters in a message are six characters somebody has to be told what
 /// to do with; the link opens the app, or the landing page if they do not have it yet.
 struct InviteCodeScreen: View {

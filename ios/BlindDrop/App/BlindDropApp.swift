@@ -79,7 +79,7 @@ struct BlindDropApp: App {
                 // docs/05 §5: a deep link is a navigation hint, not an authorization. It is
                 // stored here and applied only after the round has loaded.
                 .onOpenURL { url in env.router.receive(DeepLink(url)) }
-                // The invite universal link, `https://blinddrop.app/j/<CODE>` (`docs/05` §5).
+                // The invite universal link, `https://blinddrop-site.vercel.app/j/<CODE>` (`docs/05` §5).
                 // A different door into the same room: it goes through the same parser and the
                 // same router, so it cannot end up meaning something the custom scheme does not.
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in

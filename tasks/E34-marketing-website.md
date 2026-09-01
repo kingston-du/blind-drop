@@ -61,3 +61,19 @@ exactly as it is; it exists only to hold `apple-app-site-association`.
 > The site is built and pushed to <https://github.com/kingston-du/blinddrop-site>. This slice
 > stays `wip` rather than `done` because its **Verify** line is a live-deployment check and the
 > site is not deployed yet.
+
+> **Update (2026-08-31).** The site is deployed at `https://blinddrop-site.vercel.app`, and the
+> app now points at it: `BlindDrop.entitlements`, `DeepLink.inviteHost`, and
+> `SpotifyAuth.redirectURI`/`callbackHost` were repointed from `blinddrop.app` to the Vercel
+> host, each marked `TEMPORARY` with a pointer back to `web/README.md`'s "Temporary host"
+> section — owner-directed, so invite links and universal links resolve during the beta instead
+> of dead-ending on a domain that doesn't exist. Two test files (`DeepLinkTests.swift`,
+> `OnboardingTests.swift`) had their literal host assertions updated to match and both pass.
+> `docs/06`, `docs/16`, `docs/05` and the other epics were left naming `blinddrop.app`
+> deliberately — that stays the target domain; only the temporary substitution is recorded here
+> and in `web/README.md`.
+>
+> The live deploy also turned up a real bug the local static-server preview couldn't catch:
+> Vercel's `cleanUrls` setting redirects any rewrite destination ending in `.html` instead of
+> serving it, which made `/j/<CODE>` 404. Fixed in the site repo by dropping `cleanUrls` from
+> `vercel.json`.

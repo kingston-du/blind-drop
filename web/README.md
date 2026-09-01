@@ -42,3 +42,18 @@ serve the domain. **This file is the source of truth**: the App ID prefix here h
 production provisioning profile and the `applinks:blinddrop.app` entitlement, and the copy has
 to match this file. `verify.sh` in the site repo diffs the deployed file against its copy,
 which is the check that catches drift.
+
+## Temporary host (2026-08-31)
+
+`blinddrop.app` is still not registered. Every place in the app that names the web host — the
+`applinks`/`webcredentials` entries in `BlindDrop.entitlements`, `DeepLink.inviteHost`, and
+`SpotifyAuth.redirectURI`/`callbackHost` — currently points at
+**`blinddrop-site.vercel.app`** instead, so invite links and universal links actually work
+during the beta rather than dead-ending on an unregistered domain. Each of those spots is
+marked `TEMPORARY` in its own comment.
+
+This file above still describes `blinddrop.app` because that's the intended domain once it's
+bought — this note exists so the mismatch you'll see between this file and the current code
+isn't a bug. When the domain is registered: buy it, point it at the `blinddrop-site` deploy,
+then flip the four call sites back (`grep -rl blinddrop-site.vercel.app ios/BlindDrop` finds
+them) in one commit, and re-register the Spotify redirect URI in Spotify's dashboard to match.

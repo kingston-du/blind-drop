@@ -22,10 +22,10 @@ enum InviteCode {
     /// covers the three things that actually happen: typing lowercase, pasting `K7MQ-2X` off a
     /// message, and pasting the whole invite link.
     ///
-    /// A pasted URL is handled first, because `https://blinddrop.app/j/K7MQ2X` filtered
-    /// character by character would come out as `HTTPSBLINDDR` — six characters of nonsense
-    /// that look exactly like a code. The link is the commonest way an invite arrives, so it is
-    /// the case worth getting right rather than the case worth mangling.
+    /// A pasted URL is handled first, because `https://blinddrop-site.vercel.app/j/K7MQ2X` filtered
+    /// character by character would come out as `HTTPSB` — six characters of nonsense that look
+    /// exactly like a code. The link is the commonest way an invite arrives, so it is the case
+    /// worth getting right rather than the case worth mangling.
     ///
     /// A string that is a URL but **not** one of ours yields nothing at all, for the same
     /// reason: `https://example.com/j/K7MQ2X` mined character by character is `HTTPSE`, which
@@ -61,7 +61,7 @@ enum InviteCode {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.contains("://") else { return .notALink }
         // Parsed through the same type the deep links use, so there is one grammar for
-        // `blinddrop://join/…` and `https://blinddrop.app/j/…` and not a second one here.
+        // `blinddrop://join/…` and `https://blinddrop-site.vercel.app/j/…` and not a second one here.
         guard let url = URL(string: trimmed), case .join(let code)? = DeepLink(url) else {
             return .foreign
         }

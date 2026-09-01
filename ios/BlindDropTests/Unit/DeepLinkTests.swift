@@ -27,11 +27,11 @@ import Testing
     /// `.onContinueUserActivity` rather than `.onOpenURL`, and it is the **same** destination as
     /// the custom scheme — parsed here so there is one grammar for what an invite code is.
     @Test func theInviteUniversalLinkParsesToTheSameJoin() {
-        #expect(DeepLink(URL(string: "https://blinddrop.app/j/K7MQ2X")!) == .join(code: "K7MQ2X"))
-        #expect(DeepLink(URL(string: "https://blinddrop.app/j/k7mq2x")!) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(URL(string: "https://blinddrop-site.vercel.app/j/K7MQ2X")!) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(URL(string: "https://blinddrop-site.vercel.app/j/k7mq2x")!) == .join(code: "K7MQ2X"))
         #expect(DeepLink(URL(string: "blinddrop://join/K7MQ2X")!)
-                == DeepLink(URL(string: "https://blinddrop.app/j/K7MQ2X")!))
-        #expect(DeepLink(URL(string: "https://blinddrop.app/i/c0000000-0000-4000-8000-000000000001")!)
+                == DeepLink(URL(string: "https://blinddrop-site.vercel.app/j/K7MQ2X")!))
+        #expect(DeepLink(URL(string: "https://blinddrop-site.vercel.app/i/c0000000-0000-4000-8000-000000000001")!)
                 == .invitation(id: "c0000000-0000-4000-8000-000000000001"))
     }
 
@@ -52,19 +52,19 @@ import Testing
         #expect(DeepLink(URL(string: "blinddrop://circle/g_1/join/K7MQ2X")!) == nil)
     }
 
-    /// `applinks:blinddrop.app` hands the app **every** URL on the domain, so everything that
+    /// `applinks:blinddrop-site.vercel.app` hands the app **every** URL on the domain, so everything that
     /// is not `/j/<CODE>` has to fall through to the browser. The entitlement cannot express
     /// that; this initialiser is where it is expressed on the client.
     @Test(arguments: [
-        "https://blinddrop.app",                  // the root
-        "https://blinddrop.app/j",                // no code
-        "https://blinddrop.app/j/",               // empty code
-        "https://blinddrop.app/j/A/B",            // a code is one path component
-        "https://blinddrop.app/i/not-a-uuid",     // direct invitation ids are UUIDs
-        "https://blinddrop.app/privacy",          // some other page on the domain
-        "https://blinddrop.app/record",           // a scheme route's name, on the web host
+        "https://blinddrop-site.vercel.app",                  // the root
+        "https://blinddrop-site.vercel.app/j",                // no code
+        "https://blinddrop-site.vercel.app/j/",               // empty code
+        "https://blinddrop-site.vercel.app/j/A/B",            // a code is one path component
+        "https://blinddrop-site.vercel.app/i/not-a-uuid",     // direct invitation ids are UUIDs
+        "https://blinddrop-site.vercel.app/privacy",          // some other page on the domain
+        "https://blinddrop-site.vercel.app/record",           // a scheme route's name, on the web host
         "https://evil.example/j/K7MQ2X",          // the right shape, the wrong domain
-        "http://blinddrop.app/j/K7MQ2X",          // http, not https
+        "http://blinddrop-site.vercel.app/j/K7MQ2X",          // http, not https
     ])
     func onlyTheInvitePathOnTheInviteHostIsAUniversalLink(_ raw: String) {
         #expect(URL(string: raw).flatMap(DeepLink.init) == nil)

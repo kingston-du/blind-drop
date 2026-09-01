@@ -96,13 +96,13 @@ import Testing
     }
 
     /// The commonest way an invite arrives is as a link. Filtered character by character,
-    /// `https://blinddrop.app/j/K7MQ2X` would come out as six characters of nonsense that look
+    /// `https://blinddrop-site.vercel.app/j/K7MQ2X` would come out as six characters of nonsense that look
     /// exactly like a code — so the link is recognised first.
     @Test func aPastedLinkYieldsItsCode() {
-        #expect(InviteCode.normalise("https://blinddrop.app/j/K7MQ2X") == "K7MQ2X")
-        #expect(InviteCode.normalise("https://blinddrop.app/j/k7mq2x") == "K7MQ2X")
+        #expect(InviteCode.normalise("https://blinddrop-site.vercel.app/j/K7MQ2X") == "K7MQ2X")
+        #expect(InviteCode.normalise("https://blinddrop-site.vercel.app/j/k7mq2x") == "K7MQ2X")
         #expect(InviteCode.normalise("blinddrop://join/K7MQ2X") == "K7MQ2X")
-        #expect(InviteCode.normalise(" https://blinddrop.app/j/K7MQ2X ") == "K7MQ2X")
+        #expect(InviteCode.normalise(" https://blinddrop-site.vercel.app/j/K7MQ2X ") == "K7MQ2X")
         // A link we do not recognise is not mined for characters either.
         #expect(InviteCode.normalise("https://example.com/j/K7MQ2X") == "")
     }
@@ -116,9 +116,9 @@ import Testing
     /// message are six characters somebody has to be told what to do with.
     @Test func theShareTargetIsTheInviteURL() {
         #expect(InviteCode.inviteURL(for: "K7MQ2X")?.absoluteString
-                == "https://blinddrop.app/j/K7MQ2X")
+                == "https://blinddrop-site.vercel.app/j/K7MQ2X")
         #expect(InviteCode.inviteURL(for: "k7mq2x")?.absoluteString
-                == "https://blinddrop.app/j/K7MQ2X", "shared uppercase, whatever was held")
+                == "https://blinddrop-site.vercel.app/j/K7MQ2X", "shared uppercase, whatever was held")
         // And what it produces is a link the app itself accepts — the round trip is the point.
         let url = InviteCode.inviteURL(for: "K7MQ2X")
         #expect(url.flatMap(DeepLink.init) == .join(code: "K7MQ2X"))
@@ -414,7 +414,7 @@ struct OnboardingHarness {
         h.store.code = "k7mq2x"
         #expect(h.store.code == "K7MQ2X")
 
-        h.store.code = "https://blinddrop.app/j/K7MQ2X"
+        h.store.code = "https://blinddrop-site.vercel.app/j/K7MQ2X"
         #expect(h.store.code == "K7MQ2X")
     }
 
@@ -573,7 +573,7 @@ struct OnboardingHarness {
     /// The universal link is walked alongside it, because `applinks` reaches the router by a
     /// different door (`.onContinueUserActivity`) and arriving at a different place would be a
     /// bug nobody would find until an invite was shared.
-    @Test(arguments: ["blinddrop://join/K7MQ2X", "https://blinddrop.app/j/K7MQ2X"])
+    @Test(arguments: ["blinddrop://join/K7MQ2X", "https://blinddrop-site.vercel.app/j/K7MQ2X"])
     func aLinkTravelsAllTheWayToTheField(_ raw: String) throws {
         let h = OnboardingHarness()
         let router = Router()
