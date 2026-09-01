@@ -138,6 +138,40 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 > this revision touches an Edge Function or a golden fixture (grepped for a stray `61` in
 > `tests/functions`/`tests/golden`; the one hit was an unrelated ISRC digit string).
 
+> **Catalog retexture, 2026-08-31.** Owner retired `workout` ("A song that makes you walk
+> faster") and retexted `getting_hyped` from "A song for getting hyped up" to "A song that
+> excites you" — 41 lines down to 40. Unlike the 2026-08-28 revision, 40 is not prime, so
+> `cue_for_round()`'s hardcoded-41 modulus (which only worked because any odd stride below a
+> prime is automatically coprime with it) would have silently broken the no-repeat-before-
+> exhaustion guarantee — worse, a `stride` sharing a factor with a composite modulus can map an
+> `idx` past the end of the active set, which the original `offset`/`limit 1` shape turned into
+> "no cue" on a round that should have had one. Rather than retire three more cues nobody asked
+> to retire just to land back on a prime (37), `cue_for_round()` was rewritten
+> (`20260831190000_cue_catalog_retexture.sql`) to read the active count live and search forward
+> from its hash-derived candidate `stride` for one coprime with that count (`gcd(stride, N) = 1`,
+> Postgres's built-in `gcd()`) — coprimality, not primality, is what the full-period property
+> actually needs, so the catalog can now change size by any amount without a matching constant
+> edit. `language sql` became `language plpgsql` for the bounded search loop. The first draft of
+> the rewrite also lost the "always exactly one row, columns null when uncued" contract
+> (`offset … limit 0` when uncued, instead of a left join), which made `ensure_rounds()`'s `cross
+> join lateral` silently drop every uncued round — caught by 25 failing assertions in
+> `ensure_rounds_timezones.sql` before landing. `tests/db/cues.sql`'s catalog `bag_eq`, its
+> active-count assertion (41 → 40), its exhaustion cycle (`generate_series(0, 40)` → `(0, 39)`,
+> `41` → `40` throughout), and its `plan()` count (27 → 26, one assertion — the prime check —
+> removed since primality is no longer required) were updated to match; `docs/18-CUES.md` §3 and
+> §6 and the copy deck all note the revision date inline. Verified: `db:reset` applies the new
+> migration cleanly on top of `20260828150000_cue_catalog_revision.sql`, `npm run test:db` is
+> **738/738**, `npm run test:functions` is **286/286**, `npm run audit:leak` is AC-1 satisfied
+> (4 suites), and `node scripts/lint.mjs` is clean.
+>
+> This same session also hand-set two rounds' `prompt`/`prompt_key` directly for one circle
+> ("kingston's friends") at the owner's explicit request — `2026-09-01` to "A tiktok song you
+> actually listen to" and `2026-09-02` to "A song you fall asleep to", both with `prompt_key =
+> null` since neither text is a catalog entry. This is a one-off data edit for that circle only,
+> not a change to `cue_for_round()`'s output or to §3's "no admin picks a cue and no cue is
+> custom" rule for every other circle — noted here so a future reader of this circle's history
+> isn't confused by an unexplained custom cue with no catalog key.
+
 ---
 
 ### E35-03 — API: rounds, results, record, group settings

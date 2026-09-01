@@ -68,16 +68,31 @@ i     = (n + offset(group_id)) div k                     -- the i-th cue this ci
 cue   = catalog[(i * stride(group_id) + seed(group_id)) mod N]
 ```
 
-`offset`, `stride`, and `seed` are derived once from `hashtext(group_id)` (`stride` forced odd and
-coprime with `N` by construction — see §5) so two circles on the same cadence don't draw the same
-cue on the same night, and a circle doesn't always start its cycle on cue #0.
+`offset`, `stride`, and `seed` are derived once from `hashtext(group_id)`, so two circles on the
+same cadence don't draw the same cue on the same night, and a circle doesn't always start its
+cycle on cue #0.
 
-**Why this is enough, with no drawn-history table.** `N` is prime (41, see §6), so any nonzero
-stride below `N` is coprime with it, which means the sequence `i ↦ catalog[(i·stride + seed) mod
-N]` visits every one of the `N` cues exactly once before any repeats — a full period. Nothing
-needs to be recorded to guarantee "no repeat before exhaustion" or "no two cue nights in a row
-share a cue"; it falls out of modular arithmetic over a prime-sized catalog. `ensure_rounds()`
-computes `n` from a `count(*)` over that circle's existing rounds at insert time — see §5.
+**Why this is enough, with no drawn-history table.** The sequence `i ↦ catalog[(i·stride + seed)
+mod N]` visits every one of the `N` cues exactly once before any repeat — a full period — as long
+as `stride` is coprime with `N`. Nothing needs to be recorded to guarantee "no repeat before
+exhaustion" or "no two cue nights in a row share a cue"; it falls out of modular arithmetic.
+`ensure_rounds()` computes `n` from a `count(*)` over that circle's existing rounds at insert
+time — see §5.
+
+> **Revision, 2026-08-31.** `cue_for_round()` originally relied on `N` being prime (41) so that
+> any nonzero odd `stride` below it was automatically coprime, and it hardcoded that count. That
+> made the catalog's size load-bearing: the pgTAP suite asserted `count(*) from cue_catalog where
+> active` was prime on every migration, and shrinking the active set by anything other than a
+> prime-preserving amount would have silently broken the guarantee (some `stride` values share a
+> factor with a composite `N`, which shortens the cycle and can even leave a round's cue-slot
+> mapping to an inactive row entirely). `20260831190000_cue_catalog_retexture.sql` retired the
+> `workout` entry and re-texted `getting_hyped`, landing the active count at 40 — not prime — so
+> the function now reads `N` live from `count(*) from cue_catalog where active` and hunts forward
+> from its hash-derived candidate `stride` until it lands on one coprime with the live `N`
+> (`gcd(stride, N) = 1`, using Postgres's built-in `gcd()`). Coprimality, not primality, is what
+> the full-period property actually needs; the catalog can now shrink or grow by any amount and
+> the guarantee still holds without a matching modulus edit. See the dated note in
+> `tasks/E35-cues.md`'s E35-02 section.
 
 ## 4. Cadence: per circle, admin-only, four settings
 
@@ -121,19 +136,23 @@ alter table public.rounds
 $1` for `n`) and set `prompt_key`/`prompt` on insert. A group with `cue_cadence = 0` inserts
 `null` for both, exactly as every round does today.
 
-## 6. The catalog — 41 cues, prime by construction
+## 6. The catalog — 40 cues
 
 Sentence case, no trailing period, **56 characters or fewer** (a pgTAP/lint assertion, so nothing
 overflows on SE at `accessibility5` — the same discipline `docs/12` already asks of every string).
 Every one answerable in the time it takes to think of a song — nothing that needs research, a
-specific memory a person might not have, or a joke that only lands with the right timing. `N = 41`
-is prime; a test in `E35-02` asserts `count(*) from cue_catalog where active` is prime on every
-migration, so the catalog can grow later without silently breaking the no-repeat-before-exhaustion
-property in §3.
+specific memory a person might not have, or a joke that only lands with the right timing. `N`
+no longer needs to be prime (§3's 2026-08-31 revision) — `cue_for_round()` reads the active count
+live and hunts for a coprime `stride`, so the catalog can grow or shrink by any amount without a
+matching modulus edit.
 
 > **Revision, 2026-08-28.** Cut from the original 61 to sharpen for the actual audience (~18,
 > easy to answer, not straining for hip) and cut duplicate-feeling entries. See the dated note in
 > `tasks/E35-cues.md`'s E35-02 section for the full before/after and which migration carries it.
+
+> **Revision, 2026-08-31.** Owner retired `workout` ("A song that makes you walk faster") and
+> retexted `getting_hyped` from "A song for getting hyped up" to "A song that excites you" — 41
+> lines down to 40. See the dated note in `tasks/E35-cues.md`'s E35-02 section.
 
 **Confession**
 A song you're embarrassed to love · A song you'd never play in someone else's car · A song you
@@ -168,9 +187,9 @@ because of a movie · A song you know all the lyrics to · A song nobody has hea
 
 **Mood**
 A song you were obsessed with at 13 · A song your friend put you onto · A song for a slow morning
-· A song for getting hyped up · A song that makes you walk faster · A song for falling asleep
+· A song that excites you · A song for falling asleep
 
-41 lines. `docs/11-COPY-DECK.md` gets its own `cue.catalog` table matching this list verbatim —
+40 lines. `docs/11-COPY-DECK.md` gets its own `cue.catalog` table matching this list verbatim —
 one source of truth, the seed migration reads from it, and `E35-02`'s verify includes a test
 diffing the two so they cannot drift.
 

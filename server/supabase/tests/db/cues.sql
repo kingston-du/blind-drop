@@ -2,10 +2,12 @@
 --
 -- The four properties this feature stands on, asserted in SQL:
 --
---   1. The catalog is prime-sized, bounded, and exactly the list `docs/11-COPY-DECK.md`
---      records — the prime count is what makes §3's no-repeat-before-exhaustion fall out of
---      modular arithmetic, and the 56-char cap is the SE-at-accessibility5 discipline.
---   2. Over 41 rounds at `cue_cadence = 1`, every cue appears exactly once before any repeat.
+--   1. The catalog is bounded and exactly the list `docs/11-COPY-DECK.md` records — the
+--      56-char cap is the SE-at-accessibility5 discipline. The active count no longer needs to
+--      be prime (20260831190000): `cue_for_round()` reads it live and searches for a stride
+--      coprime with it, which is what §3's no-repeat-before-exhaustion actually depends on.
+--   2. Over every active cue at `cue_cadence = 1`, each one appears exactly once before any
+--      repeat.
 --   3. `ensure_rounds()` assigns a cue on insert and never rewrites one afterwards.
 --   4. `ensure_rounds()` assigns the true chronological ordinal across repeated day-to-day
 --      rollovers, not just a single instant — 20260827130000 fixed a permanent off-by-one here.
@@ -14,25 +16,12 @@
 
 begin;
 set search_path = public, extensions, tests;
-select plan(27);
-
-create or replace function tests.is_prime(n int) returns boolean
-language sql immutable as $$
-  select n > 1 and not exists (
-    select 1
-      from pg_catalog.generate_series(2, pg_catalog.floor(pg_catalog.sqrt(n))::int) d
-     where n % d = 0
-  );
-$$;
+select plan(26);
 
 -- ─── 1 · the catalog ─────────────────────────────────────────────────────────
 
-select ok(tests.is_prime((select pg_catalog.count(*)::int
-                          from public.cue_catalog where active)),
-  'the active cue count is prime (§3''s no-repeat-before-exhaustion depends on it)');
-
-select is((select pg_catalog.count(*)::int from public.cue_catalog where active), 41,
-  '41 active cues, as docs/18-CUES.md §6 records');
+select is((select pg_catalog.count(*)::int from public.cue_catalog where active), 40,
+  '40 active cues, as docs/18-CUES.md §6 records');
 
 select ok((select pg_catalog.bool_and(char_length(text) <= 56) from public.cue_catalog),
   'every cue text is 56 characters or fewer');
@@ -55,7 +44,7 @@ select bag_eq(
     ('from_a_movie','A song you only know because of a movie'),
     ('genre_you_never_listen','A song from a genre you never listen to'),
     ('get_ready_to','The song you get ready to'),
-    ('getting_hyped','A song for getting hyped up'),
+    ('getting_hyped','A song that excites you'),
     ('guilty_pleasure_alone','A song you only play with headphones on'),
     ('hate_and_know_words','A song you hate and know every word of'),
     ('know_all_the_lyrics','A song you know all the lyrics to'),
@@ -82,7 +71,6 @@ select bag_eq(
     ('tied_to_someone','A song tied to a specific person'),
     ('tired_of_hearing','A song that got ruined for you'),
     ('unexpected_from_you','A song that would give the wrong impression of you'),
-    ('workout','A song that makes you walk faster'),
     ('worst_by_favorite_artist','The worst song by an artist you love')
   $$,
   'the catalog matches docs/11-COPY-DECK.md''s cue.catalog verbatim'
@@ -96,15 +84,15 @@ values ('e1000000-0000-4000-8000-0000000000f1','Cue cycle','America/New_York',20
 
 create temporary view cycle as
   select gs as n, cue.prompt_key, cue.prompt
-    from pg_catalog.generate_series(0, 40) as gs
+    from pg_catalog.generate_series(0, 39) as gs
     cross join lateral public.cue_for_round(
       'e1000000-0000-4000-8000-0000000000f1', gs, 1::smallint) as cue;
 
-select is((select pg_catalog.count(*)::int from cycle), 41,
-  'every one of 41 rounds at cadence 1 carries a cue');
+select is((select pg_catalog.count(*)::int from cycle), 40,
+  'every one of 40 rounds at cadence 1 carries a cue');
 
-select is((select pg_catalog.count(distinct prompt_key)::int from cycle), 41,
-  'no cue key repeats across 41 consecutive cued rounds');
+select is((select pg_catalog.count(distinct prompt_key)::int from cycle), 40,
+  'no cue key repeats across 40 consecutive cued rounds');
 
 select is((select pg_catalog.count(*)::int from cycle where prompt_key is null), 0,
   'and none of them is null');
@@ -115,7 +103,7 @@ select ok(
     except
     select prompt_key from cycle
   ),
-  'the 41 cued rounds exhaust the whole catalog before any repeat'
+  'the 40 cued rounds exhaust the whole catalog before any repeat'
 );
 
 -- ─── 3 · ensure_rounds assigns once, never rewrites ──────────────────────────
