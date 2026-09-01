@@ -7,6 +7,10 @@ struct GroupScreen: View {
     @Environment(AppEnvironment.self) private var env
     @State private var store: GroupStore?
     @State private var selectedMember: MemberDTO?
+    /// `E38-03`. Built once and held, so an invitation already sent survives a refresh of the
+    /// group underneath it — a row that reverted from *Share invite* back to *Invite* would be
+    /// telling somebody to do again what they have already done.
+    @State private var inviteStore: InviteStore?
 
     var body: some View {
         Group {
@@ -21,6 +25,7 @@ struct GroupScreen: View {
             if store == nil {
                 store = env.routeStores.groupStore(for: await env.circles.resolveActiveID())
             }
+            inviteStore = inviteStore ?? InviteStore(api: env.api)
             await store?.load()
         }
     }
@@ -58,7 +63,8 @@ struct GroupScreen: View {
                     env.router.path = []
                     return true
                 },
-                onOpenRecord: { env.router.path.append(.record) }
+                onOpenRecord: { env.router.path.append(.record) },
+                invites: inviteStore
             )
         } else if store.state.isLoading {
             GroupSkeleton().padding(Layout.screenInset)
@@ -106,6 +112,10 @@ struct GroupDetailView: View {
     /// next to the fact that introduces the standings. `Route.record` and its deep link are
     /// unchanged.
     var onOpenRecord: () -> Void = {}
+    /// The invite panel's store (`E38-03`). Optional so the snapshot suite can render the screen
+    /// without one — the panel is a live network surface, and a golden of it belongs to the panel
+    /// rather than to every group golden.
+    var invites: InviteStore?
     /// Test-only construction path. It keeps snapshots on the same hierarchy while omitting the
     /// `ScrollView` and UIKit-backed controls `ImageRenderer` cannot draw.
     var rendersForSnapshot = false
@@ -163,6 +173,7 @@ struct GroupDetailView: View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
             SheetMeta(text: meta) { recordButton }
             leaderboard(isSnapshot: isSnapshot)
+            inviteSection
             nameSection(isSnapshot: isSnapshot)
             details(isSnapshot: isSnapshot)
             if let errorKey {
@@ -171,6 +182,31 @@ struct GroupDetailView: View {
             Button("group.leave", role: .destructive) { confirmsLeaving = true }
                 .buttonStyle(.plain).typeStyle(.bodyL).foregroundStyle(Palette.alert)
                 .minimumTouchTarget().disabled(isLeaving)
+        }
+    }
+
+    /// **How the circle grows** (`E38-03`). Directly under the leaderboard, because the
+    /// leaderboard is who is here and this is how somebody else gets to be: the two are one
+    /// subject, and the name, reveal hour and timezone below them are a different one.
+    ///
+    /// `docs/08` §9 said this screen *"still carries no submitted state, join date, or invite
+    /// code"*. The invite code half of that is amended here — and it costs no new data, because
+    /// `GET /groups/{group_id}` has always returned `invite_code` and `GroupDTO` has always
+    /// decoded it. Nothing leaked by drawing it: a code is not a member's state, carries no
+    /// count, and is safe in every round phase, which is what made the original sentence about
+    /// the *data source* rather than about this one field.
+    ///
+    /// Quiet emphasis: this screen's subject is the standings above it, and a full-weight black
+    /// button for an errand would outrank them.
+    @ViewBuilder private var inviteSection: some View {
+        if let invites {
+            InvitePanel(
+                groupID: group.id,
+                inviteCode: group.inviteCode,
+                store: invites,
+                emphasis: .quiet
+            )
+            .task { await invites.load(excluding: Set(group.members.map(\.userID))) }
         }
     }
 

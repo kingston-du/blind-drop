@@ -476,9 +476,21 @@ Reachable from the header menu in every phase. An archive, not a feed.
 ## 9. Group
 
 Pushed from the header menu (`E21-01`). Its own name, when it reveals, who is in it and their
-role, its timezone, and how to leave. It still carries no submitted state, join date, or invite
-code — those stay outside this screen's data source, `GET /groups/{group_id}`, which is safe in
-every round phase.
+role, its timezone, how to **invite**, and how to leave. It carries no submitted state and no
+join date — those stay outside this screen's data source, `GET /groups/{group_id}`, which is safe
+in every round phase.
+
+**Amended by `E38-03`: the invite code is drawn here**, directly under the leaderboard, with the
+share link above it and the people-you-played-with shortlist below. The original sentence ruled
+out the code along with submitted state and join dates, and that grouped three unlike things:
+the other two are *members' state* and would be leaks, whereas a code is a property of the
+circle, carries no count, names nobody, and is already in this screen's payload —
+`GET /groups/{group_id}` has always returned `invite_code`. Ruling it out cost the product the
+only way an existing circle could grow: the affordance lived solely in the sheet that creates a
+group, so a circle could be filled for about thirty seconds after birth and never again, and a
+person already in a circle could only be reached by a direct invitation from somebody they had
+already played with. It is one `InvitePanel`, shared with that creation sheet, drawn quiet here
+because this screen's subject is the standings above it.
 
 **Admin sees more, not different.** Renaming and the reveal-hour picker are absent for a member,
 not shown disabled — a wall of greyed-out controls tells a member what they cannot have, and

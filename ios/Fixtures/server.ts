@@ -89,7 +89,19 @@ function reTimeWith(
 const PRIMARY_GROUP_ID = "b0000000-0000-4000-8000-000000000001";
 const SECONDARY_GROUP_ID = "b0000000-0000-4000-8000-000000000099";
 
+// Circles created during this run, by `POST /groups` (`E38-03`).
+//
+// `POST /groups` used to answer with `group_current.json` — the nine-member circle the fixture
+// has always shipped — which made the creation flow untestable in the one way that matters:
+// a circle you have just made has exactly **one** member, you, and every screen that follows
+// (the invite shortlist, the roster, the standings) is about that fact. Returning somebody
+// else's nine-person circle hid it. These are held in memory only: nothing is written to
+// `payloads/`, and a restart forgets them, so no existing test's expectations move.
+const createdGroups = new Map<string, Record<string, unknown>>();
+
 async function groupPayloadFor(groupId: string): Promise<Record<string, unknown> | null> {
+  const created = createdGroups.get(groupId);
+  if (created) return created;
   if (groupId === PRIMARY_GROUP_ID) return await payload("group_current") as Record<string, unknown>;
   if (groupId === SECONDARY_GROUP_ID) {
     const primary = await payload("group_current") as Record<string, unknown>;
@@ -110,6 +122,12 @@ async function groupPayloadFor(groupId: string): Promise<Record<string, unknown>
  *  never moving with `PHASE` — so a `:group_id` route asked for it stays honest about what
  *  `GET /groups` already said. */
 async function roundPayloadFor(groupId: string): Promise<Record<string, unknown> | null> {
+  // A circle created a moment ago plays tonight like any other; it gets the `open` round so
+  // "Go to the group" lands on a real screen rather than a NOT_FOUND.
+  if (createdGroups.has(groupId)) {
+    const round = await payload("round_open") as Record<string, unknown>;
+    return reTimeWith(round, OFFSETS.open, new Date());
+  }
   if (groupId === PRIMARY_GROUP_ID) {
     const round = await payload(PHASES[activePhase]) as Record<string, unknown>;
     return reTime(round, new Date());
@@ -311,7 +329,15 @@ async function route(req: Request, url: URL): Promise<Response> {
       my_state: "sealed",
       needs_action: false,
     };
-    return ok({ circles: [primary, secondary] });
+    // Circles made during this run sit after the two static ones, in creation order, so the
+    // switcher a `POST /groups` just changed actually shows what changed (`E38-03`).
+    const created = [...createdGroups.values()].map((group) => ({
+      id: group.id as string,
+      name: group.name as string,
+      my_state: "drop",
+      needs_action: true,
+    }));
+    return ok({ circles: [primary, secondary, ...created] });
   }
   if (m === "GET" && p === "/groups/current") return ok(await payload("group_current"));
   if (m === "GET" && p === "/groups/people-you-played-with") {
@@ -324,7 +350,27 @@ async function route(req: Request, url: URL): Promise<Response> {
         .map((member) => ({ user_id: member.user_id, display_name: member.display_name })),
     });
   }
-  if (m === "POST" && p === "/groups") return ok(await payload("group_current"));
+  if (m === "POST" && p === "/groups") {
+    const body = await req.json().catch(() => ({}));
+    const me = (await payload("me")) as Record<string, unknown>;
+    // A block of its own, well clear of `PRIMARY_GROUP_ID`/`SECONDARY_GROUP_ID` — the first
+    // draft of this generated `…0001` and shadowed the primary circle in `groupPayloadFor`.
+    const id = `b0000000-0000-4000-8000-${String(500 + createdGroups.size).padStart(12, "0")}`;
+    const group = {
+      id,
+      name: String(body.name ?? "New group"),
+      timezone: String(body.timezone ?? "America/New_York"),
+      reveal_hour: Number(body.reveal_hour ?? 20),
+      // `docs/03` §2's alphabet: no `I`, `L`, `O`, `0` or `1`.
+      invite_code: `N${createdGroups.size + 2}WCRD`.slice(0, 6),
+      is_admin: true,
+      // One member: the creator. That is the whole point of this route answering for itself.
+      members: [{ user_id: me.user_id, display_name: me.display_name }],
+      cue_cadence: 2,
+    };
+    createdGroups.set(id, group);
+    return ok(group);
+  }
   if (m === "POST" && p === "/groups/join") {
     const body = await req.json().catch(() => ({}));
     const code = String(body.invite_code ?? "").trim().toUpperCase();

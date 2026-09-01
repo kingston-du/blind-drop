@@ -15,15 +15,16 @@ final class StartGroupStore {
     var revealHour = RevealHour.default
     let timezone = TimeZone.current.identifier
     private(set) var isCreating = false
-    private(set) var isLoadingPeople = false
-    private(set) var invitingIDs = Set<String>()
-    private(set) var people: [KnownPersonDTO] = []
-    private(set) var invitations: [String: InvitationDTO] = [:]
     private(set) var failure: String?
+
+    /// The invite half, which `E38-03` lifted out of here into `InvitePanel` so `GroupScreen`
+    /// could have it too. This sheet owns one and hands it to the panel.
+    let invites: InviteStore
 
     init(api: APIClient, circles: CircleStore) {
         self.api = api
         self.circles = circles
+        self.invites = InviteStore(api: api)
     }
 
     var canCreate: Bool {
@@ -46,36 +47,10 @@ final class StartGroupStore {
             await circles.load()
             circles.select(group.id)
             step = .invite(group)
-            await loadPeople()
+            // A brand-new circle's only member is the creator, so the shortlist excludes exactly
+            // them — the same filter `GroupScreen` applies against a circle of eleven.
+            await invites.load(excluding: Set(group.members.map(\.userID)))
         } catch let error as APIError {
-            failure = error.copyKey
-        } catch {
-            failure = APIError.unreadable.copyKey
-        }
-    }
-
-    func loadPeople() async {
-        isLoadingPeople = true
-        defer { isLoadingPeople = false }
-        do {
-            people = try await api.send(Endpoint<KnownPeopleDTO>.peopleYouPlayedWith).people
-        } catch let error as APIError {
-            failure = error.copyKey
-        } catch {
-            failure = APIError.unreadable.copyKey
-        }
-    }
-
-    func invite(_ person: KnownPersonDTO, to group: GroupDTO) async {
-        guard !invitingIDs.contains(person.id), invitations[person.id] == nil else { return }
-        invitingIDs.insert(person.id)
-        failure = nil
-        defer { invitingIDs.remove(person.id) }
-        do {
-            invitations[person.id] = try await api.send(.invitePerson(person.id, to: group.id))
-        } catch let error as APIError {
-            // A second tap after an interrupted request is still honestly represented as already
-            // invited; the button remains available so the next run can show that answer.
             failure = error.copyKey
         } catch {
             failure = APIError.unreadable.copyKey
@@ -237,32 +212,18 @@ private struct StartGroupInvites: View {
                     CloseButton(action: close)
                 }
                 Text("group.invite.help").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                if store.isLoadingPeople {
-                    ProgressView().tint(Palette.ink)
-                } else if store.people.isEmpty {
-                    Text("group.invite.empty").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-                } else {
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        SectionLabel("group.invite.people")
-                        ForEach(store.people) { person in
-                            personRow(person)
-                        }
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    SectionLabel("group.invite.link")
-                    if let url = InviteCode.inviteURL(for: group.inviteCode) {
-                        ShareLink(item: url) {
-                            PrimaryButtonLabel("group.invite.share").primaryButtonChrome(fill: .neutral)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                InvitePanel(
+                    groupID: group.id,
+                    inviteCode: group.inviteCode,
+                    store: store.invites,
+                    emphasis: .primary
+                )
 
                 if let failure = store.failure {
                     Text(LocalizedStringKey(failure)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 SecondaryButton("group.invite.done", action: close)
@@ -272,36 +233,5 @@ private struct StartGroupInvites: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Palette.paper)
-    }
-
-    @ViewBuilder private func personRow(_ person: KnownPersonDTO) -> some View {
-        if let invitation = store.invitations[person.id], let url = InvitationLink.url(for: invitation.id) {
-            ShareLink(item: url) {
-                HStack {
-                    Text(verbatim: person.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                    Spacer(minLength: Space.sm)
-                    Text("group.invite.share").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-                }
-                .rowSurface()
-            }
-            .buttonStyle(.plain)
-        } else {
-            Button {
-                Task { await store.invite(person, to: group) }
-            } label: {
-                HStack {
-                    Text(verbatim: person.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                    Spacer(minLength: Space.sm)
-                    if store.invitingIDs.contains(person.id) {
-                        ProgressView().tint(Palette.ink)
-                    } else {
-                        Text("group.invite.action").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-                    }
-                }
-                .rowSurface()
-            }
-            .buttonStyle(.plain)
-            .disabled(store.invitingIDs.contains(person.id))
-        }
     }
 }
