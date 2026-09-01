@@ -119,13 +119,16 @@ E35 cues                        six slices, mostly sequential — see the epic f
 E36 personal share card         one slice — amends docs/10 §2's "no scores for anyone but the
                                  headline", owner amendment; see the epic file
 E37 drop screen redesign        one slice — header reflow, cue card, paste-fallback removal
+E38 circles end to end          four slices; E38-01 → E38-02/E38-03, E38-04 independent
 ```
 
 None of `E29`–`E37` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
 is the spec `E29`–`E34` were cut from; `E35` is cut from `docs/18-CUES.md`, written separately
 after an owner request. `E36` is cut from an owner request of 2026-08-28 and revisits `E30`'s
 surface — it is the only epic here that depends on another (`E30`, done). `E37` is cut from an
-owner request, no spec section — see the epic file.
+owner request, no spec section — see the epic file. `E38` is cut from an owner request of
+2026-08-31 ahead of production, no spec section; it amends `docs/08` §2's *"a name and a state and
+nothing else"* so the active row is visible to everyone and not only to VoiceOver.
 
 `E35` closed 2026-08-27 — all six slices done. **Flag for the next iOS slice:** the simulator is
 now iOS 26.5, and the snapshot baseline recorded under `E28`/`E29` has drifted across the board
@@ -554,6 +557,21 @@ brief. `docs/18` §2 carries the one real exception this needs: the card's micro
 |---|---|---|---|---|
 | E37-01 Header reflow, cue card, paste-fallback removal | done | — | yes | — |
 
+## E38 — Circles, end to end · [file](E38-circles-end-to-end.md)
+
+Four slices, from an owner request, over the least-exercised surface in the app. The hole they
+close: since ADR-011 a person may hold three circles, but every way *into* a second one still
+assumes they hold none — a `/j/<CODE>` link is discarded outright for anybody already `.ready`,
+and the only field that takes a code lives behind `session == .noGroup`. The mirror is that an
+existing circle has no invite affordance at all. Nothing on the server changes.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E38-01 The switcher, remade | todo | — | no | — |
+| E38-02 Join with a code, when you already have one | todo | E38-01 | no | — |
+| E38-03 Inviting out of a circle you already have | todo | E38-01 | no | — |
+| E38-04 The switch is quiet | todo | — | vs E38-03 | — |
+
 ---
 
 ## Progress
@@ -605,4 +623,5 @@ brief. `docs/18` §2 carries the one real exception this needs: the card's micro
 | E35 cues | 6 / 6 |
 | E36 personal share card | 1 / 1 |
 | E37 drop screen redesign | 1 / 1 |
-| **Next-progression total** | **17 / 17** |
+| E38 circles end to end | 0 / 4 |
+| **Next-progression total** | **17 / 21** |
