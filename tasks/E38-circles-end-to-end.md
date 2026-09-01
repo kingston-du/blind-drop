@@ -22,11 +22,11 @@ under the cap, and raises `ALREADY_IN_GROUP` only for the circle you are actuall
 
 ### E38-01 — The switcher, remade
 
-**Status:** todo · **Deps:** — · **Parallel:** no
-**Reads:** `docs/07` §2, §4, §5, `docs/08` §2, `docs/11`, `docs/12` §5, §6
+**Status:** wip · **Deps:** — · **Parallel:** no
+**Reads:** `docs/07` §2, §4, §5, `docs/08` §2, `docs/11` (the switcher), `docs/12` §5, §6
 **Touches:** `Features/Circles/CircleSwitcherSheet.swift`,
 `DesignSystem/Components/{Surfaces,PillButton}.swift`, `Localizable.strings`,
-`docs/08` §2, `docs/11`, snapshot tests and goldens
+`docs/11`, snapshot tests and goldens
 **Verify:** `./ios/scripts/lint.sh`; `-only-testing:BlindDropSnapshotTests/CircleSwitcherSnapshots`;
 simulator: the sheet with one circle, three circles, and a pending invitation.
 **Proves:** —
@@ -42,8 +42,8 @@ surfaces separated by paper read as three unrelated controls; one card with rule
 as the list it is, and `Rule` already exists for exactly this — *"a hairline across a card,
 between two things that belong to the same card"*.
 
-**The active circle becomes visible.** `docs/08`'s checklist said a row is a name and a state and
-nothing else, and the active row carried its selection only as VoiceOver's `.isSelected`; this
+**The active circle becomes visible.** `docs/11`'s switcher note said the row is still just a
+name and a state, and the active row carried its selection only as VoiceOver's `.isSelected`; this
 slice amends that, because state conveyed to one class of user and not another is an
 accessibility defect rather than restraint. It is drawn as a **sunken row** — `paperSunk` inside
 the white card — and not with an accent: `CLAUDE.md` §2.5 is untouched here, and the sunken
@@ -51,11 +51,13 @@ reading is also the honest one, since the active row is the single row in the li
 nothing when tapped.
 
 The footer's full-width `OutlineButton` becomes two equal quiet actions on one row — **Join with a
-code** and **Start a group** — `ViewThatFits`-measured, stacking when they do not fit. They are
-alternatives of equal weight and neither is the point of the sheet.
+code** and **Start a group** — stacking at `.accessibility1`, on the same threshold the rows
+already use so the sheet is never half-reflowed. They are alternatives of equal weight and
+neither is the point of the sheet.
 
 An invitation stops carrying a full-bleed black `PrimaryButton`. It gets `PillButton` — a new
-row-level filled action, `bodyMStrong` in a pill — beside **Decline** as text. The invite is worth
+row-level filled action, `bodyLStrong` in a pill sized to its own words — beside **Decline** as
+text. The invite is worth
 a card; it is not worth being the loudest thing on a screen whose job is switching.
 
 - [ ] The close control shares the title row; no row belongs to it alone

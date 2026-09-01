@@ -127,8 +127,8 @@ is the spec `E29`–`E34` were cut from; `E35` is cut from `docs/18-CUES.md`, wr
 after an owner request. `E36` is cut from an owner request of 2026-08-28 and revisits `E30`'s
 surface — it is the only epic here that depends on another (`E30`, done). `E37` is cut from an
 owner request, no spec section — see the epic file. `E38` is cut from an owner request of
-2026-08-31 ahead of production, no spec section; it amends `docs/08` §2's *"a name and a state and
-nothing else"* so the active row is visible to everyone and not only to VoiceOver.
+2026-08-31 ahead of production, no spec section; it amends `docs/11`'s switcher note — *"the row is still
+just a name and a state"* — so the active row is visible to everyone and not only to VoiceOver.
 
 `E35` closed 2026-08-27 — all six slices done. **Flag for the next iOS slice:** the simulator is
 now iOS 26.5, and the snapshot baseline recorded under `E28`/`E29` has drifted across the board
@@ -567,7 +567,7 @@ existing circle has no invite affordance at all. Nothing on the server changes.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E38-01 The switcher, remade | todo | — | no | — |
+| E38-01 The switcher, remade | wip | — | no | — |
 | E38-02 Join with a code, when you already have one | todo | E38-01 | no | — |
 | E38-03 Inviting out of a circle you already have | todo | E38-01 | no | — |
 | E38-04 The switch is quiet | todo | — | vs E38-03 | — |
