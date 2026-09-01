@@ -213,6 +213,23 @@ final class RoundStore {
         // the current circle will make its own call here with its own answer.
         guard circles.activeGroupID == groupID else { return }
 
+        // **A cancelled load is not a failure, and must never be drawn as one** (`E38-04`).
+        //
+        // `APIClient` maps every transport error to `APIError.offline`, `URLError.cancelled`
+        // deliberately included, on the argument that *"a cancelled request is a screen that
+        // went away, and nothing renders its error"*. On a circle switch the screen does not go
+        // away: `.task(id: loadToken)` cancels the load in flight and starts another, and the
+        // cancelled one arrives here with `.offline` against a state `invalidate()` has already
+        // cleared to `.loading` — which has no value to fall back on, so `LoadState.apply`
+        // resolves it to `.failed` and the screen draws **You're offline.** with a *Try again*
+        // button until the replacement lands. That is the flash, and it is a lie: the phone was
+        // never offline.
+        //
+        // Dropping the result is safe because a cancellation always has a successor.
+        // `.task(id:)` cancels only when the id changes — which starts the next load — or when
+        // the view goes away, and there is then no screen to leave in `.loading`.
+        guard !Task.isCancelled else { return }
+
         state.apply(outcome)
 
         // `docs/05` §5: a deep link is applied only **after** the round has loaded, so it can

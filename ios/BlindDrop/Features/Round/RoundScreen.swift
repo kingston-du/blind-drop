@@ -56,6 +56,17 @@ struct RoundScreen: View {
     /// The creation-and-invitation flow starts from the switcher but is its own sheet: a form
     /// needs keyboard room and must not distort the switcher's measured detent.
     @State private var isStartingGroup = false
+    /// What the switcher asked for on its way out (`E38-04`).
+    ///
+    /// Held rather than acted on, because presenting a second sheet in the same update that
+    /// dismisses the first is a dismissal racing a presentation — UIKit runs them back to back
+    /// and the new sheet arrives while the old one is still sliding away, which is the stutter
+    /// on **Start a group**. `onDismiss` is the moment the switcher is genuinely gone.
+    @State private var switcherExit: SwitcherExit?
+    /// The join-by-code sheet (`E38-02`), reached from the switcher's footer or from a
+    /// `/j/<CODE>` link that arrived while the caller already had a circle. It carries the code
+    /// so both doors open the same sheet.
+    @State private var joinPrompt: JoinPrompt?
     /// Bumped when the countdown elapses and when the app returns to the foreground. One
     /// `.task(id:)` does the loading, so the work is structured and cancels with the screen
     /// (`docs/13` §6) rather than being an unstructured `Task` per event.
@@ -97,6 +108,15 @@ struct RoundScreen: View {
             // `nil` guards the very first run, where there is nothing yet to compare against.
             .onChange(of: env.circles.activeGroupID) { old, new in
                 guard old != nil, new != old else { return }
+                // `E38-04`: and **only** when nothing is already loading. `switchCircle` clears
+                // to `.loading` before it bumps the token, and this fires afterwards on the
+                // same tap — `activeGroupID` is recomputed on the body evaluation that
+                // `invalidate()` itself triggers, so the id has genuinely moved by the time
+                // this runs. Left unguarded it spent a second, redundant round trip on every
+                // switch and cancelled the first one mid-flight. The case this exists for —
+                // leaving the active circle — happens against a `.loaded` round, so it is
+                // unaffected.
+                guard store?.state.isLoading == false else { return }
                 store?.invalidate()
                 loadToken += 1
             }
@@ -230,21 +250,55 @@ struct RoundScreen: View {
         }
         // `E19-02`. `rows` is already ordered — needs-action circles first — so this view only
         // ever renders `CircleSwitcher`'s answer, never re-derives it.
-        .sheet(isPresented: $isShowingSwitcher) {
+        .sheet(isPresented: $isShowingSwitcher, onDismiss: presentSwitcherExit) {
             CircleSwitcherSheet(
                 rows: circleSwitcher(store).rows,
                 activeID: store.state.value?.group.id,
                 select: { switchCircle(to: $0, store: store) },
-                startGroup: {
-                    isShowingSwitcher = false
-                    isStartingGroup = true
-                },
+                startGroup: { leaveSwitcher(for: .startGroup) },
+                joinWithCode: { leaveSwitcher(for: .joinWithCode) },
                 acceptInvitation: { switchCircle(to: $0, store: store) },
                 close: { isShowingSwitcher = false }
             )
         }
         .sheet(isPresented: $isStartingGroup) {
             StartGroupSheet()
+        }
+        .sheet(item: $joinPrompt) { prompt in
+            JoinCircleSheet(
+                prefilledCode: prompt.code,
+                joined: { id in
+                    joinPrompt = nil
+                    switchCircle(to: id, store: store)
+                },
+                close: { joinPrompt = nil }
+            )
+        }
+        // `E38-02`. A `/j/<CODE>` link consumed by `Router` for a `.ready` session leaves its
+        // code here; this is the half that opens the sheet. Cleared immediately so returning to
+        // the screen later does not re-present a code the caller already dealt with — the same
+        // contract `JoinOrCreateScreen` has with `clearPendingInviteCode()`.
+        .onChange(of: env.router.pendingInviteCode, initial: true) { _, code in
+            guard let code, !code.isEmpty else { return }
+            env.router.clearPendingInviteCode()
+            isShowingSwitcher = false
+            switcherExit = nil
+            joinPrompt = JoinPrompt(code: code)
+        }
+    }
+
+    /// The switcher's two footer actions and the sheet they hand over to. See `switcherExit`.
+    private func leaveSwitcher(for exit: SwitcherExit) {
+        switcherExit = exit
+        isShowingSwitcher = false
+    }
+
+    private func presentSwitcherExit() {
+        guard let exit = switcherExit else { return }
+        switcherExit = nil
+        switch exit {
+        case .startGroup: isStartingGroup = true
+        case .joinWithCode: joinPrompt = JoinPrompt(code: "")
         }
     }
 
@@ -1131,4 +1185,23 @@ struct PushPermissionSheet: View {
         .presentationDetents([.medium])
         .presentationCornerRadius(Radius.sheet)
     }
+}
+
+/// Which sheet the switcher is handing over to once it has finished dismissing (`E38-04`).
+private enum SwitcherExit {
+    case startGroup
+    case joinWithCode
+}
+
+/// The join-by-code sheet's presentation, carrying the code it opens with (`E38-02`).
+///
+/// `Identifiable` and presented with `.sheet(item:)` rather than a `Bool` plus a separate
+/// `@State` for the code: the two doors into this sheet — the switcher's footer and a `/j/<CODE>`
+/// link — differ only in what the field starts with, and a flag with a value beside it is two
+/// things that can disagree about whether the sheet is up.
+private struct JoinPrompt: Identifiable {
+    let code: String
+    /// The code is the identity: a second link, for a different circle, arriving while the sheet
+    /// is up should re-present it with the new code rather than be swallowed as "already showing".
+    var id: String { code }
 }
