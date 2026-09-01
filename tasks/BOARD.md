@@ -118,12 +118,14 @@ E35 cues                        six slices, mostly sequential — see the epic f
                                  "themed prompts" from docs/16 §1 to scope, owner amendment
 E36 personal share card         one slice — amends docs/10 §2's "no scores for anyone but the
                                  headline", owner amendment; see the epic file
+E37 drop screen redesign        one slice — header reflow, cue card, paste-fallback removal
 ```
 
-None of `E29`–`E36` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
+None of `E29`–`E37` depends on the beta epics above or on each other. `docs/17-NEXT-FEATURES.md`
 is the spec `E29`–`E34` were cut from; `E35` is cut from `docs/18-CUES.md`, written separately
 after an owner request. `E36` is cut from an owner request of 2026-08-28 and revisits `E30`'s
-surface — it is the only epic here that depends on another (`E30`, done).
+surface — it is the only epic here that depends on another (`E30`, done). `E37` is cut from an
+owner request, no spec section — see the epic file.
 
 `E35` closed 2026-08-27 — all six slices done. **Flag for the next iOS slice:** the simulator is
 now iOS 26.5, and the snapshot baseline recorded under `E28`/`E29` has drifted across the board
@@ -510,7 +512,7 @@ amendment in the epic file.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E34-01 Coordinate this repo's half | wip | — | yes | — |
+| E34-01 Coordinate this repo's half | done | — | yes | — |
 
 ## E35 — Cues · [file](E35-cues.md)
 
@@ -539,6 +541,18 @@ here. No server work; every field is already on the wire.
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E36-01 The share card becomes yours | done | — | yes | AC-9 |
+
+## E37 — The drop screen, cleared · [file](E37-drop-screen-redesign.md)
+
+One slice, from an owner request. The header drops from three rows to two (date and badge share
+a row, `ViewThatFits`-measured), the paste-a-link fallback comes out of both `SongSearch` hosts,
+and the room both changes free goes to a new `CueCard` on the one phase that has something to
+brief. `docs/18` §2 carries the one real exception this needs: the card's micro-label is
+`amberText`, scoped to that single rendering and that single phase.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E37-01 Header reflow, cue card, paste-fallback removal | done | — | yes | — |
 
 ---
 
@@ -587,7 +601,8 @@ here. No server work; every field is already on the wire.
 | E31 conditional reminders | 1 / 1 |
 | E32 two small fixes | 2 / 2 |
 | E33 record chip | 1 / 1 |
-| E34 marketing website | 0 / 1 |
+| E34 marketing website | 1 / 1 |
 | E35 cues | 6 / 6 |
 | E36 personal share card | 1 / 1 |
-| **Next-progression total** | **14 / 16** |
+| E37 drop screen redesign | 1 / 1 |
+| **Next-progression total** | **17 / 17** |

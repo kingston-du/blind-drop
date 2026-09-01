@@ -1,11 +1,16 @@
 import Foundation
 
-/// Search, paste, and the seal (`docs/08` §3, `docs/04` §4 and §6).
+/// Search, link resolution, and the seal (`docs/08` §3, `docs/04` §4 and §6).
 ///
-/// One store for the sheet, because the sheet is one flow: a query becomes results, a result or a
-/// pasted link becomes a chosen track, and the chosen track becomes a sealed submission. Splitting
-/// it per screen would put the chosen track in two places and make "did the seal succeed" a
-/// question two objects could answer differently.
+/// One store for the sheet, because the sheet is one flow: a query becomes results, a result
+/// becomes a chosen track, and the chosen track becomes a sealed submission. Splitting it per
+/// screen would put the chosen track in two places and make "did the seal succeed" a question
+/// two objects could answer differently.
+///
+/// **The link path (`pasted`, `resolve()`) has no screen behind it.** The paste-a-link box was
+/// removed from both hosts (`docs/08` §2); `POST /tracks/resolve` and `SongLink` are kept, and
+/// kept tested, because the parsing is correct and the route is real — but nothing in the app
+/// currently calls `resolve()`. Treat it as a route with no door, not as live behaviour.
 ///
 /// **Nothing here runs the animation.** `docs/08` §3.2: the seal is *"a confirmation of a fact,
 /// and it must never have lied"* — so `seal(_:)` returns whether the server said yes, and the
@@ -37,7 +42,7 @@ final class SubmitStore {
 
     /// The copy key for a failed search (`docs/11` — `search.error`, `search.error.offline`), or
     /// `nil`. Distinct from `results.error` because the two failures read differently: offline is
-    /// *"nothing can be dropped right now"*, and an upstream outage still leaves the paste path.
+    /// *"nothing can be dropped right now"*, and an upstream outage is *"try again in a moment"*.
     var searchErrorKey: String? {
         switch results.error {
         case nil: nil
@@ -102,8 +107,8 @@ final class SubmitStore {
 
     // MARK: - Pasting
 
-    /// The paste field's contents (`docs/08` §3.1 — *"Paste a Spotify or Apple Music link"*,
-    /// always present, below the results).
+    /// A song link, on its way to `resolve()`. **No screen writes this any more** — see the
+    /// note on the type. It is the input the route takes, kept alongside it.
     var pasted = "" {
         didSet { if pasted != oldValue { pasteErrorKey = nil } }
     }

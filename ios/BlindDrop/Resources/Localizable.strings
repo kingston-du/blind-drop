@@ -154,10 +154,11 @@
 
 /* ── Cues (docs/11 §Cues, docs/18) ──────────────────────────────────────────── */
 /* The cue catalog itself is data, served per-round by the backend — only the two UI */
-/* strings land here. `round.cue.label` is the CueBanner's label; `howto.cue.body` is the */
-/* one neutral sentence on the How to play page. */
+/* strings land here. `round.cue.label` is the CueBanner's label, `round.cue.card.label` is */
+/* the drop screen's card label; `howto.cue.body` is the one neutral sentence on How to play. */
 
 "round.cue.label" = "Tonight's cue:";
+"round.cue.card.label" = "Tonight's cue";
 "howto.cue.body" = "Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring.";
 "settings.cue.title" = "Tonight's cue";
 "settings.cue.effective" = "Starts %@.";
@@ -242,11 +243,9 @@
 
 "search.placeholder" = "Search for a song";
 "search.results" = "Results";
-"search.paste" = "Paste a Spotify or Apple Music link";
-"search.paste.placeholder" = "Paste a link";
 "search.close" = "Close";
 "search.empty" = "No songs matched that.";
-"search.error" = "Search is down. Paste a Spotify or Apple Music link instead.";
+"search.error" = "Search is down. Try again in a moment.";
 "search.error.offline" = "You're offline. Nothing can be dropped right now.";
 "resolve.error.notfound" = "That song isn't in the Apple catalog. Search for it instead.";
 "resolve.error.badlink" = "That's not a song link.";

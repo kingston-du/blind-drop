@@ -225,11 +225,9 @@ word beside it repeated a fact the countdown already carries.
 |---|---|
 | `search.placeholder` | Search for a song |
 | `search.results` | Results |
-| `search.paste` | Paste a Spotify or Apple Music link |
-| `search.paste.placeholder` | Paste a link |
 | `search.close` | Close |
 | `search.empty` | No songs matched that. |
-| `search.error` | Search is down. Paste a Spotify or Apple Music link instead. |
+| `search.error` | Search is down. Try again in a moment. |
 | `search.error.offline` | You're offline. Nothing can be dropped right now. |
 | `resolve.error.notfound` | That song isn't in the Apple catalog. Search for it instead. |
 | `resolve.error.badlink` | That's not a song link. |
@@ -430,6 +428,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | Key | String |
 |---|---|
 | `round.cue.label` | Tonight's cue: |
+| `round.cue.card.label` | Tonight's cue |
 | `howto.cue.body` | Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring. |
 
 ### cue.catalog

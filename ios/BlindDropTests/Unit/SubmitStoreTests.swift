@@ -56,16 +56,20 @@ import Testing
         #expect(store.searchErrorKey == nil, "a blank sheet is not an error state")
     }
 
-    /// An outage takes search away and **leaves the paste path**, which is exactly what the copy
-    /// says (`docs/06` §7, `docs/11` `search.error`).
-    @Test func anUpstreamOutageOffersThePastePath() async throws {
+    /// An outage takes search away, and the line under the field says so **without pointing at
+    /// anything** (`docs/06` §7, `docs/11` `search.error`).
+    ///
+    /// It used to send the reader to the paste-a-link box. That box is gone (`E37-01`), and a
+    /// failure message naming a control that does not exist is worse than no message — so the
+    /// assertion is now the other way round: whatever this line says, it must not say "Paste".
+    @Test func anUpstreamOutageSaysSoWithoutOfferingAPastePath() async throws {
         let (store, _) = makeStore([RoundFixture.failure(502, "UPSTREAM_UNAVAILABLE")])
 
         store.query = "ribs"
         try await Task.sleep(for: .milliseconds(500))
 
         #expect(store.searchErrorKey == "search.error")
-        #expect(Copy.string("search.error").contains("Paste"))
+        #expect(!Copy.string("search.error").contains("Paste"))
     }
 
     /// Offline is its own line: nothing can be dropped right now, and that is a different fact

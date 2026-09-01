@@ -31,10 +31,22 @@ Nothing in `CLAUDE.md` §2 changes. In particular:
   participation — it is assigned before the round opens and never touches submission or guess
   state. It is exactly as safe as `opens_at`/`revealsAt`, which are also shown to everyone
   unconditionally during `open`.
-- **§4/§5, colour.** A cue is never amber or ultramarine. It appears on both sealed and revealed
-  phases, so a semantic accent on it would violate whichever phase it isn't currently colouring
-  for. Neutral ink only, on every surface, no exception (unlike How to play's phase-colour
-  carve-out, which this does not touch).
+- **§4/§5, colour.** A cue is never amber or ultramarine *where it is shared*. `CueBanner`
+  appears on both the sealed and the revealed phases, so a semantic accent on it would violate
+  whichever phase it isn't currently colouring for. Neutral ink only, on every surface it rides
+  above (unlike How to play's phase-colour carve-out, which this does not touch).
+
+  **Amended by the owner (drop-screen redesign, `E37-01`):** the drop screen draws the cue itself, as
+  `CueCard`, and there the micro-label is `amberText`. This is not a hole in the rule, it is the
+  rule's own reasoning applied: the objection was to *one* rendering wearing an accent that is
+  wrong on half the phases it appears on, and this rendering appears on exactly one phase —
+  `open` with nothing dropped — which is amber-accented top to bottom, in both its live and its
+  dark-hours state. (Not "from the badge down": the dark hours draw no badge at all, and the
+  screen is still `PhaseAccent.sealed` throughout.) Every other phase, Sealed
+  included, keeps `CueBanner` neutral and unchanged. The accent is on the label only; the cue
+  text stays `ink`, because the cue is content and the label is apparatus. A second phase
+  adopting the card, or the card's *text* taking an accent, is a product change and needs the
+  owner again.
 - **§6, notification kinds.** No new kind. `seal_reminder`'s body may *carry* the cue text
   (§7 below) — that is a body change on an existing kind, not a seventh kind.
 - **§7, no gamification.** A cue is not a streak, badge, or score input. It never changes

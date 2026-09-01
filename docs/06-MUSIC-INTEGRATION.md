@@ -269,7 +269,7 @@ This is the **only** use of the MusicKit framework.
 
 | Condition | Behaviour |
 |---|---|
-| Apple Music API down | Search returns `UPSTREAM_UNAVAILABLE`. Copy: *"Search is down. Paste a Spotify or Apple Music link instead."* The paste path also fails — say so plainly; do not spin. |
+| Apple Music API down | Search returns `UPSTREAM_UNAVAILABLE`. Copy: *"Search is down. Try again in a moment."* There is no paste fallback to send anybody to (`docs/08` §2), and `/tracks/resolve` reads the same catalog, so it would fail too — say so plainly; do not spin. |
 | Track has no preview | Card renders with no play control. No placeholder, no disabled button, no explanation. |
 | Track has no ISRC | `track_key` falls back to `am:`. No Spotify link. `unresolvable = true`. |
 | Spotify lookup fails | Submission still succeeds. No Spotify link on that track until backfill lands. |

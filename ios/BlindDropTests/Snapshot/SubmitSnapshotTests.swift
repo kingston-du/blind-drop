@@ -219,6 +219,9 @@ private let sizes = SnapshotRenderer.typeSizes
             timer: timer,
             deadline: deadline,
             isBeforeOpen: isBeforeOpen,
+            // Cue-less on purpose. These are the drop screen's own goldens; the cued variant is
+            // `CueSnapshotTests`, which exists so the two are not one picture doing both jobs.
+            cue: nil,
             choose: { _ in }
         ).snapshotContent
     }

@@ -74,33 +74,67 @@ somebody can do is the thing they came to do.
 
 ```
 ┌─────────────────────────────┐
-│  The Cove   (SEALS IN 03:12:48)  [≡] │  group name bodyLStrong ink; countdown badge,
-│                             │        amber wash + amberEdge, label; menu → Record, Group, Settings
+│  The Cove              [?] [≡] │  group name bodyLStrong ink; menu → Record, Group, Settings
+│  ───────────────────────────   │  hairline
+│  Sunday, August 30  (SEALS IN 03:12:48) │  date caption inkDim; countdown badge, amber
+│                             │             wash + amberEdge, label — one row, see below
 │                             │
 │                             │   ← the block sits mid-screen while there is nothing to show
 │   Today's song.             │   displayL, ink
-│   Nobody sees it until      │   bodyL, inkDim  ← this is the entire tutorial
+│   Nobody sees it until      │   bodyM, inkDim  ← this is the entire tutorial
 │   8:00 PM.                  │
+│  ┌───────────────────────┐  │
+│  │ TONIGHT'S CUE         │  │   label, amberText
+│  │ A song you loved as   │  │   displayS, ink
+│  │ a kid                 │  │   surface, edge, radius 20, inset 20
+│  └───────────────────────┘  │
 │                             │
 │  ┌───────────────────────┐  │
 │  │  Search for a song    │  │   InsetField, surface + edge; ink border while focused
 │  └───────────────────────┘  │
 │                             │
-│                             │
 │  Nobody can tell whether    │   bodyS, inkDim
 │  you've dropped. You can't  │
 │  tell either.               │
 │                             │
-│  PASTE A SPOTIFY OR APPLE   │   label
-│  ┌───────────────────────┐  │
-│  │  Paste a link         │  │
-│  └───────────────────────┘  │
 └─────────────────────────────┘
 ```
 
-As soon as results exist they take the space under the field and the block rises to the top of
-the screen. Choosing a row pushes **Confirm** (§3.2). The paste box is always reachable: it is
-the answer both to search being down and to a song search simply cannot find.
+**The header is two rows, not three.** Who you are looking at on the first — the circle's name
+and the menu, separated from the rest by the app's one chrome hairline — and what the round is
+doing on the second: the date leading, the badge trailing. They share that row only while both
+fit; a narrow device at a large type size stacks them, measured rather than predicted.
+
+**The cue is a card here, and only here.** Everywhere else it is `CueBanner`, one neutral line
+riding above the phase screen. On this screen it is the brief for the field directly beneath it,
+so it moves into the column between the subhead and the field and takes the card treatment
+above. Its micro-label is `amberText` — the one exception to `docs/18` §2, argued there.
+
+At accessibility sizes the subhead steps aside so the card and the field keep their room; the
+card itself stays. As soon as results exist they take the space under the field, the subhead
+*and* the card step aside, and the block rises to the top of the screen. Choosing a row pushes
+**Confirm** (§3.2).
+
+**There is no paste-a-link box.** There was one, under the blind line. It was removed by the
+owner: a second full-width field standing permanently under the first one, on a screen whose
+whole job is one field, read as two equal choices rather than as one choice and an escape
+hatch. `POST /tracks/resolve` and the link parser still exist and are still tested; nothing
+presents them.
+
+**It answered two failures, and both costs are real.** Name them rather than only the loud one:
+
+1. *Search is down.* While the Apple Music API is unavailable there is now no way to drop a
+   song at all. `search.error` says so plainly instead of pointing at a control that is not
+   there.
+2. *The song is not findable by name.* This is the everyday one and it does not need an outage:
+   an obscure title, an alternate spelling, a track credited differently in the catalog than
+   the person typing remembers it. Previously a link from Spotify or Apple Music got them
+   through anyway. Now they either find the words search wants or they drop something else,
+   on an ordinary night with nothing wrong.
+
+The second cost is the one worth revisiting first if this is reopened — most likely as
+something the *failure* surfaces (offered under `search.empty`, where it is an escape hatch by
+construction) rather than as furniture standing under every successful search.
 
 **This screen leaks nothing.** No submission count, no "3 of 8 in", no avatars, no activity
 indicator, no "waiting on Sam". The only shared fact on it is the clock, which everybody
@@ -128,12 +162,11 @@ is not a modal; it is §2. Search field auto-focused, `surface` with an `edge` b
 
 - Debounce 250ms, minimum 2 characters. Results are `TrackRow`s in `.surface` style — each row is its own white card with an `edge` border, because a result is a target rather than a line to read past.
 - Each row's play control plays the 30-second preview inline. One at a time.
-- Below the results, always: **Paste a Spotify or Apple Music link** →
-  `POST /tracks/resolve`.
 - Empty query: no results list, no suggestions, no trending. A blank sheet with the field
   focused. This app does not have opinions about what you should drop.
-- Zero results: one line, `alert`, under the paste box, plus the paste affordance itself.
-- Search error: the copy from `11-COPY-DECK.md`, plus the paste affordance.
+- Zero results: one line, `alert`, directly under the field that was typed into.
+- Search error: the copy from `11-COPY-DECK.md`, in the same place. No paste fallback — see
+  §2, which removed it from both hosts at once, this sheet included.
 
 ### 3.2 Confirm
 Pushed within the sheet. This is the screen the seal happens on.

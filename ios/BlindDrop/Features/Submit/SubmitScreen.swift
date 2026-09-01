@@ -32,6 +32,14 @@ struct SubmitScreen: View {
     /// Pushing the three cases down here instead would put the same `if` on every phase screen
     /// and get it wrong on one of them.
     let isBeforeOpen: Bool
+    /// Tonight's cue, when there is one.
+    ///
+    /// **This screen draws its own**, which is why `RoundScreen` withholds the shared
+    /// `CueBanner` for this one phase. Everywhere else the cue is a fact about the round and
+    /// rides above the phase screen as a line; here it is the brief, and it belongs in the
+    /// column between the subhead that sets up the question and the field that answers it. Two
+    /// renderings of one fact, and exactly one of them on screen at a time — see `CueCard`.
+    let cue: CueDTO?
     /// A chosen song goes to the confirm step, which the round presents.
     let choose: (TrackDTO) -> Void
 
@@ -39,6 +47,7 @@ struct SubmitScreen: View {
     private let accent = PhaseAccent.sealed
 
     @FocusState private var isFieldFocused: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         column
@@ -68,10 +77,28 @@ struct SubmitScreen: View {
                 footer: { footer },
                 // This is the round's own search screen, sitting directly under `RoundHeader` —
                 // an uncapped gap here left "Today's song." a variable, often large distance
-                // under it. `addsGapBeforePaste` spends what capping this saves on holding the
-                // paste fallback where it was rather than dragging it up too.
-                topGapCap: Space.x5,
-                addsGapBeforePaste: true
+                // under it, and the block ends up wherever the column's full height happens to
+                // put it.
+                //
+                // **The cap is the block's vertical position, so it is set against what is
+                // actually visible.** The keyboard is up from the moment this appears and covers
+                // the bottom of the column, so the room to place the block in is the band
+                // between the header and the keyboard — and the block wants to sit in the middle
+                // of *that*, not of the column. Two changes just took height out of the top of
+                // that band: the header's badge moved up onto the date's row, and the paste
+                // fallback left the column entirely. Both would have dragged the headline
+                // upwards; this is where the height they gave back is spent instead.
+                //
+                // The value was measured rather than guessed, and the measurement is worth
+                // writing down because the relationship is not the obvious one: SwiftUI's
+                // keyboard avoidance lifts this column by however much it overlaps the
+                // keyboard, so a taller top gap makes a taller column, which earns a bigger
+                // lift, which gives most of the gap straight back. Roughly three points of cap
+                // buy one point of movement. On an iPhone 17 with the keyboard up this leaves
+                // the block sitting a little below centre in the band between the cue and the
+                // keyboard — which is where it is wanted, and which no larger number can
+                // meaningfully change.
+                topGapCap: Space.x4 + Space.sm
             )
         }
     }
@@ -81,23 +108,44 @@ struct SubmitScreen: View {
     /// *"Today's song."* and, while there is nothing under it yet, the one line of rules.
     ///
     /// **`E26-03`: the subhead steps aside once there are rows to show.** At `.accessibility5`
-    /// the headline (capped, `docs/12` §1) plus an uncapped `bodyL` subhead plus the field —
-    /// stacked under the round's own chrome, above a keyboard that is already up — left no room
-    /// for a single result row on iPhone 17; reproduced as zero rows visible while typing. The
-    /// subhead has done its job by the time a result exists to look at, so it is what gives the
-    /// room back rather than the headline (`docs/08` §2's *"headline and field at the top of the
+    /// the headline (capped, `docs/12` §1) plus an uncapped subhead plus the field — stacked
+    /// under the round's own chrome, above a keyboard that is already up — left no room for a
+    /// single result row on iPhone 17; reproduced as zero rows visible while typing. The subhead
+    /// has done its job by the time a result exists to look at, so it is what gives the room
+    /// back rather than the headline (`docs/08` §2's *"headline and field at the top of the
     /// screen"* while searching) or the field (still has to be read to keep typing in).
+    ///
+    /// The cue card is the second thing in this block and answers the same question differently
+    /// — see `showsSubhead(browsing:)` for which of the two yields, and when.
     private func prompt(browsing: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
             Text("submit.headline")
                 .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            if !browsing {
+            if showsSubhead(browsing: browsing) {
+                // `bodyM`, not `bodyL`: with the cue card directly beneath it at `displayS`,
+                // a 17pt subhead and a 24pt cue read as two headings arguing. Dropping the
+                // subhead a step puts the three lines in order — headline, the aside, the brief.
                 Text("submit.subhead")
-                    .typeStyle(.bodyL)
+                    .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
                     .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
+            // The cue steps aside while browsing, for the reason the subhead does: this is a
+            // keyboard-up screen and the rows need the room (`E26-03`). It is the brief for the
+            // search that has now started, and it has been read by the time the first result
+            // exists — whereas a result nobody can see has not been read at all. It does *not*
+            // step aside at accessibility sizes, though; there the subhead goes instead, because
+            // between the tutorial and the brief the brief is the one with something to say.
+            if !browsing, let cue {
+                // A full `itemGap` of its own on top of the stack's, so the card sits a clear
+                // step below the pair above it rather than reading as a third line of the
+                // headline block. It is a different kind of thing: they are the screen's title,
+                // this is tonight's instruction.
+                CueCard(cue: cue)
+                    .padding(.top, Space.md)
                     .transition(.opacity)
             }
         }
@@ -105,6 +153,20 @@ struct SubmitScreen: View {
         // `body`), which this fade rides alongside — a mismatched duration would have the
         // subhead finish fading a beat before the layout around it settles.
         .animation(.easeInOut(duration: 0.22), value: browsing)
+    }
+
+    /// Whether *"Nobody sees it until 8:00 PM."* is drawn.
+    ///
+    /// Two reasons it is not. The first is `E26-03`'s: once there are results, the subhead has
+    /// done its job and the rows need the room. The second is the cue card's. At accessibility
+    /// sizes the headline, an uncapped two-line subhead, the card and the field — stacked under
+    /// the round's own chrome, above a keyboard that is already up — are taller than the screen,
+    /// and something above the fold has to give. It is the subhead rather than the card because
+    /// the subhead is the tutorial and the card is tonight's actual instruction: a reader who
+    /// loses the cue is guessing at the round, and a reader who loses the subhead has lost a
+    /// sentence the reveal will teach them anyway.
+    private func showsSubhead(browsing: Bool) -> Bool {
+        !browsing && !dynamicTypeSize.isAccessibilitySize
     }
 
     /// What sits under the field while nothing has been searched for: the nudge if the reveal is
@@ -146,6 +208,11 @@ struct SubmitScreen: View {
                     .foregroundStyle(Palette.inkDim)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // The dark hours have no field for the cue to brief, but they are still tonight's
+            // round and `RoundScreen` is no longer drawing the banner for this phase — so the
+            // card comes with the screen rather than the cue silently vanishing between the
+            // answers and tomorrow's opening.
+            if let cue { CueCard(cue: cue) }
             countdown
             Spacer(minLength: Space.none)
         }

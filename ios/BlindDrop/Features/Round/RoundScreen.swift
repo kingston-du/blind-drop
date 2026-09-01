@@ -144,7 +144,12 @@ struct RoundScreen: View {
             // Only over a loaded round — never the skeleton or error — and only when there is a
             // cue: `CueBanner` renders `EmptyView` for `nil`, and the padding here is applied to
             // the banner's line rather than to that empty view, so an uncued night adds no gap.
-            if let cue = store.state.value?.round.cue {
+            //
+            // **Except on the drop screen**, which draws its own (`CueCard`). There the cue is
+            // not a fact riding above the phase, it is the brief for the field directly beneath
+            // it, and a line up here plus a card down there would be the same sentence twice.
+            // `drawsItsOwnCue(_:)` is the one place that exception is decided.
+            if let cue = store.state.value?.round.cue, !drawsItsOwnCue(store) {
                 CueBanner(cue: cue)
                     .padding(.horizontal, Layout.screenInset)
                     .padding(.bottom, Layout.itemGap)
@@ -307,6 +312,17 @@ struct RoundScreen: View {
     /// The reading as the clock has it *this instant*, before any hold is applied — the value
     /// the `.onChange` in `loaded(…)` watches. Carrying the round's id means the hold is stored
     /// with the thing that makes it valid rather than beside it.
+    /// Whether the phase about to be drawn renders the cue itself.
+    ///
+    /// True for exactly one phase — `open` with nothing dropped, the drop screen. It is written
+    /// as a predicate on the store rather than inlined into the banner's `if` so that the phase
+    /// switch in `phase(…)` and this exception cannot drift apart silently: both read
+    /// `round.phase`, and this is the only other place in the file that does.
+    private func drawsItsOwnCue(_ store: RoundStore) -> Bool {
+        guard case let .open(mySubmission) = store.state.value?.round.phase else { return false }
+        return mySubmission == nil
+    }
+
     private func liveOpenState(_ store: RoundStore) -> HeldOpenState {
         guard let context = store.state.value else { return HeldOpenState() }
         return HeldOpenState(
@@ -358,6 +374,7 @@ struct RoundScreen: View {
                         timer: timer,
                         deadline: deadline,
                         isBeforeOpen: openState(context) == .beforeOpen,
+                        cue: context.round.cue,
                         choose: { track in
                             seal.reset()
                             didReplace = false
@@ -870,114 +887,169 @@ struct RoundHeader<Badge: View>: View {
         self.badge = badge()
     }
 
-    /// **Who on the first line, when and what-it-is-doing on the second.**
+    /// **Who on the first line; when and what-it-is-doing sharing the second.**
     ///
-    /// The badge used to sit in the top row between the name and the menu, which was wrong for
-    /// the one phase whose badge is wide: *"Seals in 04:12:33"* is a dozen characters that
-    /// `.fixedSize()` will not give up, so the group name — the only thing on the row that *can*
-    /// yield — absorbed the whole cost. The name truncated, and the date under it wrapped onto a
-    /// second line to squeeze past the pill. A header that damages the group's identity in order
-    /// to report the clock has its priorities backwards.
+    /// The badge once sat in the top row between the name and the menu, which was wrong for the
+    /// one phase whose badge is wide: *"Seals in 04:12:33"* is a dozen characters that
+    /// `.fixedSize()` will not give up, so the group name — the only thing on that row that
+    /// *can* yield — absorbed the whole cost. It then moved to a third row of its own, which
+    /// was correct and expensive: three rows of chrome over a search screen whose keyboard is
+    /// already up is a lot of header for two short facts.
     ///
-    /// So the name gets the top row to itself, sharing it only with the menu — one glyph, fixed
-    /// width, nothing to negotiate. The date and the badge pair up on the row beneath, which is
-    /// the **full** column width because the menu is not on it: *when* the round is and *what it
-    /// is doing* are one thought, and at the default size they sit side by side with room over.
+    /// So it is two rows now. The name shares the first only with the menu — one glyph, fixed
+    /// width, nothing to negotiate. The date and the badge share the second, which is the
+    /// **full** column width because the menu is not on it: *when* the round is and *what it is
+    /// doing* are one thought, and they read as one line, the date leading and the badge held
+    /// out at the trailing edge.
     ///
-    /// Three rows, each holding one thing: **who**, **when**, **what it is doing**. The name
-    /// shares its row only with the menu — one glyph, fixed width, nothing to negotiate — and the
-    /// date and the badge each get the full column width, so neither has to wrap to make room for
-    /// the other. One reading order straight down the leading edge, and nothing on it competes
-    /// for the same pixels.
-    ///
-    /// The height this costs is real, and it is paid for rather than ignored: this is the search
-    /// screen with the keyboard already up, and a header that grows pushes the column into the
-    /// status bar. `submit.blind` was shortened to two rendered lines in the same change that
-    /// added this row. If either grows again, this is the pair to weigh — they are spending the
-    /// same points.
+    /// **They only share it while they both fit.** `ViewThatFits` measures the row's ideal width
+    /// — the date, `Space.sm`, the badge, because `Spacer(minLength:)`'s ideal width *is* its
+    /// minimum — and drops to the stacked pair the moment that exceeds the column. That is the
+    /// narrow iPhone at a large type size, and it is the same reflow `CueBanner` and `FlightCard`
+    /// already make; measuring rather than testing the type size means a long group date in a
+    /// wider locale gets the same protection without anybody having to predict it.
     ///
     /// The gaps are the stacks' own rather than `.padding` on the badge, because three of the
-    /// five phases pass no badge at all: `EmptyView` contributes no subview, so `VStack` spacing
-    /// around it collapses to nothing, whereas a padded empty view would reserve its padding and
-    /// leave a gap under the date on every badgeless phase.
+    /// five phases pass no badge at all: `EmptyView` contributes no subview, so the row's
+    /// spacing around it collapses to nothing and a badgeless phase gets a plain date line,
+    /// whereas a padded empty view would reserve its padding and leave a gap either side.
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.itemGap) {
-            VStack(alignment: .leading, spacing: Space.xs) {
-                HStack(alignment: .center, spacing: Space.sm) {
-                    if let groupName {
-                        Button(action: openSwitcher) {
-                            HStack(spacing: Space.xxs) {
-                                Text(verbatim: groupName)
-                                    .typeStyle(.bodyLStrong)
-                                    .foregroundStyle(Palette.ink)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                Image(systemName: "chevron.down")
-                                    .font(Font(Typography.uiFont(.label)))
-                                    .foregroundStyle(Palette.inkDim)
-                                // Small enough to ignore (`E19-02`) — the mark is that another
-                                // circle wants attention, never that this one does.
-                                Circle()
-                                    .fill(Palette.inkDim)
-                                    .frame(width: Space.xs, height: Space.xs)
-                                    .opacity(otherCircleNeedsAction ? 1 : 0)
-                            }
-                            .minimumTouchTarget()
+        VStack(alignment: .leading, spacing: Space.sm) {
+            HStack(alignment: .center, spacing: Space.sm) {
+                if let groupName {
+                    Button(action: openSwitcher) {
+                        HStack(spacing: Space.xxs) {
+                            Text(verbatim: groupName)
+                                .typeStyle(.bodyLStrong)
+                                .foregroundStyle(Palette.ink)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Image(systemName: "chevron.down")
+                                .font(Font(Typography.uiFont(.label)))
+                                .foregroundStyle(Palette.inkDim)
+                            // Small enough to ignore (`E19-02`) — the mark is that another
+                            // circle wants attention, never that this one does.
+                            Circle()
+                                .fill(Palette.inkDim)
+                                .frame(width: Space.xs, height: Space.xs)
+                                .opacity(otherCircleNeedsAction ? 1 : 0)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(
-                            Copy.A11y.switcherOpener(
-                                groupName: groupName,
-                                otherNeedsAction: otherCircleNeedsAction
-                            )
+                        .minimumTouchTarget()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        Copy.A11y.switcherOpener(
+                            groupName: groupName,
+                            otherNeedsAction: otherCircleNeedsAction
                         )
-                        .accessibilityHint(Copy.A11y.switcherOpenerHint)
-                        .accessibilityAddTraits(.isButton)
-                    }
-                    Spacer(minLength: Space.sm)
-                    HelpButton(action: showHowTo)
-                    Menu {
-                        // The Record keeps its `Route` and its deep link — only this entry point
-                        // moved, to the foot of the Group screen (`E28-06`, amendment A3): a
-                        // list of songs is company for a leaderboard, not a peer of the three
-                        // things this menu is actually for.
-                        Button { path.append(.group) } label: {
-                            Label("group.title", systemImage: "person.3")
-                        }
-                        Button { path.append(.insights) } label: {
-                            // Not `eye` (`E28-06`) — nothing on this screen is watching anyone.
-                            // Three linked points is what the screen is actually about.
-                            Label("insights.title", systemImage: "point.3.connected.trianglepath.dotted")
-                        }
-                        Button { path.append(.settings) } label: {
-                            Label("settings.title", systemImage: "gearshape")
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(Font(Typography.uiFont(.bodyLStrong)))
-                            .foregroundStyle(Palette.inkDim)
-                            // A fixed frame, not a `min` one (`E32-02`). `Menu` renders its label
-                            // through a UIKit platform node, and a label sized by a *minimum* is
-                            // one SwiftUI is free to re-measure during the navigation pop; pinning
-                            // the label to an explicit 44×44 box keeps it a stable, already-measured
-                            // view, so the transition moves it with the rest of the header instead
-                            // of re-laying it out mid-slide.
-                            .frame(width: Layout.minimumTouchTarget, height: Layout.minimumTouchTarget)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel(Text("menu.title"))
+                    )
+                    .accessibilityHint(Copy.A11y.switcherOpenerHint)
+                    .accessibilityAddTraits(.isButton)
                 }
-                if let dateHeadline {
-                    Text(verbatim: dateHeadline)
-                        .typeStyle(.caption)
+                Spacer(minLength: Space.sm)
+                HelpButton(action: showHowTo)
+                Menu {
+                    // The Record keeps its `Route` and its deep link — only this entry point
+                    // moved, to the foot of the Group screen (`E28-06`, amendment A3): a
+                    // list of songs is company for a leaderboard, not a peer of the three
+                    // things this menu is actually for.
+                    Button { path.append(.group) } label: {
+                        Label("group.title", systemImage: "person.3")
+                    }
+                    Button { path.append(.insights) } label: {
+                        // Not `eye` (`E28-06`) — nothing on this screen is watching anyone.
+                        // Three linked points is what the screen is actually about.
+                        Label("insights.title", systemImage: "point.3.connected.trianglepath.dotted")
+                    }
+                    Button { path.append(.settings) } label: {
+                        Label("settings.title", systemImage: "gearshape")
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .font(Font(Typography.uiFont(.bodyLStrong)))
                         .foregroundStyle(Palette.inkDim)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("round.dateHeadline")
+                        // A fixed frame, not a `min` one (`E32-02`). `Menu` renders its label
+                        // through a UIKit platform node, and a label sized by a *minimum* is
+                        // one SwiftUI is free to re-measure during the navigation pop; pinning
+                        // the label to an explicit 44×44 box keeps it a stable, already-measured
+                        // view, so the transition moves it with the rest of the header instead
+                        // of re-laying it out mid-slide.
+                        .frame(width: Layout.minimumTouchTarget, height: Layout.minimumTouchTarget)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel(Text("menu.title"))
             }
 
+            // The rule between who you are looking at and what the round is doing. It is the
+            // only hairline in the app's chrome and it earns its place by making the two-row
+            // header two *things* — the circle and its menu above, tonight's facts below —
+            // rather than four items in a stack. `hairline` and not `edgeStrong`: a divider
+            // inside a block, not the edge of one.
+            //
+            // It is `accessibilityHidden` because it is a mark, not a stop, and it draws only
+            // when something is under it: on the loading header, where `standing` is empty, a
+            // rule would be a line under the circle's name and nothing else.
+            if hasStanding {
+                Rectangle()
+                    .fill(Palette.hairline)
+                    .frame(height: Stroke.border)
+                    .accessibilityHidden(true)
+            }
+
+            standing
+        }
+    }
+
+    /// Whether the second row has anything on it — the date, or a badge without one.
+    ///
+    /// `dateHeadline` is the whole test in practice: the only header with a badge and no date is
+    /// the loading one, which has neither. Written as its own property so the rule above and
+    /// `standing` below cannot disagree about what "empty" means.
+    private var hasStanding: Bool { dateHeadline != nil }
+
+    /// The date and the badge, side by side while the column can hold both.
+    ///
+    /// The two candidates are the same two views in the same order; only the axis differs, so a
+    /// reader who hits the stacked fallback at `.accessibility5` is reading the same header, not
+    /// a second design. `Spacer(minLength:)` is what makes the measurement honest — its ideal
+    /// width is `Space.sm`, so `ViewThatFits` weighs *date + gap + badge* against the column
+    /// rather than seeing an infinitely compressible row and always taking the first candidate.
+    ///
+    /// **The `else` is not a formality.** `ViewThatFits` is a real subview whether or not
+    /// anything inside it draws, so wrapping the empty case in one would cost the outer stack's
+    /// `Space.sm` on a header with nothing to put on this row — which is the header the loading
+    /// state renders, on every cold launch and every foreground refetch, for as long as the
+    /// round takes to arrive. Falling through to the bare `badge` instead keeps the old
+    /// behaviour exactly: an `EmptyView` contributes no subview, so the spacing collapses and
+    /// the loading header is the name row and nothing else. It also means a caller that ever
+    /// passes a badge without a date still gets its badge drawn rather than silently dropped.
+    @ViewBuilder private var standing: some View {
+        if let dateHeadline {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                    date(dateHeadline)
+                    Spacer(minLength: Space.sm)
+                    badge
+                }
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    date(dateHeadline)
+                    badge
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
             badge
         }
+    }
+
+    /// *When* the round is. `caption` rather than `bodyS` so it reads as apparatus beside the
+    /// badge's mono caps rather than competing with them.
+    private func date(_ headline: String) -> some View {
+        Text(verbatim: headline)
+            .typeStyle(.caption)
+            .foregroundStyle(Palette.inkDim)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("round.dateHeadline")
     }
 }
 

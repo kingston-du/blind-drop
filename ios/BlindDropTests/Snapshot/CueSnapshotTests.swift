@@ -27,11 +27,13 @@ private let sizes = SnapshotRenderer.typeSizes
 
     @Test(arguments: devices, sizes)
     func submit(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        // **No `CueBanner` above this one.** Every other case in this suite composes the
+        // banner over the phase screen because that is what `RoundScreen` does; the drop screen
+        // is the exception `drawsItsOwnCue(_:)` names, and the golden has to be the exception too
+        // or it would prove a screen nobody sees — the cue said twice, once above and once in
+        // the card.
         try verify(named: "Cue-Submit", device, size, fixture: "round_open_nosub") { context, timer in
-            VStack(alignment: .leading, spacing: Space.none) {
-                CueBanner(cue: context.round.cue).padding(.bottom, Layout.itemGap)
-                Self.submitScreen(context: context, timer: timer)
-            }
+            Self.submitScreen(context: context, timer: timer)
         }
     }
 
@@ -111,6 +113,10 @@ private let sizes = SnapshotRenderer.typeSizes
             timer: timer,
             deadline: context.round.revealsAt,
             isBeforeOpen: false,
+            // The whole point of this suite: the drop screen draws the cue itself, as a card in
+            // its own column, so the golden has to be given the cue rather than relying on the
+            // banner `RoundScreen` no longer puts above this phase.
+            cue: context.round.cue,
             choose: { _ in }
         ).snapshotContent
     }

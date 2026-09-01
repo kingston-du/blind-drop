@@ -6,9 +6,9 @@ import SwiftUI
 /// the second one: somebody has a sealed song and wants a different one, so the search arrives
 /// over the top of what they have rather than in place of it, and it closes back onto it.
 ///
-/// It shares `SongSearch` with the screen, so the field, the debounce, the rows and the paste
-/// fallback behave identically in both. What it adds is a title, a way out, and the header that
-/// says which of the two situations this is.
+/// It shares `SongSearch` with the screen, so the field, the debounce and the rows behave
+/// identically in both. What it adds is a title, a way out, and the header that says which of
+/// the two situations this is.
 struct SearchSheet: View {
     let store: SubmitStore
     let player: PreviewPlayer

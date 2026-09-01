@@ -98,6 +98,17 @@ struct CountdownView: View {
             Text(verbatim: text)
                 .typeStyle(.label)
                 .foregroundStyle(accent.text)
+                // **Wraps rather than overflows.** This used to be a bare `.fixedSize()`, which
+                // pins both axes: at `.accessibility5` *"SEALS IN 4 HOURS"* in tracked mono caps
+                // is around twice an iPhone's width, and a `fixedSize` view does not give that
+                // up for anybody — the pill ran off both edges and took the screen's whole
+                // column with it, headline and field included, because nothing above it could
+                // compress either. Vertical-only keeps what the modifier was actually for (the
+                // pill hugs its text and never sits in a stretched box) and lets the width come
+                // from whatever is proposing it. Digits still do not jiggle as it ticks: that is
+                // `label`'s tabular figures, not this.
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, Space.md)
                 .frame(minHeight: Layout.badgeHeight)
                 .background(
@@ -108,7 +119,6 @@ struct CountdownView: View {
                     RoundedRectangle(cornerRadius: Radius.pill, style: .continuous)
                         .stroke(accent.washEdge, lineWidth: Stroke.border)
                 )
-                .fixedSize()
         case .hero, .inline:
             Text(verbatim: text)
                 .typeStyle(typeStyle)
