@@ -565,12 +565,19 @@ assumes they hold none — a `/j/<CODE>` link is discarded outright for anybody 
 and the only field that takes a code lives behind `session == .noGroup`. The mirror is that an
 existing circle has no invite affordance at all. Nothing on the server changes.
 
+Closed 2026-08-31. Three bugs turned up on the way that were not in the plan and are worth
+knowing about: `CloseButton`'s glyph never scaled with Dynamic Type (every sheet in the app, and
+every `accessibility5` golden containing one, was drawing a control the device would not); the
+invite-code field's normalisation never reached the text field, so a **pasted** code showed as
+typed while the store held something else; and `error.alreadyingroup` was still worded for
+one-circle-per-person. See the epic file for each.
+
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E38-01 The switcher, remade | wip | — | no | — |
-| E38-02 Join with a code, when you already have one | todo | E38-01 | no | — |
-| E38-03 Inviting out of a circle you already have | todo | E38-01 | no | — |
-| E38-04 The switch is quiet | todo | — | vs E38-03 | — |
+| E38-01 The switcher, remade | done | — | no | — |
+| E38-02 Join with a code, when you already have one | done | E38-01 | no | — |
+| E38-03 Inviting out of a circle you already have | done | E38-01 | no | — |
+| E38-04 The switch is quiet | done | — | vs E38-03 | — |
 
 ---
 
@@ -623,5 +630,5 @@ existing circle has no invite affordance at all. Nothing on the server changes.
 | E35 cues | 6 / 6 |
 | E36 personal share card | 1 / 1 |
 | E37 drop screen redesign | 1 / 1 |
-| E38 circles end to end | 0 / 4 |
-| **Next-progression total** | **17 / 21** |
+| E38 circles end to end | 4 / 4 |
+| **Next-progression total** | **21 / 21** |

@@ -22,7 +22,7 @@ under the cap, and raises `ALREADY_IN_GROUP` only for the circle you are actuall
 
 ### E38-01 — The switcher, remade
 
-**Status:** wip · **Deps:** — · **Parallel:** no
+**Status:** done · **Deps:** — · **Parallel:** no
 **Reads:** `docs/07` §2, §4, §5, `docs/08` §2, `docs/11` (the switcher), `docs/12` §5, §6
 **Touches:** `Features/Circles/CircleSwitcherSheet.swift`,
 `DesignSystem/Components/{Surfaces,PillButton}.swift`, `Localizable.strings`,
@@ -60,18 +60,28 @@ row-level filled action, `bodyLStrong` in a pill sized to its own words — besi
 text. The invite is worth
 a card; it is not worth being the loudest thing on a screen whose job is switching.
 
-- [ ] The close control shares the title row; no row belongs to it alone
-- [ ] Circles are one list card with hairlines, not three cards
-- [ ] The active row is visibly the active row, in neutrals only
-- [ ] Two footer actions on one row, stacking at accessibility sizes
-- [ ] An invitation's actions are row-scale
-- [ ] Goldens re-recorded and looked at, one/three/invite × SE/15 Pro Max × large/a11y1/a11y5
+- [x] The close control shares the title row; no row belongs to it alone
+- [x] Circles are one list card with hairlines, not three cards
+- [x] The active row is visibly the active row, in neutrals only
+- [x] Two footer actions on one row, stacking at accessibility sizes
+- [x] An invitation's actions are row-scale
+- [x] Goldens re-recorded and looked at, one/three/invite × SE/15 Pro Max × large/a11y1/a11y5
+
+**Also found and fixed here.** `CloseButton` asked `Typography.uiFont` for `.unspecified`, which
+resolves against whatever trait collection is current — so under `ImageRenderer`, which has none,
+the mark stayed at its `.large` size while every word around it grew. Every sheet in the app has
+one, and every `accessibility5` golden containing one was drawing a control the device would not.
+It now reads `dynamicTypeSize` the way `TypeStyleModifier` does.
+
+The sheet also gained a `ScrollView` (`.scrollBounceBehavior(.basedOnSize)`). Three circles and a
+pending invitation at `.accessibility5` are taller than an SE's screen, the detent is clamped to
+the screen, and there was nothing underneath it to scroll — the footer was simply unreachable.
 
 ---
 
 ### E38-02 — Join with a code, when you already have one
 
-**Status:** todo · **Deps:** E38-01 · **Parallel:** no
+**Status:** done · **Deps:** E38-01 · **Parallel:** no
 **Reads:** `docs/03` §2, `docs/04` §3, `docs/05` §5, `docs/08` §1.3, `docs/11`
 **Touches:** `Features/Circles/JoinCircleSheet.swift` (new), `App/Router.swift`,
 `Features/Round/RoundScreen.swift`, `Localizable.strings`, `docs/05` §5, `docs/11`,
@@ -93,16 +103,29 @@ Errors are answered in words rather than as a generic failure: already in that c
 code, and the cap. The cap's existing string says *three groups* and the cap is three — checked,
 not assumed.
 
-- [ ] A sheet that takes a code, from the switcher and from a link
-- [ ] `.ready` + `.join` prefills instead of discarding
-- [ ] `ALREADY_IN_GROUP`, `NOT_FOUND` and `CIRCLE_LIMIT_REACHED` each read as themselves
-- [ ] Joining switches to the new circle, the same path a picked row takes
+- [x] A sheet that takes a code, from the switcher and from a link
+- [x] `.ready` + `.join` prefills instead of discarding
+- [x] `ALREADY_IN_GROUP`, `NOT_FOUND` and `CIRCLE_LIMIT_REACHED` each read as themselves
+- [x] Joining switches to the new circle, the same path a picked row takes
+
+**A bug this slice fell over.** `OnboardingStore.code` normalised in a `didSet` that re-assigned
+itself, and that write **never reached the text field**: SwiftUI pushes a model value back into
+`UITextField` only when it sees the value change *after* an edit, and a write inside the binding's
+own setter is part of that same edit. The field showed `aaa222o` — lowercase, seven characters,
+two of them outside `docs/03` §2's alphabet — while the store held `AAA222`.
+`.textInputAutocapitalization(.characters)` hid it for typing and never hid it for **paste**,
+which is the case `InviteCode.normalise` exists for: pasting the whole invite link is how an
+invite usually arrives. Correcting it in `.onChange` instead was visible and racy (typing
+`aaa222o` quickly left `A2`). What works is one write per edit: `code` is `private(set)`, the
+field is bound through `setCode(_:)`, and there is no correction afterwards to race.
+`error.alreadyingroup` was also still worded for one-circle-per-person — *"You're already in a
+group. Leave it first."* — and is now *"You're already in that group."*
 
 ---
 
 ### E38-03 — Inviting out of a circle you already have
 
-**Status:** todo · **Deps:** E38-01 · **Parallel:** no
+**Status:** done · **Deps:** E38-01 · **Parallel:** no
 **Reads:** `docs/02` §2, `docs/08` §9, `docs/11`
 **Touches:** `Features/Circles/InvitePanel.swift` (new),
 `Features/Onboarding/StartGroupSheet.swift`, `Features/Settings/GroupScreen.swift`,
@@ -116,15 +139,27 @@ moment that sheet closes. `GroupScreen` — the screen actually named *the group
 add anybody. The panel is extracted from `StartGroupSheet` so both call sites are one piece of
 code: the link, the code as readable text, and the people-you-played-with shortlist.
 
-- [ ] One `InvitePanel`, two call sites
-- [ ] `GroupScreen` can invite by link, by code, and from the shortlist
-- [ ] The code is legible and selectable, spelled for VoiceOver
+- [x] One `InvitePanel`, two call sites
+- [x] `GroupScreen` can invite by link, by code, and from the shortlist
+- [x] The code is legible and selectable, spelled for VoiceOver
+- [x] The shortlist excludes people already in the circle
+- [x] The fixture's `POST /groups` answers for itself
+
+Two things beyond the plan. The shortlist now **excludes members of this circle**: the endpoint
+answers for every circle the caller shares with somebody, which is right for a circle created ten
+seconds ago and wrong for one with eleven people in it — offering to invite somebody standing in
+the room is an error the server would refuse, presented as a button.
+
+And the fixture's `POST /groups` used to answer with `group_current.json`, the nine-member circle
+it has always shipped, which made the creation flow untestable in the one way that matters: a
+circle you have just made has exactly **one** member. It now answers for itself, holds created
+circles in memory, and lists them in `GET /groups`.
 
 ---
 
 ### E38-04 — The switch is quiet
 
-**Status:** todo · **Deps:** — · **Parallel:** vs E38-03
+**Status:** done · **Deps:** — · **Parallel:** vs E38-03
 **Reads:** `docs/13` §5, §7
 **Touches:** `Features/Round/{RoundStore,RoundScreen}.swift`, unit tests
 **Verify:** `./ios/scripts/lint.sh`; `-only-testing:BlindDropUnitTests`; simulator: switch
@@ -141,6 +176,16 @@ resolves it to `.failed` and the screen draws the error until the next load answ
 Second, smaller: **Start a group** sets `isShowingSwitcher = false` and `isStartingGroup = true`
 in the same update — a dismissal racing a presentation.
 
-- [ ] A cancelled load never becomes a rendered error
-- [ ] Switching circles shows the skeleton and then the round, and nothing else
-- [ ] Sheet-to-sheet handoff waits for the dismissal
+- [x] A cancelled load never becomes a rendered error
+- [x] Switching circles shows the skeleton and then the round, and nothing else
+- [x] Sheet-to-sheet handoff waits for the dismissal
+
+Reproduced first, at `LATENCY_MS=3000` against the fixture: switching circles drew **You're
+offline.** with a *Try again* button for the length of the refetch. Two causes, both fixed. The
+screen spent **two** loads per switch — `switchCircle` bumps the token and the
+`activeGroupID` `.onChange` fired on the same tap, because `activeGroupID` is recomputed on the
+body evaluation `invalidate()` itself triggers — and the first was cancelled mid-flight.
+`APIClient` maps `URLError.cancelled` to `.offline` on the argument that *"a cancelled request is
+a screen that went away, and nothing renders its error"*, and on a switch the screen does not go
+away. `RoundStore.load()` now drops a cancelled load's result rather than applying it, and the
+`.onChange` no longer fires for a switch already in flight.
