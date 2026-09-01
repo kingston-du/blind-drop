@@ -99,6 +99,11 @@ const SECONDARY_GROUP_ID = "b0000000-0000-4000-8000-000000000099";
 // `payloads/`, and a restart forgets them, so no existing test's expectations move.
 const createdGroups = new Map<string, Record<string, unknown>>();
 
+/// The name `PUT /me` was last given, so `GET /me` answers with it (`E38`). `null` until
+/// somebody has actually set one, which keeps `payloads/me.json` the source of truth for every
+/// test that never touches the name.
+let savedDisplayName: string | null = null;
+
 async function groupPayloadFor(groupId: string): Promise<Record<string, unknown> | null> {
   const created = createdGroups.get(groupId);
   if (created) return created;
@@ -302,12 +307,21 @@ async function route(req: Request, url: URL): Promise<Response> {
     return ok(await payload("track_resolved"));
   }
 
-  if (m === "GET" && p === "/me") return ok(await payload("me"));
+  if (m === "GET" && p === "/me") {
+    const me = await payload("me") as Record<string, unknown>;
+    return ok(savedDisplayName === null ? me : { ...me, display_name: savedDisplayName });
+  }
   if (m === "PUT" && p === "/me") {
     const body = await req.json().catch(() => ({}));
     const name = String(body.display_name ?? "").trim();
     if (!name) return fail(400, "INVALID_INPUT", "Enter a name to continue.", { field: "display_name" });
     if (name.length > 24) return fail(400, "INVALID_INPUT", "Keep it to 24 characters.", { field: "display_name" });
+    // Remembered, so the `GET /me` that follows agrees with it. `OnboardingStore.saveName()`
+    // sends this and then re-reads the session — *"the server decides what comes next"* — and a
+    // fixture that echoed the new name here while `GET /me` kept answering `Ana` made
+    // `namingCompletesAgainstTheFixtureServer` red for exactly as long as it has existed. In
+    // memory only: a restart forgets it, the same as the created circles above.
+    savedDisplayName = name;
     return ok({ ...(await payload("me") as object), display_name: name });
   }
   if (m === "DELETE" && p === "/me") return noContent();

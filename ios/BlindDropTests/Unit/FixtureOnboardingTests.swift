@@ -85,7 +85,13 @@ struct FixtureOnboardingTests {
             Issue.record("expected the invite step, got \(store.step)")
             return
         }
-        #expect(group.inviteCode == "K7MQ2X")
+        // The circle's **own** code, whatever it is — not `K7MQ2X`, which belongs to the circle
+        // `POST /groups/join` answers for. This asserted that literal until `E38-03`, and only
+        // passed because the fixture's `POST /groups` echoed `group_current.json` back: the
+        // creator's brand-new circle came out with somebody else's nine members and somebody
+        // else's code. What is worth asserting is the shape and the round trip, below.
+        #expect(InviteCode.isComplete(group.inviteCode), "a six-character code came back")
+        #expect(group.members.count == 1, "a circle you just made has one member: you")
         #expect(group.timezone == "America/New_York")
         #expect(group.revealHour == 20)
         #expect(group.isAdmin)
@@ -93,7 +99,7 @@ struct FixtureOnboardingTests {
 
         // And the URL the share sheet hands over is one the app itself parses back.
         let url = try #require(InviteCode.inviteURL(for: group.inviteCode))
-        #expect(DeepLink(url) == .join(code: "K7MQ2X"))
+        #expect(DeepLink(url) == .join(code: group.inviteCode))
 
         await store.finish()
         #expect(env.session.state == .ready)
