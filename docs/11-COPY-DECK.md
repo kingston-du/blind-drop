@@ -492,7 +492,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | `should_be_more_famous` | A song that should be more famous |
 | `from_a_movie` | A song you only know because of a movie |
 | `know_all_the_lyrics` | A song you know all the lyrics to |
-| `nobody_has_heard` | A song nobody has heard of |
+| `nobody_has_heard` | Your song you fall asleep to |
 | `loved_as_a_kid` | A song you were obsessed with at 13 |
 | `older_sibling_put_you_on` | A song your friend put you onto |
 | `slow_morning` | A song for a slow morning |
@@ -501,10 +501,9 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 
 40 lines. Every text is 56 characters or fewer, the same discipline `docs/12` asks of every
 string, so nothing overflows on an SE at `accessibility5`. Revised from the original 61 on
-2026-08-28 (see the dated note in `tasks/E35-cues.md`'s E35-02 section), then again on
-2026-08-31: `workout` retired and `getting_hyped` retexted — see the dated note in
-`tasks/E35-cues.md`'s E35-02 section for that revision too. The active count no longer needs
-to be prime; `docs/18-CUES.md` §3 explains why.
+2026-08-28, again on 2026-08-31 (`workout` retired, `getting_hyped` retexted), and again on
+2026-09-01 (`nobody_has_heard` retexted) — see the dated notes in `tasks/E35-cues.md`'s E35-02
+section. The active count no longer needs to be prime; `docs/18-CUES.md` §3 explains why.
 
 ### Circle settings
 

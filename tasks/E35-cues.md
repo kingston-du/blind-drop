@@ -165,12 +165,34 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 > (4 suites), and `node scripts/lint.mjs` is clean.
 >
 > This same session also hand-set two rounds' `prompt`/`prompt_key` directly for one circle
-> ("kingston's friends") at the owner's explicit request — `2026-09-01` to "A tiktok song you
-> actually listen to" and `2026-09-02` to "A song you fall asleep to", both with `prompt_key =
-> null` since neither text is a catalog entry. This is a one-off data edit for that circle only,
-> not a change to `cue_for_round()`'s output or to §3's "no admin picks a cue and no cue is
-> custom" rule for every other circle — noted here so a future reader of this circle's history
-> isn't confused by an unexplained custom cue with no catalog key.
+> ("kingston's friends") at the owner's explicit request, both with `prompt_key = null` since
+> neither text is a catalog entry. Superseded the same session — see the 2026-09-01 note below
+> for the final state. This is a one-off data edit for that circle only, not a change to
+> `cue_for_round()`'s output or to §3's "no admin picks a cue and no cue is custom" rule for
+> every other circle — noted here so a future reader of this circle's history isn't confused by
+> an unexplained custom cue with no catalog key.
+
+> **Retexture and round reshuffle, 2026-09-01.** Same day, same owner, three more edits, two of
+> them to "kingston's friends" only:
+>
+> 1. `2026-09-01`'s round: `prompt` set to "Your lock tf in song" (`prompt_key = null`),
+>    replacing the "A tiktok song you actually listen to" text the 2026-08-31 note above had put
+>    there.
+> 2. `2026-09-02`'s round: `prompt` set to "A tiktok song you actually listen to" (`prompt_key =
+>    null`) — the text 2026-09-01's round had just given up, moved forward one day rather than
+>    discarded.
+> 3. Catalog: `nobody_has_heard` ("A song nobody has heard of") retexted in place to "Your song
+>    you fall asleep to" — the owner asked for that phrase to replace whichever active cue reads
+>    as weak, hard to answer, or boring by this document's own §6 bar, and `nobody_has_heard` is
+>    the one that actually fails it: unlike every other line, it asks the dropper to guess at
+>    what people they know have or haven't heard, which isn't answerable from what you know
+>    about your own music. `falling_asleep` ("A song for falling asleep") is a different key and
+>    was not touched, so the catalog now has two falling-asleep-shaped lines with different
+>    framings — not an oversight, the owner asked for an *other* weak cue to carry the text, not
+>    for the existing similar one to be replaced. Landed in
+>    `20260901120000_cue_nobody_has_heard_retexture.sql`. `tests/db/cues.sql`'s catalog `bag_eq`
+>    and the copy deck were updated to match. Verified: `db:reset` applies cleanly, `npm run
+>    test:db` is **738/738**, `node scripts/lint.mjs` is clean.
 
 ---
 

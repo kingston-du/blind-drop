@@ -154,6 +154,13 @@ matching modulus edit.
 > retexted `getting_hyped` from "A song for getting hyped up" to "A song that excites you" — 41
 > lines down to 40. See the dated note in `tasks/E35-cues.md`'s E35-02 section.
 
+> **Revision, 2026-09-01.** Owner retexted `nobody_has_heard` from "A song nobody has heard of"
+> to "Your song you fall asleep to" — picked as the weakest remaining line by this section's own
+> bar (unfalsifiable; you cannot actually answer it from what you know about your own music).
+> `falling_asleep` ("A song for falling asleep") is unrelated and untouched, so the catalog now
+> carries two falling-asleep-shaped lines with different framings. Still 40 lines. See the dated
+> note in `tasks/E35-cues.md`'s E35-02 section.
+
 **Confession**
 A song you're embarrassed to love · A song you'd never play in someone else's car · A song you
 hate and know every word of · A song you'd lie about liking · A song you only play with
@@ -183,7 +190,7 @@ song you've had on repeat this week
 
 **Trivia**
 A song in a language you don't speak · A song that should be more famous · A song you only know
-because of a movie · A song you know all the lyrics to · A song nobody has heard of
+because of a movie · A song you know all the lyrics to · Your song you fall asleep to
 
 **Mood**
 A song you were obsessed with at 13 · A song your friend put you onto · A song for a slow morning

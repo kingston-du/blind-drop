@@ -1,0 +1,21 @@
+-- 20260901120000_cue_nobody_has_heard_retexture.sql — cue catalog retexture. docs/18-CUES.md
+-- §6, tasks/E35-cues.md's dated note under E35-02.
+--
+-- Owner asked for "your song you fall asleep to" to land on whichever active cue reads as
+-- weak, hard to answer, or boring by docs/18-CUES.md §6's own bar ("answerable in the time it
+-- takes to think of a song — nothing that needs research, a specific memory a person might not
+-- have"). `nobody_has_heard` ("A song nobody has heard of") is that one: it asks the dropper to
+-- guess at what their circle-mates have or haven't heard, which is unfalsifiable and not
+-- actually answerable from what you know about your own music, unlike every other line in the
+-- catalog. Retexted in place, same key — same reasoning as every other in-place retext this
+-- feature has done (20260828150000, 20260831190000): a round already pointing at
+-- `nobody_has_heard` keeps its own frozen `prompt` text regardless, so no past round's cue
+-- changes under it.
+--
+-- `falling_asleep` ("A song for falling asleep") is untouched and stays a separate, active
+-- entry — the owner asked for a *different* weak cue to carry this text, not for the existing
+-- similar-themed one to be replaced, so the catalog now has two falling-asleep-shaped lines
+-- with different framings. Active count and cue_for_round() are unaffected: a same-catalog
+-- retext never changes N.
+
+update public.cue_catalog set text = 'Your song you fall asleep to' where key = 'nobody_has_heard';
