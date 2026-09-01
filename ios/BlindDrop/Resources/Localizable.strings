@@ -73,7 +73,7 @@
 "error.notsubmitter" = "You didn't drop a song tonight.";
 "error.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "error.roundvoided" = "Not enough drops tonight. Nothing revealed.";
-"error.alreadyingroup" = "You're already in a group. Leave it first.";
+"error.alreadyingroup" = "You're already in that group.";
 "error.alreadyinvited" = "They already have an invitation to this group.";
 "error.circlelimitreached" = "You're already in three groups. Leave one to join another.";
 "error.notadmin" = "Only the group's admin can change that.";
@@ -99,7 +99,10 @@
 "a11y.switcher.row" = "%@. %@.";
 "a11y.switcher.row.hint" = "Double-tap to switch to this group";
 "a11y.switcher.attention" = "Wants your attention.";
-"switcher.startGroup" = "+ Start a group";
+"switcher.startGroup" = "Start a group";
+"switcher.joinWithCode" = "Join with a code";
+"join.title" = "Join a group";
+"join.help" = "Six characters, from whoever invited you.";
 
 /* ── Starting a group (docs/11) ───────────────────────────────────────────── */
 
@@ -115,6 +118,8 @@
 "group.invite.people" = "People you've played with";
 "group.invite.empty" = "Nobody from another group is here yet. The link works for anyone.";
 "group.invite.action" = "Invite";
+"group.invite.code.copy" = "Copy";
+"group.invite.code.copied" = "Copied";
 "group.invite.link" = "Invite link";
 "group.invite.share" = "Share invite";
 "group.invite.done" = "Go to the group";

@@ -156,3 +156,38 @@ struct StatusBadge: View {
             .accessibilityAddTraits(.isStaticText)
     }
 }
+
+// MARK: - List card
+
+/// A list of rows drawn as **one** card, with a `Rule` between each pair.
+///
+/// The alternative — a `rowSurface()` per row with `Space.sm` of paper between them — is right
+/// when the rows are unrelated things a screen happens to stack, and wrong when they are one
+/// list. Three white cards separated by paper read as three controls that arrived independently;
+/// one card with rules inside it reads as the thing it is, and costs two hairlines instead of
+/// two gaps, which on a short sheet is most of the difference between tidy and airy-for-no-reason.
+///
+/// The rows are clipped to the card's radius rather than drawing their own backgrounds inside
+/// it, so a row that fills itself — the switcher's active circle — keeps the card's corners
+/// instead of squaring them off.
+struct ListCard<Data: RandomAccessCollection, Row: View>: View where Data.Element: Identifiable {
+    let data: Data
+    var radius: CGFloat = Radius.panel
+    @ViewBuilder let row: (Data.Element) -> Row
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+    }
+
+    var body: some View {
+        VStack(spacing: Space.none) {
+            ForEach(data) { element in
+                if element.id != data.first?.id { Rule() }
+                row(element)
+            }
+        }
+        .background(shape.fill(Palette.surface))
+        .clipShape(shape)
+        .overlay(shape.stroke(Palette.edge, lineWidth: Stroke.border))
+    }
+}

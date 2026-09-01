@@ -91,7 +91,8 @@ icon — but a control with no name is unreachable to VoiceOver, so it is a stri
 | `a11y.switcher.row` | %@. %@. |
 | `a11y.switcher.row.hint` | Double-tap to switch to this group |
 | `a11y.switcher.attention` | Wants your attention. |
-| `switcher.startGroup` | + Start a group |
+| `switcher.startGroup` | Start a group |
+| `switcher.joinWithCode` | Join with a code |
 
 `E19-02`. The group's name in the header (`08-SCREEN-SPECS.md` §2, §6, since E17-09) becomes the
 control that opens this sheet. Its accessibility label is the group's own name — the visible
@@ -118,6 +119,18 @@ VoiceOver user in place of the sighted reader's small mark, appended as its own 
 `Copy.A11y.result(...)` already uses for a results card's own optional second sentence — rather
 than drawn as a second line. The row is still just a name and a state.
 
+**Amended by `E38-01`:** the *active* row is now also drawn as the active row — a sunken
+`paperSunk` fill inside the list card, never an accent. It had carried its selection only as
+VoiceOver's `.isSelected`, which is a fact stated to one class of user and withheld from another.
+No word changed; nothing was added to the row.
+
+`E38-01` dropped the `+` from `switcher.startGroup` and put `switcher.joinWithCode` beside it.
+They are two alternatives of equal weight — somebody was sent a code, somebody else is starting
+their own — and a leading glyph on one of them made it read as the sheet's answer. **Join with a
+code** rather than *Join a group* (`onboarding.group.join`, which stays as it is) because by this
+point the caller is already in one and the distinction that matters is what they have in hand,
+not what they are joining.
+
 ---
 
 ## Starting a group
@@ -137,6 +150,8 @@ than drawn as a second line. The row is still just a name and a state.
 | `group.invite.empty` | Nobody from another group is here yet. The link works for anyone. |
 | `group.invite.action` | Invite |
 | `group.invite.link` | Invite link |
+| `group.invite.code.copy` | Copy |
+| `group.invite.code.copied` | Copied |
 | `group.invite.share` | Share invite |
 | `group.invite.done` | Go to the group |
 | `group.join.title` | Join this group? |
@@ -147,6 +162,14 @@ than drawn as a second line. The row is still just a name and a state.
 The timezone is stated, not asked, for a second group: it defaults from the device at creation
 and stays fixed. `group.invite.people` is a shortcut derived from shared active memberships;
 it is not a social graph, and the list carries no counts, profiles, or activity.
+
+`E38-03` moved this block into one `InvitePanel` with two call sites — the creation flow, and
+`GroupScreen`, which had no way to invite anybody at all. `group.invite.code.copy` /
+`.copied` are new: the panel shows the **code** under the link, because the link is what somebody
+taps and the code is what somebody reads out, and `docs/03` §2's confusable-free alphabet exists
+for the second of those. `group.invite.empty` is no longer rendered — an absence stated under a
+link that works for anyone was a sentence apologising for nothing, and on `GroupScreen` it would
+be a permanent one. The key stays in the deck and in `Localizable.strings`; nothing reads it.
 
 ---
 
