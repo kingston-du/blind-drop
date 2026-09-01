@@ -101,13 +101,22 @@ import Testing
         #expect(router.pending == nil)
     }
 
-    /// docs/04 §3 would answer `ALREADY_IN_GROUP`. Tapping your own invite is noise, not an
-    /// error worth showing.
-    @Test func aJoinLinkIsDroppedSilentlyWhenAlreadyInAGroup() {
+    /// **A caller who already has a circle gets the code too** (`E38-02`).
+    ///
+    /// This asserted the opposite until `E38-02`: the link was dropped on the floor for a
+    /// `.ready` session, on the reasoning that `docs/04` §3 would answer `ALREADY_IN_GROUP` and
+    /// that tapping your own invite is noise. Under ADR-011 a person may hold three circles, so
+    /// a code arriving here almost always names one they are **not** in, and `ALREADY_IN_GROUP`
+    /// is raised only for the circle they actually hold. Discarding it made every forwarded
+    /// invite a dead end for anybody already playing.
+    ///
+    /// It still only *prefills* — `path` stays empty and nothing is joined, because a deep link
+    /// is a navigation hint and not an authorization (`docs/05` §5).
+    @Test func aJoinLinkPrefillsTheCodeWhenTheCallerAlreadyHasAGroup() {
         let router = Router()
         router.receive(.join(code: "K7MQ2X"))
         router.consume(session: .ready, roundIsLoaded: true)
-        #expect(router.pendingInviteCode == nil)
+        #expect(router.pendingInviteCode == "K7MQ2X")
         #expect(router.pending == nil)
         #expect(router.path.isEmpty)
     }

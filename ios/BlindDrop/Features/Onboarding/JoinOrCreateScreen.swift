@@ -63,7 +63,10 @@ struct JoinOrCreateScreen: View {
                 SectionLabel("onboarding.group.code.label")
                 InsetField(
                     "onboarding.group.code.placeholder",
-                    text: $store.code,
+                    // One write per edit, through the store's own setter — see
+                    // `OnboardingStore.code` for the two ways of doing this that do not work
+                    // and what each of them looked like on screen.
+                    text: Binding(get: { store.code }, set: { store.setCode($0) }),
                     style: .monoM,
                     alignment: .leading,
                     isFocused: isCodeFocused

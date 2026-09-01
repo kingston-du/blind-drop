@@ -402,20 +402,28 @@ struct OnboardingHarness {
 
     @Test func joiningIsGatedOnSixCharacters() {
         let h = OnboardingHarness()
-        h.store.code = "K7MQ2"
+        h.store.setCode("K7MQ2")
         #expect(!h.store.canJoin)
-        h.store.code = "K7MQ2X"
+        h.store.setCode("K7MQ2X")
         #expect(h.store.canJoin)
     }
 
     /// The field holds only things a code could be, whatever is typed or pasted into it.
+    ///
+    /// `setCode(_:)` rather than `code =`, since `E38-02` — `code` is `private(set)` and the
+    /// screen's field is bound through this setter, which is what makes the normalisation
+    /// actually reach the text field. See `OnboardingStore.code`.
     @Test func theFieldNormalisesWhatIsPutInIt() {
         let h = OnboardingHarness()
-        h.store.code = "k7mq2x"
+        h.store.setCode("k7mq2x")
         #expect(h.store.code == "K7MQ2X")
 
-        h.store.code = "https://blinddrop-site.vercel.app/j/K7MQ2X"
+        h.store.setCode("https://blinddrop-site.vercel.app/j/K7MQ2X")
         #expect(h.store.code == "K7MQ2X")
+
+        // Over-length, and characters the alphabet excludes (`I`, `L`, `O`, `0`, `1`).
+        h.store.setCode("aaa222o")
+        #expect(h.store.code == "AAA222")
     }
 
     /// *"Lands straight on today's round after joining — no confirmation, no welcome"*
@@ -424,7 +432,7 @@ struct OnboardingHarness {
         let h = OnboardingHarness()
         OnboardingStub.arm([Self.ok(Self.group), Self.ok(Self.meReady)])
 
-        h.store.code = "K7MQ2X"
+        h.store.setCode("K7MQ2X")
         await h.store.join()
 
         #expect(h.paths == ["/functions/v1/groups/join", "/functions/v1/me"])
@@ -438,7 +446,7 @@ struct OnboardingHarness {
         let h = OnboardingHarness()
         OnboardingStub.arm([Self.failure(404, "NOT_FOUND")])
 
-        h.store.code = "K7MQ2X"
+        h.store.setCode("K7MQ2X")
         await h.store.join()
 
         #expect(h.store.joinFailure == "onboarding.group.code.error")
@@ -453,7 +461,7 @@ struct OnboardingHarness {
         let h = OnboardingHarness()
         OnboardingStub.arm([Self.failure(409, "ALREADY_IN_GROUP"), Self.ok(Self.meReady)])
 
-        h.store.code = "K7MQ2X"
+        h.store.setCode("K7MQ2X")
         await h.store.join()
 
         #expect(h.store.joinFailure == nil, "no error the user can do anything about")
@@ -548,7 +556,7 @@ struct OnboardingHarness {
     /// eat their work.
     @Test func aLinkDoesNotOverwriteACodeBeingTyped() {
         let h = OnboardingHarness()
-        h.store.code = "ABC"
+        h.store.setCode("ABC")
         h.store.prefill(code: "K7MQ2X")
         #expect(h.store.code == "ABC")
     }

@@ -288,6 +288,16 @@ A deep link **never** shortcuts a phase gate. `blinddrop://round/current/results
 21:30 lands on the guess screen with no error — the client asks the server what phase it is
 and renders that. A deep link is a navigation hint, not an authorization.
 
+**A join link works whether or not the caller already has a circle** (`E38-02`). `Router` used
+to discard `blinddrop://join/<CODE>` outright for a signed-in caller who was already in a group,
+on the reasoning that the server would answer `ALREADY_IN_GROUP` and that tapping your own
+invite is not worth a toast. Under ADR-011 that is wrong: a person may hold three circles, and
+a code arriving at a `ready` session almost always names one they are **not** in.
+`ALREADY_IN_GROUP` is raised only for the circle they are actually in. The link now prefills a
+sheet in both states — `JoinOrCreateScreen` with no circle, `JoinCircleSheet` with one — and, as
+above, **prefills only**: it never joins, because a forwarded message must not put somebody in a
+circle they did not choose.
+
 Invite links are `https://blinddrop.app/j/<CODE>` with an `apple-app-site-association` file,
 falling back to a static landing page with the code shown for manual entry. The landing page
 is the only web surface in v1 (`16-OUT-OF-SCOPE.md`).

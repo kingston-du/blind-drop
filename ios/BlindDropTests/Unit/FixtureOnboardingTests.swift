@@ -46,7 +46,7 @@ struct FixtureOnboardingTests {
     @Test func theJoinPathCompletesAgainstTheFixtureServer() async throws {
         let (store, env) = try store()
 
-        store.code = "k7mq2x"
+        store.setCode("k7mq2x")
         #expect(store.code == "K7MQ2X", "normalised on the way in")
         #expect(store.canJoin)
         await store.join()
@@ -62,7 +62,7 @@ struct FixtureOnboardingTests {
     @Test func anUnknownCodeIsRefusedByTheFixtureServer() async throws {
         let (store, env) = try store()
 
-        store.code = "ABCDEF"
+        store.setCode("ABCDEF")
         await store.join()
 
         #expect(store.joinFailure == "onboarding.group.code.error")

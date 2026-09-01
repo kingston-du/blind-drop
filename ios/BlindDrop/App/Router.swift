@@ -41,12 +41,21 @@ final class Router {
         switch link {
         case .join(let code):
             switch session {
-            case .noGroup:
+            case .noGroup, .ready:
+                // **`.ready` used to drop this on the floor** (`E38-02`), on the argument that
+                // *"the server would answer ALREADY_IN_GROUP, and tapping your own invite is
+                // not an error worth a toast"*. That was true when a person could hold exactly
+                // one circle. Since ADR-011 they may hold three, and a code arriving at a
+                // `.ready` session almost always names one they are **not** in —
+                // `POST /groups/join` would have accepted it, and `ALREADY_IN_GROUP` is raised
+                // only for the circle they are actually in (`memberships_unique_active_pair`).
+                // Silently discarding it made every forwarded invite link a dead end.
+                //
+                // It prefills and stops, in both states. A deep link is a navigation hint, not
+                // an authorization (`docs/05` §5): a forwarded message must never put somebody
+                // in a circle they did not choose. `.noGroup` lands on `JoinOrCreateScreen`,
+                // `.ready` on `JoinCircleSheet`; both read this same code.
                 pendingInviteCode = code
-                pending = nil
-            case .ready:
-                // docs/04 §3: the server would answer ALREADY_IN_GROUP. Tapping your own
-                // invite is not an error worth a toast, so drop it silently.
                 pending = nil
             case .unknown, .signedOut, .noProfile:
                 // Keep it. Sign-in and naming come first, and the code is still good after.

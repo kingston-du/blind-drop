@@ -68,14 +68,28 @@ final class OnboardingStore {
 
     // MARK: - 1.3, joining
 
-    /// The code field. Normalised on every keystroke, so the field always holds something a
-    /// code could be (`docs/14` §7).
-    var code = "" {
-        didSet {
-            let normalised = InviteCode.normalise(code)
-            if normalised != code { code = normalised }
-            if code != oldValue { joinFailure = nil }
-        }
+    /// The code field. Always holds something a code could be (`docs/14` §7) — written through
+    /// `setCode(_:)`, which is the only door in.
+    ///
+    /// **It used to normalise in a `didSet` that re-assigned itself, and that never reached the
+    /// field** (`E38-02`). SwiftUI pushes a model value back into `UITextField` only when it
+    /// sees the value change *after* an edit, and a write inside the binding's own setter is
+    /// part of that same edit. The field happily showed `aaa222o` — lowercase, seven characters,
+    /// two of them outside `docs/03` §2's alphabet — while this property held `AAA222`.
+    /// `.textInputAutocapitalization(.characters)` hid it for typing and never hid it for
+    /// **paste**, which is the case `InviteCode.normalise` exists for in the first place.
+    ///
+    /// `private(set)` is the fix's other half: the screen hands its field a `Binding` whose
+    /// setter calls `setCode(_:)`, so there is exactly **one** write per edit and no correction
+    /// afterwards to race it. `$store.code` would be that second write.
+    private(set) var code = "" {
+        didSet { if code != oldValue { joinFailure = nil } }
+    }
+
+    /// The one way the field's contents change. Normalises: uppercases, drops anything outside
+    /// the alphabet, truncates to six, and reduces a pasted invite link to the code in it.
+    func setCode(_ raw: String) {
+        code = InviteCode.normalise(raw)
     }
 
     var canJoin: Bool { InviteCode.isComplete(code) && !isJoining }
@@ -125,7 +139,7 @@ final class OnboardingStore {
     /// does not eat their work.
     func prefill(code prefilled: String) {
         guard code.isEmpty else { return }
-        code = prefilled
+        setCode(prefilled)
         step = .joinOrCreate
     }
 
