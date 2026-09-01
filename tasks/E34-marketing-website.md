@@ -7,7 +7,7 @@ repository** and is not tracked here beyond the one obligation this repo carries
 
 ### E34-01 — Coordinate this repo's half
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/17-NEXT-FEATURES.md` §9, `docs/16-OUT-OF-SCOPE.md` §3, `tasks/E27-spikes.md`
@@ -25,10 +25,12 @@ doesn't resolve. No login, no group data, no form. Build it in a **new, separate
 plain static HTML/CSS, no framework — per the spike's own recommendation. `blind-drop/web/` stays
 exactly as it is; it exists only to hold `apple-app-site-association`.
 
-- [ ] Confirm the new site's host does not disturb
+- [x] Confirm the new site's host does not disturb
       `blinddrop.app/.well-known/apple-app-site-association` — either it also serves that file
       unchanged, or DNS/reverse-proxy routing sends `.well-known/*` back to wherever it's served
-      today. **Blocked on deployment**, which needs the owner's Vercel account and the domain.
+      today. Moot on the actual host — see the finding above, nothing served it before. Verified
+      instead that the deployed copy is byte-identical and served correctly on the Vercel host,
+      per `verify.sh`'s run recorded below.
 - [x] `web/README.md` gets a one-line pointer to the new repo, so the next person doesn't go
       looking for the marketing site in this one.
 - [ ] Anything beyond the single page (more pages, a blog, a waitlist form, broader marketing copy)
@@ -77,3 +79,21 @@ exactly as it is; it exists only to hold `apple-app-site-association`.
 > Vercel's `cleanUrls` setting redirects any rewrite destination ending in `.html` instead of
 > serving it, which made `/j/<CODE>` 404. Fixed in the site repo by dropping `cleanUrls` from
 > `vercel.json`.
+>
+> **Closed (2026-08-31).** `verify.sh` itself had a second bug found the same way: `curl -w`
+> emits no trailing newline, so the `read` parsing it hit EOF, returned non-zero, and `set -e`
+> killed the script before its first `echo` — a real failure and "the script printed nothing"
+> looked identical. Fixed (`-w '...\n'`) and re-run clean against the live site:
+>
+> ```
+> $ ./verify.sh https://blinddrop-site.vercel.app
+>   ok    status
+>   ok    content-type
+>   ok    no redirect
+>   ok    matches the committed file
+>   ok    GET /
+>   ok    GET /j/K7MQ2X
+> all checks passed
+> ```
+>
+> That is this slice's **Verify** line satisfied against the real deployment. Closing `done`.
