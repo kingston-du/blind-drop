@@ -183,6 +183,7 @@ struct RoundScreen: View {
                 RoundHeader(
                     groupName: headerName(store),
                     dateHeadline: store.state.value?.dateHeadline,
+                    shortDateHeadline: store.state.value?.shortDateHeadline,
                     path: $router.path,
                     showHowTo: { isShowingHowTo = true },
                     openSwitcher: openSwitcher,
@@ -907,6 +908,9 @@ private struct ResultsHost: View {
 struct RoundHeader<Badge: View>: View {
     let groupName: String?
     let dateHeadline: String?
+    /// The same date, abbreviated. The middle rung of `standing`'s ladder: when the full date and
+    /// the badge cannot share a row, this usually can, and one short row beats two.
+    let shortDateHeadline: String?
     @Binding var path: [Route]
     /// Opens **How to play** (`docs/08` §2, §8). On every phase, next to the menu — the same
     /// place the `[?]` sits everywhere else it appears.
@@ -926,6 +930,7 @@ struct RoundHeader<Badge: View>: View {
     init(
         groupName: String?,
         dateHeadline: String? = nil,
+        shortDateHeadline: String? = nil,
         path: Binding<[Route]>,
         showHowTo: @escaping () -> Void,
         openSwitcher: @escaping () -> Void,
@@ -934,6 +939,7 @@ struct RoundHeader<Badge: View>: View {
     ) {
         self.groupName = groupName
         self.dateHeadline = dateHeadline
+        self.shortDateHeadline = shortDateHeadline
         self._path = path
         self.showHowTo = showHowTo
         self.openSwitcher = openSwitcher
@@ -1063,11 +1069,25 @@ struct RoundHeader<Badge: View>: View {
 
     /// The date and the badge, side by side while the column can hold both.
     ///
-    /// The two candidates are the same two views in the same order; only the axis differs, so a
-    /// reader who hits the stacked fallback at `.accessibility5` is reading the same header, not
-    /// a second design. `Spacer(minLength:)` is what makes the measurement honest — its ideal
-    /// width is `Space.sm`, so `ViewThatFits` weighs *date + gap + badge* against the column
-    /// rather than seeing an infinitely compressible row and always taking the first candidate.
+    /// **Three rungs, tried in order: the full date beside the badge, the abbreviated date
+    /// beside it, then the two stacked.** The middle rung is the one that earns its keep. One
+    /// step above the default type size, *"Tuesday, September 1"* and *"SEALS IN 01:29:25"* are
+    /// together wider than a 393pt column — so the first rung fails on an ordinary phone at an
+    /// ordinary setting, and without a rung between, the header went straight back to the three
+    /// rows this change was made to remove. *"Tue, Sep 1"* beside the badge is one row again,
+    /// and it is still the whole date rather than a truncated anything.
+    ///
+    /// `Spacer(minLength:)` is what makes the measurement honest — its ideal width is
+    /// `Space.sm`, so `ViewThatFits` weighs *date + gap + badge* against the column rather than
+    /// seeing an infinitely compressible row and always taking the first candidate.
+    ///
+    /// **It does not flicker as the clock ticks.** The badge's precise form is `HH:MM:SS` in
+    /// tabular figures, so its width is fixed for the whole evening; the coarse form that would
+    /// change it (*"4 hours"*) only appears above `.accessibility2` (`docs/12` §1), by which
+    /// point the row has long since stacked and there is nothing left to re-measure.
+    ///
+    /// The stacked rung keeps the **full** date: it has a whole row, so there is nothing to buy
+    /// by shortening it.
     ///
     /// **The `else` is not a formality.** `ViewThatFits` is a real subview whether or not
     /// anything inside it draws, so wrapping the empty case in one would cost the outer stack's
@@ -1080,10 +1100,12 @@ struct RoundHeader<Badge: View>: View {
     @ViewBuilder private var standing: some View {
         if let dateHeadline {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
-                    date(dateHeadline)
-                    Spacer(minLength: Space.sm)
-                    badge
+                row(dateHeadline)
+                // Only offered when it is actually shorter. A locale whose abbreviation is the
+                // same string as the long form would otherwise get a second identical candidate
+                // — harmless, but it would sit in the ladder pretending to be a way out.
+                if let shortDateHeadline, shortDateHeadline.count < dateHeadline.count {
+                    row(shortDateHeadline)
                 }
                 VStack(alignment: .leading, spacing: Space.sm) {
                     date(dateHeadline)
@@ -1096,6 +1118,15 @@ struct RoundHeader<Badge: View>: View {
         }
     }
 
+    /// One rung: a date at the leading edge, the badge held out at the trailing one.
+    private func row(_ headline: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+            date(headline)
+            Spacer(minLength: Space.sm)
+            badge
+        }
+    }
+
     /// *When* the round is. `caption` rather than `bodyS` so it reads as apparatus beside the
     /// badge's mono caps rather than competing with them.
     private func date(_ headline: String) -> some View {
@@ -1103,6 +1134,10 @@ struct RoundHeader<Badge: View>: View {
             .typeStyle(.caption)
             .foregroundStyle(Palette.inkDim)
             .fixedSize(horizontal: false, vertical: true)
+            // Always the full date, whichever rung is drawn. Abbreviating is a way of fitting a
+            // column, and VoiceOver has no column to fit — *"Tue, Sep 1"* read aloud is worse
+            // than what it replaced, for no gain at all.
+            .accessibilityLabel(Text(verbatim: dateHeadline ?? headline))
             .accessibilityIdentifier("round.dateHeadline")
     }
 }

@@ -12,6 +12,27 @@ import Testing
         #expect(headline == "Monday 10 August")
     }
 
+    /// *"Mon 10 Aug"* — the same day with the two long words abbreviated, which is what the
+    /// header falls back to rather than breaking its second row in two.
+    ///
+    /// The point of the assertion is that it is **shorter and still complete**: weekday, day and
+    /// month all survive, so `RoundHeader`'s middle rung is a smaller version of the date rather
+    /// than a truncated one. It is also what makes the `count <` guard in `standing` meaningful.
+    @Test func alocalDateAlsoHasAShortForm() throws {
+        let calendar = GroupCalendar(timezone: "America/New_York")
+        let locale = Locale(identifier: "en_GB")
+        let short = try #require(calendar.shortHeadline(localDate: "2026-08-10", locale: locale))
+        let long = try #require(calendar.headline(localDate: "2026-08-10", locale: locale))
+        #expect(short == "Mon 10 Aug")
+        #expect(short.count < long.count)
+    }
+
+    /// The short form refuses a garbled date on the same terms the long one does.
+    @Test(arguments: ["", "2026-08", "not-a-date", "2026/08/10"])
+    func agarbledDateProducesNoShortLineEither(_ raw: String) {
+        #expect(GroupCalendar(timezone: "UTC").shortHeadline(localDate: raw) == nil)
+    }
+
     /// A string that is not a calendar date produces **nothing**, rather than a substitute. A
     /// header line that is absent is better than one confidently wrong about what day it is.
     @Test(arguments: ["", "2026-08", "not-a-date", "2026/08/10"])

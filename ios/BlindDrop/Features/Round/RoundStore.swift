@@ -31,6 +31,12 @@ struct RoundContext: Sendable, Equatable {
         calendar.headline(localDate: round.localDate)
     }
 
+    /// The same day, abbreviated — *"Mon, Aug 10"*. The header falls back to it rather than
+    /// breaking its second row in two when the full date and the phase badge cannot share one.
+    var shortDateHeadline: String? {
+        calendar.shortHeadline(localDate: round.localDate)
+    }
+
     /// The group's own clock, which every date and hour on these screens is written in.
     var calendar: GroupCalendar { GroupCalendar(timezone: group.timezone) }
 

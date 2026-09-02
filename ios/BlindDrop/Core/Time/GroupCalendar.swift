@@ -41,6 +41,24 @@ extension GroupCalendar {
         )
     }
 
+    /// `"2026-08-10"` → *"Mon, Aug 10"* — the header's date when the full one will not share a
+    /// row with the badge (`docs/08` §2).
+    ///
+    /// Every part of `headline` is still here; only the two long words are abbreviated, and by
+    /// `Date.FormatStyle` rather than by truncating strings, so a locale that orders or names
+    /// them differently gets its own abbreviation instead of an English one cut short. The
+    /// header picks between the two by measuring — see `RoundHeader.standing` — and VoiceOver is
+    /// read the full form either way, because a screen reader has no width problem to solve.
+    func shortHeadline(localDate: String, locale: Locale = .current) -> String? {
+        guard let day = instant(atNoonOn: localDate) else { return nil }
+        return day.formatted(
+            Date.FormatStyle(locale: locale, calendar: calendar, timeZone: timeZone)
+                .weekday(.abbreviated)
+                .day(.defaultDigits)
+                .month(.abbreviated)
+        )
+    }
+
     /// `"2026-08-10"` → *"10 August"* (`docs/10` §2).
     ///
     /// The share card's date, which is the same day the header names with the weekday dropped.
