@@ -193,6 +193,22 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 >    `20260901120000_cue_nobody_has_heard_retexture.sql`. `tests/db/cues.sql`'s catalog `bag_eq`
 >    and the copy deck were updated to match. Verified: `db:reset` applies cleanly, `npm run
 >    test:db` is **738/738**, `node scripts/lint.mjs` is clean.
+>
+> **Bug found and fixed, 2026-09-01 (later the same day).** The two hand-set rounds above
+> (`prompt_key = null`, custom `prompt` text) never showed a cue in the app at all.
+> `cueDTO()` (`_shared/dto.ts`) requires *both* `prompt_key` and `prompt` non-null before it
+> emits the `cue` key — true of every system-assigned cue, where the two columns are always set
+> or null together, but not of a hand-set row with a custom text and no real catalog key. This
+> is the API surface docs/18-CUES.md §3's "no admin picks a cue and no cue is custom" was
+> describing: the wire contract was never built to carry a keyless cue. Fixed by pointing each
+> round's `prompt_key` at an existing (semantically unrelated) catalog key — `getting_hyped` for
+> `2026-09-01`, `falling_asleep` for `2026-09-02` — purely to satisfy the not-null check and the
+> `rounds.prompt_key` foreign key; `prompt_key` is documented as "for joins and future
+> localisation," never read for display, so the mismatch between key and shipped text is
+> invisible to every client. `prompt` (what actually renders) is unchanged. Not a migration —
+> both rows already existed; this only corrects their `prompt_key` value. If a genuine
+> admin-authored custom-cue feature is ever built, `cueDTO()`'s null-check needs revisiting
+> too (`prompt` alone, not `prompt_key`, should probably gate whether a cue ships).
 
 ---
 
