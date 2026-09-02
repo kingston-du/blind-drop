@@ -674,8 +674,27 @@ Deno.test(
     });
     const ben = await newMember(group.invite_code as string, "Ben");
     const cal = await newMember(group.invite_code as string, "Cal");
-    const roundId =
-      (await call("rounds", "/current", { token: ana.token })).body.data.round_id as string;
+    const round = (await call("rounds", "/current", { token: ana.token })).body.data as {
+      round_id: string;
+      reveals_at: string;
+    };
+    const roundId = round.round_id;
+
+    // **Every tick below is placed against the round's own `reveals_at`, not against a whole
+    // number of hours from creation.** `zoneWhereLocalHourIs(17)` puts the group somewhere
+    // *in* the 17:00 hour — 17:47 as often as 17:00 — and the offsets here used to be constants
+    // that assumed the latter. Two of them then drifted past their windows by that many
+    // minutes: the 30m reminder (`reveals_at − 30m … reveals_at`) and the guess reminder
+    // (`scores_at − 30m … scores_at`) are both half-hour windows, so any creation minute past
+    // ~24 pushed the tick beyond them and the row was never enqueued. The test failed on the
+    // clock rather than on the code, roughly three runs in five.
+    //
+    // `reveals_at` is the anchor the windows are actually defined against, so measuring from it
+    // makes every tick land the same distance inside its window whatever minute it is now.
+    // Read fresh on each call: the few hundred milliseconds between them are nothing against a
+    // fifteen-minute margin, but there is no reason to accumulate them either.
+    const hoursBeforeReveal = (minutes: number) =>
+      (new Date(round.reveals_at).getTime() - Date.now()) / 3_600_000 - minutes / 60;
 
     const tokens = {
       ana: await registerDevice(ana.token),
@@ -693,8 +712,8 @@ Deno.test(
       200,
     );
 
-    // ── reveals_at − 2h (offset 1.5h → 18:30 local): Ben has submitted, Ana and Cal have not ──
-    await tickRoundsAt(1.5);
+    // ── inside `reveals_at − 2h`, clear of the 30m window: Ben has submitted, Ana and Cal have not ──
+    await tickRoundsAt(hoursBeforeReveal(90));
     const afterFirstTick = await sealReminderRows(roundId);
     assertEquals(afterFirstTick.length, 1, "one seal_reminder row after the 2h window opens");
     assertEquals(
@@ -713,8 +732,8 @@ Deno.test(
       200,
     );
 
-    // ── reveals_at − 30m (offset 2.6h → 19:36 local): only Ana is still unsealed ─────────────
-    await tickRoundsAt(2.6);
+    // ── inside `reveals_at − 30m`: only Ana is still unsealed ───────────────────────────────
+    await tickRoundsAt(hoursBeforeReveal(15));
     const afterSecondTick = await sealReminderRows(roundId);
     assertEquals(afterSecondTick.length, 2, "the 30m window adds a second, distinct row");
     const [firstFiring, secondFiring] = afterSecondTick;
@@ -761,9 +780,9 @@ Deno.test(
     await drainPushOutbox(serviceClient(), secondDrain.fetchApns);
     assertEquals(secondDrain.tokens, [], "seal_reminder(30m): Ana sealed before claim too");
 
-    // ── reveal, at reveals_at (offset 3.0h → 20:00 local): unconditional, unaffected by E31-01 ─
+    // ── one minute past `reveals_at`: unconditional, unaffected by E31-01 ───────────────────
     await clearPending();
-    await tickRoundsAt(3.0);
+    await tickRoundsAt(hoursBeforeReveal(-1));
     // Both seal_reminder rows are already sent (drained above); this adds exactly one more kind.
     assertEquals(await outboxKinds(roundId), ["reveal", "seal_reminder", "seal_reminder"]);
 
@@ -802,8 +821,8 @@ Deno.test(
       "Cal guesses only one of two cards",
     );
 
-    // ── guess_reminder, at scores_at − 30m (offset 4.6h → 21:36 local) ──────────────────────
-    await tickRoundsAt(4.6);
+    // ── inside `scores_at − 30m`, i.e. `reveals_at + 1h45m` (scores_at is reveals_at + 2h) ──
+    await tickRoundsAt(hoursBeforeReveal(-105));
     const guessReminderEnqueued = (await serviceRequest(
       `notification_outbox?select=id,audience&round_id=eq.${roundId}&kind=eq.guess_reminder`,
     )).body as { id: string; audience: string[] }[];
