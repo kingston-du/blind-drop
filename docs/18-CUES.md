@@ -160,6 +160,14 @@ matching modulus edit.
 > `falling_asleep` ("A song for falling asleep") is unrelated and untouched, so the catalog now
 > carries two falling-asleep-shaped lines with different framings. Still 40 lines. See the dated
 > note in `tasks/E35-cues.md`'s E35-02 section.
+>
+> **Revision, 2026-09-01 (later the same day).** Two cues that started as one circle's hand-set,
+> keyless round overrides were promoted into the catalog permanently: `worst_by_favorite_artist`
+> ("The worst song by an artist you love" — needs a working knowledge of a whole discography to
+> rank against) retexted to "Your lock tf in song", and `should_be_more_famous` ("A song that
+> should be more famous" — a generic taste judgment with no clear answer) retexted to "A tiktok
+> song you actually listen to". Still 40 lines. See the dated note in `tasks/E35-cues.md`'s
+> E35-02 section.
 
 **Confession**
 A song you're embarrassed to love · A song you'd never play in someone else's car · A song you
@@ -167,8 +175,8 @@ hate and know every word of · A song you'd lie about liking · A song you only 
 headphones on
 
 **Refusal**
-A song you hate · A song everyone loves that you don't · The worst song by an artist you love · A
-song that got ruined for you
+A song you hate · A song everyone loves that you don't · Your lock tf in song · A song that got
+ruined for you
 
 **Misdirection**
 A song nobody here would guess is yours · A song from a genre you never listen to · A song your
@@ -189,7 +197,7 @@ song from before you were born · A song you loved as a kid · A song you never 
 song you've had on repeat this week
 
 **Trivia**
-A song in a language you don't speak · A song that should be more famous · A song you only know
+A song in a language you don't speak · A tiktok song you actually listen to · A song you only know
 because of a movie · A song you know all the lyrics to · Your song you fall asleep to
 
 **Mood**

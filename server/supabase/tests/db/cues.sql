@@ -63,7 +63,7 @@ select bag_eq(
     ('one_specific_summer','A song stuck to one specific summer'),
     ('parents_would_play','A song your parents would put on'),
     ('play_at_a_party','The song you''d put on to save a party'),
-    ('should_be_more_famous','A song that should be more famous'),
+    ('should_be_more_famous','A tiktok song you actually listen to'),
     ('skipped_the_most','The song you skip the most'),
     ('slow_morning','A song for a slow morning'),
     ('someone_got_you_into','A song you got someone else into'),
@@ -71,7 +71,7 @@ select bag_eq(
     ('tied_to_someone','A song tied to a specific person'),
     ('tired_of_hearing','A song that got ruined for you'),
     ('unexpected_from_you','A song that would give the wrong impression of you'),
-    ('worst_by_favorite_artist','The worst song by an artist you love')
+    ('worst_by_favorite_artist','Your lock tf in song')
   $$,
   'the catalog matches docs/11-COPY-DECK.md''s cue.catalog verbatim'
 );

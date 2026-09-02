@@ -210,6 +210,21 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 > admin-authored custom-cue feature is ever built, `cueDTO()`'s null-check needs revisiting
 > too (`prompt` alone, not `prompt_key`, should probably gate whether a cue ships).
 
+> **Promoted into the catalog, 2026-09-01 (again).** Owner asked for both of the round-level
+> customs above to become permanent catalog entries, replacing two more weak ones. Retexted in
+> place: `worst_by_favorite_artist` ("The worst song by an artist you love" — needs a working
+> knowledge of a whole discography to rank against, and overlaps thematically with the
+> catalog's other negative-framing lines) → "Your lock tf in song"; `should_be_more_famous`
+> ("A song that should be more famous" — a generic taste judgment with no clear answer, and
+> doesn't say anything about the person answering) → "A tiktok song you actually listen to".
+> The two "kingston's friends" rounds' `prompt_key` — set to the unrelated placeholders
+> `getting_hyped`/`falling_asleep` by the DTO-bug fix above, purely to satisfy `cueDTO()`'s
+> not-null check — are repointed to these real, now-matching keys in the same migration, so
+> `prompt_key` finally means what it says for those two rows. Landed in
+> `20260901130000_cue_promote_kingston_customs.sql`. `tests/db/cues.sql`'s catalog `bag_eq` and
+> the copy deck were updated to match. Verified: `db:reset` applies cleanly, `npm run test:db`
+> is **738/738**, `node scripts/lint.mjs` is clean.
+
 ---
 
 ### E35-03 — API: rounds, results, record, group settings

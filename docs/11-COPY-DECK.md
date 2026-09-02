@@ -465,7 +465,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | `guilty_pleasure_alone` | A song you only play with headphones on |
 | `song_you_hate` | A song you hate |
 | `loved_by_all_not_you` | A song everyone loves that you don't |
-| `worst_by_favorite_artist` | The worst song by an artist you love |
+| `worst_by_favorite_artist` | Your lock tf in song |
 | `tired_of_hearing` | A song that got ruined for you |
 | `nobody_guesses_yours` | A song nobody here would guess is yours |
 | `genre_you_never_listen` | A song from a genre you never listen to |
@@ -489,7 +489,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | `never_tired_of` | A song you never get tired of |
 | `on_repeat` | A song you've had on repeat this week |
 | `language_you_dont_speak` | A song in a language you don't speak |
-| `should_be_more_famous` | A song that should be more famous |
+| `should_be_more_famous` | A tiktok song you actually listen to |
 | `from_a_movie` | A song you only know because of a movie |
 | `know_all_the_lyrics` | A song you know all the lyrics to |
 | `nobody_has_heard` | Your song you fall asleep to |
@@ -501,8 +501,9 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 
 40 lines. Every text is 56 characters or fewer, the same discipline `docs/12` asks of every
 string, so nothing overflows on an SE at `accessibility5`. Revised from the original 61 on
-2026-08-28, again on 2026-08-31 (`workout` retired, `getting_hyped` retexted), and again on
-2026-09-01 (`nobody_has_heard` retexted) — see the dated notes in `tasks/E35-cues.md`'s E35-02
+2026-08-28, again on 2026-08-31 (`workout` retired, `getting_hyped` retexted), and twice more
+on 2026-09-01 (`nobody_has_heard` retexted, then `worst_by_favorite_artist` and
+`should_be_more_famous` retexted) — see the dated notes in `tasks/E35-cues.md`'s E35-02
 section. The active count no longer needs to be prime; `docs/18-CUES.md` §3 explains why.
 
 ### Circle settings
