@@ -306,6 +306,50 @@ alter function public.make_demo_group(uuid) owner to postgres;
 revoke all on function public.make_demo_group(uuid) from public, anon, authenticated;
 grant execute on function public.make_demo_group(uuid) to service_role;
 
+-- ─── local-only: a round from the night before ───────────────────────────────
+--
+-- `ensure_rounds()` creates one round per group per day, so a group that has existed for one
+-- minute has exactly one — and no API route can give it a second, dated yesterday. That leaves
+-- the function tests unable to arrange the dark hours' one interesting case: a not-yet-open
+-- round with a *finished* round behind it, which is what `previous_cue` is about
+-- (`docs/18-CUES.md` §7).
+--
+-- The row it inserts is `voided` rather than `scored` because `rounds_card_order_iff_revealed`
+-- (0002) requires a scored round to carry a `card_order`, and none of that is what the cue is
+-- being read for. Its window is the group's own, shifted back a day, so every check constraint
+-- on the table holds as written.
+--
+-- Same reasoning as `tick_rounds_at` above: seed-only, so no deployed database has it.
+create or replace function public.seed_previous_round(
+  p_group_id uuid,
+  p_prompt_key text,
+  p_prompt text
+)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into public.rounds
+    (group_id, local_date, state, opens_at, reveals_at, scores_at, prompt_key, prompt)
+  select p_group_id,
+         min(r.local_date) - 1,
+         'voided',
+         min(r.opens_at)   - interval '1 day',
+         min(r.reveals_at) - interval '1 day',
+         min(r.scores_at)  - interval '1 day',
+         p_prompt_key,
+         p_prompt
+    from public.rounds r
+   where r.group_id = p_group_id
+  having count(*) > 0;
+$$;
+
+alter function public.seed_previous_round(uuid, text, text) owner to postgres;
+revoke all on function public.seed_previous_round(uuid, text, text)
+  from public, anon, authenticated;
+grant execute on function public.seed_previous_round(uuid, text, text) to service_role;
+
 -- ─── local-only: no cohort claims a test user ────────────────────────────────
 --
 -- `assign_pilot_cohort()` runs on every `PUT /me` (docs/04 §2), and the App Review cohort ships

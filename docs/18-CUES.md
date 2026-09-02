@@ -221,6 +221,16 @@ fourth line competing for that space is the wrong place to put this.
 - **Round (Submit / Sealed / Voided / Reveal / Results).** `CueBanner`, neutral ink, absent
   entirely when `cue` is `null` — no "no cue tonight" line; absence is silent, matching how the
   rest of the open phase already treats "nothing to report."
+- **The dark hours — last night's cue, not the coming one.** *(Owner, 2026-09-02.)* Between
+  local midnight and `opens_at`, `GET /rounds/current` already returns the **coming** night's
+  round, and the screen over it is *"Tonight's round is done."* — so its `cue` is a brief nobody
+  has dropped against yet, and showing it hands the cue out hours before the round it belongs to
+  opens. That screen shows `previous_cue` instead, labelled `round.cue.card.last.label`
+  (*"Last night's cue"*), which is the night it is actually talking about. Two consequences:
+  the server sends `previous_cue` only in that window (§8), and the card's label goes back to
+  neutral `inkDim` there — §2's amber carve-out was argued from the card being the brief for the
+  field below it, and in the dark hours there is no field and nothing being asked. No cue behind
+  the round means no card: absence stays silent, as everywhere else.
 - **The Record.** One line under each night's date (`RecordDayDTO`, §8). Nights before this
   feature shipped simply have none.
 - **Share card.** A kicker line above the headline, once `E30`'s new layout has a slot for it;
@@ -237,6 +247,10 @@ fourth line competing for that space is the wrong place to put this.
 // GET /rounds/current — every phase, top-level, alongside opens_at/reveals_at/scores_at
 "cue": { "key": "song_you_hate", "text": "A song you hate" }   // absent (not null) when there is none
 
+// GET /rounds/current — the dark hours only (state `open`, `opens_at` still ahead), and only
+// when the circle has a finished round behind it. The cue of the round that just ended.
+"previous_cue": { "key": "aux_song", "text": "Your go-to aux song" }
+
 // GET /rounds/:id/results — same shape, same key
 "cue": { "key": "aux_song", "text": "Your go-to aux song" }
 
@@ -250,6 +264,12 @@ fourth line competing for that space is the wrong place to put this.
 // PATCH /groups/current, PATCH /groups/:id — admin only
 { "cue_cadence": 0 | 1 | 2 | 3 }
 ```
+
+`previous_cue` is the one key on this endpoint whose presence depends on the clock, and it
+decides a *payload*, never a phase (`CLAUDE.md` §2.2): `rounds.state` is still whatever
+`tick_rounds()` wrote, and the instant compared against is `opens_at`, which the client is
+already counting down to. Nothing is added once the round has opened, so the blind window's
+response — the one `docs/14` §3 times and `roundFields()` pins byte for byte — is unchanged.
 
 `cue` sits on `RoundDTO`'s **base keys**, not inside `RevealPayload` — it is present (or absent)
 identically across all four phases, so modelling it as part of the reveal-only payload would be

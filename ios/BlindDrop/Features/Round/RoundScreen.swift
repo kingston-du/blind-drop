@@ -430,6 +430,7 @@ struct RoundScreen: View {
                         deadline: deadline,
                         isBeforeOpen: openState(context) == .beforeOpen,
                         cue: context.round.cue,
+                        previousCue: context.round.previousCue,
                         choose: { track in
                             seal.reset()
                             didReplace = false

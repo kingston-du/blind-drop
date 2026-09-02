@@ -158,12 +158,15 @@
 "howto.note.record" = "Again, every song dropped goes into \"The Record\" or a group playlist. It's exportable to Apple Music, or Spotify (bit iffy).";
 
 /* ── Cues (docs/11 §Cues, docs/18) ──────────────────────────────────────────── */
-/* The cue catalog itself is data, served per-round by the backend — only the two UI */
-/* strings land here. `round.cue.label` is the CueBanner's label, `round.cue.card.label` is */
-/* the drop screen's card label; `howto.cue.body` is the one neutral sentence on How to play. */
+/* The cue catalog itself is data, served per-round by the backend — only the UI strings */
+/* land here. `round.cue.label` is the CueBanner's label, `round.cue.card.label` is the drop */
+/* screen's card label, and `round.cue.card.last.label` is that same card during the dark */
+/* hours, where it names the round that just ended rather than the one still sealed */
+/* (docs/18 §7); `howto.cue.body` is the one neutral sentence on How to play. */
 
 "round.cue.label" = "Tonight's cue:";
 "round.cue.card.label" = "Tonight's cue";
+"round.cue.card.last.label" = "Last night's cue";
 "howto.cue.body" = "Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring.";
 "settings.cue.title" = "Tonight's cue";
 "settings.cue.effective" = "Starts %@.";

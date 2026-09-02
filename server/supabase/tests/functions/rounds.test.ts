@@ -13,6 +13,7 @@ import {
   keysOf,
   newGroupOwner,
   newMember,
+  serviceRpc,
   type TestUser,
   tickRoundsAt,
   zoneWhereLocalHourIs,
@@ -435,4 +436,69 @@ Deno.test("the round is closed to anonymous callers and to people with no group"
   const submitAfter = await submit(user, RIBS);
   assertEquals(submitAfter.status, 409);
   assertEquals(submitAfter.body.error.code, "NO_GROUP");
+});
+
+// ─── the dark hours ──────────────────────────────────────────────────────────
+// docs/18-CUES.md §7. Between local midnight and `opens_at`, `GET /current` already returns the
+// *coming* night's round and the app draws "Tonight's round is done." over it. The cue on the
+// base keys there is the brief for a round nobody has dropped against yet, so the screen shows
+// `previous_cue` — the night it is actually talking about — instead.
+
+/** A group in its dark hours: 03:00 local, reveal at 20:00, so `opens_at` (10:00) is still
+ *  ahead. Real time, real timezone, nothing faked. Cues on every night so the round the seed
+ *  helper adds behind it can carry one. */
+function darkHoursGroup(name = "The Small Hours") {
+  return newGroupOwner("Ana", {
+    name,
+    timezone: zoneWhereLocalHourIs(3),
+    reveal_hour: 20,
+    cue_cadence: 1,
+  });
+}
+
+Deno.test("the dark hours carry the previous night's cue, and never the coming one", async () => {
+  const { user, group } = await darkHoursGroup();
+  // One read first: `POST /groups` does not materialise a round, `GET /current` does (it calls
+  // `ensure_rounds()` on a miss). The seed helper dates its row one day before the group's
+  // earliest round, so it needs that round to exist.
+  await current(user);
+  await serviceRpc("seed_previous_round", {
+    p_group_id: group.id,
+    p_prompt_key: "song_you_hate",
+    p_prompt: "A song you hate",
+  });
+
+  const res = await current(user);
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.state, "open");
+  // The round on the wire is the coming night's, and it has not opened yet.
+  assert(new Date(res.body.data.opens_at as string) > new Date());
+  assertEquals(res.body.data.previous_cue, { key: "song_you_hate", text: "A song you hate" });
+  // And the two are genuinely different rounds' cues — the point of the whole key.
+  assert(
+    (res.body.data.cue as { text: string } | undefined)?.text !== "A song you hate",
+    "the coming round drew the same cue as the seeded one; the fixture is not proving anything",
+  );
+});
+
+Deno.test("a round with nothing behind it says nothing, and an open round never says it", async () => {
+  // A circle's first night: the dark hours with no previous round at all. Absence is silent —
+  // no `previous_cue` key, the same way an uncued round ships no `cue` key.
+  const first = await darkHoursGroup("First Night");
+  const firstRes = await current(first.user);
+  assertEquals(firstRes.status, 200);
+  assert(!("previous_cue" in (firstRes.body.data as Record<string, unknown>)));
+
+  // And once the round has opened, the key is gone even with a finished round behind it: the
+  // blind window's payload is byte-for-byte what `ROUND_KEYS` has always pinned (docs/14 §3).
+  const { user, group } = await openGroup("Opened Cove");
+  await current(user);
+  await serviceRpc("seed_previous_round", {
+    p_group_id: group.id,
+    p_prompt_key: "song_you_hate",
+    p_prompt: "A song you hate",
+  });
+  const opened = await current(user);
+  assertEquals(opened.status, 200);
+  assertEquals(keysOf(opened.body.data), ROUND_KEYS);
 });

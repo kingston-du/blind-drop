@@ -64,6 +64,8 @@ import {
   type CardDTO,
   cardDTO,
   type CardGuessDTO,
+  type CueDTO,
+  cueDTO,
   type GuessDTO,
   guessSheetDTO,
   type MemberDTO,
@@ -384,13 +386,57 @@ async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Prom
 }
 
 /**
+ * The cue of the round immediately before this one, or `null`.
+ *
+ * Only ever called for a round that has not opened yet — see `currentRoundResponse`. One row,
+ * keyed by `(group_id, local_date)`, reading nothing but the two frozen cue columns: no
+ * submission, no guess, no count. A finished round's cue is already public on that night's
+ * results and in the Record, so this hands out nothing new; it just puts it where the screen
+ * that is talking about that night can render it.
+ *
+ * `null` when there is no earlier round (a circle's first night) or when that round had no cue
+ * — absence is silent, the same way `cue` itself is (`docs/18-CUES.md` §7).
+ *
+ * **The most recent earlier round, not yesterday's specifically**, and that is deliberate. The
+ * screen's subject is *"the round that just ended"*, which is this one whether or not a night
+ * was skipped; an adjacency filter would answer `null` — no card at all — in exactly the case
+ * where there is still a last round to name. `ensure_rounds()` creates one round per circle per
+ * day, so in practice the two are the same row and the copy's *"Last night's"* is literal; if a
+ * night were ever genuinely missed, only that one word is approximate.
+ */
+async function previousCue(ctx: MemberCtx, round: RoundRow): Promise<CueDTO | null> {
+  const { data, error } = await ctx.db
+    .from("rounds")
+    .select("prompt_key, prompt")
+    .eq("group_id", ctx.groupId)
+    .lt("local_date", round.local_date)
+    .order("local_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw dbFailure("rounds.previousCue", error);
+  return data ? cueDTO(data) : null;
+}
+
+/**
  * `GET /current` and `GET /:group_id/current`'s shared body — the two entries differ only in
  * how `ctx.groupId` was resolved (`requireDefaultMembership` vs `requireMembership`).
+ *
+ * **The dark hours get one extra key.** Between local midnight and `opens_at` this endpoint
+ * already returns the *coming* night's round (see `currentRound`), and the client draws
+ * *"Tonight's round is done."* over it — so the cue on the base keys is the brief for a round
+ * nobody has dropped against yet, and the screen showing it would be handing it out hours
+ * early. `previous_cue` is the one that night is actually about. Reading a clock here decides
+ * a *payload*, never a phase: `round.state` is still whatever `tick_rounds()` wrote, and
+ * `opens_at` is the same instant the client is already counting down to (CLAUDE.md §2.2).
+ *
+ * Nothing is added once the round has opened, so the blind window's payload — the one docs/14
+ * §3 times and `roundFields()` pins — is byte-for-byte unchanged.
  */
 async function currentRoundResponse(ctx: MemberCtx): Promise<Response> {
   const { round } = await currentRound(ctx);
   const mine = await mySubmission(ctx, round.id);
-  const base = roundDTO(round, mine);
+  const isBeforeOpen = round.state === "open" && new Date(round.opens_at) > serverNow();
+  const base = roundDTO(round, mine, isBeforeOpen ? await previousCue(ctx, round) : null);
   if (round.state !== "revealed") return ok(base);
 
   const { cards, rows, order } = await cardsInOrder(ctx, round);

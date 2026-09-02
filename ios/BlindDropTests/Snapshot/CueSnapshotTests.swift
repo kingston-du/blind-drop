@@ -37,6 +37,29 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    // MARK: - The dark hours (open, before opens_at)
+
+    /// *"Tonight's round is done."* with the finished night's cue beneath it — the case this
+    /// suite exists to keep honest, because the round on screen is the **next** one and its own
+    /// cue must not appear anywhere on it (`docs/18-CUES.md` §7).
+    ///
+    /// `round_darkhours` carries **both** cues, with different text, so the picture can only be
+    /// right one way round: *"Last night's cue: Your go-to aux song"*, and *"A song you hate"* —
+    /// the coming night's, sitting on the same payload — nowhere on the screen.
+    @Test(arguments: devices, sizes)
+    func closed(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        try verify(
+            named: "Cue-Closed",
+            device,
+            size,
+            fixture: "round_darkhours",
+            remaining: 9 * 3600,
+            opensIn: 4 * 3600 + 30 * 60
+        ) { context, timer in
+            Self.closedScreen(context: context, timer: timer, previousCue: context.round.previousCue)
+        }
+    }
+
     // MARK: - Sealed (open, submitted)
 
     @Test(arguments: devices, sizes)
@@ -117,6 +140,30 @@ private let sizes = SnapshotRenderer.typeSizes
             // its own column, so the golden has to be given the cue rather than relying on the
             // banner `RoundScreen` no longer puts above this phase.
             cue: context.round.cue,
+            previousCue: nil,
+            choose: { _ in }
+        ).snapshotContent
+    }
+
+    /// The dark hours: the screen after the answers, before tomorrow's opening.
+    ///
+    /// The card here is **last night's** cue and says so — the round this context was built
+    /// from is the coming one, and its own `cue` is deliberately not passed. That is the whole
+    /// claim this golden makes, and it is the one a reader can check by looking at the label.
+    private static func closedScreen(
+        context: RoundContext,
+        timer: CountdownTimer,
+        previousCue: CueDTO?
+    ) -> some View {
+        SubmitScreen(
+            context: context,
+            store: SubmitStore(api: offlineClient, circles: offlineCircles),
+            player: PreviewPlayer(),
+            timer: timer,
+            deadline: context.round.opensAt,
+            isBeforeOpen: true,
+            cue: context.round.cue,
+            previousCue: previousCue,
             choose: { _ in }
         ).snapshotContent
     }

@@ -25,6 +25,10 @@ const ANCHOR = Deno.env.get("ANCHOR") ?? "now";
 const PHASES = {
   open: "round_open",
   open_nosub: "round_open_nosub",
+  // The dark hours: an `open` round that has not opened yet, carrying the *previous* night's
+  // cue alongside its own (`docs/18-CUES.md` §7). The one phase where two cues are on the wire
+  // at once and only one of them may reach the screen.
+  open_darkhours: "round_darkhours",
   revealed: "round_revealed",
   revealed_nosub: "round_revealed_nosub",
   revealed_joinedlate: "round_revealed_joinedlate",
@@ -46,6 +50,8 @@ let activePhase: Phase = PHASE;
 const OFFSETS: Record<Phase, [number, number, number]> = {
   open: [-330, 270, 390],
   open_nosub: [-330, 270, 390],
+  // Opens in four and a half hours: 05:30 in a circle that opens at 10:00.
+  open_darkhours: [270, 870, 990],
   voided: [-600, 0, 120],
   revealed: [-615, -15, 105],
   revealed_nosub: [-615, -15, 105],
@@ -602,6 +608,11 @@ function switcherStateFor(phase: Phase): { my_state: string; needs_action: boole
       return { my_state: "sealed", needs_action: false };
     case "open_nosub":
       return { my_state: "drop", needs_action: true };
+    // Nothing to do yet: the round has not opened, so the switcher row is `drop` without the
+    // dot. `currentState()` reads it as `open` off the `open_` prefix, which is what the round
+    // itself is — the dark hours are not a state (docs/02 §1).
+    case "open_darkhours":
+      return { my_state: "drop", needs_action: false };
     case "revealed":
       return { my_state: "guess", needs_action: true };
     case "revealed_nosub":

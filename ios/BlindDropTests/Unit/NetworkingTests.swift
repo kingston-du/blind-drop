@@ -235,6 +235,17 @@ import Testing
         // `cue` is a base key: present on every phase, decoded before the phase switch
         // (`docs/18-CUES.md` §8).
         #expect(open.cue == CueDTO(key: "song_you_hate", text: "A song you hate"))
+        #expect(
+            open.previousCue == nil,
+            "a round that has opened carries no previous cue — the key is dark-hours only"
+        )
+
+        // The dark hours: the same `open` shape, plus the cue of the round that just finished.
+        // Two different cues on one payload, which is exactly the state the screen has to tell
+        // apart (`docs/18-CUES.md` §7).
+        let dark = try await round("round_darkhours")
+        #expect(dark.cue == CueDTO(key: "song_you_hate", text: "A song you hate"))
+        #expect(dark.previousCue == CueDTO(key: "aux_song", text: "Your go-to aux song"))
 
         let nosub = try await round("round_open_nosub")
         guard case .open(nil) = nosub.phase else {

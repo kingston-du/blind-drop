@@ -350,6 +350,18 @@ Record with a mix of cued and uncued nights, screenshot each and look at them.
 > build+install+launch was run (app boots without crashing), but the visual pass — looking at the
 > screenshots — could not be performed in this session (the model has no image input).
 
+> **Owner fix, 2026-09-02 (the dark hours showed the wrong cue).** Reported directly by the
+> owner: *"Tonight's round is done"* was rendering *"Tonight's cue"* over the **coming** night's
+> cue. It was not a rendering slip — `GET /rounds/current` returns tomorrow's not-yet-open round
+> from local midnight (see `currentRound`'s own note in `rounds/index.ts`), so the only cue the
+> client had in hand on that screen was the sealed one, hours before its round opens. Fixed by
+> giving that window the cue it is actually about: the endpoint gains `previous_cue` when
+> `state = 'open'` and `opens_at` is still ahead, `SubmitScreen.closed` renders it as the card
+> with the new `round.cue.card.last.label` (*"Last night's cue"*), and the label goes neutral
+> there for the reason `docs/18` §2's amber carve-out gives — no field, nothing being asked.
+> `docs/18` §7 and §8 carry the amendment; `seed.sql` gains a local-only `seed_previous_round`
+> because no API route can give a one-minute-old circle a round dated yesterday.
+
 ---
 
 ### E35-05 — Circle settings: cadence control

@@ -219,9 +219,11 @@ private let sizes = SnapshotRenderer.typeSizes
             timer: timer,
             deadline: deadline,
             isBeforeOpen: isBeforeOpen,
-            // Cue-less on purpose. These are the drop screen's own goldens; the cued variant is
-            // `CueSnapshotTests`, which exists so the two are not one picture doing both jobs.
+            // Cue-less on purpose. These are the drop screen's own goldens; the cued variants
+            // are `CueSnapshotTests`, which exists so the two are not one picture doing both
+            // jobs — including the dark hours' card, which is a *previous* cue, not this one.
             cue: nil,
+            previousCue: nil,
             choose: { _ in }
         ).snapshotContent
     }

@@ -26,6 +26,7 @@ import {
   newMember,
   newNamedUser,
   newUser,
+  serviceRpc,
   type TestUser,
   tickRounds,
   tickRoundsAt,
@@ -172,6 +173,36 @@ Deno.test("golden: GET /rounds/current, open, cued", async () => {
     res.body,
     "GET /rounds/current during `open` for a cued round. One top-level `cue: {key, text}` " +
       "beside the base keys — identical for every member, independent of who has submitted.",
+  );
+});
+
+Deno.test("golden: GET /rounds/current, the dark hours", async () => {
+  // The one payload on this route whose key set depends on the clock: an `open` round that has
+  // not opened yet, with a finished round behind it, carries `previous_cue` as well as `cue`
+  // (`docs/18-CUES.md` §7, §8). 03:00 local, opening at 10:00 — real time, real timezone.
+  const { user, group } = await newGroupOwner("Ana", {
+    name: "Golden Dark Hours",
+    timezone: zoneWhereLocalHourIs(3),
+    reveal_hour: 20,
+    cue_cadence: 1,
+  });
+  // `GET /current` first: it is what materialises the round (`ensure_rounds()` on a miss), and
+  // the seed helper dates its row relative to the group's earliest existing one.
+  await call("rounds", "/current", { token: user.token });
+  await serviceRpc("seed_previous_round", {
+    p_group_id: group.id,
+    p_prompt_key: "aux_song",
+    p_prompt: "Your go-to aux song",
+  });
+  const res = await call("rounds", "/current", { token: user.token });
+  assertEquals(res.status, 200);
+  await assertGolden(
+    "round_darkhours",
+    res.body,
+    "GET /rounds/current between local midnight and `opens_at`. The round is the coming " +
+      "night's, so alongside its own `cue` it carries `previous_cue` — the cue of the round " +
+      "that just ended, which is the one the screen over it is talking about. Still nothing " +
+      "about anybody's participation.",
   );
 });
 

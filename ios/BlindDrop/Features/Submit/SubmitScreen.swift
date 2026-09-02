@@ -40,6 +40,15 @@ struct SubmitScreen: View {
     /// column between the subhead that sets up the question and the field that answers it. Two
     /// renderings of one fact, and exactly one of them on screen at a time — see `CueCard`.
     let cue: CueDTO?
+    /// **Last night's** cue, when the dark hours have a finished round behind them.
+    ///
+    /// The one thing on this screen that is not about the round it was built from. During the
+    /// dark hours `context.round` is the *coming* night's — see `RoundContext.OpenState` — so
+    /// `cue` up there is a brief nobody has answered yet, and the screen saying *"Tonight's
+    /// round is done."* would be handing it out hours early. This is the cue that screen is
+    /// actually talking about, and the server only sends it in that window
+    /// (`docs/18-CUES.md` §7). `nil` on a circle's first night, and the card is simply absent.
+    let previousCue: CueDTO?
     /// A chosen song goes to the confirm step, which the round presents.
     let choose: (TrackDTO) -> Void
 
@@ -208,11 +217,18 @@ struct SubmitScreen: View {
                     .foregroundStyle(Palette.inkDim)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            // The dark hours have no field for the cue to brief, but they are still tonight's
-            // round and `RoundScreen` is no longer drawing the banner for this phase — so the
-            // card comes with the screen rather than the cue silently vanishing between the
-            // answers and tomorrow's opening.
-            if let cue { CueCard(cue: cue) }
+            // The dark hours have no field for a cue to brief, and the round they belong to is
+            // the *coming* one — so the card here names the night that just ended rather than
+            // the one whose cue is still sealed. `RoundScreen` draws no banner for this phase,
+            // so this is the only cue on screen, and there is none at all until a circle has a
+            // finished round behind it.
+            if let previousCue {
+                CueCard(
+                    cue: previousCue,
+                    label: "round.cue.card.last.label",
+                    labelColor: Palette.inkDim
+                )
+            }
             countdown
             Spacer(minLength: Space.none)
         }

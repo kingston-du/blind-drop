@@ -72,12 +72,24 @@ struct CueBanner: View {
 /// the drop screen, which is amber from the badge down, and every other phase keeps the neutral
 /// banner unchanged (including Sealed, which sits one tap away). The amber is on the micro-label
 /// only; the cue text itself stays `ink`, because the cue is content and the label is apparatus.
+///
+/// **The dark hours are the exception to the exception**, and they take the defaults with them.
+/// There the card is not a brief — the field is not up, and the cue it shows is the *finished*
+/// round's (`SubmitScreen.closed`, `docs/18-CUES.md` §7). The amber carve-out was argued from
+/// this card being the thing the screen is asking you to answer; nothing is being asked at
+/// 3 a.m., so the label goes back to `inkDim` and names the night it belongs to instead.
 struct CueCard: View {
     let cue: CueDTO
+    /// What the card calls the cue. *"Tonight's cue"* by default, because that is what it is
+    /// on the phase this card was built for.
+    var label: LocalizedStringKey = "round.cue.card.label"
+    /// The micro-label's colour — amber on the live drop screen, neutral wherever the card is
+    /// pointing at a round that is over. See the note above.
+    var labelColor: Color = Palette.amberText
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            SectionLabel("round.cue.card.label", color: Palette.amberText)
+            SectionLabel(label, color: labelColor)
             Text(verbatim: cue.text)
                 .typeStyle(.displayS)
                 .foregroundStyle(Palette.ink)

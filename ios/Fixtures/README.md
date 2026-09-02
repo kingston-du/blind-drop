@@ -31,6 +31,7 @@ install globally. A `deno` already on `PATH` works too.
 |---|---|---|
 | `open` | `round_open.json` | sealed card + countdown |
 | `open_nosub` | `round_open_nosub.json` | the submit invitation, `my_submission: null` |
+| `open_darkhours` | `round_darkhours.json` | "Tonight's round is done." — an `open` round that has **not** opened yet, carrying `previous_cue` beside its own `cue` so the screen can show last night's and not the coming one (docs/18 §7) |
 | `voided` | `round_voided.json` | AC-4 — your song comes back, no count of anyone else |
 | `revealed` | `round_revealed.json` | the guess sheet, 8 cards, `my_card_no: 4` |
 | `revealed_nosub` | `round_revealed_nosub.json` | AC-6 — `can_guess: false`, `not_a_submitter` |

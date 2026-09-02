@@ -110,6 +110,14 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
     /// base keys, not inside `RevealPayload`, because it is the same value on every screen
     /// (`docs/18-CUES.md` §8). `nil` when the round has none.
     let cue: CueDTO?
+    /// The cue of the round *before* this one, sent only during the dark hours and only when
+    /// that round had one (`docs/18-CUES.md` §7).
+    ///
+    /// Between local midnight and `opensAt` this round is the **coming** night's — the screen
+    /// over it says *"Tonight's round is done."*, and the round it means is the one that just
+    /// finished. `cue` there is a brief nobody has answered yet; this is the one that screen is
+    /// talking about. `nil` on every other phase, and on a circle's first night.
+    let previousCue: CueDTO?
     let phase: Phase
 
     /// The four phases, each carrying exactly what `docs/04` §4 says it carries.
@@ -168,7 +176,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         return RoundDTO(
             id: id, localDate: localDate,
             opensAt: opensAt, revealsAt: revealsAt, scoresAt: scoresAt,
-            cue: cue,
+            cue: cue, previousCue: previousCue,
             phase: adopted
         )
     }
@@ -181,7 +189,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
     private init(
         id: String, localDate: String,
         opensAt: Date, revealsAt: Date, scoresAt: Date,
-        cue: CueDTO?,
+        cue: CueDTO?, previousCue: CueDTO?,
         phase: Phase
     ) {
         self.id = id
@@ -190,6 +198,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         self.revealsAt = revealsAt
         self.scoresAt = scoresAt
         self.cue = cue
+        self.previousCue = previousCue
         self.phase = phase
     }
 
@@ -201,6 +210,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         case revealsAt = "reveals_at"
         case scoresAt = "scores_at"
         case cue
+        case previousCue = "previous_cue"
         case mySubmission = "my_submission"
         case myCardNumber = "my_card_no"
         case canGuess = "can_guess"
@@ -221,6 +231,9 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         // present (or absent) identically on every phase, and `decodeIfPresent` reads a missing
         // key as `nil` with nothing to throw (`docs/18-CUES.md` §8).
         cue = try container.decodeIfPresent(CueDTO.self, forKey: .cue)
+        // Absent on every payload but a dark-hours one, and read as `nil` there too when the
+        // circle has no finished round behind it — same silent absence `cue` itself has.
+        previousCue = try container.decodeIfPresent(CueDTO.self, forKey: .previousCue)
 
         let mine = try container.decodeIfPresent(SubmissionDTO.self, forKey: .mySubmission)
 

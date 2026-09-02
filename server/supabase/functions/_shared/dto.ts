@@ -337,6 +337,15 @@ export interface RoundDTO {
    *  (`docs/18-CUES.md` §8). A cue is identical for every member and independent of anyone's
    *  participation, so it is as safe during `open` as `opens_at` itself. */
   cue?: CueDTO;
+  /** The cue of the round *before* this one — present only during the dark hours, and only
+   *  when that round had one (`docs/18-CUES.md` §7).
+   *
+   *  Between local midnight and `opens_at` this endpoint already returns the coming night's
+   *  round, and the screen it draws says *"Tonight's round is done."* — so the cue on the base
+   *  keys there is the one nobody has dropped against yet. Showing it would hand out the coming
+   *  brief hours early; this is the one the screen is actually talking about. Same public value
+   *  as `cue`: a finished round's cue is already on that night's results and in the Record. */
+  previous_cue?: CueDTO;
 }
 
 export function roundDTO(
@@ -351,6 +360,7 @@ export function roundDTO(
     prompt: string | null;
   },
   mySubmission: SubmissionDTO | null,
+  previousCue: CueDTO | null = null,
 ): RoundDTO {
   const cue = cueDTO(round);
   return {
@@ -362,13 +372,15 @@ export function roundDTO(
     scores_at: rfc3339(round.scores_at),
     my_submission: mySubmission,
     ...(cue ? { cue } : {}),
+    ...(previousCue ? { previous_cue: previousCue } : {}),
   };
 }
 
 /** The `open`/`voided` key set, for the golden-file test. Exported so the assertion and the
  *  builder cannot drift apart. `cue` is deliberately not in this list: it is present only on
  *  a cued round, and its absence is itself the assertion that a round with no cue ships no
- *  `cue` key. */
+ *  `cue` key. `previous_cue` is out for the same reason and one more — it appears only during
+ *  the dark hours, so the blind window's payload is byte-for-byte what it always was. */
 export function roundFields(): readonly string[] {
   return [
     "round_id",

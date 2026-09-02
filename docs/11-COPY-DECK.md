@@ -452,6 +452,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 |---|---|
 | `round.cue.label` | Tonight's cue: |
 | `round.cue.card.label` | Tonight's cue |
+| `round.cue.card.last.label` | Last night's cue |
 | `howto.cue.body` | Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring. |
 
 ### cue.catalog

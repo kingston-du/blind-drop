@@ -117,7 +117,8 @@ select set_eq(
         -- These helpers are created by seed.sql after every migration. They never exist on a
         -- hosted database and are covered by the fixture tests that use them.
         and routine_name not in
-            ('tick_rounds_at', 'set_membership_joined_at', 'make_demo_group') $$,
+            ('tick_rounds_at', 'set_membership_joined_at', 'make_demo_group',
+             'seed_previous_round') $$,
   $$ values
        ('now_'::information_schema.sql_identifier),
        ('ensure_rounds'::information_schema.sql_identifier),
