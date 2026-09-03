@@ -479,6 +479,30 @@ Deno.test("the dark hours carry the previous night's cue, and never the coming o
     (res.body.data.cue as { text: string } | undefined)?.text !== "A song you hate",
     "the coming round drew the same cue as the seeded one; the fixture is not proving anything",
   );
+  // The seeded night is `voided`, so it has a cue and no results — and therefore no link to
+  // them. The two keys are gated separately and this is the half that proves it.
+  assert(!("previous_round_id" in (res.body.data as Record<string, unknown>)));
+});
+
+Deno.test("a scored night behind the dark hours is linkable; a voided one is not", async () => {
+  const { user, group } = await darkHoursGroup("Linkable");
+  await current(user);
+  // Uncued *and* scored: the two keys are independent in both directions, and this is the
+  // direction the cue test cannot reach — results to link to, no cue to show.
+  const previousID = await serviceRpc("seed_previous_round", {
+    p_group_id: group.id,
+    p_prompt_key: null,
+    p_prompt: null,
+    p_state: "scored",
+  });
+  assert(typeof previousID === "string");
+
+  const res = await current(user);
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.previous_round_id, previousID);
+  // It names the night that just ended, not the one on the wire.
+  assert(res.body.data.round_id !== previousID);
+  assert(!("previous_cue" in (res.body.data as Record<string, unknown>)));
 });
 
 Deno.test("a round with nothing behind it says nothing, and an open round never says it", async () => {
@@ -488,15 +512,19 @@ Deno.test("a round with nothing behind it says nothing, and an open round never 
   const firstRes = await current(first.user);
   assertEquals(firstRes.status, 200);
   assert(!("previous_cue" in (firstRes.body.data as Record<string, unknown>)));
+  assert(!("previous_round_id" in (firstRes.body.data as Record<string, unknown>)));
 
-  // And once the round has opened, the key is gone even with a finished round behind it: the
+  // And once the round has opened, both keys are gone even with a finished round behind it: the
   // blind window's payload is byte-for-byte what `ROUND_KEYS` has always pinned (docs/14 §3).
+  // Seeded `scored` so the round behind it is the linkable kind — the strongest version of the
+  // assertion, since it is the case that would have had something to say.
   const { user, group } = await openGroup("Opened Cove");
   await current(user);
   await serviceRpc("seed_previous_round", {
     p_group_id: group.id,
     p_prompt_key: "song_you_hate",
     p_prompt: "A song you hate",
+    p_state: "scored",
   });
   const opened = await current(user);
   assertEquals(opened.status, 200);

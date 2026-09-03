@@ -189,10 +189,14 @@ Deno.test("golden: GET /rounds/current, the dark hours", async () => {
   // `GET /current` first: it is what materialises the round (`ensure_rounds()` on a miss), and
   // the seed helper dates its row relative to the group's earliest existing one.
   await call("rounds", "/current", { token: user.token });
+  // Seeded `scored`, which is the *maximal* dark-hours payload: a voided night behind these
+  // hours yields `previous_cue` alone, so pinning that one would leave `previous_round_id`
+  // outside the golden and outside the leak audit's reach.
   await serviceRpc("seed_previous_round", {
     p_group_id: group.id,
     p_prompt_key: "aux_song",
     p_prompt: "Your go-to aux song",
+    p_state: "scored",
   });
   const res = await call("rounds", "/current", { token: user.token });
   assertEquals(res.status, 200);
@@ -200,9 +204,10 @@ Deno.test("golden: GET /rounds/current, the dark hours", async () => {
     "round_darkhours",
     res.body,
     "GET /rounds/current between local midnight and `opens_at`. The round is the coming " +
-      "night's, so alongside its own `cue` it carries `previous_cue` — the cue of the round " +
-      "that just ended, which is the one the screen over it is talking about. Still nothing " +
-      "about anybody's participation.",
+      "night's, so alongside its own `cue` it carries `previous_cue` and `previous_round_id` " +
+      "— the cue of the round that just ended and the way through to its results, which is " +
+      "the night the screen over it is talking about. Still nothing about anybody's " +
+      "participation.",
   );
 });
 

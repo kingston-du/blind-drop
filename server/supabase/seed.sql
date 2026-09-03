@@ -314,41 +314,51 @@ grant execute on function public.make_demo_group(uuid) to service_role;
 -- round with a *finished* round behind it, which is what `previous_cue` is about
 -- (`docs/18-CUES.md` §7).
 --
--- The row it inserts is `voided` rather than `scored` because `rounds_card_order_iff_revealed`
--- (0002) requires a scored round to carry a `card_order`, and none of that is what the cue is
--- being read for. Its window is the group's own, shifted back a day, so every check constraint
--- on the table holds as written.
+-- **The state is a parameter, and both values are load-bearing.** `previous_cue` reads the same
+-- from any finished night, so this defaulted to `voided` when it was written; `previous_round_id`
+-- does not — it is present only when that night `scored`, because a voided night has no results
+-- to link to. So the two cases are now the two halves of one test.
+--
+-- A `scored` row needs a `card_order` (`rounds_card_order_iff_revealed`, 0002) and an empty one
+-- is a legal permutation of a round with no submissions (`rounds_card_order_is_permutation`
+-- compares lengths), which is what this seeds: nothing here reads that night's songs, only its
+-- identity. A `voided` row must have a null `card_order`, which is the same expression the other
+-- way up. Its window is the group's own, shifted back a day, so every check constraint on the
+-- table holds as written.
 --
 -- Same reasoning as `tick_rounds_at` above: seed-only, so no deployed database has it.
 create or replace function public.seed_previous_round(
   p_group_id uuid,
   p_prompt_key text,
-  p_prompt text
+  p_prompt text,
+  p_state text default 'voided'
 )
-returns void
+returns uuid
 language sql
 security definer
 set search_path = ''
 as $$
   insert into public.rounds
-    (group_id, local_date, state, opens_at, reveals_at, scores_at, prompt_key, prompt)
+    (group_id, local_date, state, opens_at, reveals_at, scores_at, prompt_key, prompt, card_order)
   select p_group_id,
          min(r.local_date) - 1,
-         'voided',
+         p_state::public.round_state,
          min(r.opens_at)   - interval '1 day',
          min(r.reveals_at) - interval '1 day',
          min(r.scores_at)  - interval '1 day',
          p_prompt_key,
-         p_prompt
+         p_prompt,
+         case when p_state in ('open', 'voided') then null else '[]'::jsonb end
     from public.rounds r
    where r.group_id = p_group_id
-  having count(*) > 0;
+  having count(*) > 0
+  returning id;
 $$;
 
-alter function public.seed_previous_round(uuid, text, text) owner to postgres;
-revoke all on function public.seed_previous_round(uuid, text, text)
+alter function public.seed_previous_round(uuid, text, text, text) owner to postgres;
+revoke all on function public.seed_previous_round(uuid, text, text, text)
   from public, anon, authenticated;
-grant execute on function public.seed_previous_round(uuid, text, text) to service_role;
+grant execute on function public.seed_previous_round(uuid, text, text, text) to service_role;
 
 -- ─── local-only: no cohort claims a test user ────────────────────────────────
 --

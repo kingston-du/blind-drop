@@ -346,6 +346,30 @@ export interface RoundDTO {
    *  brief hours early; this is the one the screen is actually talking about. Same public value
    *  as `cue`: a finished round's cue is already on that night's results and in the Record. */
   previous_cue?: CueDTO;
+  /** The id of the round *before* this one — present only during the dark hours, and only when
+   *  that round is `scored`.
+   *
+   *  The screen saying *"Tonight's round is done."* names a night it cannot otherwise reach:
+   *  `round_id` up there is the coming night's, so without this key the only route back to the
+   *  results of the night the headline is about is the Record. It is **independent of
+   *  `previous_cue`** in both directions — an uncued night that scored has this key and no
+   *  `previous_cue`, and a `voided` night that carried a cue has the cue and no id, because a
+   *  voided night has no results to link to.
+   *
+   *  Reveals nothing: a scored round's id is already in `GET /groups/current/record`, and the
+   *  results behind it are readable by every member of the circle. */
+  previous_round_id?: string;
+}
+
+/** The round before the current one, as the dark hours need it (`docs/04` §4).
+ *
+ *  Carries `state` because the two keys it feeds are gated differently — the cue rides on any
+ *  earlier round, the id only on a scored one. Keeping the gate here rather than at the two
+ *  call sites is what stops them drifting into disagreeing about which night they mean. */
+export interface PreviousRoundDTO {
+  id: string;
+  state: RoundState;
+  cue: CueDTO | null;
 }
 
 export function roundDTO(
@@ -360,7 +384,7 @@ export function roundDTO(
     prompt: string | null;
   },
   mySubmission: SubmissionDTO | null,
-  previousCue: CueDTO | null = null,
+  previous: PreviousRoundDTO | null = null,
 ): RoundDTO {
   const cue = cueDTO(round);
   return {
@@ -372,15 +396,17 @@ export function roundDTO(
     scores_at: rfc3339(round.scores_at),
     my_submission: mySubmission,
     ...(cue ? { cue } : {}),
-    ...(previousCue ? { previous_cue: previousCue } : {}),
+    ...(previous?.cue ? { previous_cue: previous.cue } : {}),
+    ...(previous?.state === "scored" ? { previous_round_id: previous.id } : {}),
   };
 }
 
 /** The `open`/`voided` key set, for the golden-file test. Exported so the assertion and the
  *  builder cannot drift apart. `cue` is deliberately not in this list: it is present only on
  *  a cued round, and its absence is itself the assertion that a round with no cue ships no
- *  `cue` key. `previous_cue` is out for the same reason and one more — it appears only during
- *  the dark hours, so the blind window's payload is byte-for-byte what it always was. */
+ *  `cue` key. `previous_cue` and `previous_round_id` are out for the same reason and one more —
+ *  they appear only during the dark hours, so the blind window's payload is byte-for-byte what it
+ *  always was. */
 export function roundFields(): readonly string[] {
   return [
     "round_id",

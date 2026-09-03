@@ -64,7 +64,6 @@ import {
   type CardDTO,
   cardDTO,
   type CardGuessDTO,
-  type CueDTO,
   cueDTO,
   type GuessDTO,
   guessSheetDTO,
@@ -73,6 +72,7 @@ import {
   type MyGuessDTO,
   personalScoreDTO,
   personScoreDTO,
+  type PreviousRoundDTO,
   type ResultCardDTO,
   resultCardDTO,
   resultsDTO,
@@ -386,16 +386,17 @@ async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Prom
 }
 
 /**
- * The cue of the round immediately before this one, or `null`.
+ * The round immediately before this one — its id, its state and its cue — or `null`.
  *
  * Only ever called for a round that has not opened yet — see `currentRoundResponse`. One row,
- * keyed by `(group_id, local_date)`, reading nothing but the two frozen cue columns: no
- * submission, no guess, no count. A finished round's cue is already public on that night's
- * results and in the Record, so this hands out nothing new; it just puts it where the screen
- * that is talking about that night can render it.
+ * keyed by `(group_id, local_date)`, reading nothing but the identity, the state and the two
+ * frozen cue columns: no submission, no guess, no count. A finished round's cue is already
+ * public on that night's results and in the Record, and so is its id, so this hands out nothing
+ * new; it just puts both where the screen that is talking about that night can render them.
  *
- * `null` when there is no earlier round (a circle's first night) or when that round had no cue
- * — absence is silent, the same way `cue` itself is (`docs/18-CUES.md` §7).
+ * `null` when there is no earlier round — a circle's first night. **Not** `null` for a round
+ * that merely had no cue: the id is still wanted, and `roundDTO` drops each of the two keys on
+ * its own terms (cue when there is one, id when that round scored).
  *
  * **The most recent earlier round, not yesterday's specifically**, and that is deliberate. The
  * screen's subject is *"the round that just ended"*, which is this one whether or not a night
@@ -404,17 +405,18 @@ async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Prom
  * day, so in practice the two are the same row and the copy's *"Last night's"* is literal; if a
  * night were ever genuinely missed, only that one word is approximate.
  */
-async function previousCue(ctx: MemberCtx, round: RoundRow): Promise<CueDTO | null> {
+async function previousRound(ctx: MemberCtx, round: RoundRow): Promise<PreviousRoundDTO | null> {
   const { data, error } = await ctx.db
     .from("rounds")
-    .select("prompt_key, prompt")
+    .select("id, state, prompt_key, prompt")
     .eq("group_id", ctx.groupId)
     .lt("local_date", round.local_date)
     .order("local_date", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error) throw dbFailure("rounds.previousCue", error);
-  return data ? cueDTO(data) : null;
+  if (error) throw dbFailure("rounds.previousRound", error);
+  if (!data) return null;
+  return { id: data.id, state: data.state as RoundState, cue: cueDTO(data) };
 }
 
 /**
@@ -425,7 +427,11 @@ async function previousCue(ctx: MemberCtx, round: RoundRow): Promise<CueDTO | nu
  * already returns the *coming* night's round (see `currentRound`), and the client draws
  * *"Tonight's round is done."* over it — so the cue on the base keys is the brief for a round
  * nobody has dropped against yet, and the screen showing it would be handing it out hours
- * early. `previous_cue` is the one that night is actually about. Reading a clock here decides
+ * early. `previous_cue` is the one that night is actually about, and `previous_round_id` is the
+ * way through to that night's results — the only one that screen has, since `round_id` up there
+ * is the coming night's. The id is gated on that round being `scored`, which is why the two keys
+ * come off one lookup rather than two: a `voided` night has a cue and no results, and an uncued
+ * night that scored has results and no cue. Reading a clock here decides
  * a *payload*, never a phase: `round.state` is still whatever `tick_rounds()` wrote, and
  * `opens_at` is the same instant the client is already counting down to (CLAUDE.md §2.2).
  *
@@ -436,7 +442,7 @@ async function currentRoundResponse(ctx: MemberCtx): Promise<Response> {
   const { round } = await currentRound(ctx);
   const mine = await mySubmission(ctx, round.id);
   const isBeforeOpen = round.state === "open" && new Date(round.opens_at) > serverNow();
-  const base = roundDTO(round, mine, isBeforeOpen ? await previousCue(ctx, round) : null);
+  const base = roundDTO(round, mine, isBeforeOpen ? await previousRound(ctx, round) : null);
   if (round.state !== "revealed") return ok(base);
 
   const { cards, rows, order } = await cardsInOrder(ctx, round);

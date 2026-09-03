@@ -167,7 +167,16 @@ export async function newMember(inviteCode: string, displayName: string): Promis
 // one, and `tick_rounds()` treats it exactly as it treats a real one at 8pm in Brooklyn.
 
 /** Calls a Postgres function as `service_role`, the way the Edge Functions do. */
-export async function serviceRpc(name: string, args: Record<string, unknown> = {}): Promise<void> {
+/** Calls a seed-only RPC as the service role and hands back whatever it returned.
+ *
+ *  The body is read rather than cancelled because some of these functions answer with something
+ *  the caller needs — `seed_previous_round` returns the id of the row it inserted, which is the
+ *  only way a test can assert that `previous_round_id` names *that* night. A `returns void`
+ *  function answers 204 with no body at all, so the text is parsed only when there is some. */
+export async function serviceRpc(
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<unknown> {
   const res = await fetch(`${API_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
     headers: {
@@ -178,7 +187,8 @@ export async function serviceRpc(name: string, args: Record<string, unknown> = {
     body: JSON.stringify(args),
   });
   if (!res.ok) throw new Error(`rpc ${name} failed: ${res.status} ${await res.text()}`);
-  await res.body?.cancel();
+  const body = await res.text();
+  return body.length > 0 ? JSON.parse(body) : null;
 }
 
 /** One run of the scheduler, right now, against real time. */

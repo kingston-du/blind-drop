@@ -1,5 +1,5 @@
 {
-  "about": "GET /rounds/current between local midnight and `opens_at`. The round is the coming night's, so alongside its own `cue` it carries `previous_cue` — the cue of the round that just ended, which is the one the screen over it is talking about. Still nothing about anybody's participation.",
+  "about": "GET /rounds/current between local midnight and `opens_at`. The round is the coming night's, so alongside its own `cue` it carries `previous_cue` and `previous_round_id` — the cue of the round that just ended and the way through to its results, which is the night the screen over it is talking about. Still nothing about anybody's participation.",
   "envelope": [
     "data",
     "server_now"
@@ -10,6 +10,7 @@
     "my_submission",
     "opens_at",
     "previous_cue",
+    "previous_round_id",
     "reveals_at",
     "round_id",
     "scores_at",
