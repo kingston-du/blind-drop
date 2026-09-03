@@ -147,7 +147,7 @@ already has. A reviewer should be able to look at this screen and at `GET /round
 | Default | as above, field focused, nothing under it |
 | Searching | rows under the field, headline and field at the top of the screen |
 | < 2h to reveal | The nudge line appears above the blind line: *"Two hours left to drop."* in `amberText`. Nothing else changes. This is an in-interface nudge, distinct from the push. |
-| Before `opens_at` (dark hours) | No field. The headline says the round is done, and the countdown reads to `opens_at`. |
+| Before `opens_at` (dark hours) | No field. The headline says the round is done, and the countdown reads to `opens_at`. Last night's cue as a card, and — when that night `scored` — an `OutlineButton` into its answers (`docs/18` §7). |
 | Offline | Inline banner under the header. Last known phase is shown, greyed. No optimistic submission — sealing offline is not supported and must fail honestly. |
 
 ---
@@ -367,6 +367,15 @@ the group's name and the date, on this phase as on every other (E17-09). *"Answe
 screen's own title and sits below it; the two are different registers and do not compete.
 
 ### 7.1 Answers, card by card
+**The cue heads the section, as a `CueCard`** — under *"Answers"*, above the first card.
+*(Owner, 2026-09-03.)* Everywhere else the cue is `CueBanner`, one line of context above a phase
+that is still running; here the cards are the room's replies to it, and a night read three weeks
+later in The Record is unintelligible without it. `RoundScreen` therefore withholds its banner on
+`scored` the same way it already does on the drop screen (`drawsItsOwnCue`). The label is
+`results.cue.label` — *"The cue"*, neutral `inkDim`, and not *"Tonight's"*, because this is the
+same screen `PastResultsScreen` pushes for a night from three weeks ago. Absent on an uncued
+night, and on every night from before cues shipped.
+
 Each card resolves: the number, the artwork, the track, and the owner's name arriving in
 `bodyLStrong`. Beneath, `monoS`: *"4 of 7 got it"*. If you guessed, your guess is shown with
 an `ultramarine` check or an `inkFaint` strike — never red, never a cross.
@@ -466,8 +475,14 @@ Reachable from the header menu in every phase. An archive, not a feed.
 - Only `scored` rounds appear (`04-API-CONTRACT.md` §5).
 - Member filter as a menu; filtering to one person is the most-used view — it is how you
   learn someone's taste.
-- Each row's overflow offers **Open in Spotify** / **Open in Apple Music** where the link
-  exists, and **See that night's results** → `ResultsScreen` for that round.
+- Each row's overflow offers **Open in Spotify** / **Open in Apple Music** where the link exists,
+  and nothing else — every item in it acts on the one song it hangs off.
+- **The date header is the way into that night's results** → `PastResultsScreen` for that round.
+  *(Owner, 2026-09-03; it was a third item in the row overflow.)* The results belong to the night,
+  not to a song: as a row item the action was repeated identically on all of a night's rows and
+  reaching it meant picking an arbitrary song first. The whole header is the button, with a
+  trailing chevron — not an ellipsis, because there is exactly one night-scoped action and an
+  overflow holding one item promises a set and charges two taps for it.
 - Export: see `06-MUSIC-INTEGRATION.md` §6. Unresolved counts are stated plainly.
 - Empty state (first week): *"Nothing in the record yet. It starts filling tonight."*
 

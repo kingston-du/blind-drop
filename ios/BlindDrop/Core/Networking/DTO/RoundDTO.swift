@@ -118,6 +118,17 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
     /// finished. `cue` there is a brief nobody has answered yet; this is the one that screen is
     /// talking about. `nil` on every other phase, and on a circle's first night.
     let previousCue: CueDTO?
+    /// The id of the round *before* this one, sent only during the dark hours and only when that
+    /// round is `scored` (`docs/18-CUES.md` §7).
+    ///
+    /// The one thing on that screen it cannot get from `id`: at 3 a.m. `id` is the **coming**
+    /// night's round, and *"Tonight's round is done."* is about the night that just ended. This
+    /// is how that screen links to the results it is talking about.
+    ///
+    /// Independent of `previousCue` in both directions — a `voided` night has a cue and no
+    /// results, an uncued night that scored has results and no cue — which is why it is its own
+    /// optional rather than a property of the cue.
+    let previousRoundID: String?
     let phase: Phase
 
     /// The four phases, each carrying exactly what `docs/04` §4 says it carries.
@@ -176,7 +187,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         return RoundDTO(
             id: id, localDate: localDate,
             opensAt: opensAt, revealsAt: revealsAt, scoresAt: scoresAt,
-            cue: cue, previousCue: previousCue,
+            cue: cue, previousCue: previousCue, previousRoundID: previousRoundID,
             phase: adopted
         )
     }
@@ -189,7 +200,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
     private init(
         id: String, localDate: String,
         opensAt: Date, revealsAt: Date, scoresAt: Date,
-        cue: CueDTO?, previousCue: CueDTO?,
+        cue: CueDTO?, previousCue: CueDTO?, previousRoundID: String?,
         phase: Phase
     ) {
         self.id = id
@@ -199,6 +210,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         self.scoresAt = scoresAt
         self.cue = cue
         self.previousCue = previousCue
+        self.previousRoundID = previousRoundID
         self.phase = phase
     }
 
@@ -211,6 +223,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         case scoresAt = "scores_at"
         case cue
         case previousCue = "previous_cue"
+        case previousRoundID = "previous_round_id"
         case mySubmission = "my_submission"
         case myCardNumber = "my_card_no"
         case canGuess = "can_guess"
@@ -234,6 +247,10 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         // Absent on every payload but a dark-hours one, and read as `nil` there too when the
         // circle has no finished round behind it — same silent absence `cue` itself has.
         previousCue = try container.decodeIfPresent(CueDTO.self, forKey: .previousCue)
+        // Same window, separate gate: the server sends this only when the night behind these
+        // hours actually scored, so `nil` here covers a first night, a voided night, and every
+        // phase that is not the dark hours at all.
+        previousRoundID = try container.decodeIfPresent(String.self, forKey: .previousRoundID)
 
         let mine = try container.decodeIfPresent(SubmissionDTO.self, forKey: .mySubmission)
 

@@ -474,7 +474,14 @@ async function route(req: Request, url: URL): Promise<Response> {
 
   const results = p.match(/^\/rounds\/([^/]+)\/results$/);
   if (m === "GET" && results) {
-    if (activePhase !== "scored") {
+    // **The phase guard is about *tonight's* round, not about this route.** A past night's
+    // answers are readable whatever the live round is doing — that is the whole premise of The
+    // Record's date headers and of the dark hours' "See last night's results". Guarding every id
+    // by `activePhase` made both of those 409 in the fixtures while working against the real
+    // server, which is a fixture bug that only showed up once something linked to a past night
+    // from a screen that was not itself scored.
+    const current = (await payload(PHASES[activePhase])) as { round_id: string };
+    if (results[1] === current.round_id && activePhase !== "scored") {
       return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
     }
     return ok(await payload("results"));

@@ -70,16 +70,26 @@ private struct RecordSnapshotContent: View {
                 // The sticky strip the screen draws, background included: a header pinned over a
                 // scrolling list has to be visibly on top of it rather than floating in it. A
                 // cued night carries its cue under the date, mirroring `RecordScreen.dateHeader`
-                // (`docs/18-CUES.md` §7).
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    SectionLabel(verbatim: GroupCalendar(timezone: "America/New_York")
-                        .shareDate(localDate: day.localDate) ?? day.localDate)
-                    if let cue = day.cue {
-                        Text(verbatim: cue.text)
-                            .typeStyle(.bodyS)
-                            .foregroundStyle(Palette.inkDim)
-                            .fixedSize(horizontal: false, vertical: true)
+                // (`docs/18-CUES.md` §7), and the trailing chevron is that header's own — the
+                // whole strip is the button into that night's results (owner, 2026-09-03). The
+                // `Button` itself is not reproduced, only its label: what the golden checks is
+                // that the chevron and the date share a row without either starving the other at
+                // `.accessibility5`, which is the layout risk the change actually carries.
+                HStack(alignment: .top, spacing: Space.sm) {
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        SectionLabel(verbatim: GroupCalendar(timezone: "America/New_York")
+                            .shareDate(localDate: day.localDate) ?? day.localDate)
+                        if let cue = day.cue {
+                            Text(verbatim: cue.text)
+                                .typeStyle(.bodyS)
+                                .foregroundStyle(Palette.inkDim)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(Font(Typography.uiFont(.bodyM)))
+                        .foregroundStyle(Palette.inkDim)
                 }
                 .padding(.vertical, Space.sm)
                 .frame(maxWidth: .infinity, alignment: .leading)

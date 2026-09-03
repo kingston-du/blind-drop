@@ -47,6 +47,25 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// The cue at the head of the answers (owner, 2026-09-03).
+    ///
+    /// The one golden that passes a cue, and it is the whole point of the picture: *"Answers"*,
+    /// then the `CueCard` — neutral label, *"The cue"*, not *"Tonight's"* — then the first card.
+    /// Every other golden in this suite passes `nil`, which is both the uncued night and every
+    /// night from before cues shipped, and proves the absence is silent rather than a gap.
+    ///
+    /// Both type sizes: the card's label and its `displayS` text share a column, and the cue text
+    /// is the app's usual uncapped-content-at-`.accessibility5` risk.
+    @Test(arguments: devices, sizes)
+    func answersWithACue(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-cue", device, size, maximumPixelCount: 8_000_000) {
+            ResultsSnapshotFixture.screen(
+                cards: ResultsSnapshotFixture.cards(Self.markStates),
+                cue: ResultsSnapshotFixture.cue
+            )
+        }
+    }
+
     /// SE only, not the full `devices` matrix.
     ///
     /// The reason was the track links: two independently 44pt-tall tap targets (`docs/12` §5) and
@@ -210,16 +229,22 @@ enum ResultsSnapshotFixture {
     /// - Parameters:
     ///   - named: the cards whose owner has arrived, or `nil` for *all of them*.
     ///   - marked: the cards whose mark has arrived, or `nil` for *all of them*.
+    ///   - cue: the night's cue, or `nil` for an uncued night — which is what every golden but
+    ///     `Results-cue` passes, and what most of the archive actually is.
     static func screen(
         cards: [ResultCardDTO],
         named: Set<Int>? = nil,
-        marked: Set<Int>? = nil
+        marked: Set<Int>? = nil,
+        cue: CueDTO? = nil
     ) -> some View {
         ResultsScreen(
-            state: ResultsViewState(cards: cards, namedCards: named, markedCards: marked)
+            state: ResultsViewState(cards: cards, cue: cue, namedCards: named, markedCards: marked)
         )
         .snapshotContent
     }
+
+    /// The cue this fixture's night was played against, straight off the payload.
+    static var cue: CueDTO? { results.cue }
 
     /// Cards picked by number rather than by a prefix.
     ///

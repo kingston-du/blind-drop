@@ -116,27 +116,24 @@ struct CardCornerLinks: View {
 
 /// A track's overflow: only actions that can actually succeed are present.
 ///
-/// Two callers, and what they share is more than what differs. A Record row wants the two links
-/// **and** a way through to that night's results; a results answer card wants the links alone
-/// (`FlightCard.linksMenu`). Everything else — the ellipsis, its `inkDim`, its 44pt region, the
-/// order the services come in, the rule that a link absent from the payload is absent from the
-/// menu rather than present and dead — is the same at both, and it is the sameness that is the
-/// point: an ellipsis in the top right of a card should open the menu an ellipsis on a row does.
+/// Every item here acts on **the one song the ellipsis hangs off**, and that is the whole rule.
+/// It briefly was not: The Record's *"See that night's results"* rode along as an optional third
+/// item, which put a night-scoped action inside a song's menu, repeated it once per row of the
+/// same night, and made reaching a night's results a matter of picking an arbitrary song first.
+/// That action now lives on the night's own header (`RecordScreen.dateHeader`, owner 2026-09-03)
+/// and this menu went back to being one thing.
 ///
-/// So `showResults` is **optional** rather than the menu being split into a shared inner
-/// `ViewBuilder` wrapped by two shells. Extracting the items would have left the shell — the
-/// `Menu`, the glyph, the touch target, the label — written twice to save writing one `Button`
-/// once, and two shells drifting apart is exactly the failure this component exists to prevent.
-/// What varies is one item at the end of a list, so one optional closure carries it.
+/// So the two callers — a Record row and a results answer card (`FlightCard.linksMenu`) — now
+/// get an identical menu, which is what the shared component was always for: an ellipsis in the
+/// top right of a card opens the menu an ellipsis on a row does. The order the services come in,
+/// the `inkDim`, the 44pt region, and the rule that a link absent from the payload is absent from
+/// the menu rather than present and dead are all one definition.
 ///
 /// The accessibility label is always applied, and only ever heard on The Record: the answer card
 /// is a single VoiceOver element (`docs/12` §2) and hides this menu outright, re-exposing both
 /// links as actions on the card itself.
 struct TrackUtilityMenu: View {
     let track: TrackDTO
-    /// The Record's *"See results"*. `nil` on a surface that is already the results — the item is
-    /// absent, not disabled, for the same reason a missing link is.
-    var showResults: (() -> Void)? = nil
     var opener: any TrackLinkOpening = SystemTrackLinkOpener()
     /// The sealed card puts the menu over its amber cover; other surfaces use the default ink.
     var color: Color = Palette.inkDim
@@ -162,9 +159,6 @@ struct TrackUtilityMenu: View {
                 Button("record.open.apple") {
                     TrackLinkRouter.open(apple, using: opener)
                 }
-            }
-            if let showResults {
-                Button("record.results", action: showResults)
             }
         } label: {
             glyph

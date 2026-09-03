@@ -5,7 +5,14 @@
   "opens_at": "2026-08-11T14:00:00Z",
   "reveals_at": "2026-08-12T00:00:00Z",
   "scores_at": "2026-08-12T02:00:00Z",
-  "cue": { "key": "song_you_hate", "text": "A song you hate" },
-  "previous_cue": { "key": "aux_song", "text": "Your go-to aux song" },
+  "cue": {
+    "key": "song_you_hate",
+    "text": "A song you hate"
+  },
+  "previous_cue": {
+    "key": "aux_song",
+    "text": "Your go-to aux song"
+  },
+  "previous_round_id": "c0000000-0000-4000-8000-000000000001",
   "my_submission": null
 }

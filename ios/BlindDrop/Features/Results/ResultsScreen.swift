@@ -32,6 +32,10 @@ struct ResultsViewState: Equatable, Sendable {
     /// carry alongside `standings`'s genuine `nil`.
     let tonightTopEar: [TonightEarDTO]
 
+    /// The cue this night was played against, or `nil` on an uncued one — and on every night
+    /// from before cues existed, which is most of the archive.
+    let cue: CueDTO?
+
     /// The cards whose owner has arrived.
     let namedCards: Set<Int>
     /// The cards whose mark has arrived.
@@ -50,6 +54,7 @@ struct ResultsViewState: Equatable, Sendable {
         me: PersonalScoreDTO? = nil,
         standings: StandingsDTO? = nil,
         tonightTopEar: [TonightEarDTO] = [],
+        cue: CueDTO? = nil,
         namedCards: Set<Int>? = nil,
         markedCards: Set<Int>? = nil,
         barredCards: Set<Int>? = nil,
@@ -59,6 +64,7 @@ struct ResultsViewState: Equatable, Sendable {
         self.me = me
         self.standings = standings
         self.tonightTopEar = tonightTopEar
+        self.cue = cue
         // `nil` is "settled" — a round re-opened after its one run, and the state every golden
         // but one is a picture of.
         let all = Set(cards.map(\.cardNumber))
@@ -188,6 +194,33 @@ struct ResultsScreen: View {
                 .typeStyle(.displayL)
                 .foregroundStyle(Palette.ink)
                 .padding(.bottom, Space.xs)
+
+            // The question these are the answers to. *(Owner, 2026-09-03.)*
+            //
+            // **A card, not the line.** Everywhere else the cue rides above a phase screen as
+            // `CueBanner` — one small line of context about a round that is still happening. Here
+            // it is not context: the cards below it are the room's replies to it, and a night
+            // read three weeks later is unintelligible without it. The card is the treatment this
+            // app already gives the cue on the one other screen where it is the subject rather
+            // than an aside — `SubmitScreen`, where it is the brief for the field beneath it.
+            //
+            // **Under the headline, not above it.** Same order as the drop screen: the screen
+            // names itself, then states the cue, then shows the answer. A card above "The
+            // answers." would open the page on something other than what the page is.
+            //
+            // **Neutral label, and it says "The cue".** Not amber — that carve-out is argued from
+            // the drop screen being the place the cue is being *asked*, and nothing is being
+            // asked here; not ultramarine either, because the cue is content and the accent
+            // belongs to the cards (`CLAUDE.md` §2.5). And not *"Tonight's cue"*: this same
+            // screen is what The Record pushes for a night from three weeks ago.
+            if let cue = state.cue {
+                CueCard(
+                    cue: cue,
+                    label: "results.cue.label",
+                    labelColor: Palette.inkDim
+                )
+                .padding(.bottom, Space.xs)
+            }
 
             ForEach(state.cards) { card in
                 // A tighter `VStack` than the `ForEach`'s own item spacing, so a "who guessed

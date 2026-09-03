@@ -353,15 +353,28 @@ struct RecordTests {
         #expect(filterQuery?.first { $0.name == "member" }?.value == member.userID)
     }
 
-    /// `E29-02`: the Record's past-round results screen must hand a real `PreviewPlayer` to
-    /// `ResultsScreen`. `RecordResultsScreen` is `private`, so this is a source-level invariant
-    /// in the same style as `RoundInsetTests`: without it, a past round's cards render with no
-    /// preview control at all, because `ResultsScreen` defaults its `player` to `nil`.
-    @Test func recordResultsScreenWiresTheSharedPreviewPlayerThrough() throws {
-        let source = try source("Record/RecordScreen.swift")
-        #expect(source.contains("RecordResultsScreen(roundID: route.id, player: player)"))
-        #expect(source.contains("ResultsScreen(state: store.viewState(resolve: nil), player: player)"))
-        #expect(source.contains("let player: PreviewPlayer"))
+    /// `E29-02`: the past-round results screen must hand a real `PreviewPlayer` to
+    /// `ResultsScreen`. A source-level invariant in the same style as `RoundInsetTests`: without
+    /// it, a past round's cards render with no preview control at all, because `ResultsScreen`
+    /// defaults its `player` to `nil`.
+    ///
+    /// **Now spread over three files, and that is the point of keeping it.** The screen used to
+    /// be `private` inside `RecordScreen`; it is `PastResultsScreen` in `Features/Results` now
+    /// that the dark hours push it too (owner, 2026-09-03), so there are two call sites that
+    /// must each pass a player and one screen that must forward it. A push added later with the
+    /// argument left off is exactly what this catches.
+    @Test func pastResultsScreenWiresTheSharedPreviewPlayerThrough() throws {
+        let screen = try source("Results/PastResultsScreen.swift")
+        #expect(screen.contains("ResultsScreen(state: store.viewState(resolve: nil), player: player)"))
+        #expect(screen.contains("let player: PreviewPlayer"))
+
+        for caller in ["Record/RecordScreen.swift", "Round/RoundScreen.swift"] {
+            let source = try source(caller)
+            #expect(
+                source.contains("PastResultsScreen(roundID: route.id, player: player)"),
+                "\(caller) pushes the past-round results without the shared player"
+            )
+        }
     }
 
     private func source(_ path: String) throws -> String {

@@ -140,12 +140,18 @@ struct ResultsDTO: Decodable, Sendable, Equatable {
     let me: PersonalScoreDTO
     let people: [PersonScoreDTO]
     let tonightTopEar: [TonightEarDTO]
+    /// The cue this night was played against, when it had one (`docs/18-CUES.md` §7, §8).
+    ///
+    /// The server has always sent it on this route; nothing decoded it until the answers grew a
+    /// card for it, which is why a night reached from The Record showed the songs and never the
+    /// question they were answering.
+    let cue: CueDTO?
 
     enum CodingKeys: String, CodingKey {
         case roundID = "round_id"
         case localDate = "local_date"
         case submitterCount = "submitter_count"
-        case cards, me, people
+        case cards, me, people, cue
         case tonightTopEar = "tonight_top_ear"
     }
 
@@ -163,6 +169,9 @@ struct ResultsDTO: Decodable, Sendable, Equatable {
         // (Same reason `ResultCardDTO.guesses` is optional — a missing `E29-01` field must not
         // turn a past night's answers into "That didn't work.")
         tonightTopEar = try container.decodeIfPresent([TonightEarDTO].self, forKey: .tonightTopEar) ?? []
+        // Absent, not null, on an uncued night — the same silent absence every other cue key
+        // has (`docs/18-CUES.md` §8), including on nights from before the feature shipped.
+        cue = try container.decodeIfPresent(CueDTO.self, forKey: .cue)
     }
 }
 

@@ -35,7 +35,7 @@ struct RecordScreen: View {
         }
         .onDisappear { player.stop() }
         .navigationDestination(item: $resultsRoute) { route in
-            RecordResultsScreen(roundID: route.id, player: player)
+            PastResultsScreen(roundID: route.id, player: player)
         }
         .navigationDestination(item: $selectedMember) { MemberProfileScreen(member: $0) }
     }
@@ -132,9 +132,7 @@ struct RecordScreen: View {
                         selectedMember = MemberDTO(userID: entry.userID, displayName: entry.displayName, role: nil)
                     }
                 )
-                TrackUtilityMenu(track: entry.track) {
-                    resultsRoute = RecordResultsRoute(id: day.roundID)
-                }
+                TrackUtilityMenu(track: entry.track)
             }
             // A rule under every row but the last of its day. The date headers already separate
             // the days; inside one, the rule is what keeps three songs from reading as a
@@ -150,28 +148,61 @@ struct RecordScreen: View {
         }
     }
 
-    /// The sticky date strip. A step darker than `paper` so a header pinned over a scrolling
-    /// list is visibly on top of it rather than floating in it.
+    /// The sticky date strip, **and the way into that night's results**.
+    ///
+    /// A step darker than `paper` so a header pinned over a scrolling list is visibly on top of
+    /// it rather than floating in it.
     ///
     /// A cued night carries its cue under the date — one neutral line, nothing when there was
     /// none (`docs/18-CUES.md` §7). The label the live round shows ("Tonight's cue:") is not
     /// repeated here: the date already names the night, so the cue text alone is the line.
+    ///
+    /// **The results live here, not on a song's overflow.** *(Owner, 2026-09-03.)* They were an
+    /// item in `TrackUtilityMenu` alongside **Open in Spotify** / **Open in Apple Music**, which
+    /// put a night-scoped action inside a menu whose every other item acts on the one song it
+    /// hangs off — and repeated it identically on all three-to-twelve rows of the same night, so
+    /// reaching a night's results meant picking an arbitrary song first. The action belongs to
+    /// the night, and the night already has a header.
+    ///
+    /// **A whole tappable header with a chevron, not an ellipsis.** There is exactly one
+    /// night-scoped action, and an overflow menu holding one item promises a set and charges two
+    /// taps for it. The chevron is the app's existing "this pushes a screen" affordance
+    /// (`GroupScreen.recordButton`), and a fixed glyph rather than a trailing text button because
+    /// an uncapped label sharing this row with the date starves one of the two at accessibility
+    /// sizes — the failure `CueBanner.isStacked` already documents.
     private func dateHeader(_ day: RecordDayDTO, store: RecordStore) -> some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            SectionLabel(
-                verbatim: store.calendar?.shareDate(localDate: day.localDate) ?? day.localDate
-            )
-            if let cue = day.cue {
-                Text(verbatim: cue.text)
-                    .typeStyle(.bodyS)
+        Button {
+            resultsRoute = RecordResultsRoute(id: day.roundID)
+        } label: {
+            HStack(alignment: .top, spacing: Space.sm) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    SectionLabel(
+                        verbatim: store.calendar?.shareDate(localDate: day.localDate) ?? day.localDate
+                    )
+                    if let cue = day.cue {
+                        Text(verbatim: cue.text)
+                            .typeStyle(.bodyS)
+                            .foregroundStyle(Palette.inkDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right")
+                    .font(Font(Typography.uiFont(.bodyM)))
                     .foregroundStyle(Palette.inkDim)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.horizontal, Layout.screenInset)
+            .padding(.vertical, Space.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.paperSunk)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, Layout.screenInset)
-        .padding(.vertical, Space.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.paperSunk)
+        .buttonStyle(.plain)
+        // One stop that says what it is and what it does, rather than a date, a cue line and a
+        // chevron read as three (`docs/12` §2). The hint carries the action's own copy.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(Text("record.results"))
     }
 
     /// Day one, or a filter that matched nothing. Either way the screen still says what it is
@@ -310,49 +341,6 @@ struct RecordScreen: View {
         guard track.previewURL != nil else { return nil }
         return TrackRow.Preview(isPlaying: player.playing == track.trackKey) {
             player.toggle(track)
-        }
-    }
-}
-
-private struct RecordResultsScreen: View {
-    @Environment(AppEnvironment.self) private var env
-    /// Handed to `ResultsStore`, which is where the share entry for this round is actually built
-    /// (`ResultsStore.shareEntry`) — a night three weeks old gets the same **Share tonight**
-    /// button as tonight's, because both paths now ask the same store for it.
-    @Environment(\.artworkLoader) private var artworkLoader
-    let roundID: String
-    /// The same 30-second preview the record list plays through (`docs/06` §4), shared so
-    /// starting a preview here stops whatever the list had going — and so a past round's cards
-    /// get the same tap-to-preview the live results already had (`docs/17` §2, `E29-02`).
-    let player: PreviewPlayer
-    @State private var store: ResultsStore?
-
-    var body: some View {
-        Group {
-            if let store, store.state.value != nil {
-                ResultsScreen(state: store.viewState(resolve: nil), player: player)
-            } else if let error = store?.state.error {
-                Text(LocalizedStringKey(error.copyKey))
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.alert)
-                    .padding(Layout.screenInset)
-            } else {
-                RecordSkeleton().padding(Layout.screenInset)
-            }
-        }
-        .background(Palette.paper)
-        .toolbar(.visible, for: .navigationBar)
-        .task {
-            let built = store ?? ResultsStore(
-                api: env.api, roundID: roundID, circles: env.circles, artworkLoader: artworkLoader
-            )
-            store = built
-            await built.load()
-        }
-        .onDisappear {
-            // Same rule as the live round's results (`docs/10` §5): leaving this screen takes
-            // its share card's temporary files with it, whether or not a share sheet ever opened.
-            store?.discardShareRender()
         }
     }
 }

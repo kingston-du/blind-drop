@@ -49,6 +49,13 @@ struct SubmitScreen: View {
     /// actually talking about, and the server only sends it in that window
     /// (`docs/18-CUES.md` §7). `nil` on a circle's first night, and the card is simply absent.
     let previousCue: CueDTO?
+    /// Push last night's results. `nil` outside the dark hours, and inside them when the night
+    /// behind these hours has no results to show — a circle's first night, or a voided one.
+    ///
+    /// A closure rather than an id, because *where* a push lands is the round's business, not
+    /// this screen's — the same reason `choose` hands a track upward instead of presenting the
+    /// confirm step itself.
+    var showLastNightsResults: (() -> Void)? = nil
     /// A chosen song goes to the confirm step, which the round presents.
     let choose: (TrackDTO) -> Void
 
@@ -231,6 +238,33 @@ struct SubmitScreen: View {
             }
             countdown
             Spacer(minLength: Space.none)
+            // The way into the night the headline is about. These hours are the only phase with
+            // nothing to do — a headline, a card and a clock — and until this existed the screen
+            // announced that a round had finished and gave no way to see what happened in it;
+            // the only route back was the header menu, The Record, and the night at the top of
+            // it, which is the one you were already looking at.
+            //
+            // **`OutlineButton`, which is the neutral one.** Results are ultramarine and this
+            // screen is amber, and two accents on one screen is the rule's violation
+            // (`CLAUDE.md` §2.5) — so this cannot be a `PrimaryButton` in the phase colour of
+            // where it goes. The outline carries no accent at all, which is also the right
+            // weight: it is the only action on the screen, so a text link at 3 a.m. would be
+            // easy to miss, but the countdown above it is still the subject and a filled button
+            // would out-shout it.
+            //
+            // **Below the countdown, against the bottom.** Directly under the cue card — where
+            // it started — an outlined button and `CueCard` are two white rounded rectangles of
+            // near-identical weight stacked on each other, and the screen reads as two cards
+            // rather than as content plus an action. The Spacer settles it: content at the top,
+            // the one action at the bottom, which is exactly the arrangement `SealedScreen`
+            // already uses for **Replace**.
+            //
+            // It does not replace the cue card. The cue is content — what was asked last night,
+            // readable without going anywhere — and this is a route; and either can be present
+            // without the other, which is why they are two `if`s and not one.
+            if let showLastNightsResults {
+                OutlineButton("submit.closed.results", action: showLastNightsResults)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Space.xxl)

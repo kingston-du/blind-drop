@@ -185,6 +185,9 @@ import Testing
         #expect(results.cards.count == 8)
         #expect(results.cards.allSatisfy { $0.eligibleGuesserCount == 7 })
         #expect(results.people.count == 8)
+        // The server has always sent this; nothing decoded it until the answers grew a card for
+        // it, so a night reached from The Record showed the songs and not the question.
+        #expect(results.cue == CueDTO(key: "aux_song", text: "Your go-to aux song"))
 
         let standings = try await load("standings", .standings("g1"))
         #expect(standings.roundsPlayed > 0)
@@ -195,7 +198,7 @@ import Testing
         #expect(!record.days.isEmpty)
         #expect(record.days.allSatisfy { !$0.entries.isEmpty })
         #expect(record.nextCursor == nil)
-        #expect(record.days.first?.cue?.text == "A song you hate", "a cued night carries its cue per day")
+        #expect(record.days.first?.cue?.text == "Your go-to aux song", "a cued night carries its cue per day")
         #expect(record.days.last?.cue == nil, "an uncued night carries no cue, not an empty one")
 
         let spotify = try await load("record_export_spotify", .export("g1", .spotify))
@@ -246,6 +249,12 @@ import Testing
         let dark = try await round("round_darkhours")
         #expect(dark.cue == CueDTO(key: "song_you_hate", text: "A song you hate"))
         #expect(dark.previousCue == CueDTO(key: "aux_song", text: "Your go-to aux song"))
+        // The other dark-hours-only key, gated separately: the night behind these hours scored,
+        // so the screen can link to its answers — and it is not this round (`docs/18` §7).
+        #expect(dark.previousRoundID == "c0000000-0000-4000-8000-000000000001")
+        #expect(dark.previousRoundID != dark.id)
+        // Absent everywhere else, including on the round that is genuinely open.
+        #expect(open.previousRoundID == nil)
 
         let nosub = try await round("round_open_nosub")
         guard case .open(nil) = nosub.phase else {
@@ -295,7 +304,9 @@ import Testing
         guard case .scored = scored.phase else {
             Issue.record("a scored payload must decode as .scored"); return
         }
-        #expect(scored.cue?.text == "A song you hate", "the scored round carries the same base-key cue")
+        // The same cue `results.json` carries for this round id, so the round and the card the
+        // answers now draw agree rather than naming two different nights' briefs.
+        #expect(scored.cue?.text == "Your go-to aux song", "the scored round carries the base-key cue")
     }
 
     /// A `cards` array on an `open` payload — the shape a leak would take — is dropped rather

@@ -2,6 +2,10 @@
   "round_id": "c0000000-0000-4000-8000-000000000001",
   "local_date": "2026-08-08",
   "submitter_count": 8,
+  "cue": {
+    "key": "aux_song",
+    "text": "Your go-to aux song"
+  },
   "cards": [
     {
       "card_no": 1,

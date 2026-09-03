@@ -115,6 +115,7 @@ final class ResultsStore {
             me: state.value?.me,
             standings: standings.value,
             tonightTopEar: state.value?.tonightTopEar ?? [],
+            cue: state.value?.cue,
             namedCards: resolve?.namedCards,
             markedCards: resolve?.markedCards,
             barredCards: resolve?.barredCards,

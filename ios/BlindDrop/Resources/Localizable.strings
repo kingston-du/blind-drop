@@ -246,6 +246,7 @@
 "submit.closed.headline" = "Tonight's round is done.";
 "submit.closed.subhead" = "The next one opens at %@.";
 "submit.closed.countdown.label" = "until it opens";
+"submit.closed.results" = "See last night's results";
 
 /* ── Search and confirm (docs/11 §Search and confirm) ──────────────────────── */
 
@@ -359,6 +360,7 @@
  * share card E12-04. */
 
 "results.title" = "Answers";
+"results.cue.label" = "The cue";
 "results.card.owner" = "%@";
 "results.card.correct" = "%lld of %lld got it";
 "results.card.nobody" = "Nobody got it";

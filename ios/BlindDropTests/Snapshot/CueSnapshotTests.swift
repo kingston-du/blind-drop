@@ -46,6 +46,11 @@ private let sizes = SnapshotRenderer.typeSizes
     /// `round_darkhours` carries **both** cues, with different text, so the picture can only be
     /// right one way round: *"Last night's cue: Your go-to aux song"*, and *"A song you hate"* —
     /// the coming night's, sitting on the same payload — nowhere on the screen.
+    ///
+    /// It also carries `previous_round_id`, so this golden includes **See last night's results**
+    /// — the route into the night the headline is about (owner, 2026-09-03). Its neighbour
+    /// `Submit-closed` has no such id and therefore no button, which is the pair of pictures that
+    /// proves the button is gated on the server's answer rather than on the phase.
     @Test(arguments: devices, sizes)
     func closed(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         try verify(
@@ -102,28 +107,14 @@ private let sizes = SnapshotRenderer.typeSizes
     }
 
     // MARK: - Results
-
-    /// Three cards — the same numbers `ResultsSnapshots` uses, so every mark state is present —
-    /// with the banner above. `maximumPixelCount` mirrors `ResultsSnapshots.threeCards`: the
-    /// 15 Pro Max × accessibility5 render is over ImageIO's simulator PNG ceiling.
-    @Test(arguments: devices, sizes)
-    func results(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        let cue = try Self.cue("round_scored")
-        let image = SnapshotRenderer.image(
-            of: VStack(alignment: .leading, spacing: Space.none) {
-                CueBanner(cue: cue).padding(.bottom, Layout.itemGap)
-                ResultsSnapshotFixture.screen(cards: ResultsSnapshotFixture.cards([3, 4, 5]))
-            },
-            device: device,
-            typeSize: size,
-            maximumPixelCount: 8_000_000
-        )
-        SnapshotRenderer.verify(
-            image,
-            named: "Cue-Results-\(device.name)-\(size.snapshotName)",
-            in: "Cue"
-        )
-    }
+    //
+    // **No case here, deliberately** (owner, 2026-09-03). This suite pictures the cue's one
+    // placement per phase, and on `scored` that placement moved inside the screen: the answers
+    // draw the cue as a `CueCard` under their own headline, and `RoundScreen.drawsItsOwnCue`
+    // withholds the banner exactly as it does for the drop screen. A `Cue-Results` golden with a
+    // banner over the cards is a picture of a screen nobody sees, and one without a banner is
+    // just `ResultsSnapshots.answersWithACue` rendered twice — so that golden is the coverage,
+    // and its goldens here were deleted rather than re-recorded.
 
     // MARK: - Rendering
 
@@ -164,6 +155,11 @@ private let sizes = SnapshotRenderer.typeSizes
             isBeforeOpen: true,
             cue: context.round.cue,
             previousCue: previousCue,
+            // Taken from the fixture rather than passed in, so this golden pictures the dark
+            // hours a user actually gets: `round_darkhours` has a scored night behind it, and
+            // therefore the button into its answers. `Submit-closed` (SubmitSnapshotTests) is
+            // the other half — a dark-hours screen with nothing behind it, and no button.
+            showLastNightsResults: context.round.previousRoundID.map { _ in {} },
             choose: { _ in }
         ).snapshotContent
     }

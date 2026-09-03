@@ -237,6 +237,7 @@ word beside it repeated a fact the countdown already carries.
 | `submit.closed.headline` | Tonight's round is done. |
 | `submit.closed.subhead` | The next one opens at %@. |
 | `submit.closed.countdown.label` | until it opens |
+| `submit.closed.results` | See last night's results |
 
 `%@` is a formatted local time like "10:00 AM".
 
@@ -329,6 +330,7 @@ Never state how many people did drop.
 | Key | String |
 |---|---|
 | `results.title` | Answers |
+| `results.cue.label` | The cue |
 | `results.card.owner` | %@ |
 | `results.card.correct` | %lld of %lld got it |
 | `results.card.nobody` | Nobody got it |

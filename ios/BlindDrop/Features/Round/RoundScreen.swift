@@ -22,6 +22,11 @@ import SwiftUI
 /// 3. **A deep link is applied only after the round loads** (`docs/05` §5) — `RoundStore.load()`
 ///    calls `Router.consume(session:roundIsLoaded:)`, which is the half of that rule the round
 ///    owns.
+/// One past night, addressed by id — the dark hours' route into last night's answers.
+private struct PastResultsRoute: Hashable, Identifiable {
+    let id: String
+}
+
 struct RoundScreen: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.scenePhase) private var scenePhase
@@ -74,6 +79,10 @@ struct RoundScreen: View {
     /// The last thing the clock actually told this screen about where the open round sits in
     /// its own day. See `openState(_:)` for what it is for and why it is not a phase decision.
     @State private var heldOpenState = HeldOpenState()
+    /// Last night's answers, pushed from the dark hours (`docs/18-CUES.md` §7). A push, not a
+    /// sheet: it is a screen you read and come back from, which is how The Record already
+    /// presents exactly the same destination.
+    @State private var pastResults: PastResultsRoute?
 
     var body: some View {
         content
@@ -286,6 +295,12 @@ struct RoundScreen: View {
             switcherExit = nil
             joinPrompt = JoinPrompt(code: code)
         }
+        // The dark hours' link into the night that just ended. The same destination The Record
+        // pushes from a date header, given the id the server sent — so a night reached from
+        // here and the same night reached from the archive are one screen, not two.
+        .navigationDestination(item: $pastResults) { route in
+            PastResultsScreen(roundID: route.id, player: player)
+        }
     }
 
     /// The switcher's two footer actions and the sheet they hand over to. See `switcherExit`.
@@ -369,13 +384,27 @@ struct RoundScreen: View {
     /// with the thing that makes it valid rather than beside it.
     /// Whether the phase about to be drawn renders the cue itself.
     ///
-    /// True for exactly one phase — `open` with nothing dropped, the drop screen. It is written
-    /// as a predicate on the store rather than inlined into the banner's `if` so that the phase
-    /// switch in `phase(…)` and this exception cannot drift apart silently: both read
-    /// `round.phase`, and this is the only other place in the file that does.
+    /// True for two phases, and for the same reason both times: the cue is the *subject* of that
+    /// screen rather than a fact riding above it, so it is drawn as a `CueCard` inside the screen
+    /// and a `CueBanner` up here would be the same sentence twice.
+    ///
+    /// - `open` with nothing dropped — the drop screen, where the cue is the brief for the field
+    ///   directly beneath it. (This also covers the dark hours, which are that phase; there
+    ///   `SubmitScreen` draws *last* night's cue, which this banner could not have drawn anyway,
+    ///   since it reads the coming round's.)
+    /// - `scored` — the answers, where the cards below the cue are the room's replies to it
+    ///   (owner, 2026-09-03). `ResultsScreen` draws that card from the results payload's own
+    ///   `cue`, which is the same round's.
+    ///
+    /// It is written as a predicate on the store rather than inlined into the banner's `if` so
+    /// that the phase switch in `phase(…)` and this exception cannot drift apart silently: both
+    /// read `round.phase`, and this is the only other place in the file that does.
     private func drawsItsOwnCue(_ store: RoundStore) -> Bool {
-        guard case let .open(mySubmission) = store.state.value?.round.phase else { return false }
-        return mySubmission == nil
+        switch store.state.value?.round.phase {
+        case let .open(mySubmission): mySubmission == nil
+        case .scored: true
+        default: false
+        }
     }
 
     private func liveOpenState(_ store: RoundStore) -> HeldOpenState {
@@ -431,6 +460,13 @@ struct RoundScreen: View {
                         isBeforeOpen: openState(context) == .beforeOpen,
                         cue: context.round.cue,
                         previousCue: context.round.previousCue,
+                        // The dark hours' one action. `nil` unless the server sent an id, which
+                        // it does only in this window and only for a night that scored — so the
+                        // screen never offers a route to results that do not exist, and the
+                        // decision is the server's rather than a state check made here.
+                        showLastNightsResults: context.round.previousRoundID.map { id in
+                            { pastResults = PastResultsRoute(id: id) }
+                        },
                         choose: { track in
                             seal.reset()
                             didReplace = false
