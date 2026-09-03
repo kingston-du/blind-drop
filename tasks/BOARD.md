@@ -581,6 +581,20 @@ one-circle-per-person. See the epic file for each.
 
 ---
 
+## E40 — Reads mean what they say
+
+The pairwise-read maths behind Insights and the profile's "You and them" panel, corrected in four
+places: a round only counts if the reader guessed in it, credit follows the person named rather
+than the card it was written on, the two mutual lists now partition the pairs instead of leaving
+some in neither, and the query feeding all of it stops being truncated at PostgREST's 1000-row
+cap. `E39` proposes the opposite reading of a blank sheet and is set aside, not superseded.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E40-01 A read counts the rounds you guessed in, and credits the person you named | wip | — | no | — |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -631,4 +645,5 @@ one-circle-per-person. See the epic file for each.
 | E36 personal share card | 1 / 1 |
 | E37 drop screen redesign | 1 / 1 |
 | E38 circles end to end | 4 / 4 |
-| **Next-progression total** | **21 / 21** |
+| E40 reads maths | 0 / 1 |
+| **Next-progression total** | **21 / 22** |
