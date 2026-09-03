@@ -75,7 +75,7 @@ private struct RecordSnapshotContent: View {
                 // `Button` itself is not reproduced, only its label: what the golden checks is
                 // that the chevron and the date share a row without either starving the other at
                 // `.accessibility5`, which is the layout risk the change actually carries.
-                HStack(alignment: .top, spacing: Space.sm) {
+                HStack(alignment: .center, spacing: Space.sm) {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         SectionLabel(verbatim: GroupCalendar(timezone: "America/New_York")
                             .shareDate(localDate: day.localDate) ?? day.localDate)

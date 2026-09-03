@@ -170,11 +170,16 @@ struct RecordScreen: View {
     /// (`GroupScreen.recordButton`), and a fixed glyph rather than a trailing text button because
     /// an uncapped label sharing this row with the date starves one of the two at accessibility
     /// sizes — the failure `CueBanner.isStacked` already documents.
+    ///
+    /// It is centred against the whole strip rather than pinned to the date's line: on a cued
+    /// night the header is two lines and a top-aligned chevron sits against the top edge of a
+    /// block it is the affordance for, which reads as attached to the date rather than to the
+    /// night. Centred, it stays the strip's own control at every height the cue can take.
     private func dateHeader(_ day: RecordDayDTO, store: RecordStore) -> some View {
         Button {
             resultsRoute = RecordResultsRoute(id: day.roundID)
         } label: {
-            HStack(alignment: .top, spacing: Space.sm) {
+            HStack(alignment: .center, spacing: Space.sm) {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     SectionLabel(
                         verbatim: store.calendar?.shareDate(localDate: day.localDate) ?? day.localDate
