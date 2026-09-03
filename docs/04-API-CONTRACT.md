@@ -550,8 +550,19 @@ drawn from `scored` rounds only; an open, revealed, or voided round cannot chang
   mean of per-round read rates. `drop_count` counts scored submissions, not calendar days.
 - `recent_tracks` holds up to five of that member's newest scored drops. It contains no guesses,
   round ids, other members, or participation state.
-- On the caller's own profile both pairwise fields are `null`. Otherwise each direction includes
-  exactly the scored rounds both people played; unanswered guesses remain in `possible`.
+- On the caller's own profile both pairwise fields are `null`. Otherwise each direction counts
+  the scored rounds both people played **and the reader made at least one guess in** — a sheet
+  never opened is not an opportunity, the same exclusion `docs/02` §4.1 already applies to `ear`.
+  A round the reader played but left *this* card blank stays in `possible`, again matching `ear`,
+  whose denominator is `S − 1` however many cards were filled.
+- `correct` counts rounds in which the reader **named that person** correctly, not rounds in which
+  they got that person's card right. With a duplicate track those differ: naming Ana on Ben's card
+  when both dropped the same song is a correct read of *Ana*, and Ben keeps the round as a miss.
+  It is a count of rounds, so naming Ana correctly on two duplicate cards is one read.
+  `round_scores` still attributes the same guess to the card's owner, per `docs/02` §4.3, so on a
+  circle with duplicate nights `readability` does not decompose exactly into these pairwise reads.
+  That divergence is deliberate: changing core scoring would move Results, Standings and the share
+  card, and is an owner decision rather than a consequence of this route.
 - A fabricated id, a former member, a person from another circle, or a caller outside the circle
   returns `NOT_FOUND`. There is no global profile route, bio, follower count, or social graph.
 
@@ -587,8 +598,14 @@ change this response.
 }}
 ```
 
-- The three directed reads and mutual pairs appear after the first scored shared round. Their
-  raw denominators make the beta's thin history visible.
+- The three directed reads and mutual pairs appear after the first scored shared round in which
+  the reader guessed. Their raw denominators make the beta's thin history visible. Both directed
+  arrays use the same denominator and attribution rules as the profile's pairwise fields above.
+- `mutual_recognition` and `mutual_misses` **partition** the eligible pairs: recognition requires a
+  landed read in both directions, and misses takes every remaining pair — including one-sided
+  ones, which previously appeared in neither list. Recognition ranks on the Wilson lower bound
+  descending; misses ranks on the Wilson upper bound ascending, so the best-evidenced silence
+  leads. `possible` on a pair is the sum of both directions, so it is not always twice either one.
 - `confusion` is intentionally stricter: `minimum_rounds` is the square of the current active
   roster count. Until `scored_rounds` reaches it, `pairs` is exactly `[]`; the client explains
   the gate rather than implying a missing pattern. Thereafter it contains at most three

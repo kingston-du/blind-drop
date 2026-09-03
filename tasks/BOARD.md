@@ -591,7 +591,7 @@ cap. `E39` proposes the opposite reading of a blank sheet and is set aside, not 
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E40-01 A read counts the rounds you guessed in, and credits the person you named | wip | — | no | — |
+| E40-01 A read counts the rounds you guessed in, and credits the person you named | done | — | no | — |
 
 ---
 
@@ -645,5 +645,5 @@ cap. `E39` proposes the opposite reading of a blank sheet and is set aside, not 
 | E36 personal share card | 1 / 1 |
 | E37 drop screen redesign | 1 / 1 |
 | E38 circles end to end | 4 / 4 |
-| E40 reads maths | 0 / 1 |
-| **Next-progression total** | **21 / 22** |
+| E40 reads maths | 1 / 1 |
+| **Next-progression total** | **22 / 22** |

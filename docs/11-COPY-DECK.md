@@ -578,10 +578,10 @@ already uses — a cadence change rewrites only rounds that have not yet opened.
 | `insights.hardest` | Hardest to read |
 | `insights.mutual` | Mutual reads |
 | `insights.mutual.recognition` | They read each other |
-| `insights.mutual.misses` | Neither has read the other |
+| `insights.mutual.misses` | Not reading each other |
 | `insights.pair.separator` | & |
 | `insights.detail` | %lld of %lld reads |
-| `insights.empty` | No shared scored rounds yet. |
+| `insights.empty` | No scored guesses yet. |
 | `insights.mutual.empty` | No pairs here yet. |
 | `insights.profile.hint` | Open their profile. |
 | `insights.leaderboard.hint` | Open the leaderboard for this stat. |
@@ -610,6 +610,15 @@ already uses — a cadence change rewrites only rounds that have not yet opened.
 | `settings.about` | About |
 | `settings.privacy` | Privacy Policy |
 | `error.authprovider` | Apple sign-in isn't answering. Try again. |
+
+`E40-01` moved two of these. **`insights.mutual.misses`** was "Neither has read the other", which
+became a false sentence once that list stopped requiring zero in *both* directions: the two mutual
+lists now partition every eligible pair, so a pair where one person has landed a read and the other
+never has belongs there too. "Not reading each other" is the plain negation of
+`insights.mutual.recognition` and is true of both shapes. **`insights.empty`** said "No shared
+scored rounds yet", which stopped being the reason the list could be empty — a read now needs a
+round the reader actually guessed in, so somebody who never opens a sheet sees this card with a
+full history behind it.
 
 ---
 

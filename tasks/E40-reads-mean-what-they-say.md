@@ -25,7 +25,7 @@ all of it actually returns the whole history.
 
 ### E40-01 — A read counts the rounds you guessed in, and credits the person you named
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** no
 **Reads:** `docs/02-DOMAIN-RULES.md` §4.1–§4.3, `docs/04-API-CONTRACT.md` §4
@@ -77,20 +77,45 @@ past roughly 33 scored rounds the numerators silently stopped growing against de
 did not. Insights decayed toward zero as a circle played, and diverged from the profile screen,
 whose per-pair query was narrow enough to stay exact.
 
-- [ ] `_shared/db.ts` gains `selectAllRows`, a paged reader over PostgREST's `max_rows`. Callers
+- [x] `_shared/db.ts` gains `selectAllRows`, a paged reader over PostgREST's `max_rows`. Callers
       supply a stable `.order(…)`; a runaway is an error, never a silent short read.
-- [ ] The four stats queries page through it, and every `.in("round_id", …)` chunks at `ID_CHUNK`
+- [x] The four stats queries page through it, and every `.in("round_id", …)` chunks at `ID_CHUNK`
       — several hundred uuids in a query string is a URL-length bug as well as a row-count one.
-- [ ] The directed and pairwise maths move out of `groups/index.ts` into `_shared/insights.ts` as
+- [x] The directed and pairwise maths move out of `groups/index.ts` into `_shared/insights.ts` as
       pure functions. They had no unit coverage because they were inline in a 1700-line handler.
-- [ ] `insights.test.ts` pins, on the pure functions: a zero-guess round leaving the denominator;
+- [x] `insights.test.ts` pins, on the pure functions: a zero-guess round leaving the denominator;
       a skipped card staying in it; duplicate-track credit landing on the named person; two
       correct duplicate namings counting as one round.
-- [ ] `standings.test.ts` pins the same four end to end, over `scoredRound()`'s fixture — Eli
+- [x] `standings.test.ts` pins the same four end to end, over `scoredRound()`'s fixture — Eli
       assigns nothing there, which is the zero-guess case already sitting in the harness.
-- [ ] `insights.mutual.misses` and `insights.empty` are restated in `Localizable.strings` **and**
+- [x] `insights.mutual.misses` and `insights.empty` are restated in `Localizable.strings` **and**
       `docs/11-COPY-DECK.md` in the same commit (CLAUDE.md §6).
-- [ ] `docs/04-API-CONTRACT.md` §4 restates both denominators, the attribution rule, and the
+- [x] `docs/04-API-CONTRACT.md` §4 restates both denominators, the attribution rule, and the
       divergence from `round_scores` that change 2 deliberately leaves.
-- [ ] `npm run audit:leak` still passes: nothing here touches an `open` round, and the response
+- [x] `npm run audit:leak` still passes: nothing here touches an `open` round, and the response
       shape does not change.
+
+**Verified.** `node server/scripts/lint.mjs` clean; `npm run test:functions` 298/298;
+`npm run audit:leak` AC-1 satisfied (timing r = 0.0214); `./ios/scripts/lint.sh` clean; iOS unit
+480/480; snapshots 92/92 after re-recording all twelve `Insights` goldens. Live on iPhone 17
+against the fixture server: Insights (the two mutual lists reading as a matched pair), a "Your
+reads" card → its leaderboard → a member profile, and that profile's "You and them" panel.
+
+**The goldens.** Ten of the twelve failed on the two copy changes; the diffs were looked at before
+anything was recorded, and confined to the one section label. The other two — `populated` at
+`large` on both devices — *passed* while holding the old string: a two-word label at default type
+is a smaller fraction of a tall screen than `SnapshotRenderer.tolerance` (0.2%). All twelve were
+re-recorded rather than only the ten, so no golden is left asserting text the app no longer has.
+
+**Review.** Two findings, both accepted and fixed. The paginated `round_scores` read ordered on
+`round_id` alone, which is not total over a view holding one row per (round_id, user_id) — a page
+boundary inside a tied night could drop rows, and a dropped row is indistinguishable from "never
+played", understating the exact denominator this slice exists to fix. It now orders on
+(round_id, user_id); `profileScores` is filtered to one user and carries a comment saying why it
+needs no tiebreaker. Second, the copy-deck note had been inserted mid-table, breaking GFM parsing
+for every row after it; it now sits below the table.
+
+**Pre-existing, not fixed here.** `Insights-populated` at `accessibility5` shows two labels
+letter-wrapping and colliding — "Ana & Hal" in a mutual row, and "Dee as Gus" in a confusion row.
+Both are present unchanged in the pre-`E40-01` goldens and are the shared-row Dynamic Type problem,
+not anything this slice touched. Raised separately rather than folded in.

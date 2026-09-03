@@ -221,10 +221,10 @@
 "insights.hardest" = "Hardest to read";
 "insights.mutual" = "Mutual reads";
 "insights.mutual.recognition" = "They read each other";
-"insights.mutual.misses" = "Neither has read the other";
+"insights.mutual.misses" = "Not reading each other";
 "insights.pair.separator" = "&";
 "insights.detail" = "%lld of %lld reads";
-"insights.empty" = "No shared scored rounds yet.";
+"insights.empty" = "No scored guesses yet.";
 "insights.mutual.empty" = "No pairs here yet.";
 "insights.profile.hint" = "Open their profile.";
 "insights.leaderboard.hint" = "Open the leaderboard for this stat.";

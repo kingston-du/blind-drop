@@ -64,6 +64,7 @@ import {
   isCircleLimitReached,
   isInvitationGone,
   isUniqueViolation,
+  selectAllRows,
 } from "../_shared/db.ts";
 import {
   type CallerCircleState,
@@ -99,7 +100,12 @@ import {
 import {
   confusionMinimumRounds,
   confusionPairs,
-  type InsightGuessRow,
+  correctReadRounds,
+  type InsightRoundGuessRow,
+  type ReadGuessRow,
+  readTally,
+  type ReadTally,
+  roundsGuessedIn,
   wilsonLowerBound,
   wilsonUpperBound,
 } from "../_shared/insights.ts";
@@ -845,43 +851,70 @@ interface ProfileScoreRow {
 }
 
 async function profileScores(db: Db, groupId: string, userId: string): Promise<ProfileScoreRow[]> {
-  const { data, error } = await db
-    .from("round_scores")
-    .select("round_id")
-    .eq("group_id", groupId)
-    .eq("user_id", userId);
-  if (error) throw dbFailure("groups.profile.scores", error);
-  return data as ProfileScoreRow[];
+  return await selectAllRows<ProfileScoreRow>("groups.profile.scores", (from, to) =>
+    db
+      .from("round_scores")
+      .select("round_id")
+      .eq("group_id", groupId)
+      .eq("user_id", userId)
+      // Total on its own: one row per round for a single user, so `round_id` cannot tie here.
+      .order("round_id", { ascending: true })
+      .range(from, to));
 }
 
-/** The one direction of "read" that a profile can state honestly: the caller's correct reads
- * of the other person's actual cards. A shared scored round is one opportunity; unanswered
- * cards remain in the denominator, so this cannot quietly turn two guesses into 100%. */
+/** Every guess `guesserId` made in the named rounds. Chunked because a long-lived circle has more
+ *  round ids than a query string can carry, and paged because `max_rows` would otherwise cut the
+ *  history off mid-way (`E40-01`, and see `selectAllRows`). */
+async function readGuessRows(
+  db: Db,
+  where: string,
+  roundIds: string[],
+  guesserId: string | null,
+): Promise<ReadGuessRow[]> {
+  const rows: ReadGuessRow[] = [];
+  for (let i = 0; i < roundIds.length; i += ID_CHUNK) {
+    const chunk = roundIds.slice(i, i + ID_CHUNK);
+    rows.push(...await selectAllRows<ReadGuessRow>(where, (from, to) => {
+      let query = db
+        .from("guess_results")
+        .select("round_id, guesser_id, guessed_user_id, is_correct")
+        .in("round_id", chunk);
+      if (guesserId !== null) query = query.eq("guesser_id", guesserId);
+      // A stable order across pages. `guess_id` is the view's own row identity, so it is unique
+      // and total where `round_id` alone would tie thirty ways in a six-person night.
+      return query.order("guess_id", { ascending: true }).range(from, to);
+    }));
+  }
+  return rows;
+}
+
+/** The one direction of "read" that a profile can state honestly: of the shared scored rounds the
+ * caller actually guessed in, the ones where they correctly named this person (`E40-01` — see
+ * `readTally`, which owns both halves of that sentence). A skipped card is still a miss; a sheet
+ * never opened is not a round. */
 async function pairwiseRead(
   db: Db,
   groupId: string,
   guesserId: string,
-  cardOwnerId: string,
-): Promise<{ correct: number; possible: number }> {
-  const [guesserRows, ownerRows] = await Promise.all([
+  subjectId: string,
+): Promise<ReadTally> {
+  const [guesserRows, subjectRows] = await Promise.all([
     profileScores(db, groupId, guesserId),
-    profileScores(db, groupId, cardOwnerId),
+    profileScores(db, groupId, subjectId),
   ]);
   const guesserRounds = new Set(guesserRows.map((row) => row.round_id));
-  const shared = ownerRows.filter((row) => guesserRounds.has(row.round_id));
+  const subjectRounds = new Set(subjectRows.map((row) => row.round_id));
+  const shared = [...guesserRounds].filter((roundID) => subjectRounds.has(roundID));
   if (shared.length === 0) return { correct: 0, possible: 0 };
 
-  const { data, error } = await db
-    .from("guess_results")
-    .select("is_correct")
-    .in("round_id", shared.map((row) => row.round_id))
-    .eq("guesser_id", guesserId)
-    .eq("card_owner_id", cardOwnerId);
-  if (error) throw dbFailure("groups.profile.pairwise", error);
-  return {
-    correct: (data as { is_correct: boolean }[]).filter((row) => row.is_correct).length,
-    possible: shared.length,
-  };
+  const rows = await readGuessRows(db, "groups.profile.pairwise", shared, guesserId);
+  return readTally(
+    guesserId,
+    subjectId,
+    new Map([[guesserId, guesserRounds], [subjectId, subjectRounds]]),
+    roundsGuessedIn(rows),
+    correctReadRounds(rows),
+  );
 }
 
 async function profileForMember(ctx: MemberCtx, userId: string): Promise<Response> {
@@ -943,15 +976,35 @@ interface DirectedInsight {
   upper_bound: number;
 }
 
+/** A pair, in both directions at once: `possible` is twice their shared eligible rounds. */
+interface MutualPair {
+  members: MemberDTO[];
+  correct: number;
+  possible: number;
+}
+
+/** The circle's whole scored guess feed, chunked and paged — see `readGuessRows`. Carries
+ *  `card_owner_id` too, which reads no longer use but the confusion lens still does. */
+async function insightGuessRows(db: Db, roundIds: string[]): Promise<InsightRoundGuessRow[]> {
+  const rows: InsightRoundGuessRow[] = [];
+  for (let i = 0; i < roundIds.length; i += ID_CHUNK) {
+    const chunk = roundIds.slice(i, i + ID_CHUNK);
+    rows.push(...await selectAllRows<InsightRoundGuessRow>("groups.insights.guesses", (from, to) =>
+      db
+        .from("guess_results")
+        .select("round_id, guesser_id, card_owner_id, guessed_user_id, is_correct")
+        .in("round_id", chunk)
+        .order("guess_id", { ascending: true })
+        .range(from, to)));
+  }
+  return rows;
+}
+
 const MUTUAL_PAIR_LIMIT = 3;
 const CONFUSION_PAIR_LIMIT = 3;
 // `E28-06`, amendment A1: the test stage shows the confusion lens from the first wrong guess.
 // Restore before public beta by dropping this flag and its one call site below.
 const CONFUSION_GATE_ENABLED = false;
-
-function relationshipKey(from: string, to: string): string {
-  return `${from}:${to}`;
-}
 
 function compareMembers(a: MemberDTO, b: MemberDTO): number {
   return a.display_name.localeCompare(b.display_name) || a.user_id.localeCompare(b.user_id);
@@ -969,38 +1022,41 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
   const memberIDs = new Set(members.map((member) => member.user_id));
   const memberByID = new Map(members.map((member) => [member.user_id, member]));
 
-  const { data: scoreRows, error: scoreError } = await ctx.db
-    .from("round_scores")
-    .select("round_id, user_id")
-    .eq("group_id", ctx.groupId)
-    .in("user_id", members.map((member) => member.user_id));
-  if (scoreError) throw dbFailure("groups.insights.scores", scoreError);
+  const scoreRows = await selectAllRows<InsightScoreRow>("groups.insights.scores", (from, to) =>
+    ctx.db
+      .from("round_scores")
+      .select("round_id, user_id")
+      .eq("group_id", ctx.groupId)
+      .in("user_id", members.map((member) => member.user_id))
+      // A **total** order, not just `round_id`. `round_scores` holds one row per
+      // (round_id, user_id), so ordering on the round alone leaves every member of a night tied,
+      // and a page boundary landing inside a tied block can drop or repeat rows between two
+      // requests. A dropped row is indistinguishable from "never played" to `readTally`, which
+      // would understate the very denominator this slice exists to fix.
+      .order("round_id", { ascending: true })
+      .order("user_id", { ascending: true })
+      .range(from, to));
 
   const roundsByUser = new Map<string, Set<string>>();
-  for (const row of scoreRows as InsightScoreRow[]) {
+  for (const row of scoreRows) {
     const rounds = roundsByUser.get(row.user_id) ?? new Set<string>();
     rounds.add(row.round_id);
     roundsByUser.set(row.user_id, rounds);
   }
-  const roundIDs = [...new Set((scoreRows as InsightScoreRow[]).map((row) => row.round_id))];
+  const roundIDs = [...new Set(scoreRows.map((row) => row.round_id))];
 
-  const correctByDirection = new Map<string, number>();
-  let guessRows: InsightGuessRow[] = [];
+  let guessRows: InsightRoundGuessRow[] = [];
   if (roundIDs.length > 0) {
-    const { data, error: guessError } = await ctx.db
-      .from("guess_results")
-      .select("guesser_id, card_owner_id, guessed_user_id, is_correct")
-      .in("round_id", roundIDs);
-    if (guessError) throw dbFailure("groups.insights.guesses", guessError);
-    guessRows = data as InsightGuessRow[];
-    for (const row of guessRows) {
-      // `round_id` confines the source query to this circle; this roster check additionally
-      // omits former members, because Insights is about the current room rather than its archive.
-      if (!row.is_correct || !memberIDs.has(row.guesser_id) || !memberIDs.has(row.card_owner_id)) continue;
-      const key = relationshipKey(row.guesser_id, row.card_owner_id);
-      correctByDirection.set(key, (correctByDirection.get(key) ?? 0) + 1);
-    }
+    guessRows = await insightGuessRows(ctx.db, roundIDs);
   }
+  // Deliberately unfiltered by roster. Insights is about the current room, and it stays that way
+  // because `roundsByUser` holds current members only and `directed` is called with nothing else
+  // — a departed member has no round set, so no tally names them and none of these rows can reach
+  // an answer. Filtering *here* instead would be a bug: a guess naming somebody who has since
+  // left is still a sheet that was opened, and dropping it would make that night look like one
+  // the guesser sat out, which `E40-01` now takes seriously enough to change a denominator over.
+  const guessedRounds = roundsGuessedIn(guessRows);
+  const correctRounds = correctReadRounds(guessRows);
 
   // Confusion needs more history than a directed read: it is a matrix of actual owners and
   // named members, and a single odd evening can otherwise make a pair look like a pattern.
@@ -1014,12 +1070,10 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
   const directed = (from: string, to: string): DirectedInsight | null => {
     const target = memberByID.get(to);
     if (!target || from === to) return null;
-    const sourceRounds = roundsByUser.get(from) ?? new Set<string>();
-    const targetRounds = roundsByUser.get(to) ?? new Set<string>();
-    let possible = 0;
-    for (const roundID of sourceRounds) if (targetRounds.has(roundID)) possible += 1;
+    // `E40-01`: rounds they both played **and `from` guessed in**, with credit keyed on the name
+    // `from` wrote rather than the card they wrote it on. `readTally` argues both at length.
+    const { correct, possible } = readTally(from, to, roundsByUser, guessedRounds, correctRounds);
     if (possible === 0) return null;
-    const correct = correctByDirection.get(relationshipKey(from, to)) ?? 0;
     return {
       member: target,
       correct,
@@ -1046,8 +1100,14 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
     })
     .sort(compareReadDescending);
 
-  const mutualRecognition: { members: MemberDTO[]; correct: number; possible: number }[] = [];
-  const mutualMisses: { members: MemberDTO[]; correct: number; possible: number }[] = [];
+  // `E40-01`: the two lists **partition** the eligible pairs. They used to be two thresholds with
+  // a gap between them — recognition wanted a correct read both ways, misses wanted zero both
+  // ways, and a pair at 0-of-20 against 1-of-20 satisfied neither and appeared nowhere, despite
+  // being the most interesting miss in the room. Recognition keeps its gate, because "they read
+  // each other" is a false sentence without it; misses now takes everything else, which is to say
+  // every pair where at least one direction has never landed.
+  const mutualRecognition: MutualPair[] = [];
+  const mutualMisses: MutualPair[] = [];
   for (let first = 0; first < members.length; first += 1) {
     for (let second = first + 1; second < members.length; second += 1) {
       const left = directed(members[first].user_id, members[second].user_id);
@@ -1059,25 +1119,30 @@ async function insightsForGroup(ctx: MemberCtx): Promise<Response> {
         possible: left.possible + right.possible,
       };
       if (left.correct > 0 && right.correct > 0) mutualRecognition.push(pair);
-      if (left.correct === 0 && right.correct === 0) mutualMisses.push(pair);
+      else mutualMisses.push(pair);
     }
   }
+  const compareNames = (a: MutualPair, b: MutualPair): number =>
+    compareMembers(a.members[0], b.members[0]) || compareMembers(a.members[1], b.members[1]);
   // `E28-07`: the Wilson lower bound again, with the same volume tie-break — the owner's "ties
   // rank on volume" rule applies everywhere a stat is ranked, mutual pairs included.
-  const comparePair = (a: { members: MemberDTO[]; correct: number; possible: number },
-                       b: { members: MemberDTO[]; correct: number; possible: number }): number =>
+  const compareRecognition = (a: MutualPair, b: MutualPair): number =>
     wilsonLowerBound(b.correct, b.possible) - wilsonLowerBound(a.correct, a.possible)
-      || b.possible - a.possible
-      || compareMembers(a.members[0], b.members[0]) || compareMembers(a.members[1], b.members[1]);
+      || b.possible - a.possible || compareNames(a, b);
+  // Misses rank by the **upper** bound, ascending — `hardestToReadRanked`'s convention, for
+  // `E28-07`'s reason run the other way. The upper bound is the most generous rate a sample can
+  // support, so ranking by it puts the pair whose silence is best evidenced first: 0-of-20 ahead
+  // of a thin 0-of-2, and a one-sided 1-of-20 below both. It no longer collapses to the volume
+  // tie-break the way it did when every miss was zero by construction.
+  const compareMisses = (a: MutualPair, b: MutualPair): number =>
+    wilsonUpperBound(a.correct, a.possible) - wilsonUpperBound(b.correct, b.possible)
+      || b.possible - a.possible || compareNames(a, b);
 
   const response: InsightsDTO = {
     your_reads: yourReads,
     reads_you: readsYou,
-    mutual_recognition: mutualRecognition.sort(comparePair).slice(0, MUTUAL_PAIR_LIMIT),
-    // Every mutual miss has a Wilson bound of zero (`correct` is always 0), so `comparePair`
-    // already falls straight to the volume tie-break — the larger denominator is the more
-    // interesting miss, and there is nothing left to sort by after that.
-    mutual_misses: mutualMisses.sort(comparePair).slice(0, MUTUAL_PAIR_LIMIT),
+    mutual_recognition: mutualRecognition.sort(compareRecognition).slice(0, MUTUAL_PAIR_LIMIT),
+    mutual_misses: mutualMisses.sort(compareMisses).slice(0, MUTUAL_PAIR_LIMIT),
     confusion: {
       scored_rounds: roundIDs.length,
       minimum_rounds: minimumConfusionRounds,

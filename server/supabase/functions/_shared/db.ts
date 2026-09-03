@@ -65,3 +65,46 @@ export function dbFailure(where: string, error: PostgrestError): Error {
   console.error(`db ${where}: ${error.code ?? "?"} ${error.message}`);
   return new Error(`db failure in ${where}`);
 }
+
+// ─── reading a whole table, when the whole table is the answer — `E40-01` ────
+//
+// PostgREST applies `max_rows` (server/supabase/config.toml, 1000) to **every** select that does
+// not ask for a range, service role included. There is no error and no flag on the response: a
+// query that should have returned 4000 rows returns 1000 of them, in whatever order the planner
+// felt like, and the aggregation on top computes a confident wrong answer that gets worse the
+// longer a circle plays. `E40-01` found this in Insights, where the numerators quietly stopped
+// growing at ~33 scored nights while the denominators did not.
+//
+// So an aggregation that needs the whole history pages for it. The caller supplies the query for
+// one page **and a stable `.order(…)`** — without an ordering, two pages can overlap or skip, and
+// the result is wrong in a way that looks exactly like the bug this replaces.
+
+/** PostgREST's `max_rows`. A page asks for exactly this many, so a short page means the last one. */
+export const MAX_ROWS = 1000;
+
+/** Enough pages for any history this product can produce; past it, something is looping. */
+const MAX_PAGES = 500;
+
+type PageResult<T> = PromiseLike<{ data: T[] | null; error: PostgrestError | null }>;
+
+/**
+ * Every row a query matches, read `MAX_ROWS` at a time. `where` names the call site for
+ * `dbFailure`, exactly as an unpaged read would.
+ */
+export async function selectAllRows<T>(
+  where: string,
+  page: (from: number, to: number) => PageResult<T>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let index = 0; index < MAX_PAGES; index += 1) {
+    const from = index * MAX_ROWS;
+    const { data, error } = await page(from, from + MAX_ROWS - 1);
+    if (error) throw dbFailure(where, error);
+    const batch = data ?? [];
+    rows.push(...batch);
+    // A short page is the last page. An exactly-full one may or may not be, so it costs one
+    // more round trip to find out — the alternative is guessing, which is the original bug.
+    if (batch.length < MAX_ROWS) return rows;
+  }
+  throw new Error(`runaway pagination in ${where}: more than ${MAX_PAGES * MAX_ROWS} rows`);
+}

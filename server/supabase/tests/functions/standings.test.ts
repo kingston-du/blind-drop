@@ -276,15 +276,24 @@ Deno.test("insights are immediate, circle-scoped, and carry the exact read denom
   assertEquals(readsYou[0].correct, 1);
   assertEquals(readsYou[0].possible, 1);
 
-  // Mutual recognition requires a correct read in both directions. Mutual misses require zero
-  // in both. The exact rows also pin stable alphabetical tie-breaking from the first night.
+  // Mutual recognition requires a correct read in both directions. Misses (`E40-01`) is now
+  // everything else, so the two lists partition the eligible pairs and a one-sided pair no longer
+  // falls out of both. The exact rows also pin stable alphabetical tie-breaking from the first
+  // night. Every pair involving Eli is absent from both: she assigned nothing, so there is no
+  // direction of hers to have an opinion about.
   assertEquals((insights.mutual_recognition as Json[]).map((pair) =>
     (pair.members as Json[]).map((member) => member.display_name),
   ), [["Ana", "Ben"], ["Ana", "Cal"], ["Ben", "Cal"]]);
-  assertEquals((insights.mutual_misses as Json[]).map((pair) =>
-    (pair.members as Json[]).map((member) => member.display_name),
-  ), [["Ben", "Dee"], ["Ben", "Eli"], ["Cal", "Dee"]]);
-  assert((insights.mutual_misses as Json[]).every((pair) => pair.correct === 0 && pair.possible === 2));
+  // Ordered by the Wilson upper bound ascending: the two double-zeroes lead, and Ana & Dee — who
+  // *have* landed one read between them, Ana's — sits below both rather than nowhere at all.
+  assertEquals((insights.mutual_misses as Json[]).map((pair) => [
+    ...(pair.members as Json[]).map((member) => member.display_name), pair.correct, pair.possible,
+  ]), [["Ben", "Dee", 0, 2], ["Cal", "Dee", 0, 2], ["Ana", "Dee", 1, 2]]);
+  assert(
+    !(insights.mutual_misses as Json[]).concat(insights.mutual_recognition as Json[])
+      .some((pair) => (pair.members as Json[]).some((member) => member.display_name === "Eli")),
+    "Eli guessed nothing, so she is in no pair at all",
+  );
   // `E28-06`/`E28-07`, amendment A1: the confusion lens shows from the first wrong guess in the
   // test stage — `CONFUSION_GATE_ENABLED = false` in `groups/index.ts` — so a single scored
   // night's wrong guesses are visible even though `scored_rounds` (1) is nowhere near
@@ -356,6 +365,50 @@ Deno.test("a member profile is circle-scoped, finished-only, and has the documen
   for (const forbidden of ["round_id", "guesses", "submissions", "joined_at", "rank"]) {
     assert(!(forbidden in profile), `profile must not expose ${forbidden}`);
   }
+});
+
+// ─── `E40-01`: the sheet nobody opened ──────────────────────────────────────
+
+Deno.test("a round the reader never guessed in is in nobody's read denominator", async () => {
+  // Eli submits and then assigns nothing — the fixture's deliberate abstention, and the case
+  // `docs/02` §4.1 already drops from `ear`. It now drops from her reads too, in both surfaces.
+  const { people } = await scoredRound("Reads Abstain");
+  const group = await call("groups", "/current", { token: people.Ana.token });
+  const groupID = group.body.data.id as string;
+
+  const profile = await call("groups", `/${groupID}/members/${people.Eli.id}/profile`, {
+    token: people.Ana.token,
+  });
+  assertEquals(profile.status, 200, JSON.stringify(profile.body));
+  // Ana guessed, and got Eli's card right: a real read of a real night.
+  assertEquals(profile.body.data.you_read_them, { correct: 1, possible: 1 });
+  // Eli did not. This used to read `{ correct: 0, possible: 1 }` — a 0% that said she had tried
+  // and failed, when she had not tried. `possible: 0` is what the app renders as "No rounds".
+  assertEquals(profile.body.data.they_read_you, { correct: 0, possible: 0 });
+
+  // And from Eli's own side, there is nothing to rank rather than a wall of zeroes.
+  const hers = await call("groups", `/${groupID}/insights`, { token: people.Eli.token });
+  assertEquals(hers.status, 200);
+  assertEquals(hers.body.data.your_reads, [], "she read nobody, because she named nobody");
+  assertEquals(
+    (hers.body.data.reads_you as Json[]).map((read) => [read.member.display_name, read.correct, read.possible]),
+    [["Ana", 1, 1], ["Ben", 0, 1], ["Cal", 0, 1], ["Dee", 0, 1]],
+    "the room still read her — that direction does not depend on whether she looked",
+  );
+});
+
+Deno.test("a card left blank in a sheet that was opened is still a miss", async () => {
+  // The line `E40-01` draws, end to end. Dee fills her whole sheet and gets every card wrong, so
+  // she keeps a denominator against everybody: abstaining is not the same as guessing badly, but
+  // guessing badly is still guessing.
+  const { people } = await scoredRound("Reads Blank Card");
+  const group = await call("groups", "/current", { token: people.Ana.token });
+
+  const res = await call("groups", `/${group.body.data.id}/members/${people.Ana.id}/profile`, {
+    token: people.Dee.token,
+  });
+  assertEquals(res.status, 200);
+  assertEquals(res.body.data.you_read_them, { correct: 0, possible: 1 }, "a genuine zero");
 });
 
 Deno.test("your own profile has no self-comparison", async () => {

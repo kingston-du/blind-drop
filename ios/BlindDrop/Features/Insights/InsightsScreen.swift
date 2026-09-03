@@ -240,8 +240,9 @@ struct InsightLeaderboardScreen: View {
 private struct InsightPairList: View {
     let title: LocalizedStringKey
     let pairs: [InsightPairDTO]
-    /// The revealed-data accent for "they read each other"; `inkSubtle` for "neither has read
-    /// the other", whose rate is zero by definition.
+    /// The revealed-data accent for "they read each other"; `inkSubtle` for "not reading each
+    /// other", whose rate is low but no longer zero by construction — `E40-01` widened that list
+    /// to every pair with at least one direction still unlanded, so it can carry a real fraction.
     let accent: Color
     let select: (MemberDTO) -> Void
 
