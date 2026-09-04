@@ -159,17 +159,51 @@ async function catalog<T>(path: string, budgetMs = CATALOG_BUDGET_MS): Promise<T
   });
 }
 
+/** Apple's own ceiling on `limit` for a catalogue search. Asking for more is a 400. */
+const APPLE_MAX_SEARCH_LIMIT = 25;
+
 export async function searchSongs(
   storefront: string,
   term: string,
   limit: number,
 ): Promise<TrackDTO[]> {
-  const query = new URLSearchParams({ term, types: "songs", limit: String(limit) });
+  // Ask for more rows than the caller wants, because `dedupeByTrackKey` below is about to
+  // throw some away — a search for a song whose single and album cut both chart would
+  // otherwise come back a row or two short of the limit for no reason the reader can see.
+  // Doubling is generous and free: Apple's ceiling caps it, and the extra rows never leave
+  // this function.
+  const fetchLimit = Math.min(limit * 2, APPLE_MAX_SEARCH_LIMIT);
+  const query = new URLSearchParams({ term, types: "songs", limit: String(fetchLimit) });
   const body = await catalog<{ results?: { songs?: { data?: AppleSong[] } } }>(
     `/v1/catalog/${storefront}/search?${query}`,
   );
   // Apple omits `songs` entirely when nothing matched. An empty result is not a failure.
-  return (body.results?.songs?.data ?? []).map(trackFromAppleSong);
+  const tracks = (body.results?.songs?.data ?? []).map(trackFromAppleSong);
+  return dedupeByTrackKey(tracks).slice(0, limit);
+}
+
+/**
+ * One row per recording.
+ *
+ * Apple's search returns catalogue ids, not recordings: the single, the album cut and the
+ * deluxe reissue of one song are three ids that all carry the same ISRC, so they all map to
+ * the same `track_key` (docs/06 §3). Handing all three to a client is wrong twice over. It is
+ * wrong to the reader — three rows with the same title and artist, differing only in artwork,
+ * and picking any of them seals the identical song. And it is wrong to `ForEach`, which keys
+ * rows by `track_key`: duplicate ids there are undefined behaviour, and SwiftUI renders them
+ * as blank gaps that swallow taps and rows that jump on scroll.
+ *
+ * The first wins, which is Apple's own relevance order, and which of two identical recordings
+ * is kept cannot affect anything downstream — the `track_key` is the same either way, and it
+ * is the only identity scoring or dedupe ever reads.
+ */
+function dedupeByTrackKey(tracks: TrackDTO[]): TrackDTO[] {
+  const seen = new Set<string>();
+  return tracks.filter((track) => {
+    if (seen.has(track.track_key)) return false;
+    seen.add(track.track_key);
+    return true;
+  });
 }
 
 /** One catalogue id. `null` when Apple does not have it, which a 404 is how it says. */

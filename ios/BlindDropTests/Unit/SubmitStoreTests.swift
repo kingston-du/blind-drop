@@ -190,6 +190,45 @@ import Testing
         #expect(json["spotify_url"] == nil, "exactly one of the three fields, or the server refuses")
     }
 
+    // MARK: - One row per recording
+
+    /// **Two catalogue ids for one recording are one row.**
+    ///
+    /// Apple holds the single and the album cut of a song as separate ids that carry the same
+    /// ISRC, so both map to one `track_key` — which is `TrackDTO.id`, which is what the result
+    /// list keys its rows by. Duplicate ids in a `ForEach` are undefined behaviour, and what
+    /// SwiftUI does with them is the bug this guards: blank gaps between rows that no tap can
+    /// land on, and rows that jump into those gaps as the list scrolls. The server dedupes
+    /// too; this is the second lock, because the cost of it being wrong is paid on screen.
+    @Test func twoReleasesOfOneRecordingAreOneRow() async throws {
+        let (store, _) = makeStore([RoundFixture.envelope(twoReleasesOfRibs())])
+
+        store.query = "ribs"
+        try await Task.sleep(for: .milliseconds(500))
+
+        let rows = try #require(store.results.value)
+        #expect(rows.count == 1)
+        #expect(Set(rows.map(\.id)).count == rows.count)
+    }
+
+    /// A live recording is a different ISRC, so it is a different song and stays its own row.
+    /// Dedupe collapses releases, never performances.
+    @Test func alivetakeIsNotADuplicateOfTheStudioOne() async throws {
+        let studio = try RoundFixture.track()
+        let live = try #require(try? JSONDecoder.api.decode(
+            TrackDTO.self,
+            from: Data(#"{"track_key":"isrc:USUM71311297","isrc":"USUM71311297","title":"Ribs (Live)","artist":"Lorde","album":"Live at Vector Arena","artwork_url":null,"artwork_bg_color":null,"duration_ms":271000,"preview_url":null,"apple_music_id":"9000000004","apple_music_url":"https://music.apple.com/us/song/9000000004","spotify_id":null,"spotify_url":null}"#.utf8)
+        ))
+
+        #expect(SubmitStore.oneRowPerTrack([studio, live, studio]).map(\.id) == [studio.id, live.id])
+    }
+
+    /// One recording, two Apple releases — the shape `GET /tracks/search` used to hand back.
+    private func twoReleasesOfRibs() -> Data {
+        let track = String(data: (try? RoundFixture.payload("track_resolved")) ?? Data(), encoding: .utf8) ?? "{}"
+        return Data(#"{"results":[\#(track),\#(track)]}"#.utf8)
+    }
+
     /// The submission payload the fixture server answers a seal with.
     private func sealed() -> Data {
         Data(#"{"track":\#(String(data: (try? RoundFixture.payload("track_resolved")) ?? Data(), encoding: .utf8) ?? "{}"),"sealed_at":"2026-08-10T16:11:02Z"}"#.utf8)

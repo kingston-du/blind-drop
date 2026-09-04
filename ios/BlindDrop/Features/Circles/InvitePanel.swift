@@ -138,6 +138,13 @@ struct InvitePanel: View {
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
                     .minimumTouchTarget()
+                    // **Snappier than SwiftUI's default.** Left alone, a `Text` whose string
+                    // changes crossfades at the ambient duration, and *Copy* → *Copied* read as
+                    // a slow dissolve arriving well after the tap that caused it. The word is
+                    // the receipt for a copy that already happened, so it should land with the
+                    // tap; a tenth of a second is fast enough to feel simultaneous and still
+                    // short of a hard cut, which at this weight of text flickers.
+                    .animation(.easeOut(duration: 0.1), value: didCopy)
             }
             .buttonStyle(.plain)
             .accessibilityAddTraits(.isButton)

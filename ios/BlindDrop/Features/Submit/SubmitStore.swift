@@ -98,11 +98,30 @@ final class SubmitStore {
         do {
             let found = try await api.send(.search(term))
             guard !Task.isCancelled else { return }
-            results = .loaded(found.results)
+            results = .loaded(Self.oneRowPerTrack(found.results))
         } catch let error {
             guard !Task.isCancelled else { return }
             results = .failed(error)
         }
+    }
+
+    /// One row per recording, in the order they arrived.
+    ///
+    /// The server already does this (`_shared/music/appleMusic.ts`), and this is the second
+    /// lock rather than the first, because the cost of it being wrong is paid on screen. Apple's
+    /// catalogue holds the single, the album cut and the reissue of one song as three ids that
+    /// share an ISRC, so all three map to one `track_key` — which is `TrackDTO.id`, which is
+    /// what `ForEach` keys the result rows by. Duplicate ids there are undefined behaviour, and
+    /// what SwiftUI actually does with them is the bug this exists to make impossible: blank
+    /// gaps between rows that no tap can land on, and rows that jump into those gaps on scroll.
+    ///
+    /// Dropping the later one loses nothing. Two tracks with one `track_key` are one song to
+    /// every part of this app that matters — scoring, the duplicate rule, the sealed submission
+    /// — so the rows differ only in which album's artwork they show, and offering that as a
+    /// choice implies a decision the reader does not actually have.
+    static func oneRowPerTrack(_ tracks: [TrackDTO]) -> [TrackDTO] {
+        var seen = Set<String>()
+        return tracks.filter { seen.insert($0.trackKey).inserted }
     }
 
     // MARK: - Pasting

@@ -421,6 +421,20 @@ Deno.test("search honours its limit", async () => {
   assertEquals((await searchSongs(SF, "a", 3)).length, 3);
 });
 
+// The two Apple catalogue ids for Ribs share an ISRC, so they share a `track_key` — and
+// `track_key` is `TrackDTO.id`, which is what the iOS result list keys its rows by. Two rows
+// with one id there is undefined behaviour, and what SwiftUI does with it is blank gaps that
+// swallow taps and rows that jump on scroll. So search returns one row per recording.
+Deno.test("search returns one row per recording, not per catalogue id", async () => {
+  const hits = await searchSongs(SF, "Ribs", 20);
+  const keys = hits.map((hit) => hit.track_key);
+  assertEquals(new Set(keys).size, keys.length, "duplicate track_key in search results");
+  // Still both *recordings*: the studio take and the live one are different ISRCs and stay
+  // two rows. Dedupe collapses releases, never performances.
+  assert(keys.includes("isrc:USUM71311296"));
+  assert(keys.includes("isrc:USUM71311297"));
+});
+
 // ─── E07-04 · Spotify ────────────────────────────────────────────────────────
 
 Deno.test("findByIsrc returns the match and caches the app token", async () => {
