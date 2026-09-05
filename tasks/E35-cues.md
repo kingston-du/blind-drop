@@ -225,6 +225,32 @@ Cues ship **on by default** for every circle, existing and new, at "every other 
 > the copy deck were updated to match. Verified: `db:reset` applies cleanly, `npm run test:db`
 > is **738/738**, `node scripts/lint.mjs` is clean.
 
+> **Three more rounds, two more promotions, 2026-09-05.** Owner set "kingston's friends"'
+> 9/5–9/7 in one message:
+>
+> - `2026-09-05`: `prompt` set to "A song that makes you think of them" (real `prompt_key`
+>   `getting_hyped` as an interim placeholder, then repointed below), then asked for it to
+>   become a permanent catalog entry.
+> - `2026-09-06`: `prompt`/`prompt_key` set to "A song you hate" / `song_you_hate` — already the
+>   catalog's own entry verbatim, so this is a plain data update, no catalog change and no
+>   migration.
+> - `2026-09-07`: this round didn't exist yet (two days out — `ensure_rounds()` only
+>   materialises today and tomorrow, and "today" was still 2026-09-05). Inserted by hand,
+>   mirroring `ensure_rounds()`'s own shape exactly (`opens_at`/`reveals_at`/`scores_at` from the
+>   group's `reveal_hour`/timezone, `cue_for_round()` for the initial cue) rather than
+>   hand-picking timestamps, then its `prompt` overwritten with "A song for your current mood".
+>
+> Two catalog promotions followed, same bar as before: `tied_to_someone` ("A song tied to a
+> specific person" — a near-duplicate of the new phrase, so this reads as a rewording more than
+> a replacement) → "A song that makes you think of them"; `unexpected_from_you` ("A song that
+> would give the wrong impression of you" — asks the dropper to model a stranger's misreading of
+> their own taste, more indirection than anything else in the catalog) → "A song for your
+> current mood". The `2026-09-05` and `2026-09-07` rounds' `prompt_key` are repointed to these
+> real keys in the same migration. Landed in
+> `20260905110000_cue_promote_more_kingston_customs.sql`. `tests/db/cues.sql`'s catalog `bag_eq`
+> and the copy deck were updated to match. Verified: `db:reset` applies cleanly, `npm run
+> test:db` is **738/738**, `node scripts/lint.mjs` is clean.
+
 ---
 
 ### E35-03 — API: rounds, results, record, group settings

@@ -168,6 +168,16 @@ matching modulus edit.
 > should be more famous" — a generic taste judgment with no clear answer) retexted to "A tiktok
 > song you actually listen to". Still 40 lines. See the dated note in `tasks/E35-cues.md`'s
 > E35-02 section.
+>
+> **Revision, 2026-09-05.** Two more of the same circle's round customs promoted into the
+> catalog: `tied_to_someone` ("A song tied to a specific person") retexted to "A song that makes
+> you think of them" — the two were near-duplicates, so this is really a rewording, not a
+> replacement — and `unexpected_from_you` ("A song that would give the wrong impression of
+> you" — asks the dropper to model a stranger's misreading of their own taste, a level of
+> indirection nothing else in the catalog asks for) retexted to "A song for your current mood".
+> A third round that day ("A song you hate") pointed at the catalog's existing `song_you_hate`
+> verbatim — no catalog change there. Still 40 lines. See the dated note in
+> `tasks/E35-cues.md`'s E35-02 section.
 
 **Confession**
 A song you're embarrassed to love · A song you'd never play in someone else's car · A song you
@@ -180,7 +190,7 @@ ruined for you
 
 **Misdirection**
 A song nobody here would guess is yours · A song from a genre you never listen to · A song your
-parents would put on · A song that would give the wrong impression of you
+parents would put on · A song for your current mood
 
 **Function**
 Your go-to aux song · The song you get ready to · A song for driving at night · The song you'd put
@@ -188,8 +198,8 @@ on to save a party
 
 **Memory**
 A song stuck to one specific summer · A song you got someone else into · A song from your first
-phone · A song tied to a specific person · A song from middle school · A song that was always on
-in your house
+phone · A song that makes you think of them · A song from middle school · A song that was always
+on in your house
 
 **Superlative**
 Your favorite song this year · The song you skip the most · The oldest song you still play · A
@@ -231,6 +241,20 @@ fourth line competing for that space is the wrong place to put this.
   neutral `inkDim` there — §2's amber carve-out was argued from the card being the brief for the
   field below it, and in the dark hours there is no field and nothing being asked. No cue behind
   the round means no card: absence stays silent, as everywhere else.
+
+  **And a way into that night's results.** *(Owner, 2026-09-03.)* The dark hours are the one
+  phase with nothing to do — a headline, a card and a countdown — and the headline names a night
+  the screen cannot otherwise reach, because `round_id` there is the *coming* one. So the server
+  also sends `previous_round_id` in that window and the screen draws one quiet link under the
+  card, `submit.closed.results` (*"See last night's results"*). Neutral, not a button: the
+  countdown is the screen's subject, and results are ultramarine while this screen is amber
+  (`CLAUDE.md` §2.5) — a second accent here would be the rule's one-screen violation for a link.
+
+  The link does **not** replace the cue card. The cue is content — what last night's brief was,
+  readable without going anywhere — and the link is a route; and the two are independently
+  present, since a `voided` night has a cue and no results while an uncued night that scored has
+  results and no cue. Which is exactly why `previous_round_id` is gated on `scored` rather than
+  riding along with `previous_cue`.
 - **The Record.** One line under each night's date (`RecordDayDTO`, §8). Nights before this
   feature shipped simply have none.
 - **Share card.** A kicker line above the headline, once `E30`'s new layout has a slot for it;
@@ -251,6 +275,12 @@ fourth line competing for that space is the wrong place to put this.
 // when the circle has a finished round behind it. The cue of the round that just ended.
 "previous_cue": { "key": "aux_song", "text": "Your go-to aux song" }
 
+// GET /rounds/current — the dark hours only, and only when the round behind them is `scored`.
+// The night the screen is talking about, so it can link to its results. Independent of
+// `previous_cue` in both directions: a voided night has the cue and not this, an uncued
+// scored night has this and not the cue.
+"previous_round_id": "8f2c…"
+
 // GET /rounds/:id/results — same shape, same key
 "cue": { "key": "aux_song", "text": "Your go-to aux song" }
 
@@ -265,8 +295,8 @@ fourth line competing for that space is the wrong place to put this.
 { "cue_cadence": 0 | 1 | 2 | 3 }
 ```
 
-`previous_cue` is the one key on this endpoint whose presence depends on the clock, and it
-decides a *payload*, never a phase (`CLAUDE.md` §2.2): `rounds.state` is still whatever
+`previous_cue` and `previous_round_id` are the only keys on this endpoint whose presence depends
+on the clock, and that decides a *payload*, never a phase (`CLAUDE.md` §2.2): `rounds.state` is still whatever
 `tick_rounds()` wrote, and the instant compared against is `opens_at`, which the client is
 already counting down to. Nothing is added once the round has opened, so the blind window's
 response — the one `docs/14` §3 times and `roundFields()` pins byte for byte — is unchanged.
