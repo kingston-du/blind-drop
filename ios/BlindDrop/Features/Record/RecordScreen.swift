@@ -8,7 +8,9 @@ private struct RecordResultsRoute: Hashable, Identifiable {
 struct RecordScreen: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
+    @State private var loadToken = 0
     @State private var store: RecordStore?
     @State private var player = PreviewPlayer()
     @State private var resultsRoute: RecordResultsRoute?
@@ -27,11 +29,19 @@ struct RecordScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar { filterToolbar }
-        .task {
+        // One task, so construction cannot race the load — `RoundScreen`'s reasoning, and the
+        // same `id:` handle so a foreground can re-run it.
+        .task(id: loadToken) {
             if store == nil {
                 store = env.routeStores.recordStore(for: await env.circles.resolveActiveID())
             }
             await store?.load()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // `docs/08` §10: on foreground, refetch. The archive gains a night at `scores_at`,
+            // two hours after reveal — reliably while the app is backgrounded — and the cached
+            // store would otherwise still be holding last night's answer.
+            if phase == .active { loadToken += 1 }
         }
         .onDisappear { player.stop() }
         .navigationDestination(item: $resultsRoute) { route in

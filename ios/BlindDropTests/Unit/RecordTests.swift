@@ -353,6 +353,69 @@ struct RecordTests {
         #expect(filterQuery?.first { $0.name == "member" }?.value == member.userID)
     }
 
+    /// The archive gains a night at `scores_at`, two hours after reveal — reliably while the app
+    /// is backgrounded. `RecordStore.load()` used to bail on `guard state.value == nil`, which was
+    /// right while a pop destroyed the store and wrong the moment `RouteStoreCache` started keeping
+    /// it for the session: the Record froze at whatever it held when it was first opened, and last
+    /// night never appeared. This asserts the three halves of the fix — it refetches, the fresh
+    /// newest night lands in front of days already paged in rather than collapsing the list, and
+    /// the cursor keeps pointing past the deepest day on screen instead of resuming above it.
+    @Test func aSecondLoadRefetchesAndPutsTheNewNightInFrontOfPagedInDays() async throws {
+        let (env, session) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        // The archive as it stood before tonight scored: one night, more behind it.
+        let beforeScoring = try recordPage(dayIndexes: [1], nextCursor: "older")
+        session.arm(routes: [
+            "/groups/\(groupID)/record": RoundFixture.envelope(beforeScoring),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
+        ])
+        let store = RecordStore(
+            api: env.api,
+            spotify: SpotifyExporter(auth: FakeSpotifyAuthorization()),
+            apple: AppleMusicExporter(music: FakeAppleMusic()),
+            circles: env.circles
+        )
+        await store.load()
+
+        // Page two: an older night the reader has scrolled to, and a cursor past it.
+        session.arm([RoundFixture.envelope(try recordPage(deepDayWithCursor: "deeper"))])
+        let rows = try #require(store.days.first?.entries)
+        await store.loadMoreIfNeeded(
+            row: RecordRowID(roundID: store.days[0].roundID, userID: rows[rows.count - 1].userID)
+        )
+        #expect(store.days.count == 2)
+        #expect(store.nextCursor == "deeper")
+
+        // Foreground, or a return to the screen: tonight has scored since. Routed, not queued —
+        // `load()` fires its two GETs concurrently, and a queue would hand whichever won the race
+        // whichever answer happened to be first (`StubSession.arm(routes:)`).
+        let afterScoring = try recordPage(dayIndexes: [0, 1], nextCursor: "older")
+        session.arm(routes: [
+            "/groups/\(groupID)/record": RoundFixture.envelope(afterScoring),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
+        ])
+        await store.load()
+
+        #expect(session.count(matching: "/record") == 1, "a cached store must still refetch")
+        #expect(
+            store.days.map(\.localDate) == ["2026-08-08", "2026-08-07", "2026-07-30"],
+            "the newest night belongs in front, and the paged-in day behind it"
+        )
+        #expect(
+            store.nextCursor == "deeper",
+            "adopting the refresh's cursor would resume pagination above days already shown"
+        )
+
+        // And a refresh that fails keeps what is on screen — `LoadState.stale`, not `.failed`.
+        session.arm(routes: [
+            "/groups/\(groupID)/record": RoundStub.Response(failure: URLError(.notConnectedToInternet)),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
+        ])
+        await store.load()
+        #expect(store.days.count == 3)
+        #expect(store.state.error != nil)
+    }
+
     /// `E29-02`: the past-round results screen must hand a real `PreviewPlayer` to
     /// `ResultsScreen`. A source-level invariant in the same style as `RoundInsetTests`: without
     /// it, a past round's cards render with no preview control at all, because `ResultsScreen`
@@ -401,6 +464,22 @@ struct RecordTests {
             "tracks": tracks,
             "unresolved_count": unresolved,
         ]))
+    }
+
+    /// A page holding one night older than either of the fixture's two, for the tests that need a
+    /// third. Copied from the fixture's oldest day with a new id and date, because a merge that
+    /// keeps paged-in days cannot be shown to keep them using days the refresh also returns.
+    private func recordPage(deepDayWithCursor cursor: String?) throws -> Data {
+        let source = try #require(
+            JSONSerialization.jsonObject(with: RoundFixture.payload("record")) as? [String: Any]
+        )
+        var day = try #require((source["days"] as? [[String: Any]])?[1])
+        day["round_id"] = "c0000000-0000-4000-8000-000000000009"
+        day["local_date"] = "2026-07-30"
+        return try JSONSerialization.data(withJSONObject: [
+            "days": [day],
+            "next_cursor": cursor.map { $0 as Any } ?? NSNull(),
+        ])
     }
 
     private func recordPage(
