@@ -32,6 +32,42 @@ struct NameChip: View {
     /// The accessibility-size pool is two columns wide, so a long, resolved name must grow its
     /// chip rather than disappear behind a one-line truncation.
     var allowsWrapping = false
+    /// How big the pill is drawn (`E41-01`). Everything else about the chip — the consumed
+    /// strike, the selected fill, the accessibility value `docs/12` §3 requires — is identical
+    /// across both, which is the whole reason this is a size and not a second component.
+    var size: Size = .regular
+
+    /// The two scales a name is offered at.
+    enum Size: Equatable {
+        /// The call sheet's pool: apparatus under a flight (`docs/07` §5).
+        case regular
+        /// The quick pass's pool: the screen's one action (`E41-01`).
+        case large
+
+        var height: CGFloat {
+            switch self {
+            case .regular: Layout.chipHeight
+            case .large: Layout.chipHeightLarge
+            }
+        }
+
+        var horizontalPadding: CGFloat {
+            switch self {
+            case .regular: Space.md
+            case .large: Space.xl
+            }
+        }
+
+        /// Whether the pill takes the width it is offered.
+        ///
+        /// The call sheet's row is scrolled and ragged on purpose — a pill sized to its own name,
+        /// with `nameChipMinimumWidth` as the floor that keeps *Jo* from drawing a target half
+        /// the size of *Hana*'s. The quick pass's pool is a grid, and a grid of pills that each
+        /// stop at their own word is not a grid: it is a scatter of ellipses with the column
+        /// gutters showing through. Filling the column is what makes it read as one set of
+        /// targets, and it is what makes the pill a stadium rather than an oval.
+        var fillsColumn: Bool { self == .large }
+    }
 
     /// `Layout.nameChipMinimumWidth`, scaled with the body text it sits behind (`E26-02`).
     ///
@@ -65,7 +101,7 @@ struct NameChip: View {
                 .strikethrough(state.assignedCardNumber != nil, color: Palette.inkQuiet)
                 .lineLimit(allowsWrapping ? nil : 1)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, Space.md)
+                .padding(.horizontal, size.horizontalPadding)
                 // The pill has a floor as well as a height (`E26-02`). Without it the row is as
                 // ragged as the names in it — "Jo" draws a 40-point target next to a 90-point
                 // one — and picking a name becomes an aiming problem rather than a reading one.
@@ -77,7 +113,8 @@ struct NameChip: View {
                 // into each other rather than sitting side by side.
                 .frame(
                     minWidth: allowsWrapping ? nil : minimumWidth,
-                    minHeight: Layout.chipHeight
+                    maxWidth: size.fillsColumn ? .infinity : nil,
+                    minHeight: size.height
                 )
                 .background(
                     RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).fill(fill)

@@ -14,6 +14,46 @@ import Testing
 @MainActor
 @Suite struct RevealStoreTests {
 
+    // MARK: - The quick pass's way in (`E41-01`)
+
+    /// `place` assigns exactly like the two tap directions do.
+    @Test func placingANameAssignsIt() {
+        let store = RevealFixture.store()
+        store.place(RevealFixture.members[0].userID, on: 2)
+        #expect(store.assignments[2] == RevealFixture.members[0].userID)
+    }
+
+    /// **And it leaves the call sheet's interaction state alone.** `focusedCard` and
+    /// `selectedMember` describe where a finger is on the flight; the quick pass has its own
+    /// cursor and is not on that screen. Advancing the sheet's focus from here would leave a card
+    /// ringed and a chip selected on a screen nobody is looking at, waiting to be found on
+    /// dismissal as a state the person never chose.
+    @Test func placingANameDoesNotMoveTheSheetsFocus() {
+        let store = RevealFixture.store()
+        store.place(RevealFixture.members[0].userID, on: 1)
+        #expect(store.focusedCard == nil)
+        #expect(store.selectedMember == nil)
+    }
+
+    /// The move rule is the store's, not the direction's: a name placed on a second card comes
+    /// off the first, exactly as `tapName` would have moved it.
+    @Test func placingANameAlreadyOnACardMovesIt() {
+        let store = RevealFixture.store()
+        let member = RevealFixture.members[0].userID
+        store.place(member, on: 1)
+        store.place(member, on: 2)
+        #expect(store.assignments[1] == nil)
+        #expect(store.assignments[2] == member)
+    }
+
+    /// A card the caller cannot name is refused here too — the guard lives in `assign`, which is
+    /// the point of funnelling all three directions through it.
+    @Test func placingANameOnTheCallersOwnCardIsRefused() {
+        let store = RevealFixture.store(myCardNumber: 2)
+        store.place(RevealFixture.members[0].userID, on: 2)
+        #expect(store.assignments[2] == nil)
+    }
+
     // MARK: - Tap card → tap name
 
     @Test func tappingACardFocusesIt() {

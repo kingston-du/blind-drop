@@ -217,6 +217,29 @@ enum Motion {
         static let spring = Animation.spring(response: 0.34, dampingFraction: 0.82)
     }
 
+    /// The quick pass's card-to-card advance (`E41-01`).
+    ///
+    /// **Deliberately not a set piece.** `docs/09` §1 spends this app's entire motion budget on
+    /// the seal and the unseal and answers *no* to anything not in its table; this is the
+    /// ordinary iOS spring that table's last row already allows, named here so the screen states
+    /// it once rather than writing a literal. No flick physics, no deck, no flip, no page turn —
+    /// on the one screen whose argument is speed, a set piece is the thing that makes it slow the
+    /// fourth time.
+    ///
+    /// `chipConfirm` is the ~100ms the tapped name spends filled before the card leaves. It is
+    /// the whole of the feedback that a tap registered, and it is why the advance needs no
+    /// confirming beat of its own.
+    enum QuickPass {
+        static let advance = Animation.spring(response: 0.30, dampingFraction: 0.90)
+        /// Reduced motion keeps the arrival and drops the travel (`docs/12` §4).
+        static let reduced = Animation.easeInOut(duration: 0.22)
+        static let chipConfirm = Duration.milliseconds(100)
+
+        static func advance(reducedMotion: Bool) -> Animation {
+            reducedMotion ? reduced : advance
+        }
+    }
+
     /// **Hold to peek** (`docs/08` §4, `E22-01`, amended `E28-04`). Opening — the cover fading
     /// back and the artwork settling from a slight hold-scale — is a real animation, because a
     /// finger is still down and there is time to spend on it. Closing is not: every path that

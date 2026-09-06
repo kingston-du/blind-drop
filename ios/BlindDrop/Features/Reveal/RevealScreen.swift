@@ -119,6 +119,8 @@ struct RevealScreen: View {
     /// the whole initializer down to `fileprivate` and made `RevealScreen(...)` uncallable from
     /// outside this file.
     var typeSizeOverride: DynamicTypeSize?
+    /// Opens the quick pass (`E41-01`). Owned by `RevealHost`, which is what can present a cover.
+    var startQuickPass: (() -> Void)?
 
     private let accent = PhaseAccent.revealed
 
@@ -154,7 +156,8 @@ struct RevealScreen: View {
                     bottomInset: proxy.safeAreaInsets.bottom,
                     detent: $callSheetDetent,
                     onMetrics: { callSheet = $0 },
-                    lockIn: { callSheetDetent = .peek }
+                    lockIn: { callSheetDetent = .peek },
+                    startQuickPass: startQuickPass
                 )
             }
             // The panel is a bottom surface, not a safe-area-sized card. Extending this stack

@@ -271,7 +271,6 @@ word beside it repeated a fact the countdown already carries.
 | `sealed.badge` | Sealed |
 | `sealed.peek` | Hold to peek |
 | `sealed.opens.label` | Opens in |
-| `sealed.company` | Come back for the reveal to see today's drops. |
 | `sealed.countdown.label` | until reveal |
 | `sealed.replace` | Replace song |
 | `sealed.replaced` | Sealed again. |
@@ -280,7 +279,11 @@ word beside it repeated a fact the countdown already carries.
 | `push.permission.allow` | Turn on notifications |
 | `push.permission.skip` | Not now |
 
-`sealed.status` takes the group's reveal time, e.g. "Sealed until 8:00."
+`sealed.status` takes the group's reveal time, e.g. "Sealed until 8:00." **It is drawn only
+after a replacement** (owner, 2026-09-05), where `sealed.replaced` is what it says: unreplaced,
+it restated the countdown standing 40pt beneath it, and the sealed screen has no room to say
+anything twice. `sealed.company` — *"Come back for the reveal to see today's drops."* — was
+retired the same day and for the same reason, the badge and the countdown having already said it.
 
 `sealed.peek` replaces the title and artist in place, in the same spot, until the card is held
 (`E22-01`). VoiceOver never sees it — the sealed card's own label always names the title and
@@ -313,6 +316,7 @@ Never state how many people did drop.
 | `reveal.progress` | %lld of %lld assigned |
 | `reveal.locked.title` | Locked in. |
 | `reveal.callsheet` | Your call sheet |
+| `reveal.quickpass.start` | Start naming |
 | `reveal.callsheet.naming` | Naming No. %lld |
 | `reveal.callsheet.expand` | Expand call sheet |
 | `reveal.callsheet.collapse` | Collapse call sheet |
@@ -322,6 +326,23 @@ Never state how many people did drop.
 | `reveal.blocked.notsubmitter` | You didn't drop tonight, so you're sitting this one out. |
 | `reveal.blocked.joinedlate` | You joined after the reveal. You're in from tomorrow. |
 | `reveal.blocked.canview` | You can still look. |
+
+### The quick pass (`E41`)
+
+Four strings, and the shortest block in the deck on purpose. The quick pass is one card, one song
+and a row of names; every word added to it is a word somebody has to read on the one screen whose
+whole argument is that nothing should have to be read.
+
+| Key | String | Notes |
+|---|---|---|
+| `quickpass.of` | / %02lld | The flight size, beside the card's own number — *"04 / 08"*. Zero-padded on both halves, the same `%02lld` `FlightCard` already uses on the flight, because *"01 / 6"* reads as two different kinds of number. The card number itself is not a string; it is that format in the display face. |
+| `quickpass.skip` | Skip | `docs/07` §5 already names **Skip** as one of `SecondaryButton`'s three jobs, and that settles both the word and the treatment. Not *"No idea"*, which is funnier and is a sentence; not *"I don't know"*, which apologises. Once `E39` lands an unfilled card is filled at chance rather than scored wrong, so this can never be worded as a failure. |
+| `a11y.quickpass.position` | Card %lld of %lld | The numeral read aloud. *"Card"*, not *"No."*, because VoiceOver says the abbreviation as *"number"* anyway and the flight already calls them cards. |
+
+**There is no `quickpass.prompt`.** *"Who dropped this?"* (`reveal.card.prompt`) is not drawn on
+this screen and no replacement is written for it. A big numeral, one song and a grid of names is
+already the question; setting it in type is a line of copy earning nothing. Recorded here so it
+reads as a decision rather than as an oversight, and so nobody adds it back as a courtesy.
 
 ---
 
@@ -473,7 +494,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | `nobody_guesses_yours` | A song nobody here would guess is yours |
 | `genre_you_never_listen` | A song from a genre you never listen to |
 | `parents_would_play` | A song your parents would put on |
-| `unexpected_from_you` | A song that would give the wrong impression of you |
+| `unexpected_from_you` | A song for your current mood |
 | `aux_song` | Your go-to aux song |
 | `get_ready_to` | The song you get ready to |
 | `driving_at_night` | A song for driving at night |
@@ -481,7 +502,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | `one_specific_summer` | A song stuck to one specific summer |
 | `someone_got_you_into` | A song you got someone else into |
 | `first_phone_song` | A song from your first phone |
-| `tied_to_someone` | A song tied to a specific person |
+| `tied_to_someone` | A song that makes you think of them |
 | `middle_school` | A song from middle school |
 | `family_always_played` | A song that was always on in your house |
 | `most_played_this_year` | Your favorite song this year |
@@ -504,10 +525,11 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 
 40 lines. Every text is 56 characters or fewer, the same discipline `docs/12` asks of every
 string, so nothing overflows on an SE at `accessibility5`. Revised from the original 61 on
-2026-08-28, again on 2026-08-31 (`workout` retired, `getting_hyped` retexted), and twice more
-on 2026-09-01 (`nobody_has_heard` retexted, then `worst_by_favorite_artist` and
-`should_be_more_famous` retexted) — see the dated notes in `tasks/E35-cues.md`'s E35-02
-section. The active count no longer needs to be prime; `docs/18-CUES.md` §3 explains why.
+2026-08-28, again on 2026-08-31 (`workout` retired, `getting_hyped` retexted), twice more on
+2026-09-01 (`nobody_has_heard` retexted, then `worst_by_favorite_artist` and
+`should_be_more_famous` retexted), and again on 2026-09-05 (`tied_to_someone` and
+`unexpected_from_you` retexted) — see the dated notes in `tasks/E35-cues.md`'s E35-02 section.
+The active count no longer needs to be prime; `docs/18-CUES.md` §3 explains why.
 
 ### Circle settings
 

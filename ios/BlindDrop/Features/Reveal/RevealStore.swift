@@ -286,8 +286,28 @@ final class RevealStore {
 
     // MARK: - Assigning
 
+    /// Say something to VoiceOver from a screen that is not the call sheet (`E41-01`).
+    ///
+    /// The announcement queue is the store's because the store is what both reveal surfaces
+    /// share; without this the quick pass would need a second one, and two queues posting into
+    /// one accessibility session is how an announcement gets eaten.
+    func announce(_ message: String) {
+        announcement = message
+    }
+
+    /// Put a name on a card from the quick pass (`E41-01`).
+    ///
+    /// The third direction into `assign`, and the one that must **not** move the call sheet's
+    /// interaction state. `focusedCard` and `selectedMember` describe where a finger is on the
+    /// flight; the quick pass has its own cursor and is not on that screen, so advancing the
+    /// sheet's focus from here would leave a card ringed and a chip selected on a screen nobody
+    /// is looking at — waiting to be found on dismissal as a state the person never chose.
+    func place(_ userID: String, on cardNumber: Int) {
+        assign(userID, to: cardNumber, advancesFocus: false)
+    }
+
     /// The one place an assignment happens, whichever direction reached it.
-    private func assign(_ userID: String, to cardNumber: Int) {
+    private func assign(_ userID: String, to cardNumber: Int, advancesFocus: Bool = true) {
         guard isGuessable(cardNumber), displayNames[userID] != nil else { return }
 
         // The move. A name lives on at most one card at a time in this UI, so putting it on a
@@ -304,10 +324,12 @@ final class RevealStore {
             announcement = Copy.A11y.guessAssigned(cardNumber: cardNumber, name: name)
         }
 
-        selectedMember = nil
-        // *"Assignment advances focus to the next unassigned card"* (`docs/08` §6) — the sheet
-        // fills top to bottom without a tap in between.
-        focusedCard = nextUnassignedCard(after: cardNumber)
+        if advancesFocus {
+            selectedMember = nil
+            // *"Assignment advances focus to the next unassigned card"* (`docs/08` §6) — the
+            // sheet fills top to bottom without a tap in between.
+            focusedCard = nextUnassignedCard(after: cardNumber)
+        }
         didEdit()
     }
 

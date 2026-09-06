@@ -787,6 +787,7 @@ private struct RevealHost: View {
 
     @State private var store: RevealStore?
     @State private var unseal: UnsealAnimation?
+    @State private var quickPassPresented = false
 
     var body: some View {
         Group {
@@ -796,10 +797,23 @@ private struct RevealHost: View {
                     timer: timer,
                     groupInitial: groupInitial,
                     unseal: unseal,
-                    player: player
+                    player: player,
+                    startQuickPass: { quickPassPresented = true }
                 )
             } else {
                 Color.clear
+            }
+        }
+        // **The first `fullScreenCover` in the app**, and every other modal here is a `.sheet`
+        // (`RootView.swift`, and five more on this screen). Justified rather than casual: a
+        // sheet's grabber and inset corners keep the flight visible behind the one screen in the
+        // app that is deliberately about a single card, and its detent chrome sits exactly where
+        // the name grid needs to be (`E41-01`).
+        .fullScreenCover(isPresented: $quickPassPresented) {
+            if let store {
+                QuickPassScreen(store: store, timer: timer, player: player) {
+                    quickPassPresented = false
+                }
             }
         }
         .task(id: payload.cards.map(\.cardNumber)) {

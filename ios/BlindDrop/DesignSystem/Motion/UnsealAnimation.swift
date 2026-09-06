@@ -21,6 +21,15 @@ struct UnsealPresentation: Equatable, Sendable {
 final class UnsealAnimation {
     private(set) var revealedCards: Set<Int>
 
+    /// Whether the sequence has finished handing out its stagger (`E41-01`).
+    ///
+    /// Not the same as every card being *revealed*: a card below the fold is scheduled on time
+    /// and released only when it is scrolled into view, so `revealedCards` can stay short of the
+    /// full set for as long as somebody leaves the screen alone. What the quick pass needs to
+    /// know is narrower — whether the once-a-night moment this animation exists for has had its
+    /// run — and that is this.
+    private(set) var hasFinishedScheduling = false
+
     private let cardNumbers: [Int]
     private let flags: LocalFlags
     private let haptics: any HapticEngine
@@ -58,6 +67,7 @@ final class UnsealAnimation {
         started = true
         guard flags.beginUnseal(roundID: roundID) else {
             revealedCards = Set(cardNumbers)
+            hasFinishedScheduling = true
             return
         }
 
@@ -72,12 +82,14 @@ final class UnsealAnimation {
                     try await Task.sleep(for: .milliseconds(stagger))
                 } catch {
                     revealedCards = Set(cardNumbers)
+                    hasFinishedScheduling = true
                     return
                 }
             }
             scheduledCards.insert(cardNumber)
             releaseEligibleCards()
         }
+        hasFinishedScheduling = true
     }
 
     private func releaseEligibleCards() {

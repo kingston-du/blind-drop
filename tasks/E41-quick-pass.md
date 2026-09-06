@@ -46,7 +46,7 @@ client-only.
 
 ### E41-01 — One card, one tap, next
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** no
 **Reads:** `docs/prompts/QUICK-PASS-DESIGN-PROMPT.md`, `docs/07` §2/§3/§4/§5, `docs/08` §6,
@@ -81,12 +81,12 @@ finger mid-run, and it starts at the first card with no assignment. Every card a
 it opens on the recap. A value with no view in it is a value a unit test can drive, which is where
 the resume, skip, last-card and all-named rules get proved.
 
-- [ ] `QuickPassSequence`: `init(cards:isGuessable:assignments:)`, `current`, `advance()`,
+- [x] `QuickPassSequence`: `init(cards:isGuessable:assignments:)`, `current`, `advance()`,
       `jump(to:)`, `isComplete`, `position` (`4 of 8` — the *flight* numbers, not run indices).
       Unit-tested for: a three-person circle where one card is yours, a twelve-person circle,
       resume onto the first unnamed card, all-named opening complete, and a run where the player
       re-names a card they already answered.
-- [ ] `QuickPassScreen`, one column, `Layout.screenInset`, ultramarine and nothing else:
+- [x] `QuickPassScreen`, one column, `Layout.screenInset`, ultramarine and nothing else:
       - **The numeral is the anchor.** `04` in `displayXL` `ultramarine`, `/ 08` baseline-aligned
         beside it in `displayS` `inkFaint` — legal at 24pt, and it is the tasting-flight sheet's
         own grammar. Capped at 1.6× scale, the same cap `FlightCard` already takes (`docs/12` §1).
@@ -103,47 +103,47 @@ the resume, skip, last-card and all-named rules get proved.
       - Countdown to `answersAt`, `monoS` `inkDim`, top trailing. Present because the window is
         real; small because it is not a per-card clock.
       - `CloseButton` top leading.
-- [ ] **Names at tap scale.** `NameChip` gains a `size` of `.regular` (today's 36pt `bodyM`) and
+- [x] **Names at tap scale.** `NameChip` gains a `size` of `.regular` (today's 36pt `bodyM`) and
       `.large` (52pt, `bodyL`) rather than a second component — the consumed and selected
       contracts, the wrapping rule and the accessibility value in `docs/12` §3 all come along for
       free. Flow-wrapped, `Space.sm` gaps. A consumed name stays struck through and stays
       tappable: the API permits naming one person twice (`rounds/index.ts:750`) and the quick pass
       must not be stricter than the sheet.
-- [ ] **Skip is a peer, and it is a word.** Its own row under the grid, separated by `Space.lg`,
+- [x] **Skip is a peer, and it is a word.** Its own row under the grid, separated by `Space.lg`,
       an intrinsic-width pill at the same 52pt height, **dashed** 1pt `edgeStrong` border, no fill,
       `inkDim` `bodyL`, reading `Skip`. Dashed already means *nothing is written here* in this app
       — it is the unassigned chip's own outline — so the treatment is semantic rather than
       decorative. No icon: the app draws almost none, and a bare glyph here reads as *next* rather
       than as *I don't know*. It is not small grey text and it is not a full-width button; it is
       one more thing you can tap with the same thumb.
-- [ ] **The advance is 220ms and it is not a set piece.** Tap a name → the chip fills
+- [x] **The advance is 220ms and it is not a set piece.** Tap a name → the chip fills
       `ultramarine` for ~100ms → haptic `.impact(.light)` at 0.5 → the card's content leaves
       leading with a fade while the next arrives trailing, `spring(response: 0.30,
       dampingFraction: 0.90)` in a new `Motion.QuickPass.advance`. Skip is the same transition with
       `.impact(.soft)` and no chip fill. No flick physics, no deck, no flip, no page turn, no
       sound, no confetti — `docs/09` §1's budget is spent on the seal and the unseal and this is
       not either of them. **Reduce Motion collapses it to a cross-dissolve** with no offset.
-- [ ] Entry from the flight: the reveal screen's primary action reads `reveal.quickpass.start`
+- [x] Entry from the flight: the reveal screen's primary action reads `reveal.quickpass.start`
       while the sheet is empty and reverts to `reveal.action` (*Lock in guesses*) once anything is
       assigned. Tapping a card still opens the call sheet exactly as it does today — both routes
       survive, and the screen still has exactly one primary action (`docs/07` §4).
-- [ ] Presented as a `fullScreenCover` from `RevealHost`. **The first one in the app** — every
+- [x] Presented as a `fullScreenCover` from `RevealHost`. **The first one in the app** — every
       existing modal is a `.sheet` (`RootView.swift:117`, `RoundScreen.swift:242…277`). Justified
       rather than casual: a sheet's grabber and inset corners keep the flight visible behind the
       one screen in the app that is deliberately about a single card, and the detent chrome would
       sit exactly where the name grid needs to be.
-- [ ] Blocked players never reach it: `canGuess == false` renders no entry control and the cover
+- [x] Blocked players never reach it: `canGuess == false` renders no entry control and the cover
       cannot be presented. The flight keeps showing them the disabled apparatus in full
       (`docs/08` §6) — they must still see what they missed.
-- [ ] `docs/12`: the card is a **single** accessibility element announcing number, title, artist;
+- [x] `docs/12`: the card is a **single** accessibility element announcing number, title, artist;
       advancing posts an announcement naming the card arrived at, so a VoiceOver user is never
       moved silently. Chips and Skip are buttons at 44pt minimum. State never carried by colour
       alone.
-- [ ] `accessibility5` on an SE: artwork clamps to its floor, the pool becomes a single column,
+- [x] `accessibility5` on an SE: artwork clamps to its floor, the pool becomes a single column,
       the page scrolls. Snapshot goldens must render the content **outside** its `ScrollView` — the
       `snapshotContent(typeSize:)` pattern `RevealScreen.swift` already uses, because
       `ImageRenderer` asked for a `ScrollView` produces a fixed rectangle with the rest clipped.
-- [ ] New copy in `docs/11` in the same commit (`CLAUDE.md` §6): `quickpass.skip` = *Skip*,
+- [x] New copy in `docs/11` in the same commit (`CLAUDE.md` §6): `quickpass.skip` = *Skip*,
       `reveal.quickpass.start` = *Start naming*, `a11y.quickpass.card`. Reuses `reveal.card.mine`,
       `reveal.action`, `reveal.callsheet`, `reveal.countdown.label`.
 

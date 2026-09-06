@@ -78,6 +78,9 @@ struct GuessSheet: View {
     /// Optional host callback after **Lock in guesses** changes the store to its confirmed state.
     /// Saving is owned by the store and happens on every edit; this is never the only save.
     var lockIn: (() -> Void)?
+    /// Opens the quick pass (`E41-01`). `nil` on a host that has none — the snapshots, and any
+    /// caller that cannot present a cover.
+    var startQuickPass: (() -> Void)?
     /// The sheet's two heights, reported to the host as it measures them.
     ///
     /// One value rather than two callbacks because the flight uses them together — what it must
@@ -111,13 +114,15 @@ struct GuessSheet: View {
         bottomInset: CGFloat = Space.none,
         detent: Binding<CallSheetDetent> = .constant(.open),
         onMetrics: ((CallSheetMetrics) -> Void)? = nil,
-        lockIn: (() -> Void)? = nil
+        lockIn: (() -> Void)? = nil,
+        startQuickPass: (() -> Void)? = nil
     ) {
         self.store = store
         self.availableHeight = availableHeight
         self.bottomInset = bottomInset
         self.onMetrics = onMetrics
         self.lockIn = lockIn
+        self.startQuickPass = startQuickPass
         self._detent = detent
     }
 
@@ -433,6 +438,14 @@ struct GuessSheet: View {
                 // **Change a guess** is in the header row now, where it is reachable without
                 // opening the sheet first (`E17-06`). Repeating it here would be two controls for
                 // one action on a screen whose only remaining job is to be re-read.
+            } else if store.assignedCount == 0, let startQuickPass {
+                // **An empty sheet has a different primary action** (`E41-01`). *Lock in guesses*
+                // on a sheet with nothing in it is a disabled button that names a thing the
+                // caller cannot do yet — the screen's one action, greyed out, on arrival. The
+                // quick pass is what they can do, so that is what the button says until they have
+                // done some of it. Tapping a card still opens the sheet exactly as before: both
+                // routes survive, and the screen still has one primary action (`docs/07` §4).
+                PrimaryButton("reveal.quickpass.start", accent: accent, action: startQuickPass)
             } else {
                 PrimaryButton("reveal.action", accent: accent, isEnabled: store.assignedCount > 0) {
                     store.lockIn()

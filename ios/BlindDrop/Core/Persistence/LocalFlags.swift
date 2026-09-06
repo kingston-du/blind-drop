@@ -70,6 +70,20 @@ final class LocalFlags {
         defaults.stringArray(forKey: Key.seenUnsealRounds)?.contains(roundID) == true
     }
 
+    /// Whether the quick pass has already been offered unasked for a round (`E41-02`).
+    ///
+    /// The same check-and-write shape as `beginUnseal(roundID:)`, and for a related reason: the
+    /// quick pass presents itself, and a modal that presents itself on every foreground is not a
+    /// shortcut, it is an obstruction. A person who dismissed it to browse the flight has said
+    /// something, and this is where that is remembered. A push tap ignores this flag entirely —
+    /// that is an explicit intent and may re-present as often as it happens (`E41-02`).
+    func beginQuickPass(roundID: String) -> Bool {
+        var seen = Set(defaults.stringArray(forKey: Key.autoOpenedQuickPassRounds) ?? [])
+        guard seen.insert(roundID).inserted else { return false }
+        defaults.set(seen.sorted(), forKey: Key.autoOpenedQuickPassRounds)
+        return true
+    }
+
     // MARK: - Results (`docs/09` §4)
 
     /// Whether this install has already run the results name-resolve for a round.
@@ -106,6 +120,7 @@ final class LocalFlags {
         static let offeredNotificationRecoveryOnLaunch = "flags.notifications.offered-recovery-on-launch"
         static let seenUnsealRounds = "flags.reveal.seen-unseal-rounds"
         static let seenResolveRounds = "flags.results.seen-resolve-rounds"
+        static let autoOpenedQuickPassRounds = "flags.reveal.auto-opened-quick-pass-rounds"
         static let activeCircleID = "flags.circles.active-id"
     }
 }

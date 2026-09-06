@@ -93,6 +93,37 @@ enum Layout {
     /// A name chip's drawn height; its hit region is `minimumTouchTarget`.
     static let chipHeight: CGFloat = 38
 
+    /// A name chip's drawn height in the quick pass (`E41-01`).
+    ///
+    /// 38 is right for the call sheet, where the pool is apparatus pinned under a flight somebody
+    /// is reading, and wrong for the quick pass, where the pool **is** the screen's one action.
+    /// 52 is `fieldHeight`'s neighbour rather than a new number: a row of these reads as a set of
+    /// things to press, which is exactly what 38 refuses to read as when it is the only thing on
+    /// the lower half of the screen.
+    static let chipHeightLarge: CGFloat = 52
+
+    /// The floor on a quick-pass pool column (`E41-01`).
+    ///
+    /// Three columns on a 393pt phone, two on an SE, and one once the type is large enough that
+    /// two would overlap — the count falls out of the scaled floor at the call site rather than
+    /// out of a device check, the same way `nameChipMinimumWidth` already works.
+    static let quickPassPoolColumn: CGFloat = 104
+
+    /// Everything on the quick pass that is neither the artwork nor the name pool (`E41-01`).
+    ///
+    /// The close row, the numeral, the track row, Skip, and the gaps between all of them, added
+    /// up at `.large`: 44 + 20 + 62 + 20 + 62 + 32 + 56 + 32. Subtracting this and a computed pool
+    /// height from the viewport is what leaves the artwork its share.
+    ///
+    /// A written-down sum rather than a measured one, and that is a real trade taken with its
+    /// eyes open. Measuring is tidier to read and wrong in practice: a preference arrives after
+    /// the first layout, so the artwork drew at its maximum and jumped down on the frame after —
+    /// on every card of every run. A number that can drift beats a jump that always happens. It
+    /// scales with nothing on purpose: at accessibility sizes the real chrome outgrows this, the
+    /// artwork lands on `Artwork.quickPassRange`'s floor, and the page scrolls, which is the
+    /// right answer there anyway.
+    static let quickPassFixedChrome: CGFloat = 328
+
     /// A name chip's minimum drawn width (`E26-02`).
     ///
     /// Not strict equality, which is the obvious answer and the wrong one: twelve pills all sized
@@ -188,6 +219,17 @@ enum Layout {
         /// sealed card fetches at this size too and draws at its container's width, so the number
         /// is the fetch for both and the drawn size for one.
         static let confirm: CGFloat = 280
+
+        /// The quick pass's artwork — **the largest in the app**, and the only one whose drawn
+        /// size is decided at layout time rather than written down.
+        ///
+        /// This number is the *fetch*, taken once at the maximum so the URL never changes as the
+        /// clamp below moves. `quickPassRange` is what it is actually drawn at: whatever vertical
+        /// room the numeral, the track row, the pool and Skip have not already claimed, clamped
+        /// into that range. Five names leave enough for the top of it; eleven names leave the
+        /// bottom. Neither layout breaks, and neither has to be predicted from a device model.
+        static let quickPass: CGFloat = 360
+        static let quickPassRange: ClosedRange<CGFloat> = 140...360
         static let shareCard: CGFloat = 300
     }
 }
