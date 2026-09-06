@@ -221,6 +221,25 @@ the notification body now reaches anyway. Recorded here so it is a decision rath
   is the letter of `docs/12` §1 and plainly not its spirit. Above `.accessibility1` the numeral and
   the thumbnail take their own line and the text has the full column.
 
+**Two real bugs the reviewer found, both fixed.** Neither had a failing test and neither is
+visible in a golden:
+
+- **Tapping a name and then Skip inside the same 100ms advanced the cursor twice.** The chips sit
+  directly above Skip, so it is an ordinary finger sequence, and the card in between was dropped
+  unseen on the screen whose whole pitch is one card at a time. Skip now refuses while a name is
+  confirming, the same way a second chip tap already did.
+- **The confirm beat was an unstructured `Task` that outlived the cover.** Tap a name, close before
+  it elapsed, and it still fired `announceArrival()` into the shared store's queue — inverting
+  `docs/12` §2's *never moved in silence* into an announcement about a card nobody is on. It is a
+  `.task(id: confirming)` now, so SwiftUI owns the lifetime the way it already owns the unseal's:
+  dismissal cancels it, and a second tap supersedes rather than queues.
+
+The reviewer also noted, correctly, that nothing exercises `choose` and `skip` together — the race
+was a view-state interaction and both unit suites are below the view. Not closed: a harness for
+driving two taps at a hundred-millisecond offset is more machinery than this slice earns, and the
+guard it would protect is now a one-line precondition on both paths. Named here rather than left
+implied.
+
 > **Unverified at close: the simulator pass.** The owner suspended per-slice passes for this epic
 > and asked for the budget not to be spent on them; the one consolidated pass this slice's Verify
 > line names was **not run**. Reaching a `revealed` round on a simulator needs either a live

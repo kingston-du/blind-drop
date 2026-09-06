@@ -77,6 +77,26 @@ struct QuickPassScreen: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .background(Palette.paper)
+        // **The confirm beat is structured, and it is the only thing that advances a tap.**
+        //
+        // It was an unstructured `Task` in `choose`, which was wrong twice. It outlived the
+        // cover: tap a name, close before the 100ms elapses, and the closure still fired
+        // `announceArrival()` into the shared store's queue — inverting `docs/12` §2's *never
+        // moved in silence* into an announcement about a card nobody is on. And it raced Skip,
+        // which sits directly under the chips: a name and then Skip inside the same 100ms ran
+        // `advance()` twice for one intent, stepping the cursor two cards and dropping the one
+        // between them unseen, on the screen whose whole pitch is one card at a time.
+        //
+        // Driven off `confirming` as the id, so SwiftUI owns the lifetime the way `UnsealAnimation`
+        // already has it own the unseal's: dismissal cancels it, and a second tap supersedes the
+        // first instead of queueing behind it.
+        .task(id: confirming) {
+            guard confirming != nil else { return }
+            try? await Task.sleep(for: Motion.QuickPass.chipConfirm)
+            guard !Task.isCancelled else { return }
+            confirming = nil
+            advance()
+        }
         .onAppear {
             // Nothing to name — a non-submitter who reached this by some route that should not
             // exist. Leave rather than draw an empty apparatus; the flight is where `docs/08` §6
@@ -308,7 +328,12 @@ struct QuickPassScreen: View {
     /// drawn as a failure. Centred on its own row, at the full 44pt target `SecondaryButton`
     /// already carries.
     private var skip: some View {
-        SecondaryButton("quickpass.skip") { advance() }
+        // Refused while a name is confirming, for the same reason a second chip tap is: the
+        // 100ms fill is a tap already in flight, and letting Skip land inside it advances twice.
+        SecondaryButton("quickpass.skip") {
+            guard confirming == nil else { return }
+            advance()
+        }
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, Layout.itemGap)
     }
@@ -318,12 +343,9 @@ struct QuickPassScreen: View {
     private func choose(_ member: MemberDTO, on number: Int) {
         guard confirming == nil else { return }
         store.place(member.userID, on: number)
+        // Setting this both draws the chip filled and starts the confirm beat above. The advance
+        // is that task's, never this function's — one place decides the cursor moves.
         confirming = member.userID
-        Task {
-            try? await Task.sleep(for: Motion.QuickPass.chipConfirm)
-            confirming = nil
-            advance()
-        }
     }
 
     private func advance() {
