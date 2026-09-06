@@ -28,6 +28,9 @@ struct QuickPassScreen: View {
     /// The name currently filled ultramarine, for the ~100ms before the card leaves. The whole of
     /// the feedback that a tap registered, which is why the advance itself needs no extra beat.
     @State private var confirming: String?
+    /// Which way the next card arrives from. Set immediately before the cursor moves, so the
+    /// transition below reads it in the same update.
+    @State private var isMovingBack = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -143,6 +146,16 @@ struct QuickPassScreen: View {
             // a title changing in place.
             .id(number)
             .transition(advanceTransition)
+            // **And the gesture, because a glyph is not the only way anybody will try.** Swipe
+            // right is the most learned gesture on the platform and it means exactly one thing;
+            // `CloseButton`'s own doc comment carries the other half of the rule — *"no gesture
+            // is the only way to do anything"* (`docs/12` §5) — which is why the chevron exists
+            // and this is the shortcut rather than the mechanism.
+            //
+            // **Right only.** A left swipe would have to mean Skip, and an accidental one would
+            // then drop a card silently on a screen where that is the worst thing that can
+            // happen. Skip is a control you press on purpose.
+            .gesture(backSwipe)
         }
     }
 
@@ -254,7 +267,7 @@ struct QuickPassScreen: View {
         VStack(alignment: .leading, spacing: Space.none) {
             track(card)
             pool(on: number)
-            skip
+            navigation
         }
     }
 
@@ -327,15 +340,44 @@ struct QuickPassScreen: View {
     /// at chance rather than scored wrong, so a skip is an honest *I don't know* and must never be
     /// drawn as a failure. Centred on its own row, at the full 44pt target `SecondaryButton`
     /// already carries.
-    private var skip: some View {
-        // Refused while a name is confirming, for the same reason a second chip tap is: the
-        // 100ms fill is a tap already in flight, and letting Skip land inside it advances twice.
-        SecondaryButton("quickpass.skip") {
-            guard confirming == nil else { return }
-            advance()
+    /// The run's two navigation actions, sharing one row in the thumb's reach.
+    ///
+    /// **Back is a glyph, and it is here rather than in the chrome.** `CloseButton` is top-leading
+    /// on all eight sheets in the app, so the corner a back control conventionally takes is spoken
+    /// for, and putting one opposite it would read as *back* on the right. This row already
+    /// exists, it is where the finger already is — a name chip is directly above it — and it puts
+    /// the two ways of leaving a card next to each other, with Skip keeping the centre because
+    /// moving on is the ordinary act and going back is the correction.
+    ///
+    /// Overlaid rather than laid out beside Skip, so Skip does not shift half a chevron sideways
+    /// between card one and card two. Absent, not disabled, on the first card: a permanently dead
+    /// control is furniture, and `01` in the numeral already says there is nothing behind it.
+    private var navigation: some View {
+        ZStack {
+            // Refused while a name is confirming, for the same reason a second chip tap is: the
+            // 100ms fill is a tap already in flight, and letting Skip land inside it advances
+            // twice.
+            SecondaryButton("quickpass.skip") {
+                guard confirming == nil else { return }
+                advance()
+            }
+            if sequence.canGoBack {
+                HStack {
+                    Button(action: goBack) {
+                        Image(systemName: "chevron.backward")
+                            .font(Font(Typography.uiFont(.bodyL, for: UIContentSizeCategory(effectiveTypeSize))))
+                            .foregroundStyle(Palette.inkDim)
+                            .minimumTouchTarget()
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("a11y.quickpass.back")
+                    Spacer(minLength: Space.none)
+                }
+            }
         }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.top, Layout.itemGap)
+        .frame(maxWidth: .infinity)
+        .padding(.top, Layout.itemGap)
     }
 
     // MARK: - Advancing
@@ -349,8 +391,24 @@ struct QuickPassScreen: View {
     }
 
     private func advance() {
+        isMovingBack = false
         withAnimation(Motion.QuickPass.advance(reducedMotion: reduceMotion)) {
             sequence.advance()
+        }
+        announceArrival()
+    }
+
+    /// No haptic, and Skip has none either.
+    ///
+    /// The one in this flow fires from `RevealStore.assign` when a name lands, and that is the
+    /// rule worth keeping: the taptic marks a **commitment** — something now written on the sheet
+    /// — not a change of screen. Back and Skip move the cursor and commit nothing, and a device
+    /// that buzzes for navigation is a device that has stopped meaning anything by it.
+    private func goBack() {
+        guard confirming == nil, sequence.canGoBack else { return }
+        isMovingBack = true
+        withAnimation(Motion.QuickPass.advance(reducedMotion: reduceMotion)) {
+            sequence.back()
         }
         announceArrival()
     }
@@ -369,12 +427,37 @@ struct QuickPassScreen: View {
         )
     }
 
+    /// Swipe right for the card behind this one.
+    ///
+    /// Horizontal-dominant by a clear margin, so it cannot be triggered while somebody is
+    /// scrolling the page — which they are, at accessibility sizes, where the pool alone is
+    /// taller than an SE.
+    private var backSwipe: some Gesture {
+        // `.global` for the same reason the call sheet's drag takes it (`E32-01`): a gesture read
+        // in a local space is read against a view the animation is currently moving, so the
+        // translation it reports chases its own transition.
+        DragGesture(minimumDistance: Layout.quickPassBackSwipe, coordinateSpace: .global)
+            .onEnded { value in
+                guard confirming == nil, sequence.canGoBack else { return }
+                guard value.translation.width > Layout.quickPassBackSwipe,
+                      abs(value.translation.width) > abs(value.translation.height) * 1.5
+                else { return }
+                goBack()
+            }
+    }
+
+    /// Forward or back, the transition takes the direction from the cursor's own.
+    ///
+    /// A card that always arrived from the trailing edge would make going back feel like going on
+    /// — the one thing the motion has to say here is *which way*.
     private var advanceTransition: AnyTransition {
         // Reduced motion keeps the arrival and drops the travel (`docs/12` §4).
         guard !reduceMotion else { return .opacity }
+        let arriving: Edge = isMovingBack ? .leading : .trailing
+        let leaving: Edge = isMovingBack ? .trailing : .leading
         return .asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
+            insertion: .move(edge: arriving).combined(with: .opacity),
+            removal: .move(edge: leaving).combined(with: .opacity)
         )
     }
 
@@ -534,6 +617,7 @@ struct QuickPassScreen: View {
     }
 
     private func jump(to cardNumber: Int) {
+        isMovingBack = false
         withAnimation(Motion.QuickPass.advance(reducedMotion: reduceMotion)) {
             sequence.jump(to: cardNumber)
         }

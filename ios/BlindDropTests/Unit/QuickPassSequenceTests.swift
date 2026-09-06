@@ -111,6 +111,64 @@ import Testing
         #expect(run.current == nil)
     }
 
+    // MARK: - Going back (`E41-03`)
+
+    /// Nothing behind the first card of the run.
+    @Test func thereIsNoBackFromTheFirstCard() {
+        #expect(!sequence().canGoBack)
+    }
+
+    @Test func backStepsOneCardInFlightOrder() {
+        var run = sequence()
+        run.advance()
+        run.advance()
+        #expect(run.current == 4)
+        run.back()
+        // Straight back past No. 3, which is the caller's — the run does not contain it in
+        // either direction.
+        #expect(run.current == 2)
+    }
+
+    /// Going back does not undo the name. The store keeps it, the chip comes back struck through,
+    /// and tapping another name moves it — the flight's own behaviour, reached the other way.
+    @Test func backDoesNotClearWhatIsBehindIt() {
+        var run = sequence(assigned: [1])
+        #expect(run.current == 2)
+        run.back()
+        #expect(run.current == 1)
+        #expect(run.cardNumbers == [1, 2, 4, 5, 6])
+    }
+
+    /// **No back from the recap.** Its rows are the way back and a better one: they name the card
+    /// you are going to instead of counting cards backwards to reach it.
+    @Test func thereIsNoBackFromTheRecap() {
+        var run = sequence(assigned: [1, 2, 4, 5, 6])
+        #expect(run.isComplete)
+        #expect(!run.canGoBack)
+        run.back()
+        #expect(run.isComplete)
+    }
+
+    /// An excursion is already a correction to one card and returns on its own.
+    @Test func thereIsNoBackFromAnExcursion() {
+        var run = sequence(assigned: [1, 2, 4, 5, 6])
+        run.jump(to: 4)
+        #expect(!run.canGoBack)
+        run.back()
+        #expect(run.current == 4)
+    }
+
+    /// Back then forward is a round trip, not a lost card.
+    @Test func backAndForwardReturnsToWhereItWas() {
+        var run = sequence()
+        run.advance()
+        run.advance()
+        let before = run.current
+        run.back()
+        run.advance()
+        #expect(run.current == before)
+    }
+
     // MARK: - Corrections from the recap
 
     /// A jump is a correction to one card, so answering it returns to the recap instead of

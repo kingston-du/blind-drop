@@ -597,14 +597,15 @@ cap. `E39` proposes the opposite reading of a blank sheet and is set aside, not 
 
 ## E41 — The quick pass · [file](E41-quick-pass.md)
 
-The guessing on-ramp: one card at a time, full screen, and where a reveal push now lands. Two
-slices, both client-only — no migration, no endpoint, no push-worker change. Design brief:
+The guessing on-ramp: one card at a time, full screen, and where a reveal push now lands. Three
+slices, all client-only — no migration, no endpoint, no push-worker change. Design brief:
 `docs/prompts/QUICK-PASS-DESIGN-PROMPT.md`.
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E41-01 One card, one tap, next | done | — | no | AC-4 |
 | E41-02 Where the push lands, and how the run ends | done | E41-01 | no | AC-4 |
+| E41-03 A way back | done | E41-02 | no | AC-4 |
 
 ---
 
@@ -659,5 +660,5 @@ slices, both client-only — no migration, no endpoint, no push-worker change. D
 | E37 drop screen redesign | 1 / 1 |
 | E38 circles end to end | 4 / 4 |
 | E40 reads maths | 1 / 1 |
-| E41 quick pass | 2 / 2 |
+| E41 quick pass | 3 / 3 |
 | **Next-progression total** | **22 / 22** |

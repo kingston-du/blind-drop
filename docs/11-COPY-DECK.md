@@ -124,12 +124,32 @@ than drawn as a second line. The row is still just a name and a state.
 VoiceOver's `.isSelected`, which is a fact stated to one class of user and withheld from another.
 No word changed; nothing was added to the row.
 
+**Amended again by `E42-01`:** the sunken fill is gone, replaced by a 3pt `ink` rail on the
+row's leading edge. `paperSunk` is the app's disabled-control fill, so the active row was drawn
+as *spent* rather than as *here*. Still no accent on the selection, and still no word changed.
+
+`E42-01` also put a **phase pip** beside the state word — `PhaseAccent.mark`, filled when the
+circle wants you and a ring when it does not. It adds no string: everything it says, the state
+word and `a11y.switcher.attention` already said. It is the sighted reader's version of a fact
+VoiceOver had, which is the same argument `E38-01` made about selection.
+
 `E38-01` dropped the `+` from `switcher.startGroup` and put `switcher.joinWithCode` beside it.
 They are two alternatives of equal weight — somebody was sent a code, somebody else is starting
 their own — and a leading glyph on one of them made it read as the sheet's answer. **Join with a
 code** rather than *Join a group* (`onboarding.group.join`, which stays as it is) because by this
 point the caller is already in one and the distinction that matters is what they have in hand,
 not what they are joining.
+
+**Amended by `E42-01`, on weight only — no word changed.** The two are no longer of equal
+weight: Join is filled and Start is outlined, because almost everybody opening this sheet to add
+a circle was sent a code, and almost nobody starts a second group twice. That is a claim about
+frequency, not importance, and it is the *button* that changed, not the sentence.
+
+`E42-01` did consider shortening this to *Join a group* — the string wraps in the old
+half-width `OutlineButton`, which is what prompted the redesign of the footer. It stays as it is
+for the two reasons above: the paragraph's distinction still holds, and *Join a group* would
+duplicate `onboarding.group.join` verbatim. The wrap was the container's fault and the container
+is what got fixed — at `PillButton`'s `fillsWidth` the string sits on one line.
 
 ---
 
@@ -340,6 +360,7 @@ whole argument is that nothing should have to be read.
 | `a11y.quickpass.position` | Card %lld of %lld | The numeral read aloud. *"Card"*, not *"No."*, because VoiceOver says the abbreviation as *"number"* anyway and the flight already calls them cards. |
 | `quickpass.recap.blank` | — | A card left blank, on the recap. An em dash and not a word: *"Skipped"* is a verdict on the person and *"Nobody"* is a verdict on the card, and neither is true. `inkQuiet`, never `alert` and never amber — once `E39` fills an unfilled card at chance rather than scoring it wrong, a blank must not read as a failure, and choosing the neutral mark now means nothing changes when it lands. |
 | `a11y.quickpass.row.hint` | Double-tap to change this guess | The recap's rows. Absent on the caller's own row, which is on the sheet because the sheet is the flight and is not a control. |
+| `a11y.quickpass.back` | Previous card | The `‹` beside Skip. A glyph on screen and a phrase in the ear — the chevron carries no word because the row it shares already has the only one worth reading. |
 
 The recap reuses `reveal.callsheet` as its heading and `reveal.action` (**Lock in guesses**) as its
 button, deliberately: it *is* the call sheet, reached the other way round, and a second name for it

@@ -58,6 +58,23 @@ struct QuickPassSequence: Equatable, Sendable {
     /// two cards are somehow not the caller's to name. The screen refuses to present on this.
     var isEmpty: Bool { cardNumbers.isEmpty }
 
+    /// Whether there is a card behind this one to go back to.
+    ///
+    /// False on the first card of the run, false on the recap — where the rows are themselves the
+    /// way back, and a better one, because they name the card you are going to — and false on an
+    /// excursion, which is already a correction to one card and returns on its own.
+    var canGoBack: Bool {
+        !isExcursion && index > 0 && index < cardNumbers.count
+    }
+
+    /// One card back. Nothing is undone: a name already placed stays placed, and the chip that
+    /// carries it comes back struck through, which is the sheet's own language for *this one is
+    /// spent* — tap another name and it moves, exactly as it would on the flight.
+    mutating func back() {
+        guard canGoBack else { return }
+        index -= 1
+    }
+
     /// Answered, skipped, or moved past — all one motion as far as the cursor is concerned.
     ///
     /// A card reached by jumping from the recap returns to the recap rather than continuing, so

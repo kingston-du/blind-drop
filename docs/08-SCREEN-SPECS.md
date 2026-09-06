@@ -280,13 +280,16 @@ Accent: **ultramarine**. This screen must work equally well at 6 cards and 12.
 
 ```
 ┌─────────────────────────────┐
-│  The Cove          [?] [≡]  │   RoundHeader: the group's name on every phase (E17-09)
-│  Monday 10 August           │   monoS inkDim
-│                             │
+│  The Cove          [?] [≡]  │   RoundHeader, pinned: the group's name on every
+├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤   phase (E17-09) — and on this one, nothing else
+│  Monday 10 August           │   caption inkDim, the eyebrow over the headline
 │  Tonight's drop  (01:42:19) │   displayL ink + ultramarine countdown badge
 │                             │   the badge takes its own row above .accessibility1
 │  8 songs                    │   bodyM inkDim
-│                             │
+│  ┌───────────────────────┐  │   TONIGHT'S CUE / A song you hate — CueBanner,
+│  │ TONIGHT'S CUE         │  │   paperSunk, the last thing before the cards
+│  │ A song you hate       │  │
+│  └───────────────────────┘  │
 │  ┌───────────────────────┐  │
 │  │ 01 ▓▓ Redbone    (Cal)│  │   FlightCard row: numberM, 56pt art,
 │  │       Childish…    ▶︎  │  │   title/artist, chip on the same line
@@ -313,6 +316,22 @@ Accent: **ultramarine**. This screen must work equally well at 6 cards and 12.
 │  └───────────────────────┘  │
 └─────────────────────────────┘
 ```
+
+**The date and the cue scroll; only the name row is pinned.** *(Owner, 2026-09-06.)* Both used to
+stand above the scroll view — the date on `RoundHeader`'s second row, the cue as a `CueBanner`
+between it and the flight — which is roughly a third of a phone of permanent header over the one
+screen in the app that is a *list*. Neither has anything to say after the first read, and the date
+was the same fact as *"Tonight's drop"* stated twice across a seam. A pinned row earns its height
+from something that changes while somebody is reading; on this phase the badge beside the date is
+`EmptyView`, because this screen counts to the answers in its own header. So the date is the
+eyebrow over that headline and the cue is the last thing before the cards — brief, then the work,
+the same order §3 gives the drop screen. `RoundDTO.Phase.scrollsItsOwnDate` and
+`RoundDTO.Phase.drawsItsOwnCue` are where the two are decided; Sealed and Voided do not scroll and
+keep both above the phase exactly as before.
+
+The countdown scrolls away with the header, as it always has. It is not repeated in the call
+sheet's peek row — a second copy of one number is two things to keep in sync — and if a persistent
+deadline is ever wanted, that row is where it goes, not back into the chrome.
 
 Once the sheet is locked in, a `ultramarineWash` panel appears under the header reading
 *"Locked in."* The countdown is **not** repeated in it — it is already in the header badge, and
@@ -387,7 +406,7 @@ exactly where the name grid needs to be.
 │  ┌──────┐ ┌──────┐          │
 │  │ Dee  │ │ Eli  │          │
 │  └──────┘ └──────┘          │
-│           Skip              │   SecondaryButton, centred, its own row
+│  ‹        Skip              │   back glyph, leading · Skip, centred
 └─────────────────────────────┘
 ```
 
@@ -402,6 +421,13 @@ name, so a cover closed mid-run resumes where it was. Tapping a name fills the c
 for ~100ms, fires `.impact(.light)`, and the card leaves leading while the next arrives trailing —
 one spring, 220ms, cross-dissolve under Reduce Motion. Skip is the same transition with
 `.impact(.soft)`.
+
+**Going back.** The chevron beside Skip steps one card back, and so does a right swipe. Nothing is
+undone: a name already placed stays placed and its chip returns struck through, so tapping another
+name moves it exactly as on the flight. The transition takes its direction from the cursor — a card
+arriving from the trailing edge on the way back would make going back feel like going on. Absent,
+not disabled, on the first card. There is no back from the recap: its rows are the way back, and
+they name the card you are going to.
 
 **The recap** replaces the card when the run ends: `reveal.callsheet` as the heading with the
 countdown beside it, one row per card — numeral, thumbnail, title, and the name in ultramarine,
@@ -432,15 +458,18 @@ flight with the guess apparatus disabled but whole, per §6 — they must see ex
 ## 7. Results — `scored`
 
 Accent: **ultramarine**. Three sections in one scroll, under the same `RoundHeader` §6 draws —
-the group's name and the date, on this phase as on every other (E17-09). *"Answers"* is the
-screen's own title and sits below it; the two are different registers and do not compete.
+which on this phase, as on the reveal, is the group's name and nothing else (E17-09). *"Answers"*
+is the screen's own title and the date is its eyebrow, both inside the scroll, for the reasons §6
+gives: a scored round is counting to nothing, so the pinned row it used to sit on held one short
+date and no badge. The two registers still do not compete — `caption inkDim` over `displayL ink`,
+one block.
 
 ### 7.1 Answers, card by card
 **The cue heads the section, as a `CueCard`** — under *"Answers"*, above the first card.
 *(Owner, 2026-09-03.)* Everywhere else the cue is `CueBanner`, one line of context above a phase
 that is still running; here the cards are the room's replies to it, and a night read three weeks
 later in The Record is unintelligible without it. `RoundScreen` therefore withholds its banner on
-`scored` the same way it already does on the drop screen (`drawsItsOwnCue`). The label is
+`scored` the same way it already does on the drop screen (`Phase.drawsItsOwnCue`). The label is
 `results.cue.label` — *"The cue"*, neutral `inkDim`, and not *"Tonight's"*, because this is the
 same screen `PastResultsScreen` pushes for a night from three weeks ago. Absent on an uncued
 night, and on every night from before cues shipped.

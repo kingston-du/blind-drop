@@ -1,6 +1,6 @@
 # E41 — The quick pass
 
-Two slices. From an owner request, diagnosing a real asymmetry: people drop reliably and don't
+Three slices. From an owner request, diagnosing a real asymmetry: people drop reliably and don't
 guess. The two acts look symmetric and are not — dropping is one decision in a ten-hour window,
 guessing is `N − 1` decisions in a two-hour evening slot, and the cost grows with the circle
 while the drop's stays flat. `docs/prompts/QUICK-PASS-DESIGN-PROMPT.md` states the problem in
@@ -249,3 +249,64 @@ implied.
 > card and the recap. What is **not** covered by any of that, and is the owner's device pass to
 > judge: the feel of the advance, the haptics, the cover's presentation, and whether the quick pass
 > waiting for the unseal on a round's first arrival is right.
+
+---
+
+### E41-03 — A way back
+
+**Status:** done
+**Deps:** E41-02
+**Parallel:** no
+**Reads:** `docs/07` §5, `docs/12` §5, `ios/BlindDrop/Features/Reveal/QuickPass/`,
+`ios/BlindDrop/DesignSystem/Components/CloseButton.swift`,
+`ios/BlindDrop/Features/Reveal/GuessSheet.swift` (`dragGesture`, for the coordinate-space rule)
+**Touches:** `QuickPass{Screen,Sequence}.swift`, `DesignSystem/Space.swift`,
+`Localizable.strings`, `docs/08` §6.1, `docs/11`, `QuickPassSequenceTests.swift`, snapshot goldens
+**Verify:** `./ios/scripts/lint.sh`; full `BlindDropUnitTests` + `BlindDropSnapshotTests`.
+**Proves:** AC-4
+
+Owner request: the run was forward-only. Tap a name a card too early and the only ways out were
+finishing the whole run or closing the cover — on the screen whose entire pitch is that a tap is
+cheap, which made every tap quietly expensive.
+
+- [x] `QuickPassSequence.canGoBack` / `back()`. **Nothing is undone**: a name already placed stays
+      placed and its chip comes back struck through, which is the sheet's own language for *spent*
+      — tap another name and it moves, exactly as on the flight. Six unit tests, including the
+      round trip and the three cases where there is no back.
+- [x] **No back from the recap.** Its rows are the way back, and a better one: they name the card
+      you are going to instead of counting backwards to reach it. No back from an excursion either
+      — that is already a correction to one card and returns on its own.
+- [x] **The chevron shares the bottom row with Skip**, overlaid at the leading edge so Skip keeps
+      the centre and does not shift half a glyph sideways between card one and card two. The
+      obvious home — top-leading, opposite the close button — is not available: `CloseButton` is
+      top-leading in all eight sheets in the app, and putting back opposite it would read as
+      *back* on the right. This row already exists, the finger is already there (a name chip is
+      directly above it), and it puts the two ways of leaving a card next to each other with the
+      ordinary act keeping the centre and the correction beside it.
+- [x] Absent, not disabled, on the first card. A permanently dead control is furniture, and `01`
+      in the numeral already says there is nothing behind it.
+- [x] **Swipe right**, as the shortcut and not the mechanism. `CloseButton`'s own doc comment
+      carries the rule it answers to — *"no gesture is the only way to do anything"* (`docs/12`
+      §5) — which is why the chevron exists at all. Right only: a left swipe would have to mean
+      Skip, and an accidental one would drop a card silently, which is the worst thing that can
+      happen on this screen. Horizontal-dominant by 1.5× and `Layout.quickPassBackSwipe` (44) of
+      travel, so it cannot be taken from somebody scrolling — which they are, at accessibility
+      sizes. `.global` coordinate space, per `E32-01`'s rule.
+- [x] **The transition takes its direction from the cursor.** A card that always arrived from the
+      trailing edge would make going back feel like going on, and which-way is the only thing this
+      motion has to say. Reduce Motion keeps the cross-dissolve.
+- [x] **No haptic on back, and none on Skip.** The one in this flow fires from `assign` when a name
+      lands. That is the rule worth keeping: the taptic marks a **commitment**, something now
+      written on the sheet — not a change of screen. A device that buzzes for navigation has
+      stopped meaning anything by it. (`E41-01`'s checklist claimed a soft haptic on Skip that was
+      never built; corrected there rather than left standing.)
+- [x] `a11y.quickpass.back` = *Previous card* — a glyph on screen, a phrase in the ear.
+- [x] Full suite green: 517 unit, 100 snapshot, no mismatches. The `QuickPass-resumed-*` pair is
+      re-recorded and reviewed — it is the one fixture that starts mid-run, so it is where the
+      chevron is actually pictured.
+
+> **Read the snapshot log, not the summary.** Twice in this epic a delegated verify run reported
+> the `QuickPass` goldens as passing when the render had in fact changed. Both times the truth was
+> in the harness's own *"No golden … Written"* / mismatch lines and in whether
+> `__Snapshots__/__Failures__/` had been written to. Check those directly before believing a green
+> line about goldens.

@@ -445,6 +445,7 @@
 "a11y.card.hint" = "Double-tap to choose who dropped this";
 "a11y.quickpass.position" = "Card %lld of %lld";
 "a11y.quickpass.row.hint" = "Double-tap to change this guess";
+"a11y.quickpass.back" = "Previous card";
 "a11y.card.result" = "No. %lld. %@ by %@. Dropped by %@. %lld of %lld got it.";
 "a11y.card.result.mine" = "Your guess was %@. %@.";
 "a11y.sealed" = "Your song is sealed. %@ by %@. Reveal in %@.";

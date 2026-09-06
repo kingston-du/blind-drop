@@ -57,6 +57,12 @@ enum Stroke {
     static let border: CGFloat = 1
     /// The seal stamp outline (`docs/09` §2, phase D).
     static let mark: CGFloat = 2
+    /// The bar that marks a selected row down its leading edge (`E42-01`).
+    ///
+    /// Wider than `mark` because it is read at a glance from the far end of a list rather than
+    /// looked at, and because it is the only thing distinguishing the row you are in — the
+    /// previous answer, a `paperSunk` fill, was four percent of value and said "disabled".
+    static let rail: CGFloat = 3
 }
 
 /// The layout law of `docs/07` §4, named so that a screen states it rather than re-deriving it:
@@ -93,6 +99,22 @@ enum Layout {
     /// A name chip's drawn height; its hit region is `minimumTouchTarget`.
     static let chipHeight: CGFloat = 38
 
+    /// One row of the circle switcher (`E42-01`).
+    ///
+    /// Not `minimumTouchTarget`, which is what it was and which is a *floor* rather than a
+    /// rhythm — 44pt around a 24pt name leaves ten points top and bottom, and a list of those
+    /// reads as a menu somebody compressed. Not `buttonHeight` either: a row is not a control,
+    /// and borrowing that token would make the two move together the next time one of them
+    /// wants to change. 64 is the number, written down once.
+    static let switcherRowHeight: CGFloat = 64
+
+    /// The phase mark on a switcher row (`E42-01`).
+    ///
+    /// `Space.sm` rather than a new number, and it scales with the label beside it at the call
+    /// site. Filled it is a dot; hollow it is a ring at `Stroke.mark`, which leaves a 4pt hole —
+    /// the smallest ring that still reads as *not filled* rather than as a slightly soft dot.
+    static let switcherPip: CGFloat = Space.sm
+
     /// A name chip's drawn height in the quick pass (`E41-01`).
     ///
     /// 38 is right for the call sheet, where the pool is apparatus pinned under a flight somebody
@@ -123,6 +145,13 @@ enum Layout {
     /// artwork lands on `Artwork.quickPassRange`'s floor, and the page scrolls, which is the
     /// right answer there anyway.
     static let quickPassFixedChrome: CGFloat = 328
+
+    /// How far a finger travels before a swipe means *the card behind this one* (`E41-03`).
+    ///
+    /// Generous, because the gesture shares a screen with a vertical scroll at accessibility
+    /// sizes and losing a scroll to a mis-read swipe is worse than losing a swipe to a
+    /// deliberate second try. The chevron is the mechanism; this is the shortcut.
+    static let quickPassBackSwipe: CGFloat = 44
 
     /// A name chip's minimum drawn width (`E26-02`).
     ///
