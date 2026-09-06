@@ -151,7 +151,7 @@ the resume, skip, last-card and all-named rules get proved.
 
 ### E41-02 — Where the push lands, and how the run ends
 
-**Status:** todo
+**Status:** wip
 **Deps:** E41-01
 **Parallel:** no
 **Reads:** `ios/BlindDrop/App/{Router,DeepLink,RootView}.swift`,
