@@ -75,6 +75,33 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// The recap: the run finished, one card left blank, the caller's own card in place. The
+    /// beat that makes the run finishable without touching the call sheet, and the one screen in
+    /// the run that carries the countdown. Across the matrix because the row reflows at
+    /// `.accessibility1` — title and name stop sharing a line, which is the layout an uncapped
+    /// label beside an uncapped label gets wrong by starving one of them to nothing.
+    @Test(arguments: devices, sizes)
+    func recap(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        let store = RevealFixture.store(
+            cardCount: 6,
+            myCardNumber: 3,
+            poolSize: 5,
+            guesses: [1: "Cal", 2: "Ana", 4: "Dee", 6: "Eli"]
+        )
+        // No. 5 is left blank, and the run is walked to its end — which is the only way a blank
+        // card reaches the recap. A gap in a store is a gap the cursor resumes *onto*; a gap on
+        // the recap is one the person went past on purpose.
+        var walked = QuickPassSequence(
+            cardNumbers: store.cards.map(\.cardNumber),
+            isGuessable: store.isGuessable,
+            isAssigned: { store.assignments[$0] != nil }
+        )
+        while !walked.isComplete { walked.advance() }
+        verify(named: "QuickPass-recap", device, size) {
+            screen(store, size: size, device: device, sequence: walked)
+        }
+    }
+
     /// `ImageRenderer` does not run `.onAppear`, so a timer nobody started reads `--:--:--`.
     /// Started against `CountdownFixture`'s frozen clock, so the corner says the same nineteen
     /// seconds on every run.
@@ -88,13 +115,14 @@ private let sizes = SnapshotRenderer.typeSizes
     private func screen(
         _ store: RevealStore,
         size: DynamicTypeSize,
-        device: SnapshotRenderer.Device
+        device: SnapshotRenderer.Device,
+        sequence: QuickPassSequence? = nil
     ) -> some View {
         let clock = ServerClock(uptime: { 1_000 })
         clock.sync(serverNow: CountdownFixture.serverNow)
         let timer = CountdownTimer(clock: clock)
         timer.start(until: store.answersAt, form: Typography.countdownForm(for: size))
-        return QuickPassScreen(store: store, timer: timer, onFinish: {})
+        return QuickPassScreen(store: store, timer: timer, sequence: sequence, onFinish: {})
             .snapshotContent(typeSize: size, availableHeight: 780, availableWidth: device.width)
     }
 

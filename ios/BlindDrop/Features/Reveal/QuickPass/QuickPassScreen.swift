@@ -40,10 +40,19 @@ struct QuickPassScreen: View {
 
     private let accent = PhaseAccent.revealed
 
+    /// - Parameter sequence: where the run starts. Defaults to a fresh one built off the store,
+    ///   which is every production call site.
+    ///
+    ///   The goldens pass one because some states are only *reachable*, never constructible: a
+    ///   recap showing a blank card requires that the person walked the run and skipped one, and
+    ///   a store alone cannot say that — a blank card in a store is a gap the cursor would resume
+    ///   *onto*. Handing the screen a sequence that has already been walked is how the snapshot
+    ///   pictures the state a finger produces, rather than a state that only the fixture can.
     init(
         store: RevealStore,
         timer: CountdownTimer,
         player: PreviewPlayer? = nil,
+        sequence: QuickPassSequence? = nil,
         onFinish: @escaping () -> Void
     ) {
         self.store = store
@@ -51,7 +60,7 @@ struct QuickPassScreen: View {
         self.player = player
         self.onFinish = onFinish
         _sequence = State(
-            initialValue: QuickPassSequence(
+            initialValue: sequence ?? QuickPassSequence(
                 cardNumbers: store.cards.map(\.cardNumber),
                 isGuessable: store.isGuessable,
                 isAssigned: { store.assignments[$0] != nil }
@@ -68,9 +77,6 @@ struct QuickPassScreen: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .background(Palette.paper)
-        .onChange(of: sequence.isComplete) { _, complete in
-            if complete { onFinish() }
-        }
         .onAppear {
             // Nothing to name — a non-submitter who reached this by some route that should not
             // exist. Leave rather than draw an empty apparatus; the flight is where `docs/08` §6
@@ -96,7 +102,13 @@ struct QuickPassScreen: View {
 
     @ViewBuilder
     private func content(availableHeight: CGFloat, availableWidth: CGFloat) -> some View {
-        if let number = sequence.current, let card = card(number) {
+        if sequence.isComplete {
+            recap
+                .padding(.horizontal, Layout.screenInset)
+                .padding(.bottom, Layout.blockGap)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
+        } else if let number = sequence.current, let card = card(number) {
             VStack(alignment: .leading, spacing: Space.none) {
                 chrome
                 numeral(number)
@@ -347,4 +359,164 @@ struct QuickPassScreen: View {
     private func card(_ number: Int) -> CardDTO? {
         store.cards.first { $0.cardNumber == number }
     }
+
+    // MARK: - The recap (`E41-02`)
+
+    /// *Here is what you said* — and the one screen in the run where the deadline belongs.
+    ///
+    /// The beat that makes the run finishable without ever touching the call sheet. A person who
+    /// came in from a push, named five cards and locked in has done the whole night's guessing
+    /// inside one cover, which is the difference between a shortcut and a detour.
+    ///
+    /// The countdown lives here rather than over every card. On a single card it is a per-card
+    /// stopwatch and it takes the eye before the numeral does; here it is the thing somebody is
+    /// actually deciding against — whether to lock in now or go back and change one.
+    private var recap: some View {
+        VStack(alignment: .leading, spacing: Space.none) {
+            chrome
+            HStack(alignment: .firstTextBaseline) {
+                Text("reveal.callsheet")
+                    .typeStyle(.displayM)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !isStacked {
+                    Spacer(minLength: Space.md)
+                    countdown
+                }
+            }
+            .padding(.top, Space.lg)
+            if isStacked {
+                countdown.padding(.top, Space.sm)
+            }
+            VStack(alignment: .leading, spacing: Space.none) {
+                ForEach(store.cards) { card in
+                    recapRow(card)
+                    if card.cardNumber != store.cards.last?.cardNumber {
+                        Rule()
+                    }
+                }
+            }
+            .padding(.top, Layout.blockGap)
+            PrimaryButton("reveal.action", accent: accent, isEnabled: store.assignedCount > 0) {
+                store.lockIn()
+                onFinish()
+            }
+            .padding(.top, Layout.blockGap)
+        }
+    }
+
+    private var countdown: some View {
+        CountdownView(
+            timer: timer,
+            deadline: store.answersAt,
+            accent: accent,
+            announces: .answers,
+            prominence: .inline
+        )
+    }
+
+    /// One line of the sheet: the card's number, its artwork, its title, and what is written
+    /// against it.
+    ///
+    /// **The title and the name do not share a row above `.accessibility1`.** An uncapped label
+    /// beside another uncapped label starves one of them to nothing at large type — the title
+    /// wraps to a letter a line while the name takes the row, or the reverse. They stack instead,
+    /// which is the same reflow `FlightCard` and the reveal header already make at the same
+    /// boundary.
+    @ViewBuilder
+    private func recapRow(_ card: CardDTO) -> some View {
+        let isMine = card.cardNumber == store.myCardNumber
+        let row = Group {
+            if isStacked {
+                // **The text gets the whole column above `.accessibility1`.** Sharing a line with
+                // a numeral and a thumbnail leaves it about two hundred points, and at
+                // `accessibility5` that is narrower than the word *Sickness* — so the title broke
+                // mid-word, *"Motion / Sicknes / s"*. Nothing truncated, which is the letter of
+                // `docs/12` §1, and a title snapped across a syllable is plainly not its spirit.
+                // The identifying pair moves to its own line and the text takes the full width
+                // underneath, where it can break between words like a sentence.
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    HStack(alignment: .center, spacing: Layout.itemGap) {
+                        recapNumeral(card)
+                        ArtworkView(card.track, size: Layout.Artwork.recordRow)
+                    }
+                    Text(verbatim: card.track.title)
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    recapVerdict(card, isMine: isMine)
+                }
+            } else {
+                HStack(alignment: .center, spacing: Layout.itemGap) {
+                    recapNumeral(card)
+                    ArtworkView(card.track, size: Layout.Artwork.recordRow)
+                    Text(verbatim: card.track.title)
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                    Spacer(minLength: Space.sm)
+                    recapVerdict(card, isMine: isMine)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, Layout.rowInset)
+        .contentShape(Rectangle())
+
+        if store.isGuessable(card.cardNumber) {
+            Button { jump(to: card.cardNumber) } label: { row }
+                .buttonStyle(.plain)
+                .accessibilityHint("a11y.quickpass.row.hint")
+        } else {
+            // The caller's own card is on the sheet because the sheet is the flight, and it is
+            // not a control because there is nothing to change on it.
+            row.accessibilityElement(children: .combine)
+        }
+    }
+
+    /// **Ultramarine on every row, the caller's own included.** *Yours* beside it is amber, and
+    /// that is the flight's already-argued exception to `CLAUDE.md` §2.5 — `docs/08` §6: *"the ONE
+    /// place amber appears here, because your card is still your secret"*. The recap is the call
+    /// sheet reached the other way round, so it inherits that exception at exactly the width it
+    /// was granted and no wider. An amber numeral was drawn here first and taken out:
+    /// `FlightCard` colours its number amber when a card is **sealed**, never because it is
+    /// yours, so a second amber element would have been this screen widening a carve-out on its
+    /// own authority.
+    private func recapNumeral(_ card: CardDTO) -> some View {
+        Text(verbatim: String(format: "%02d", card.cardNumber))
+            .typeStyle(.numberM)
+            .foregroundStyle(accent.mark)
+    }
+
+    /// What is written against a card: a name, *Yours*, or the em dash of a card left blank.
+    ///
+    /// The dash is `inkQuiet` — not `alert`, not amber. Once `E39` lands an unfilled card is
+    /// filled at chance rather than scored wrong, so a blank is an honest *I don't know* and the
+    /// recap must never draw it as a failure. Choosing the neutral treatment now means nothing
+    /// here has to change when that arrives.
+    @ViewBuilder
+    private func recapVerdict(_ card: CardDTO, isMine: Bool) -> some View {
+        if isMine {
+            Text("reveal.card.mine")
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.amberText)
+        } else if let name = store.assignments[card.cardNumber].flatMap({ store.displayNames[$0] }) {
+            Text(verbatim: name)
+                .typeStyle(.bodyLStrong)
+                .foregroundStyle(accent.mark)
+        } else {
+            Text("quickpass.recap.blank")
+                .typeStyle(.bodyM)
+                .foregroundStyle(Palette.inkQuiet)
+        }
+    }
+
+    private func jump(to cardNumber: Int) {
+        withAnimation(Motion.QuickPass.advance(reducedMotion: reduceMotion)) {
+            sequence.jump(to: cardNumber)
+        }
+        announceArrival()
+    }
+
+    private var isStacked: Bool { effectiveTypeSize >= .accessibility1 }
 }

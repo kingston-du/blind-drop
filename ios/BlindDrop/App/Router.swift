@@ -26,6 +26,19 @@ final class Router {
     /// A recipient-specific invitation (`E20-02`) waiting for its short accept/decline sheet.
     private(set) var pendingInvitationID: String?
 
+    /// Set when a `.round` or `.results` link is consumed; cleared by whoever acts on it
+    /// (`E41-02`).
+    ///
+    /// `pending` cannot answer *"did this arrival come from a notification?"* on its own, because
+    /// `consume` clears it the moment the round loads — before any phase screen exists to look.
+    /// Both those links mean *today's round*, and the round root is where the tap lands, so this
+    /// is the one bit of the tap that has to outlive the consumption: it is what tells the reveal
+    /// phase to open the quick pass on the first unnamed card rather than on the flight.
+    ///
+    /// A flag rather than a second pending link, because it is not a destination — the
+    /// destination was already reached. It is the *reason* the app is here.
+    private(set) var arrivedFromRoundLink = false
+
     /// `nil` in, nothing happens — `DeepLink.init?` returns `nil` for anything we do not
     /// recognise, and an unrecognised link must not clear a good pending one.
     func receive(_ link: DeepLink?) {
@@ -84,12 +97,18 @@ final class Router {
             guard session == .ready, roundIsLoaded else { return }
             path = []
             pending = nil
+            arrivedFromRoundLink = true
 
         case .record(_):
             guard session == .ready, roundIsLoaded else { return }
             path = [.record]
             pending = nil
         }
+    }
+
+    /// Called once the arrival has been acted on, so a later foreground is an ordinary one.
+    func clearArrivedFromRoundLink() {
+        arrivedFromRoundLink = false
     }
 
     /// Called by the join screen once it has put the code in its field, so returning to the

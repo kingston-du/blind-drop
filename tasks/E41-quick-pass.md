@@ -151,7 +151,7 @@ the resume, skip, last-card and all-named rules get proved.
 
 ### E41-02 — Where the push lands, and how the run ends
 
-**Status:** wip
+**Status:** done
 **Deps:** E41-01
 **Parallel:** no
 **Reads:** `ios/BlindDrop/App/{Router,DeepLink,RootView}.swift`,
@@ -184,7 +184,7 @@ on the first card" is therefore a presentation rule inside `RevealHost`, not a n
 and an `actionIdentifier` branch in `PushAppDelegate.swift:59` — to reach the screen that tapping
 the notification body now reaches anyway. Recorded here so it is a decision rather than a gap.
 
-- [ ] Auto-present rule in `RevealHost`, in priority order:
+- [x] Auto-present rule in `RevealHost`, in priority order:
       1. Never when `canGuess == false`, when every card is named, or while the round's unseal is
          unplayed or running (the open question above).
       2. **Always** when `router.pending` is a `.round` link for this circle — that is a push tap
@@ -192,19 +192,41 @@ the notification body now reaches anyway. Recorded here so it is a decision rath
       3. **Once per round otherwise**, keyed by round id in `UserDefaults`, so a player who
          dismissed the cover to browse the flight is not handed it again on every foreground.
       Unit-test the rule as a pure function over those inputs rather than through the view.
-- [ ] The recap, when the run completes — the beat that makes the flow finishable without ever
+- [x] The recap, when the run completes — the beat that makes the flow finishable without ever
       touching the call sheet. `reveal.callsheet` as a `displayM` heading, then one compact row per
       card: `numberM` numeral · 40pt artwork · title `bodyM` · the name in `bodyLStrong`
       `ultramarine`, *Yours* in `amberText` on your own card, an em dash in `inkQuiet` on a skipped
       one. Tapping a row jumps back to that card. `PrimaryButton` **Lock in guesses** at the foot,
       calling the store's existing `lockIn()`. Scrolls at twelve rows; same `snapshotContent`
       treatment.
-- [ ] The em dash on a skipped card is the honest mark and it is `inkQuiet`, not `alert` and not
+- [x] The em dash on a skipped card is the honest mark and it is `inkQuiet`, not `alert` and not
       amber. Once `E39` lands, a skipped card is filled at chance rather than scored as wrong, so
       the recap must never render a blank as a failure. Nothing here blocks on `E39`; the treatment
       is chosen so that it does not have to change when it arrives.
-- [ ] Dismissing the recap — by **Lock in guesses** or by `CloseButton` — lands on the flight with
+- [x] Dismissing the recap — by **Lock in guesses** or by `CloseButton` — lands on the flight with
       the call sheet at its open detent, every chip filled in, ready to change. *"Here is what you
       said"*, not another screen of the same task.
-- [ ] `docs/08` gains §6.1 describing the quick pass, its states and the auto-present rule, so the
+- [x] `docs/08` gains §6.1 describing the quick pass, its states and the auto-present rule, so the
       screen spec is not only in this epic.
+
+**Two corrections after looking at the recap's goldens:**
+
+- **The numeral on the caller's own row was amber, and is not any more.** `docs/08` §6 grants the
+  flight exactly one amber element on an ultramarine screen — the *Yours* label, *"because your
+  card is still your secret"* — and `FlightCard` colours its number amber when a card is **sealed**,
+  never because it is the caller's. A second amber element here would have been this screen
+  widening an already-argued carve-out on its own authority. `CLAUDE.md` §2.5 holds.
+- **At `accessibility5` the title broke mid-word** — *"Motion / Sicknes / s"* — because sharing a
+  line with a numeral and a thumbnail left it about two hundred points. Nothing truncated, which
+  is the letter of `docs/12` §1 and plainly not its spirit. Above `.accessibility1` the numeral and
+  the thumbnail take their own line and the text has the full column.
+
+> **Unverified at close: the simulator pass.** The owner suspended per-slice passes for this epic
+> and asked for the budget not to be spent on them; the one consolidated pass this slice's Verify
+> line names was **not run**. Reaching a `revealed` round on a simulator needs either a live
+> backend at the right hour or the demo lifecycle driven into phase, and neither is a cheap
+> screenshot. What is covered instead: 508 unit tests and 99 snapshot goldens, including the
+> artwork clamp at both ends of the circle-size range and `accessibility5` on an SE for both the
+> card and the recap. What is **not** covered by any of that, and is the owner's device pass to
+> judge: the feel of the advance, the haptics, the cover's presentation, and whether the quick pass
+> waiting for the unseal on a round's first arrival is right.

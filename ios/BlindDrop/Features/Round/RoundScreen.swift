@@ -816,6 +816,19 @@ private struct RevealHost: View {
                 }
             }
         }
+        // **Where a reveal push lands** (`E41-02`). Nothing on the server changes for this: the
+        // `reveal` and `guess_reminder` pushes already deep-link to the round root, which during
+        // `revealed` is this view. All that was missing is the decision about what to open, and
+        // `QuickPassPresentation` is that decision, kept as a pure function so its three clauses
+        // are testable rather than buried in a condition here.
+        //
+        // Driven off the unseal's scheduling as well as the store, because *wait for the unseal*
+        // is a state that changes after this view first appears — a plain `.task` would evaluate
+        // once, decide no, and never look again.
+        .onChange(of: presentationConditions) { _, conditions in
+            offerQuickPassIfNeeded(conditions)
+        }
+        .onAppear { offerQuickPassIfNeeded(presentationConditions) }
         .task(id: payload.cards.map(\.cardNumber)) {
             guard store == nil else {
                 // A refetch during the reveal: take the server's saved sheet, keep the taps.
@@ -852,6 +865,26 @@ private struct RevealHost: View {
             )
             store = built
         }
+    }
+
+    private var presentationConditions: QuickPassPresentation.Conditions {
+        QuickPassPresentation.Conditions(
+            canGuess: payload.canGuess,
+            hasUnnamedCards: (store?.assignedCount ?? 0) < (store?.assignableCount ?? 0),
+            unsealHasRun: unseal?.hasFinishedScheduling ?? false,
+            arrivedFromLink: env.router.arrivedFromRoundLink,
+            alreadyOfferedThisRound: env.flags.hasOfferedQuickPass(roundID: roundID)
+        )
+    }
+
+    private func offerQuickPassIfNeeded(_ conditions: QuickPassPresentation.Conditions) {
+        guard !quickPassPresented, QuickPassPresentation.shouldPresent(conditions) else { return }
+        // Recorded whichever clause let it through, so the *once otherwise* clause is true of an
+        // arrival that came from a link too — a person handed the cover by a notification has
+        // been offered it, and should not be handed it again by their next ordinary foreground.
+        _ = env.flags.beginQuickPass(roundID: roundID)
+        env.router.clearArrivedFromRoundLink()
+        quickPassPresented = true
     }
 }
 

@@ -360,6 +360,75 @@ tracked by a persisted `hasSeenUnseal(roundId)` flag. Never on a re-open.
 
 ---
 
+### 6.1 The quick pass — `revealed`, one card at a time (`E41`)
+
+A `fullScreenCover` over the flight. The first in the app; every other modal is a `.sheet`, and
+the reason for the difference is that a sheet's grabber and inset corners keep the flight visible
+behind the one screen that is deliberately about a single card, with its detent chrome sitting
+exactly where the name grid needs to be.
+
+```
+┌─────────────────────────────┐
+│  ✕                          │   close, and deliberately nothing else
+│                             │
+│  04 / 08                    │   displayXL ultramarine + displayS inkFaint,
+│                             │   both %02lld. The flight position, never a
+│  ┌───────────────────────┐  │   count of what is left
+│  │                       │  │
+│  │        artwork        │  │   the largest in the app; side is what the
+│  │                       │  │   column has not claimed, clamped 140…360
+│  └───────────────────────┘  │
+│  Motion Sickness       ▶︎   │   bodyLStrong / bodyM inkDim / PreviewControl
+│  Phoebe Bridgers            │
+│                             │
+│  ┌──────┐ ┌──────┐ ┌──────┐ │   NameChip .large, 52pt, filling an adaptive
+│  │ Ana  │ │ Ben  │ │ C̶a̶l̶  │ │   grid — 3 columns, 2 on an SE, 1 at
+│  └──────┘ └──────┘ └──────┘ │   accessibility sizes
+│  ┌──────┐ ┌──────┐          │
+│  │ Dee  │ │ Eli  │          │
+│  └──────┘ └──────┘          │
+│           Skip              │   SecondaryButton, centred, its own row
+└─────────────────────────────┘
+```
+
+**No prompt text and no countdown.** *"Who dropped this?"* is not drawn: a numeral, one song and a
+grid of names is already the question. The countdown is not drawn either — eight ultramarine
+digits in the corner take the eye before the numeral does, and a clock over a single card is a
+per-card stopwatch. It is on the recap instead, and on the flight underneath.
+
+**The run** is every card the caller may name, in flight order; their own card is passed over
+silently, so the numeral can read `03` then `05`. The cursor starts at the first card without a
+name, so a cover closed mid-run resumes where it was. Tapping a name fills the chip ultramarine
+for ~100ms, fires `.impact(.light)`, and the card leaves leading while the next arrives trailing —
+one spring, 220ms, cross-dissolve under Reduce Motion. Skip is the same transition with
+`.impact(.soft)`.
+
+**The recap** replaces the card when the run ends: `reveal.callsheet` as the heading with the
+countdown beside it, one row per card — numeral, thumbnail, title, and the name in ultramarine,
+*Yours* in `amberText`, or an `inkQuiet` em dash on a card left blank — and **Lock in guesses** at
+the foot. Tapping a row goes back to that card, and answering it returns here rather than walking
+out the rest of the run. Above `.accessibility1` the numeral and thumbnail take their own line and
+the text has the full column.
+
+**Getting in.** The reveal screen's primary action reads *Start naming* while the sheet is empty
+and reverts to *Lock in guesses* once anything is assigned; tapping a card still opens the call
+sheet, unchanged. The cover also opens itself, on three clauses in priority order
+(`QuickPassPresentation`):
+
+1. **Never** when the caller cannot guess, when every card is named, or while the round's unseal
+   is still to run. The unseal carries half the app's motion budget and plays once a round; a
+   modal over it spends the signature moment on nothing.
+2. **Always** on a consumed `.round` deep link — a `reveal` or `guess_reminder` push tap. An
+   explicit intent, and it re-presents however often it happens.
+3. **Once otherwise**, per round per install. Dismissing the cover to browse the flight is a thing
+   the person said.
+
+Nothing on the server carries this: those pushes already deep-link to the round root, which during
+`revealed` is the reveal host.
+
+**Non-submitters never reach it.** No entry control, and the cover cannot present. They keep the
+flight with the guess apparatus disabled but whole, per §6 — they must see exactly what they missed.
+
 ## 7. Results — `scored`
 
 Accent: **ultramarine**. Three sections in one scroll, under the same `RoundHeader` §6 draws —

@@ -84,6 +84,10 @@ final class LocalFlags {
         return true
     }
 
+    func hasOfferedQuickPass(roundID: String) -> Bool {
+        defaults.stringArray(forKey: Key.autoOpenedQuickPassRounds)?.contains(roundID) == true
+    }
+
     // MARK: - Results (`docs/09` §4)
 
     /// Whether this install has already run the results name-resolve for a round.

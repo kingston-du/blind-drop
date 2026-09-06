@@ -142,3 +142,77 @@ import Testing
         #expect(run.isComplete)
     }
 }
+
+/// `E41-02`. When the cover opens itself.
+///
+/// Three clauses, and both ways of getting them wrong are silent: once too often and the quick
+/// pass is an obstruction somebody has to dismiss on every foreground; once too rarely and the
+/// feature quietly does not exist for anyone who does not go looking. Neither shows up in a
+/// screenshot.
+@Suite struct QuickPassPresentationTests {
+
+    /// The ordinary case: guess window open, nothing named, unseal done, no link, never offered.
+    private func conditions(
+        canGuess: Bool = true,
+        hasUnnamedCards: Bool = true,
+        unsealHasRun: Bool = true,
+        arrivedFromLink: Bool = false,
+        alreadyOfferedThisRound: Bool = false
+    ) -> QuickPassPresentation.Conditions {
+        .init(
+            canGuess: canGuess,
+            hasUnnamedCards: hasUnnamedCards,
+            unsealHasRun: unsealHasRun,
+            arrivedFromLink: arrivedFromLink,
+            alreadyOfferedThisRound: alreadyOfferedThisRound
+        )
+    }
+
+    @Test func itOpensOnTheFirstArrivalOfARound() {
+        #expect(QuickPassPresentation.shouldPresent(conditions()))
+    }
+
+    // MARK: - The refusals
+
+    /// A non-submitter is shown the flight with the apparatus disabled but whole (`docs/08` §6).
+    /// The quick pass would be an empty pool with nothing to do in it.
+    @Test func itNeverOpensForSomebodyWhoCannotGuess() {
+        #expect(!QuickPassPresentation.shouldPresent(conditions(canGuess: false)))
+    }
+
+    @Test func itNeverOpensOnAFullSheet() {
+        #expect(!QuickPassPresentation.shouldPresent(conditions(hasUnnamedCards: false)))
+    }
+
+    /// **The unseal gets its night.** It carries half the app's motion budget and plays once per
+    /// round; a modal over it spends the signature moment on nothing.
+    @Test func itWaitsForTheUnseal() {
+        #expect(!QuickPassPresentation.shouldPresent(conditions(unsealHasRun: false)))
+    }
+
+    /// And the refusals outrank an explicit intent. A push tap on a round somebody cannot guess
+    /// in still lands on the flight.
+    @Test func aLinkDoesNotOverrideTheRefusals() {
+        #expect(!QuickPassPresentation.shouldPresent(
+            conditions(canGuess: false, arrivedFromLink: true)
+        ))
+        #expect(!QuickPassPresentation.shouldPresent(
+            conditions(unsealHasRun: false, arrivedFromLink: true)
+        ))
+    }
+
+    // MARK: - Once, unless asked
+
+    /// Dismissed to browse the flight is a thing the person said, and it is remembered.
+    @Test func itDoesNotOpenTwiceOnItsOwn() {
+        #expect(!QuickPassPresentation.shouldPresent(conditions(alreadyOfferedThisRound: true)))
+    }
+
+    /// A notification tap is a question just re-asked. Having dismissed the cover earlier is not
+    /// an answer to it.
+    @Test func aLinkReopensItAfterADismissal() {
+        #expect(QuickPassPresentation.shouldPresent(
+            conditions(arrivedFromLink: true, alreadyOfferedThisRound: true)
+        ))
+    }
+}

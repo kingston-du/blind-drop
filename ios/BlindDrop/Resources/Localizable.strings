@@ -351,6 +351,7 @@
 "reveal.quickpass.start" = "Start naming";
 "quickpass.of" = "/ %02lld";
 "quickpass.skip" = "Skip";
+"quickpass.recap.blank" = "—";
 "reveal.callsheet.naming" = "Naming No. %lld";
 "reveal.callsheet.expand" = "Expand call sheet";
 "reveal.callsheet.collapse" = "Collapse call sheet";
@@ -443,6 +444,7 @@
 "a11y.card.mine" = "No. %lld. %@ by %@. Your song.";
 "a11y.card.hint" = "Double-tap to choose who dropped this";
 "a11y.quickpass.position" = "Card %lld of %lld";
+"a11y.quickpass.row.hint" = "Double-tap to change this guess";
 "a11y.card.result" = "No. %lld. %@ by %@. Dropped by %@. %lld of %lld got it.";
 "a11y.card.result.mine" = "Your guess was %@. %@.";
 "a11y.sealed" = "Your song is sealed. %@ by %@. Reveal in %@.";

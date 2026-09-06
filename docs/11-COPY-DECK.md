@@ -338,6 +338,12 @@ whole argument is that nothing should have to be read.
 | `quickpass.of` | / %02lld | The flight size, beside the card's own number — *"04 / 08"*. Zero-padded on both halves, the same `%02lld` `FlightCard` already uses on the flight, because *"01 / 6"* reads as two different kinds of number. The card number itself is not a string; it is that format in the display face. |
 | `quickpass.skip` | Skip | `docs/07` §5 already names **Skip** as one of `SecondaryButton`'s three jobs, and that settles both the word and the treatment. Not *"No idea"*, which is funnier and is a sentence; not *"I don't know"*, which apologises. Once `E39` lands an unfilled card is filled at chance rather than scored wrong, so this can never be worded as a failure. |
 | `a11y.quickpass.position` | Card %lld of %lld | The numeral read aloud. *"Card"*, not *"No."*, because VoiceOver says the abbreviation as *"number"* anyway and the flight already calls them cards. |
+| `quickpass.recap.blank` | — | A card left blank, on the recap. An em dash and not a word: *"Skipped"* is a verdict on the person and *"Nobody"* is a verdict on the card, and neither is true. `inkQuiet`, never `alert` and never amber — once `E39` fills an unfilled card at chance rather than scoring it wrong, a blank must not read as a failure, and choosing the neutral mark now means nothing changes when it lands. |
+| `a11y.quickpass.row.hint` | Double-tap to change this guess | The recap's rows. Absent on the caller's own row, which is on the sheet because the sheet is the flight and is not a control. |
+
+The recap reuses `reveal.callsheet` as its heading and `reveal.action` (**Lock in guesses**) as its
+button, deliberately: it *is* the call sheet, reached the other way round, and a second name for it
+would make two things out of one.
 
 **There is no `quickpass.prompt`.** *"Who dropped this?"* (`reveal.card.prompt`) is not drawn on
 this screen and no replacement is written for it. A big numeral, one song and a grid of names is

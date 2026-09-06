@@ -604,7 +604,7 @@ slices, both client-only — no migration, no endpoint, no push-worker change. D
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E41-01 One card, one tap, next | done | — | no | AC-4 |
-| E41-02 Where the push lands, and how the run ends | wip | E41-01 | no | AC-4 |
+| E41-02 Where the push lands, and how the run ends | done | E41-01 | no | AC-4 |
 
 ---
 
@@ -659,5 +659,5 @@ slices, both client-only — no migration, no endpoint, no push-worker change. D
 | E37 drop screen redesign | 1 / 1 |
 | E38 circles end to end | 4 / 4 |
 | E40 reads maths | 1 / 1 |
-| E41 quick pass | 1 / 2 |
+| E41 quick pass | 2 / 2 |
 | **Next-progression total** | **22 / 22** |
