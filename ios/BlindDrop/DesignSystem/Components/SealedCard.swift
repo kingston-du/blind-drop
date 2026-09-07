@@ -31,6 +31,9 @@ struct SealedCard: View {
     /// already arrived and **must not replay the animation underneath the sheet** (`docs/08` §3.2).
     /// `ConfirmScreen` is the one caller that drives it from `.unsealed`.
     var phase: SealPhase = .sealed
+    /// The colour of the corner overflow. It sits on the amber cover rather than on white, so
+    /// the caller passes the accent it already resolved, the same way it passes `phase`.
+    var menuColor: Color = Palette.amber
     /// `docs/09` §5. Passed in rather than read from the environment so a snapshot can render both
     /// paths' end states and compare them.
     var reducedMotion: Bool = false
@@ -54,6 +57,7 @@ struct SealedCard: View {
     /// rather than a fixed radius that made sense for a 44pt strip and nowhere near covered an
     /// artwork the width of the screen.
     @State private var cardSize: CGSize = .zero
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
@@ -64,6 +68,23 @@ struct SealedCard: View {
                 reducedMotion: reducedMotion,
                 isPeeking: isPeeking
             )
+            // **The overflow hangs off the artwork, not off the card.** It used to be an overlay
+            // on `SealedCard` in `SealedScreen`, inset by `Layout.cardInset` — which is the same
+            // spot only while the artwork actually fills the card. It often does not:
+            // `ArtworkView` is `maxWidth: .infinity` plus a 1:1 `.fit`, so it is width-driven
+            // only when the height it is offered is at least the width it is offered, and on this
+            // screen it is not — the square competes with the countdown and **Replace song** and
+            // comes out short. The stack is `.leading`, so the shortfall lands entirely on the
+            // right, and a card-anchored glyph floated out into that gutter: half on the cover,
+            // half off it, by an amount that changed with the phone and the type size. The stamp
+            // never drifted because the stamp was always on the artwork. Now both marks on the
+            // cover are placed by the same rectangle and cannot disagree.
+            //
+            // No padding, deliberately: `TrackUtilityMenu` is a 44pt target around a small glyph,
+            // so a box flush with the artwork's corner puts the glyph's centre 22pt inside it —
+            // exactly where the old `Layout.cardInset` put it on the phones where there was no
+            // gutter to be wrong about.
+            .overlay(alignment: .topTrailing) { linksMenu }
             peekableMetadata
         }
         // White, with the amber only in the border and in what is stamped on the cover. A card
@@ -114,6 +135,50 @@ struct SealedCard: View {
             Copy.A11y.sealed(title: track.title, artist: track.artist, remaining: remaining)
         )
         .accessibilityAddTraits([.isImage, .isStaticText])
+        // `linksMenu` is `accessibilityHidden` — this is how the two links inside it stay
+        // reachable now that the menu is drawn inside a card that collapses to one element
+        // (`docs/12` §2). The same trade `FlightCard` already makes for the same menu, in the
+        // same order: Apple Music first, and a service absent from the payload absent here.
+        .accessibilityActions {
+            if let apple = TrackLinkDestination.appleMusic(track: track) {
+                Button(action: { TrackLinkRouter.open(apple, using: SystemTrackLinkOpener()) }) {
+                    Text("link.apple")
+                }
+            }
+            if let spotify = TrackLinkDestination.spotify(track: track) {
+                Button(action: { TrackLinkRouter.open(spotify, using: SystemTrackLinkOpener()) }) {
+                    Text("link.spotify")
+                }
+            }
+        }
+    }
+
+    /// Absent, not empty, when the payload carries neither service: an ellipsis that opens onto
+    /// nothing is worse than no ellipsis. `FlightCard.hasLinks` makes the same test.
+    private var hasLinks: Bool {
+        TrackLinkDestination.appleMusic(track: track) != nil
+            || TrackLinkDestination.spotify(track: track) != nil
+    }
+
+    /// The card's overflow, hidden from VoiceOver here and re-exposed through `body`'s
+    /// `.accessibilityActions`.
+    ///
+    /// **It goes with the cover.** Like the stamp, it is a mark *on the seal* rather than on the
+    /// song — it is drawn in the accent, over the amber, and a peek is the one moment the artwork
+    /// underneath is the thing being looked at. Leaving it lit would print an amber glyph on
+    /// somebody's album cover for as long as the finger is down. Same curve as the cover and the
+    /// stamp, and the same closing behaviour: `SealedScreen.reseal()` wraps every release in a
+    /// `disablesAnimations` transaction, so the open fades and the close snaps.
+    @ViewBuilder private var linksMenu: some View {
+        if hasLinks {
+            TrackUtilityMenu(track: track, color: menuColor)
+                .opacity(isPeeking ? 0 : 1)
+                .animation(reducedMotion ? Motion.Peek.reduced : Motion.Peek.animation, value: isPeeking)
+                // Invisible and still tappable is a defect, not a detail: a finger already down
+                // on the card can wander onto this and lift there.
+                .allowsHitTesting(!isPeeking)
+                .accessibilityHidden(true)
+        }
     }
 
     /// `docs/08` §4: held, the title and artist show plainly, small, in `inkDim` — never a leak,
@@ -128,6 +193,18 @@ struct SealedCard: View {
     /// on every closing path — a `disablesAnimations` transaction overrides an explicit
     /// modifier exactly as it overrides `withAnimation`, so opening still gets `Motion.Peek` and
     /// closing still gets nothing, from the same state change and the same view.
+    /// `TrackRow`'s rule, for `TrackRow`'s reason (`docs/12` §1): one truncating line at normal
+    /// reading sizes, unlimited from `.accessibility1` up.
+    ///
+    /// **Here it also holds the cover still.** Both halves of `peekableMetadata` are laid out at
+    /// all times — that is what lets them crossfade — so the `ZStack` is as tall as the taller of
+    /// them, and an unlimited title made that height a function of *which song you dropped*. A
+    /// two-line title stole ~30pt from the artwork above it, permanently and while sealed, so the
+    /// same phone drew a different-sized cover on different nights. One line is one height.
+    private var lineLimit: Int? {
+        dynamicTypeSize >= .accessibility1 ? nil : 1
+    }
+
     private var peekableMetadata: some View {
         ZStack(alignment: .leading) {
             Text("sealed.peek")
@@ -138,10 +215,12 @@ struct SealedCard: View {
                 Text(verbatim: track.title)
                     .typeStyle(.displayS)
                     .foregroundStyle(Palette.ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(lineLimit)
+                    .fixedSize(horizontal: false, vertical: lineLimit == nil)
                 Text(verbatim: track.artist)
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
+                    .lineLimit(lineLimit)
             }
             .opacity(isPeeking ? 1 : 0)
         }

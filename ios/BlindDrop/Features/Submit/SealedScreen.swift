@@ -53,12 +53,24 @@ struct SealedScreen: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.xl) {
+        // **`Space.sm`, not `Space.xl`, and the card gets the difference.** The cover is the one
+        // flexible thing on this screen — square-to-fit — so every point spent anywhere above or
+        // below it comes straight out of the artwork. Two `Space.xl` gaps around the spacer put
+        // 40pt of nothing between the countdown and **Replace song** while the cover sat 45pt
+        // short of the card it lives in. The countdown keeps its old 20pt above it via its own
+        // `.padding(.top)`; what closed up is the run to the button, which had the most air and
+        // the least to say (owner, 2026-09-05).
+        VStack(alignment: .leading, spacing: Space.sm) {
             VStack(alignment: .leading, spacing: Layout.itemGap) {
                 SealedCard(
                     track: submission.track,
                     groupInitial: context.groupInitial,
                     remaining: Copy.countdown(timer.display),
+                    // The cover's upper-right is empty — the stamp lands lower-right (`docs/09`
+                    // §2) — so the one compact service menu belongs there. It is the card's own
+                    // now rather than an overlay this screen hangs off it: only the card knows
+                    // where its artwork actually ends. See `SealedCard.linksMenu`.
+                    menuColor: accent.text,
                     isPeeking: isPeeking,
                     // A press begins in the ordinary way; a release goes through `reseal()`, the
                     // same no-animation path every other way a hold ends uses, so a release is
@@ -82,23 +94,10 @@ struct SealedScreen: View {
                         }
                     }
                 )
-                // The cover's upper-right is empty — the stamp lands lower-right (`docs/09` §2)
-                // — so the one compact service menu belongs there. It stays outside
-                // `SealedCard`, whose contents are deliberately one VoiceOver element.
-                .overlay(alignment: .topTrailing) {
-                    if TrackLinkDestination.appleMusic(track: submission.track) != nil
-                        || TrackLinkDestination.spotify(track: submission.track) != nil {
-                        // `SealedCard` insets its artwork by `Layout.cardInset` (`E28-04`: moved
-                        // up and right off that plain inset, which crowded the seal stamp's own
-                        // 8pt corner margin more than it needed to).
-                        TrackUtilityMenu(track: submission.track, color: accent.text)
-                            .padding(.top, Layout.cardInset)
-                            .padding(.trailing, Layout.cardInset)
-                    }
-                }
-                status
+                if didReplace { status }
             }
             countdown
+                .padding(.top, Space.md)
             Spacer(minLength: Space.none)
             // Reopens search. A replacement re-runs the seal in the sheet, which is why this is
             // a plain callback and not something this screen animates.
@@ -164,7 +163,13 @@ struct SealedScreen: View {
     }
 
     /// The number the screen is really about, centred, with the word for what it counts to above
-    /// it and the one line about everybody else beneath.
+    /// it.
+    ///
+    /// **`sealed.company` used to sit beneath it** — *"Come back for the reveal to see today's
+    /// drops."* — and it is gone (owner, 2026-09-05). It said what the badge, the label and the
+    /// number above it already say three times over, and it was the last 34pt standing between
+    /// the cover and the width of its own card. The screen is now four things: the cue, the card,
+    /// the clock, the way out.
     private var countdown: some View {
         VStack(spacing: Space.sm) {
             SectionLabel("sealed.opens.label")
@@ -174,12 +179,6 @@ struct SealedScreen: View {
                 accent: accent,
                 announces: .reveal
             )
-            Text("sealed.company")
-                .typeStyle(.bodyS)
-                .foregroundStyle(Palette.inkDim)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, Space.xs)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

@@ -290,7 +290,7 @@ word beside it repeated a fact the countdown already carries.
 | `sealed.status` | Sealed until %@. |
 | `sealed.badge` | Sealed |
 | `sealed.peek` | Hold to peek |
-| `sealed.opens.label` | Opens in |
+| `sealed.opens.label` | Drops in |
 | `sealed.countdown.label` | until reveal |
 | `sealed.replace` | Replace song |
 | `sealed.replaced` | Sealed again. |
