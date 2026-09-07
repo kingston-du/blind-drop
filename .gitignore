@@ -24,6 +24,9 @@ server/.supabase/
 build/
 DerivedData/
 ios/.build/
+# The same derived data, when `-derivedDataPath .build` is passed from the repo root instead of
+# from `ios/`. 167MB of build products that `ios/.build/` above already means to exclude.
+/.build/
 *.xcuserstate
 xcuserdata/
 *.xcscmblueprint
