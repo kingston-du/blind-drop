@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import UIKit
 
 /// The 30-second preview (`docs/06` §4, *Previews*).
 ///
@@ -18,6 +19,17 @@ import Foundation
 ///
 /// `.duckOthers` is deliberately **off** (`docs/12` §7): a preview must not duck VoiceOver
 /// mid-sentence, and a 30-second clip the user asked for should be the only thing playing anyway.
+///
+/// A fifth rule, which is rules 1 and 4 restated for the two ways a preview ends without anybody
+/// tapping anything: **the sound going away for a reason outside this app is still the sound
+/// ending.** The app declares no background audio mode, so the system pauses the player the
+/// moment it backgrounds, and a phone call takes the session outright. Neither tells this type,
+/// which is what left `playing` pointing at a track that had gone silent: the row kept its pause
+/// control, the session was never handed back so the user's own music never resumed, and the
+/// first tap on that control read as *"stop the thing already playing"* and did nothing audible
+/// — a preview that took two taps to restart. `observeInterruptions()` is the fix, and it lives
+/// here rather than in a `scenePhase` handler on each screen because there are five screens that
+/// play previews and an interruption is not a scene phase on any of them.
 @Observable @MainActor
 final class PreviewPlayer {
 
@@ -32,16 +44,64 @@ final class PreviewPlayer {
     /// Watches for the clip ending so the session can be released. Cancelled and replaced per
     /// play; never a notification observer that outlives the sound (`docs/13` §6).
     private var completion: Task<Void, Never>?
+    /// The app going to the background, and a call taking the session — the two things that
+    /// silence a preview without a tap. See `observeInterruptions()`.
+    private var interruptions: Task<Void, Never>?
+    private var interrupted: Task<Void, Never>?
 
     /// - Parameters:
     ///   - player: injectable so a test can drive the state machine without a decoder.
     ///   - session: the audio session, behind a protocol for the same reason —
     ///     `AVAudioSession.sharedInstance()` is process-wide, and a unit test that activated it
     ///     would stop the music on the machine running it.
-    init(player: AVPlayer = AVPlayer(), session: any AudioSession = SystemAudioSession()) {
+    ///   - observesInterruptions: off in the unit suite, where there is no app to background and
+    ///     a live `NotificationCenter` subscription is a second thing running under the test.
+    init(
+        player: AVPlayer = AVPlayer(),
+        session: any AudioSession = SystemAudioSession(),
+        observesInterruptions: Bool = true
+    ) {
         self.player = player
         self.session = session
         player.actionAtItemEnd = .pause
+        if observesInterruptions { observeInterruptions() }
+    }
+
+    /// Ends the preview when the system does, rather than when a finger does.
+    ///
+    /// Two notifications, one handler, because the user-visible answer is the same for both: the
+    /// clip is over. `stop()` is idempotent and no-ops when nothing is playing, so a background
+    /// with no preview running costs a comparison.
+    ///
+    /// `[weak self]` and no explicit teardown, which is the same bargain `CountdownTimer`'s
+    /// ticker makes and for the same reason: the loop wakes only when one of these actually
+    /// fires, and the first wake after this player is gone returns. There is no `deinit` here to
+    /// get wrong.
+    private func observeInterruptions() {
+        // Backgrounding, not resigning active: the app switcher and a Control Centre pull both
+        // resign active without stopping the audio, and killing a preview for a swipe the user
+        // cancelled would be the more annoying bug.
+        interruptions = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: UIApplication.didEnterBackgroundNotification
+            ) {
+                guard let self else { return }
+                self.stop()
+            }
+        }
+        interrupted = Task { @MainActor [weak self] in
+            for await note in NotificationCenter.default.notifications(
+                named: AVAudioSession.interruptionNotification
+            ) {
+                // Only `.began` — the app never resumes a preview by itself (`docs/12` §7:
+                // nothing autoplays audio, ever), so `.ended` has nothing to do and its
+                // `shouldResume` option is deliberately ignored.
+                let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                guard raw == AVAudioSession.InterruptionType.began.rawValue else { continue }
+                guard let self else { return }
+                self.stop()
+            }
+        }
     }
 
     /// Plays this track's preview, or stops it if it is the one already playing.

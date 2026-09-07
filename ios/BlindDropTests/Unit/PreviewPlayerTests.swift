@@ -13,7 +13,9 @@ import Testing
 
     private func makePlayer() -> (PreviewPlayer, FakeAudioSession) {
         let session = FakeAudioSession()
-        return (PreviewPlayer(player: AVPlayer(), session: session), session)
+        // No notification observers under test: there is no app here to background, and a
+        // live subscription would be a second thing running alongside the assertions.
+        return (PreviewPlayer(player: AVPlayer(), session: session, observesInterruptions: false), session)
     }
 
     /// **Nothing autoplays, ever, under any setting** (`docs/12` §7). A freshly built player is
