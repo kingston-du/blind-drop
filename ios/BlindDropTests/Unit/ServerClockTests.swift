@@ -308,6 +308,45 @@ import Testing
         timer.stop()
     }
 
+    /// The other half of the reference count: re-pointing an already-observed timer must **not**
+    /// take a second hold.
+    ///
+    /// `CountdownView` re-points on two changes it sees without appearing or disappearing — the
+    /// round moving to a phase that counts to a different instant, and a Dynamic Type size that
+    /// changes the tick cadence. Both used to call `start(until:form:)`, which increments, while
+    /// only `onDisappear` decrements. One deadline change was enough to put the count permanently
+    /// above zero, so `stop()` never cancelled the ticker and it ran on at 1Hz for the rest of the
+    /// process — writing `hasElapsed` behind a screen nobody was looking at, which `RoundScreen`
+    /// reads to decide whether to refetch.
+    ///
+    /// A stopped ticker is asserted the only way it is observable from out here: advance the
+    /// clock past the point where a running one would have redrawn, and require the digits not to
+    /// have moved.
+    @MainActor
+    @Test func repointingDoesNotTakeASecondHold() async throws {
+        let (clock, uptime) = makeClock()
+        clock.sync(serverNow: try instant("2026-08-10T18:00:00Z"))
+        let timer = CountdownTimer(clock: clock)
+
+        // One view appears, and is later re-pointed twice — the dark hours giving way to the
+        // blind window, then the round revealing — without ever leaving the screen. Precise
+        // throughout, so a ticker still alive at the end would visibly move within a second.
+        timer.start(until: try instant("2026-08-10T18:00:30Z"), form: .precise)
+        timer.repoint(until: try instant("2026-08-11T00:00:00Z"), form: .precise)
+        timer.repoint(until: try instant("2026-08-11T02:00:00Z"), form: .precise)
+        #expect(timer.display == .precise(hours: 8, minutes: 0, seconds: 0))
+
+        // That one view goes away. It took one hold, so this releases the last one.
+        timer.stop()
+
+        uptime.advance(5)
+        try await Task.sleep(for: .seconds(1.3))
+        #expect(
+            timer.display == .precise(hours: 8, minutes: 0, seconds: 0),
+            "the ticker must be cancelled once the only view watching it has gone"
+        )
+    }
+
     /// `RoundScreen` hands one `CountdownTimer` to every phase screen, and two `CountdownView`s
     /// can be mounted on it for a single frame — the header badge disappearing the instant a
     /// submission is sealed, as the sealed card's own countdown appears in the same render.

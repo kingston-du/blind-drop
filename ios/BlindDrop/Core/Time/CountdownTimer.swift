@@ -148,26 +148,50 @@ final class CountdownTimer {
         self.clock = clock
     }
 
-    /// Points the timer at a deadline and starts ticking. Calling it again re-points it — a
-    /// screen whose round moved from `open` to `revealed` gets one timer, not two — and it is
-    /// safe to call from more than one `CountdownView` at once, which is the case this timer is
-    /// actually built for.
+    /// **One observer arriving.** Takes a hold, points the timer, and starts ticking. Safe to
+    /// call from more than one `CountdownView` at once, which is the case this timer is actually
+    /// built for — see `activeObservers`.
+    ///
+    /// It is paired with `stop()` one-for-one, and that pairing is the whole of the reference
+    /// count's correctness. A view that is already on screen and merely wants the timer aimed
+    /// somewhere else calls `repoint(until:form:)` instead: it has already taken its hold, and
+    /// taking a second one it will never release is a hold that never reaches zero, which is a
+    /// ticker that outlives every screen that ever wanted it — the exact thing `stop()`'s note
+    /// says cannot happen.
+    func start(until deadline: Date, form: CountdownForm) {
+        activeObservers += 1
+        repoint(until: deadline, form: form)
+    }
+
+    /// **Aims an already-observed timer somewhere else**, without touching the reference count.
+    ///
+    /// `CountdownView` re-points on two changes it can see without appearing or disappearing:
+    /// the round moved to a phase that counts to a different instant, and the Dynamic Type size
+    /// crossed the threshold that changes the tick cadence (`docs/12` §1). Neither is a new
+    /// observer — it is the same view, still on screen, still holding the one hold it took on
+    /// appear — so neither may increment.
     ///
     /// A genuinely new deadline clears the display back to `.unknown` before refreshing: the
     /// previous phase's number is not a cached value for *this* countdown, and carrying it over
     /// would show the wrong event's time (`revealed in 0:03`, frozen, under a screen that has
     /// already moved on to `scored`). Re-pointing at the **same** deadline it already had — the
-    /// ordinary tick, or a redundant `start()` — does not clear it, which is what lets `refresh()`
+    /// ordinary tick, or a redundant call — does not clear it, which is what lets `refresh()`
     /// hold a value across a loading gap instead of blanking to `--:--:--`.
-    func start(until deadline: Date, form: CountdownForm) {
-        activeObservers += 1
+    func repoint(until deadline: Date, form: CountdownForm) {
         if self.deadline != deadline {
             display = .unknown
         }
         self.deadline = deadline
+        let cadenceChanged = self.form != form
         self.form = form
         refresh()
 
+        // The ticker is rebuilt only when it is not running or when its interval is now wrong.
+        // Rebuilding it on every call restarts the second from *this instant* instead of from
+        // the one the countdown has been keeping, so a second observer arriving 900ms into a
+        // second pushed the next visible digit change out by nearly a whole extra second — a
+        // hitch in the one thing on the screen that is supposed to be metronomic.
+        guard ticker == nil || cadenceChanged else { return }
         ticker?.cancel()
         let interval: Duration = form == .precise ? .seconds(1) : .seconds(60)
         ticker = Task { [weak self] in

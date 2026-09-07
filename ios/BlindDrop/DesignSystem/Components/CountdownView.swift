@@ -86,9 +86,21 @@ struct CountdownView: View {
             // Recomputed on focus rather than announced on every tick (`docs/12` §2). Without
             // this, VoiceOver interrupts itself once a second and the screen becomes unusable.
             .accessibilityAddTraits(.updatesFrequently)
+            // **One hold, taken on appear and released on disappear, and nothing in between.**
+            //
+            // The two `onChange`s are the same view aiming the timer somewhere else — a phase
+            // that counts to a different instant, a Dynamic Type size that changes the tick
+            // cadence — not a second observer arriving, so they re-point rather than start.
+            // They used to call `start(until:form:)`, which takes a hold; with only one
+            // `onDisappear` to release it, every deadline change left `activeObservers` one
+            // higher than the number of views actually watching, the count never reached zero
+            // again, and the ticker ran on at 1Hz for the rest of the process — writing
+            // `hasElapsed` against a deadline nobody was showing, which `RoundScreen` reads to
+            // decide whether to refetch. Exactly the timer outliving its screen that
+            // `CountdownTimer.stop()`'s own note says cannot happen.
             .onAppear { timer.start(until: deadline, form: form) }
-            .onChange(of: form) { timer.start(until: deadline, form: form) }
-            .onChange(of: deadline) { timer.start(until: deadline, form: form) }
+            .onChange(of: form) { timer.repoint(until: deadline, form: form) }
+            .onChange(of: deadline) { timer.repoint(until: deadline, form: form) }
             .onDisappear { timer.stop() }
     }
 
