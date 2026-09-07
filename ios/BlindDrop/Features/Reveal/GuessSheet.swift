@@ -103,6 +103,20 @@ struct GuessSheet: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var dragOffset: CGFloat = 0
+    /// Whether the two `GeometryReader`s below have reported yet.
+    ///
+    /// **Both heights start at the same value**, so before either is measured `collapseDistance`
+    /// is zero — which makes `restingOffset` zero and `bodyOpacity` one, i.e. the sheet renders
+    /// *fully open* on its first frame even though the reveal always starts at `.peek`. The
+    /// measurements then land, the offset jumps to the full collapse distance with no animation
+    /// (`.animation(_:value:)` below watches `detent`, which never moved), and every entry to the
+    /// reveal opened with a flash of the name pool and **Lock in guesses** before the sheet
+    /// snapped shut.
+    ///
+    /// Nothing can be drawn in the right place until the sheet has been laid out once, and it has
+    /// to be laid out to be measured — so the honest answer for that frame is not to draw it. One
+    /// frame with no sheet at the bottom edge is invisible; a frame of the whole pool is not.
+    @State private var hasMeasured = false
     @State private var expandedHeight: CGFloat = Layout.callSheetPeekHeight
     /// The measured height of the peek header — the exact amount of this sheet that a collapsed
     /// detent leaves on screen. See `peekHeader`.
@@ -172,6 +186,7 @@ struct GuessSheet: View {
         // Keep one sheet alive and slide it between detents. Swapping a peek view for a full
         // view gives SwiftUI no common geometry to animate and is what caused the hard jump.
         .offset(y: restingOffset + dragOffset)
+        .opacity(hasMeasured ? 1 : 0)
         .animation(Motion.CallSheet.spring, value: detent)
         .onChange(of: store.blockedReason) { _, reason in
             if reason != nil { setDetent(.open) }
@@ -185,7 +200,10 @@ struct GuessSheet: View {
         .background {
             GeometryReader { proxy in
                 Color.clear
-                    .onAppear { expandedHeight = proxy.size.height }
+                    .onAppear {
+                        expandedHeight = proxy.size.height
+                        hasMeasured = true
+                    }
                     .onChange(of: proxy.size.height) { _, height in expandedHeight = height }
             }
         }
@@ -260,8 +278,22 @@ struct GuessSheet: View {
             }
     }
 
+    /// Whether the sheet may be shut.
+    ///
+    /// **A blocked caller, and nothing else.** For them the sheet is not an apparatus at all —
+    /// it is one sentence explaining why there is none, and collapsing it would leave a grab bar
+    /// over nothing.
+    ///
+    /// A **save error** used to pin it open too, and that was a trap rather than an emphasis. The
+    /// `onChange` in `body` already raises the sheet the moment one appears, which is the part
+    /// that matters: the caller is shown it. Keeping it un-collapsible on top of that meant that
+    /// offline — where the error is not going anywhere, and is only ever cleared by another edit,
+    /// a lock-in or *Change a guess* — the grab bar became a dead control. Tapping it did
+    /// nothing, dragging it did nothing, neither said why, and the flight the caller was trying
+    /// to look at stayed covered. The guesses are held locally and the save retries on the next
+    /// edit; there is no reason the sheet has to stand over that.
     private var canCollapse: Bool {
-        store.blockedReason == nil && store.saveErrorKey == nil
+        store.blockedReason == nil
     }
 
     private func setDetent(_ value: CallSheetDetent) {

@@ -30,6 +30,21 @@ verified with Instruments (`15-TESTING-AND-ACCEPTANCE.md` AC-11).
 
 If a task proposes an animation not in this table, the answer is no.
 
+**What the last row permits, and what it does not** (clarified 2026-09-07). *"Everything else —
+iOS default spring"* is a permission, not an omission: an ordinary spring on an ordinary state
+change needs no new row here. What it does not permit is a *set piece* — a bespoke timeline, a
+sequence of stages, physics — which is what the two rows above it are and what everything else
+must not become. `Motion.QuickPass.advance` and `Motion.CallSheet.spring` are both written down
+under this row: named once so a screen states them rather than writing a literal, and neither is
+a third moment competing with the seal.
+
+It also cuts the other way. **An abrupt insertion is not "no animation", it is a bad one.** The
+lock-in panel used to appear in a single frame and shove the flight down by its height while the
+call sheet underneath sprang to peek from the very same tap — one gesture, two motions, one of
+them a cut. It now rides `Motion.CallSheet.spring`, the spring that sheet was already using, so
+the two halves of one gesture move together. Reaching for the spring a neighbouring element is
+already on is the restrained answer here, not the extravagant one.
+
 ---
 
 ## 2. The seal — 600ms

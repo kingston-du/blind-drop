@@ -91,6 +91,9 @@ final class RevealStore {
     private let haptics: HapticEngine?
     private let onLockInSaved: (() -> Void)?
     private var saveTask: Task<Void, Never>?
+    /// Whether `saveTask` is still inside its debounce and has therefore not gone out yet.
+    /// `cancelPendingSave()` is the only reader, and the reason it exists.
+    private var isDebouncing = false
     private var editRevision = 0
 
     var hasPendingSave: Bool { saveTask != nil }
@@ -159,9 +162,17 @@ final class RevealStore {
         cards.count - (myCardNumber == nil ? 0 : 1)
     }
 
-    /// How many of them carry a name. Assignments to the caller's own card are impossible
-    /// (`assign(_:to:)` refuses), so this needs no filtering.
-    var assignedCount: Int { assignments.count }
+    /// How many of them carry a name.
+    ///
+    /// Counted over the **assignable** cards only, which is the same set `wholeSheet` sends and
+    /// `assignableCount` is the size of. `assign(_:to:)` refuses the caller's own card, so no tap
+    /// can produce one — but `adopt(_:)` takes the server's sheet as given, and a row there for
+    /// the caller's own card would otherwise be counted in the numerator while being excluded
+    /// from the denominator and from every PUT: *"8 of 7 assigned"*, and **Lock in guesses**
+    /// enabled off a guess that appears nowhere on screen and cannot be cleared.
+    var assignedCount: Int {
+        assignments.keys.count { isAssignable($0) }
+    }
 
     /// *"6 of 7 assigned"* (`docs/11` — `reveal.progress`).
     var progress: String {
@@ -248,10 +259,28 @@ final class RevealStore {
 
     /// Locked is a presentation state, not a deadline. The server remains open until `scores_at`,
     /// so this affordance restores the ordinary editable sheet and the countdown keeps running.
+    ///
+    /// **It focuses the first card without a name, or no card at all** (owner, approved).
+    ///
+    /// It used to focus the first *assignable* card, which on a sheet locked in complete is
+    /// simply No. 1 — a card already carrying a name, silently armed. The sheet says so only in
+    /// the header's quiet *"Naming No. 1"*, and the natural next move after tapping **Change a
+    /// guess** is to reach for a name; that tap overwrote the guess on No. 1 rather than the one
+    /// the person came to fix. A destructive default on the affordance whose entire purpose is
+    /// careful correction.
+    ///
+    /// A gap is the one card where a chip tap cannot destroy anything, so it is the only safe
+    /// thing to arm. With no gaps there is nothing safe to arm, and `nil` is the honest answer:
+    /// the header falls back to the count, and the person taps the card they actually mean —
+    /// which was already the second step in the old flow, minus the trap in front of it.
+    ///
+    /// Ordered by `cards`, not by `assignments`, so *first* means first in the flight.
     func changeAGuess() {
         isLocked = false
         saveErrorKey = nil
-        focusedCard = cards.lazy.map(\.cardNumber).first { isAssignable($0) }
+        focusedCard = cards.lazy
+            .map(\.cardNumber)
+            .first { isAssignable($0) && assignments[$0] == nil }
     }
 
     /// Warms the two notes this screen can play, once, when it appears.
@@ -272,8 +301,25 @@ final class RevealStore {
         selectedMember = nil
     }
 
-    /// The view owns the lifetime boundary. There is one task and it does not survive the screen.
+    /// The view is going away. **A save still inside its debounce is sent, not dropped.**
+    ///
+    /// Every edit reaches the server through the 600ms debounce in `scheduleSave(debounce:)`, and
+    /// this used to cancel it unconditionally — so a name placed within 600ms of leaving the
+    /// reveal was lost. Not visibly: the assignment stayed on screen, because it is local state,
+    /// and the next refetch's `adopt(_:)` quietly replaced it with the server's copy, which had
+    /// never heard about it. Tapping a chip and immediately opening the quick pass, backgrounding,
+    /// or walking back to the round was enough.
+    ///
+    /// The flush is fire-and-forget by design. `scheduleSave` captures the sheet and the saver as
+    /// values, so the request completes on its own even after this store is gone; only the
+    /// `[weak self]` write-back at the end does not happen, and there is no longer a screen for
+    /// it to write to. That is the one place a task here deliberately outlives the view, and the
+    /// alternative is losing the caller's last guess.
     func cancelPendingSave() {
+        if isDebouncing {
+            scheduleSave(debounce: false)
+            return
+        }
         saveTask?.cancel()
         saveTask = nil
         isSaving = false
@@ -365,6 +411,7 @@ final class RevealStore {
         let revision = editRevision
         let sheet = wholeSheet
         isSaving = true
+        isDebouncing = debounce
         saveTask = Task { [weak self] in
             if debounce {
                 do {
@@ -374,6 +421,9 @@ final class RevealStore {
                 }
             }
             guard !Task.isCancelled else { return }
+            // Past this line the request is going out, so there is nothing left for
+            // `cancelPendingSave()` to rescue.
+            self?.isDebouncing = false
 
             do {
                 _ = try await saveGuesses(sheet)

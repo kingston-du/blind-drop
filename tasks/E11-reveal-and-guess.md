@@ -174,3 +174,28 @@ This is the participation-pressure mechanic. The user must **see** exactly what 
 - [x] Save failure surfaces inline and the sheet stays editable — never lose a user's work to
       a network blip
 - [x] Test: rapid edits produce one request; the store cancels cleanly on disappear
+
+**Amended 2026-09-07 — the last checkbox above was reading the wrong guarantee.** *"Cancels
+cleanly on disappear"* was implemented, and tested, as *sending nothing* — so an edit still inside
+its 600ms debounce when the screen went away never reached the server. It did not look like a
+loss: the assignment is local state and stayed on screen, and the next refetch's `adopt(_:)`
+quietly replaced it with the server's copy, which had never been told. Tapping a chip and
+immediately opening the quick pass was enough. That directly contradicts this slice's own third
+and fifth boxes — *"a user who closes the app keeps their sheet"*, *"never lose a user's work"*.
+
+`cancelPendingSave()` now **flushes** a debouncing save instead of dropping it: the request is
+sent immediately, fire-and-forget, since `scheduleSave` captures the sheet and the saver as
+values and completes even after the store is gone. That is the one place a task here deliberately
+outlives the view, and the alternative is losing the caller's last guess.
+`GuessSaveTests.disappearCancelsThePendingDebounceCleanly` was pinning the old behaviour and has
+been rewritten as `disappearFlushesThePendingDebounceRatherThanDroppingIt`, with a companion
+asserting that nothing pending still sends nothing.
+
+**Amended 2026-09-07 (owner approved) — *Change a guess* armed a card it should not have.** It
+focused the first *assignable* card, which on a sheet locked in complete is No. 1 — already
+carrying a name, silently armed, announced only by the header's quiet *"Naming No. 1"*. The
+obvious next move after tapping the affordance is to reach for a name, and that tap overwrote
+No. 1 rather than the card the person came to fix: a destructive default on the one control whose
+entire purpose is careful correction. It now focuses the first card **without** a name, or none
+at all when there is no gap — the header falls back to the count and the person taps the card
+they mean, which was already the second step of the old flow, minus the trap in front of it.

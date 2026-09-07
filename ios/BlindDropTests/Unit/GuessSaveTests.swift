@@ -47,11 +47,37 @@ import Testing
         #expect(request?.count == 3)
     }
 
-    @Test func disappearCancelsThePendingDebounceCleanly() async {
+    /// **A guess made just before leaving is sent, not dropped.**
+    ///
+    /// This test used to assert the opposite — that `cancelPendingSave()` left `spy.requests`
+    /// empty — and that assertion was pinning a bug rather than a guarantee. Every edit reaches
+    /// the server only through the 600ms debounce, so cancelling it on `.onDisappear` meant a
+    /// name placed within 600ms of leaving the reveal never left the phone. Nothing looked wrong
+    /// at the time: the assignment is local state and stayed on screen, and the next refetch's
+    /// `adopt(_:)` quietly replaced it with the server's copy, which had never been told. Tapping
+    /// a chip and immediately opening the quick pass was enough to lose one.
+    ///
+    /// What "cleanly" is actually worth asserting about is below: the flush is a single request
+    /// carrying the edit, and the store is left with nothing outstanding.
+    @Test func disappearFlushesThePendingDebounceRatherThanDroppingIt() async {
         let spy = GuessSaveSpy()
         let store = makeStore(spy: spy)
         store.tapCard(1)
         store.tapName("u0")
+
+        store.cancelPendingSave()
+        try? await Task.sleep(for: .milliseconds(850))
+
+        #expect(await spy.requests.count == 1)
+        #expect(await spy.requests.last?.first(where: { $0.cardNumber == 1 })?.guessedUserID == "u0")
+        #expect(!store.hasPendingSave)
+        #expect(!store.isSaving)
+    }
+
+    /// The other half: with nothing pending there is nothing to flush, and leaving stays silent.
+    @Test func disappearWithNothingPendingSendsNothing() async {
+        let spy = GuessSaveSpy()
+        let store = makeStore(spy: spy)
 
         store.cancelPendingSave()
         try? await Task.sleep(for: .milliseconds(850))
@@ -92,6 +118,41 @@ import Testing
         #expect(!store.isLocked)
         #expect(store.assignments == [1: "u0"])
         #expect(store.isGuessable(2))
+    }
+
+    /// **Change a guess must not arm a card that already carries a name** (owner, approved).
+    ///
+    /// It used to focus the first *assignable* card, which on a full sheet is No. 1 — already
+    /// named, and silently armed. Reaching for a name next, which is the obvious move after
+    /// tapping the affordance, overwrote No. 1 instead of the card the person came to correct.
+    @Test func changeAGuessArmsTheFirstGapAndNothingElse() async {
+        let spy = GuessSaveSpy()
+        let store = makeStore(spy: spy)
+
+        // No. 1 named, No. 2 left open, then locked in with a gap.
+        store.tapCard(1)
+        store.tapName("u0")
+        store.lockIn()
+
+        store.changeAGuess()
+        #expect(store.focusedCard == 2, "the first card without a name is the only safe one to arm")
+    }
+
+    /// And with no gap left there is nothing safe to arm, so nothing is: the header falls back to
+    /// the count and the person taps the card they actually mean.
+    @Test func changeAGuessOnAFullSheetArmsNothing() async {
+        let spy = GuessSaveSpy()
+        let store = makeStore(spy: spy)
+
+        store.tapCard(1)
+        store.tapName("u0")
+        store.tapName("u1")
+        store.tapName("u2")
+        store.lockIn()
+
+        store.changeAGuess()
+        #expect(store.focusedCard == nil,
+                "no card may be armed when every one of them would be overwritten by the next tap")
     }
 
     private func makeStore(spy: GuessSaveSpy) -> RevealStore {

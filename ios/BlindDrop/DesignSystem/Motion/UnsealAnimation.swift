@@ -98,7 +98,15 @@ final class UnsealAnimation {
 
         for cardNumber in cardNumbers where eligible.contains(cardNumber) {
             revealedCards.insert(cardNumber)
-            if cardNumber == cardNumbers.first, !firedHaptic {
+            // **The first cover that actually moves**, not card No. 1 specifically.
+            //
+            // A card is only released once it is both scheduled *and* on screen, so binding the
+            // note to `cardNumbers.first` bound it to a card the caller may never be looking at:
+            // somebody who had scrolled down the flight when the sequence began watched every
+            // cover they could see lift in silence, and if they never scrolled back up to No. 1
+            // the round's one unseal haptic never played at all. The note marks the moment the
+            // covers start moving, and that moment is whichever one moves first.
+            if !firedHaptic {
                 firedHaptic = true
                 haptics.fire(.coverMoves)
             }

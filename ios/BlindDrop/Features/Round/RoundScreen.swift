@@ -889,6 +889,7 @@ private struct RevealHost: View {
         QuickPassPresentation.Conditions(
             canGuess: payload.canGuess,
             hasUnnamedCards: (store?.assignedCount ?? 0) < (store?.assignableCount ?? 0),
+            isLocked: store?.isLocked ?? false,
             unsealHasRun: unseal?.hasFinishedScheduling ?? false,
             arrivedFromLink: env.router.arrivedFromRoundLink,
             alreadyOfferedThisRound: env.flags.hasOfferedQuickPass(roundID: roundID)

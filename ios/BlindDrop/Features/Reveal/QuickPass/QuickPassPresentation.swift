@@ -16,6 +16,17 @@ enum QuickPassPresentation {
         var canGuess: Bool
         /// Whether any card is still without a name. A full sheet has nothing to open onto.
         var hasUnnamedCards: Bool
+        /// Whether the caller has locked their sheet in.
+        ///
+        /// Locking is a presentation state and not a deadline — the server stays open until
+        /// `scores_at` and `RevealStore.changeAGuess()` reopens the sheet — but while it holds,
+        /// `RevealStore.isGuessable(_:)` is false for **every** card. The run this cover walks is
+        /// built from exactly that, so without this clause somebody who locked in with gaps still
+        /// satisfied `hasUnnamedCards`, the cover presented, `QuickPassSequence` came back empty,
+        /// and `QuickPassScreen`'s own `onAppear` dismissed it in the same beat — a full-screen
+        /// flash of an all-em-dash recap on the way in and out. Changing a guess is a deliberate
+        /// act with its own control on the sheet, and it is the way back to this.
+        var isLocked = false
         /// Whether the round's once-a-night unseal has had its run.
         ///
         /// The reason this is in the rule at all: the unseal is one of the two moments carrying
@@ -36,7 +47,7 @@ enum QuickPassPresentation {
     static func shouldPresent(_ c: Conditions) -> Bool {
         // 1. Never, on any of these. A blocked caller has nothing to name; a full sheet has
         //    nothing to open onto; and the unseal gets its night.
-        guard c.canGuess, c.hasUnnamedCards, c.unsealHasRun else { return false }
+        guard c.canGuess, c.hasUnnamedCards, !c.isLocked, c.unsealHasRun else { return false }
         // 2. Always, on an explicit intent. Somebody who tapped a notification asked for this
         //    screen and may ask again as often as they like — dismissing it yesterday, or ten
         //    minutes ago, is not an answer to a question they have just re-asked.

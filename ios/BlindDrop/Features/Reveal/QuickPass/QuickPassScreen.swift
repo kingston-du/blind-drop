@@ -617,7 +617,17 @@ struct QuickPassScreen: View {
     }
 
     private func jump(to cardNumber: Int) {
-        isMovingBack = false
+        // **Backwards, because it is.** The recap sits at the far right of the run, and a row
+        // tapped there is a correction to a card behind it — so the card arrives from the
+        // leading edge as the recap leaves by the trailing one, and the two travel together.
+        // Set `false`, the card slid in from the right while the recap slid out to the right:
+        // they crossed through each other, and the motion said *forward* for the one move in
+        // this screen that is unambiguously a step back. `advanceTransition`'s own note is that
+        // which way is the single thing this transition exists to say.
+        //
+        // Answering it — `advance()` on an excursion — returns to the recap and is forward
+        // again, which is that function's `isMovingBack = false` and is already right.
+        isMovingBack = true
         withAnimation(Motion.QuickPass.advance(reducedMotion: reduceMotion)) {
             sequence.jump(to: cardNumber)
         }

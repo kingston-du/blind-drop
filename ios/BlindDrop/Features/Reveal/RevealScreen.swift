@@ -231,6 +231,16 @@ struct RevealScreen: View {
                     // (`docs/07` §4). Keeping it here is also what lets `content` be snapshot directly.
                     content
                         .padding(.horizontal, Layout.screenInset)
+                        // **Clearance under the chrome's rule** (owner, 2026-09-07). The header
+                        // draws a hairline across the bottom of the pinned block on exactly the
+                        // phases that scroll, and the first thing under it is the dateline — a
+                        // small caption whose own line box is nearly all cap height, so with no
+                        // top margin it sat against the rule instead of beginning below it. The
+                        // gap belongs to the scroll container rather than to `content`, for the
+                        // same reason the inset does: it is about where the column starts
+                        // relative to the chrome, not about the column's internal rhythm, and a
+                        // golden of `content` should not carry it.
+                        .padding(.top, Layout.itemGap)
                         // **What the open sheet covers has to stay reachable.** The flight
                         // reserves the *peek* height and nothing more, which is what keeps twelve
                         // cards from being re-laid-out on every frame of a drag (`E17-06`) — but
@@ -328,6 +338,28 @@ struct RevealScreen: View {
             cards(includeRotorEntries: includeRotorEntries)
         }
         .padding(.bottom, Layout.blockGap)
+        // **The panel arrives on the same spring the sheet is already riding** (owner, approved).
+        //
+        // `lockIn()` is called from `GuessSheet.trailingStatus` outside any animation, so the
+        // panel used to be inserted in a single frame — shoving the whole flight down by its
+        // height while the sheet underneath sprang to peek from the same tap. One tap, two
+        // motions, one of them a cut: the screen's one confirming moment was also the one place
+        // it stuttered.
+        //
+        // Not a new set piece, and not a new row in `docs/09` §1's table: `Motion.CallSheet.spring`
+        // is the spring the sheet already uses, so the two halves of the same gesture now move
+        // together, and the table's last row — *everything else, iOS default spring* — is what
+        // permits it. The same reasoning `Motion.QuickPass.advance` is written down under.
+        //
+        // Keyed on the value rather than wrapped around the call, so **every** path that flips
+        // `isLocked` is covered — `changeAGuess()` removing the panel, and `failSave(_:)` doing
+        // it from underneath a save that came back refused.
+        //
+        // `.opacity` alone, with no travel: the cards moving down is the layout animating on that
+        // spring, which is the motion that says *room was made*. That also means there is no
+        // reduced-motion branch to write — a crossfade is already what `docs/12` §4 asks a
+        // reduced-motion animation to reduce to.
+        .animation(Motion.CallSheet.spring, value: store.isLocked)
     }
 
     /// The night, *"Tonight's drop"*, the size of the flight, how long there is to place it, and
@@ -436,6 +468,9 @@ struct RevealScreen: View {
                 inset: Layout.rowInset
             )
             .padding(.bottom, Space.sm)
+            // See `flightContent(includeRotorEntries:)`: the crossfade, with the flight sliding
+            // down around it on the spring the sheet is riding.
+            .transition(.opacity)
     }
 
     /// The flight. A vertical stack, **never a grid** (`docs/07` §5).
