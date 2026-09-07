@@ -65,19 +65,31 @@ final class CircleStore {
             guard let self else { return }
             do {
                 let result = try await self.api.send(Endpoint<CirclesDTO>.circles)
+                // `reset()` cancels this task and clears the list back to `.idle` precisely so
+                // one account's circles cannot be reachable from the next one's session. That is
+                // cooperative cancellation, though, and a response already in hand finishes
+                // regardless — so without this the sign-out being raced would clear the list and
+                // then have the outgoing account's circles written back over the top of it,
+                // which is the single thing `reset()` exists to prevent.
+                guard !Task.isCancelled else { return }
                 self.state.apply(.success(result.circles))
                 if result.circles.isEmpty {
                     self.session?.noteServerSaid(.noGroup)
                 }
             } catch let error as APIError {
+                guard !Task.isCancelled else { return }
                 self.state.apply(.failure(error))
             } catch {
+                guard !Task.isCancelled else { return }
                 self.state.apply(.failure(.unreadable))
             }
         }
         loadTask = task
         await task.value
-        loadTask = nil
+        // Only if it is still ours. A `reset()` between the two lines above clears this and a
+        // fresh `load()` puts its own task here; clearing unconditionally would throw that one
+        // away and let the next caller start a second concurrent fetch behind it.
+        if loadTask == task { loadTask = nil }
     }
 
     /// The one thing a group-scoped store's `load()` calls: ensure the list has been fetched at

@@ -214,6 +214,14 @@ final class SessionStore {
             guard let self, let spending = self.refreshToken else { return false }
             do {
                 let tokens = try await self.auth.refresh(spending)
+                // `endSession()` cancels this task and then clears every credential. Cancellation
+                // is cooperative, so without this check a refresh that had already come back
+                // from the network would run `adopt(_:)` afterwards and write a live pair
+                // straight back into the keychain of a session the user had just signed out of —
+                // signed out on screen, still credentialled on disk. The refresh is spent either
+                // way; `false` is the honest answer, and its one caller (`APIClient`) responds by
+                // ending the session, which is already where we are.
+                guard !Task.isCancelled else { return false }
                 try self.adopt(tokens)
                 return true
             } catch {
@@ -222,7 +230,9 @@ final class SessionStore {
         }
         refreshInFlight = task
         let succeeded = await task.value
-        refreshInFlight = nil
+        // Only if it is still ours — an `endSession()` in between has already cleared this, and
+        // a later refresh may have put its own task here for other callers to share.
+        if refreshInFlight == task { refreshInFlight = nil }
         return succeeded
     }
 

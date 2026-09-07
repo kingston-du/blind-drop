@@ -60,10 +60,7 @@ final class LocalFlags {
     /// Whether this install has already begun the unseal for a round. The check and write live
     /// together so relaunching midway through the sequence cannot replay its haptic or covers.
     func beginUnseal(roundID: String) -> Bool {
-        var seen = Set(defaults.stringArray(forKey: Key.seenUnsealRounds) ?? [])
-        guard seen.insert(roundID).inserted else { return false }
-        defaults.set(seen.sorted(), forKey: Key.seenUnsealRounds)
-        return true
+        remember(roundID, under: Key.seenUnsealRounds)
     }
 
     func hasSeenUnseal(roundID: String) -> Bool {
@@ -78,10 +75,7 @@ final class LocalFlags {
     /// something, and this is where that is remembered. A push tap ignores this flag entirely —
     /// that is an explicit intent and may re-present as often as it happens (`E41-02`).
     func beginQuickPass(roundID: String) -> Bool {
-        var seen = Set(defaults.stringArray(forKey: Key.autoOpenedQuickPassRounds) ?? [])
-        guard seen.insert(roundID).inserted else { return false }
-        defaults.set(seen.sorted(), forKey: Key.autoOpenedQuickPassRounds)
-        return true
+        remember(roundID, under: Key.autoOpenedQuickPassRounds)
     }
 
     func hasOfferedQuickPass(roundID: String) -> Bool {
@@ -96,10 +90,7 @@ final class LocalFlags {
     /// round"* has to survive a relaunch, and a check separate from its write would let two
     /// appearances in the same second both decide they were first.
     func beginResolve(roundID: String) -> Bool {
-        var seen = Set(defaults.stringArray(forKey: Key.seenResolveRounds) ?? [])
-        guard seen.insert(roundID).inserted else { return false }
-        defaults.set(seen.sorted(), forKey: Key.seenResolveRounds)
-        return true
+        remember(roundID, under: Key.seenResolveRounds)
     }
 
     func hasSeenResolve(roundID: String) -> Bool {
@@ -116,6 +107,38 @@ final class LocalFlags {
     var activeCircleID: String? {
         get { defaults.string(forKey: Key.activeCircleID) }
         set { defaults.set(newValue, forKey: Key.activeCircleID) }
+    }
+
+    // MARK: - The once-per-round ledgers
+
+    /// How many rounds each *"has this already run"* list keeps.
+    ///
+    /// The three lists below used to grow forever. Each is a round id per round, and since
+    /// multi-circle (`docs/01` ADR-011) that is one per circle per night — so a person in five
+    /// circles adds fifteen ids a day, every day, to a `UserDefaults` file that is read into
+    /// memory at launch and rewritten in full on every insert. Nothing broke; it simply never
+    /// stopped growing, and each write got marginally more expensive than the last.
+    ///
+    /// 200 is chosen to be far past the point where the answer could matter. These lists exist so
+    /// the unseal, the resolve and the unasked quick pass each happen once for a *current* round;
+    /// a round that has fallen off the end is months old, already scored, and has no animation
+    /// left to replay. Anything a person can still reach is comfortably inside the window.
+    private static let ledgerLimit = 200
+
+    /// Records a round under one of those keys, and answers whether it was the first time.
+    ///
+    /// The list is kept in **insertion order** rather than as a sorted set, which is what makes
+    /// trimming mean *"the oldest"*. Sorting round ids sorts them lexically, which is not
+    /// chronological and would drop an arbitrary entry instead of the stalest one.
+    private func remember(_ roundID: String, under key: String) -> Bool {
+        var seen = defaults.stringArray(forKey: key) ?? []
+        guard !seen.contains(roundID) else { return false }
+        seen.append(roundID)
+        if seen.count > Self.ledgerLimit {
+            seen.removeFirst(seen.count - Self.ledgerLimit)
+        }
+        defaults.set(seen, forKey: key)
+        return true
     }
 
     private enum Key {
