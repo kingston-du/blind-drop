@@ -5,6 +5,8 @@
 //   POST  /groups/current/invitations           invite a user_id to the caller's default circle
 //   POST  /groups/:group_id/invitations          the same, for a named circle
 //   GET   /groups/invitations                    the caller's own pending invitations, any circle
+//   GET   /groups/current/invitations            the default circle's own pending invitations, sent
+//   GET   /groups/:group_id/invitations          the same, for a named circle
 //   POST  /groups/invitations/:invitation_id/accept   accept — creates the membership (E20-01)
 //   POST  /groups/invitations/:invitation_id/decline  decline — terminal, re-invitable
 //   GET   /groups/people-you-played-with             caller's shared-group people, newest first
@@ -95,6 +97,7 @@ import {
   recordEntryDTO,
   type RosterMemberDTO,
   rosterMemberDTO,
+  sentInvitationDTO,
   standingsDTO,
 } from "../_shared/dto.ts";
 import {
@@ -1448,6 +1451,47 @@ async function myInvitationsResponse(ctx: ProfileCtx): Promise<Response> {
   return ok({ invitations });
 }
 
+/**
+ * `GET /groups/:group_id/invitations` — the pending invitations this circle has **sent**.
+ *
+ * The mirror of `myInvitationsResponse` above, and the fix for a dead end on the invite panel
+ * (`E38-03`): `InviteStore` had no way to learn who had already been asked, so its shortlist
+ * started empty on every launch and every second device. A row for somebody already invited
+ * still offered **Invite**, the server refused it with `ALREADY_INVITED` — correctly — and the
+ * row had no way to become **Share invite**, because building that link needs the invitation's
+ * id and the error does not carry one. Every further tap reproduced the same refusal.
+ *
+ * Any active member may read it, on the same footing as `inviteMember` below: any member may
+ * invite, so any member may see what the circle has already asked and finish the job by sending
+ * the link. It reveals nothing a member could not already obtain by attempting the invitation.
+ *
+ * `expires_at > now` is filtered here for the same reason it is there: a lazily-expired row is
+ * a row that may be invited again, so it must not come back looking pending.
+ *
+ * Nothing here is shaped by anyone's participation in a round — it reads `invitations` and
+ * nothing else, not a round, a submission or a guess.
+ */
+async function sentInvitationsResponse(ctx: MemberCtx): Promise<Response> {
+  const { data: rows, error } = await ctx.db
+    .from("invitations")
+    .select("id, invited_user, expires_at")
+    .eq("group_id", ctx.groupId)
+    .eq("status", "pending")
+    .gt("expires_at", serverNow().toISOString())
+    .order("created_at", { ascending: true });
+  if (error) throw dbFailure("groups.sentInvitations", error);
+
+  return ok({
+    invitations: rows.map((row) =>
+      sentInvitationDTO({
+        id: row.id as string,
+        invitedUser: row.invited_user as string,
+        expiresAt: row.expires_at as string,
+      })
+    ),
+  });
+}
+
 /** `POST /groups/invitations/:invitation_id/accept` — atomic with the membership insert
  *  (`accept_invitation`, ADR-011's cap included), and answers with the same `GroupDTO` shape
  *  `POST /groups/join` does, so the client's "you're in" screen does not need a second shape. */
@@ -1817,6 +1861,19 @@ serveFunction("groups", {
   "GET /invitations": async (req, route) => {
     const ctx = await requireProfile(await requireUser(req, route));
     return myInvitationsResponse(ctx);
+  },
+  // Two segments, so neither of these can collide with the one-segment `GET /invitations`
+  // above — that one is the caller's *received* invitations, these are the circle's *sent* ones.
+  "GET /current/invitations": async (req, route) => {
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return sentInvitationsResponse(ctx);
+  },
+  "GET /:group_id/invitations": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return sentInvitationsResponse(ctx);
   },
   "GET /people-you-played-with": async (req, route) => {
     const ctx = await requireProfile(await requireUser(req, route));

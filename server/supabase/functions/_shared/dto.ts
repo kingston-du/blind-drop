@@ -170,6 +170,35 @@ export function invitationDTO(row: {
   };
 }
 
+/** A pending invitation **this circle has sent**, as the inviting side needs it (`E38-03` fix).
+ *
+ * A different shape from `InvitationDTO` on purpose, and a much smaller one. That type answers
+ * *"who invited me, and to what"* for the recipient; this answers *"who have we already asked"*
+ * for a member of the circle doing the asking, so the circle is not repeated back (the caller
+ * named it in the path) and neither is the inviter (nobody on the invite panel is choosing
+ * between them). What is left is the two facts the row actually needs: who it is for, and the
+ * id the share link is built from.
+ *
+ * It carries nothing about the invitee beyond the id the caller already supplied to create it —
+ * no profile, no participation, no other circle. */
+export interface SentInvitationDTO {
+  id: string;
+  invited_user: string;
+  expires_at: string;
+}
+
+export function sentInvitationDTO(row: {
+  id: string;
+  invitedUser: string;
+  expiresAt: string;
+}): SentInvitationDTO {
+  return {
+    id: row.id,
+    invited_user: row.invitedUser,
+    expires_at: rfc3339(new Date(row.expiresAt)),
+  };
+}
+
 /** A person the caller knows through an active shared group. This is intentionally only an
  * identity: no membership date, group count, profile, or participation facts cross this
  * boundary. `E20-02` orders this server-side by the newest shared membership. */

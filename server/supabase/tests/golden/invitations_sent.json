@@ -1,0 +1,17 @@
+{
+  "about": "GET /groups/:group_id/invitations — the pending invitations this circle has sent. `{id, invited_user, expires_at}` and nothing else: not the circle (the caller named it), not the inviter, and nothing about the invitee beyond the id used to invite them.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "invitations"
+  ],
+  "nested": {
+    "invitations[]": [
+      "expires_at",
+      "id",
+      "invited_user"
+    ]
+  }
+}

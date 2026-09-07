@@ -426,6 +426,25 @@ Deno.test("golden: GET /groups/invitations", async () => {
   );
 });
 
+Deno.test("golden: GET /groups/:group_id/invitations", async () => {
+  const { user, group } = await openGroup("Golden Invite Sent");
+  const invitee = await newNamedUser("Sent Invitee");
+  await call("groups", "/current/invitations", {
+    method: "POST",
+    token: user.token,
+    body: { user_id: invitee.id },
+  });
+  const res = await call("groups", `/${group.id}/invitations`, { token: user.token });
+  assertEquals(res.status, 200, JSON.stringify(res.body));
+  await assertGolden(
+    "invitations_sent",
+    res.body,
+    "GET /groups/:group_id/invitations — the pending invitations this circle has sent. " +
+      "`{id, invited_user, expires_at}` and nothing else: not the circle (the caller named " +
+      "it), not the inviter, and nothing about the invitee beyond the id used to invite them.",
+  );
+});
+
 Deno.test("golden: GET /me", async () => {
   const { user } = await openGroup("Golden Me");
   const res = await call("me", "/", { token: user.token });
@@ -741,6 +760,11 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups POST /current/invitations": "invitation",
     "groups POST /:group_id/invitations": "invitation",
     "groups GET /invitations": "invitations_mine",
+    // `E38-03` fix. The circle's own *sent* invitations, so a member can finish sending a link
+    // for somebody already asked. Two facts per row — the invitee and the invitation id — and
+    // nothing about tonight: it reads `invitations` alone, never a round, submission or guess.
+    "groups GET /current/invitations": "invitations_sent",
+    "groups GET /:group_id/invitations": "invitations_sent",
     // Same DTO shape `POST /groups/join` already answers with — accepting is a second door
     // into the same "you're in" response, not a new shape.
     "groups POST /invitations/:invitation_id/accept": "groups_current",

@@ -49,7 +49,7 @@ final class StartGroupStore {
             step = .invite(group)
             // A brand-new circle's only member is the creator, so the shortlist excludes exactly
             // them — the same filter `GroupScreen` applies against a circle of eleven.
-            await invites.load(excluding: Set(group.members.map(\.userID)))
+            await invites.load(excluding: Set(group.members.map(\.userID)), in: group.id)
         } catch let error as APIError {
             failure = error.copyKey
         } catch {

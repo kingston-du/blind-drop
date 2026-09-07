@@ -155,6 +155,37 @@ it has always shipped, which made the creation flow untestable in the one way th
 circle you have just made has exactly **one** member. It now answers for itself, holds created
 circles in memory, and lists them in `GET /groups`.
 
+**Amended 2026-09-07 (owner approved) — `ALREADY_INVITED` was a dead end.** `InviteStore` had no
+way to learn who this circle had *already* invited: it only ever wrote `invitations` from its own
+`invite(_:to:)`, so the map started empty on every launch and on every second device. A row for
+somebody already invited still offered **Invite**, the server refused it — correctly — with
+`ALREADY_INVITED`, and the row could never become **Share invite**, because that link is built
+from the invitation's id and the error does not carry one. Every further tap reproduced the same
+refusal, and there was no route from that screen to getting the person their link.
+
+The existing `GET /groups/invitations` could not help: it answers for the *recipient* — every
+circle the caller has been invited to — and this is the inviting side's question. So the fix is a
+new route rather than a client patch:
+
+- **`GET /groups/current/invitations`** and **`GET /groups/:group_id/invitations`** — the pending
+  invitations this circle has **sent**. Two segments, so neither can collide with the
+  one-segment received-invitations route. Any active member may read it, on the same footing as
+  `POST` to the same path: any member may invite, so any member may see who has been asked and
+  finish the job. It reveals nothing a member could not already obtain by attempting the invite.
+- **`SentInvitationDTO`** — `{id, invited_user, expires_at}` and nothing else. Deliberately not
+  `InvitationDTO`: that one names the inviter and the circle for a recipient who knows neither;
+  this names the invitee for a caller who already named the circle in the path. Expired rows are
+  filtered server-side, for the same reason they are on the received route — an expired
+  invitation may be sent again, so it must not come back looking pending.
+- `InviteStore.load(excluding:in:)` now fetches it alongside the shortlist, concurrently, and
+  **merges** it over `invitations` rather than replacing: an invitation sent seconds ago in this
+  session must not be walked back by a response assembled before it.
+
+`ALREADY_INVITED` is unchanged and stays in the contract (`docs/11`, `_shared/http.ts`,
+`APIError`). It is now what it should always have been — the answer to a genuine race, two
+members inviting the same person at once, rather than the app's own ignorance of state it could
+have asked for.
+
 ---
 
 ### E38-04 — The switch is quiet

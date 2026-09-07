@@ -67,3 +67,24 @@ struct InvitationGroupDTO: Decodable, Sendable, Equatable {
 struct InvitationsDTO: Decodable, Sendable, Equatable {
     let invitations: [InvitationDTO]
 }
+
+/// One invitation the caller's circle has already sent (`E38-03` fix).
+///
+/// Deliberately not `InvitationDTO`. That one answers *"who invited me, and to what"* for the
+/// recipient; this answers *"who have we already asked"* for the inviting side, so it names the
+/// invitee rather than the inviter and does not repeat back a circle the caller just addressed
+/// by id. `InvitePanel` needs exactly two things from it — which row it belongs to, and the id
+/// the share link is built from.
+struct SentInvitationDTO: Decodable, Sendable, Equatable, Identifiable {
+    let id: String
+    let invitedUser: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case invitedUser = "invited_user"
+    }
+}
+
+struct SentInvitationsDTO: Decodable, Sendable, Equatable {
+    let invitations: [SentInvitationDTO]
+}

@@ -158,9 +158,20 @@ async function roundPayloadFor(groupId: string): Promise<Record<string, unknown>
 interface FixtureInvitation {
   id: string;
   group: { id: string; name: string };
+  /// Who it is for. Never in the recipient-facing `InvitationDTO` — they know who they are —
+  /// but it is the whole point of the circle's own *sent* list, which is keyed by it.
+  invited_user: string;
   invited_by: { user_id: string; display_name: string };
   created_at: string;
   expires_at: string;
+}
+
+/** The circle's own list, shaped as `SentInvitationDTO` — the invitee and the id, and neither
+ *  the circle (the caller named it) nor the inviter (nobody is choosing between them). */
+function sentInvitationsFor(groupId: string) {
+  return fixtureInvitations
+    .filter((i) => i.group.id === groupId)
+    .map((i) => ({ id: i.id, invited_user: i.invited_user, expires_at: i.expires_at }));
 }
 
 const fixtureInvitations: FixtureInvitation[] = [];
@@ -179,6 +190,7 @@ async function createInvitation(groupId: string, body: Record<string, unknown>):
   const invitation: FixtureInvitation = {
     id: `c0000000-0000-4000-8000-${String(invitationSeq).padStart(12, "0")}`,
     group: { id: group.id as string, name: group.name as string },
+    invited_user: userId,
     invited_by: { user_id: me.user_id as string, display_name: me.display_name as string },
     created_at: rfc3339(now),
     expires_at: rfc3339(expires),
@@ -423,6 +435,11 @@ async function route(req: Request, url: URL): Promise<Response> {
   if (m === "GET" && p === "/groups/invitations") {
     return ok({ invitations: fixtureInvitations });
   }
+  // The circle's *sent* invitations, two segments — never reachable from the one-segment route
+  // just above, which is the caller's *received* ones.
+  if (m === "GET" && p === "/groups/current/invitations") {
+    return ok({ invitations: sentInvitationsFor(PRIMARY_GROUP_ID) });
+  }
   const invitationAccept = p.match(/^\/groups\/invitations\/([^/]+)\/accept$/);
   if (m === "POST" && invitationAccept) {
     const idx = fixtureInvitations.findIndex((i) => i.id === invitationAccept[1]);
@@ -548,6 +565,12 @@ async function route(req: Request, url: URL): Promise<Response> {
   if (m === "POST" && groupInvite && groupInvite[1] !== "current") {
     const body = await req.json().catch(() => ({}));
     return createInvitation(groupInvite[1], body);
+  }
+  if (m === "GET" && groupInvite && groupInvite[1] !== "current") {
+    if (!(await groupPayloadFor(groupInvite[1]))) {
+      return fail(404, "NOT_FOUND", "That's not available right now.");
+    }
+    return ok({ invitations: sentInvitationsFor(groupInvite[1]) });
   }
 
   const roundCurrent = p.match(/^\/rounds\/([^/]+)\/current$/);

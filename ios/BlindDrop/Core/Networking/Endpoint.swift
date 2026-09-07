@@ -203,6 +203,15 @@ extension Endpoint {
         .init(.post, scoped("/groups", groupID, "/invitations"), body: json(InvitePersonBody(user_id: userID)))
     }
 
+    /// The invitations **this circle has sent** and nobody has answered yet (`E38-03` fix).
+    ///
+    /// Not to be confused with `invitations` below, which is the caller's own *received* ones.
+    /// Two segments against that route's one, on the server as well as here, so the two cannot
+    /// be reached by accident from the other's path.
+    static func sentInvitations(for groupID: String) -> Endpoint<SentInvitationsDTO> {
+        .init(.get, scoped("/groups", groupID, "/invitations"), retry: .twice)
+    }
+
     static var invitations: Endpoint<InvitationsDTO> {
         .init(.get, "/groups/invitations", retry: .twice)
     }

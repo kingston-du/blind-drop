@@ -18,7 +18,16 @@ final class InviteStore {
     private(set) var people: [KnownPersonDTO] = []
     private(set) var isLoadingPeople = false
     private(set) var invitingIDs = Set<String>()
-    private(set) var invitations: [String: InvitationDTO] = [:]
+    /// Invitee `user_id` → the pending invitation's id, which is all the row needs: it is what
+    /// `InvitationLink.url(for:)` builds the share link from.
+    ///
+    /// Filled from **two** sources, and it has to be both. `invite(_:to:)` puts one here the
+    /// moment the caller sends it, and `load(excluding:)` now asks the server for the ones this
+    /// circle already sent — without that second source this map started empty on every launch
+    /// and on every other device, so a row for somebody already invited still offered **Invite**,
+    /// the server refused it with `ALREADY_INVITED`, and the row had no way to become **Share
+    /// invite**: the link needs the invitation's id, and the error does not carry one.
+    private(set) var invitations: [String: String] = [:]
     private(set) var failure: String?
 
     init(api: APIClient) {
@@ -34,12 +43,26 @@ final class InviteStore {
     /// button. The filter is the client's because the endpoint is deliberately circle-agnostic —
     /// it is a shortcut derived from shared memberships, not a social graph, and giving it a
     /// group parameter would make it one.
-    func load(excluding memberIDs: Set<String>) async {
+    func load(excluding memberIDs: Set<String>, in groupID: String) async {
         isLoadingPeople = true
         defer { isLoadingPeople = false }
         do {
-            let all = try await api.send(Endpoint<KnownPeopleDTO>.peopleYouPlayedWith).people
+            // Concurrently: two independent GETs, and the shortlist is not worth a second round
+            // trip's wait. Both are `retry: .twice` idempotent reads.
+            async let peopleResult = api.send(Endpoint<KnownPeopleDTO>.peopleYouPlayedWith)
+            async let sentResult = api.send(Endpoint<SentInvitationsDTO>.sentInvitations(for: groupID))
+
+            let all = try await peopleResult.people
+            let sent = try await sentResult.invitations
+
             people = all.filter { !memberIDs.contains($0.id) }
+            // **Merged over, not replaced.** An invitation sent seconds ago in this session is
+            // already here; a refresh whose response was assembled before it must not take the
+            // row back to **Invite**, which is the flicker `GroupScreen` holds `inviteStore`
+            // across refreshes precisely to avoid.
+            for invitation in sent {
+                invitations[invitation.invitedUser] = invitation.id
+            }
             failure = nil
         } catch let error as APIError {
             failure = error.copyKey
@@ -54,7 +77,7 @@ final class InviteStore {
         failure = nil
         defer { invitingIDs.remove(person.id) }
         do {
-            invitations[person.id] = try await api.send(.invitePerson(person.id, to: groupID))
+            invitations[person.id] = try await api.send(.invitePerson(person.id, to: groupID)).id
         } catch let error as APIError {
             // A second tap after an interrupted request is still honestly represented as already
             // invited; the button remains available so the next run can show that answer.
@@ -77,6 +100,9 @@ struct InvitePanel: View {
     var emphasis: Emphasis = .primary
 
     @State private var didCopy = false
+    /// The one pending *"back to Copy"*. Held so a second copy can cancel the first — see
+    /// `codeRow`.
+    @State private var copyReceipt: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
@@ -129,8 +155,16 @@ struct InvitePanel: View {
                 didCopy = true
                 // Back to **Copy** shortly. A label that says *Copied* forever starts lying the
                 // moment the caller copies anything else.
-                Task {
+                //
+                // Cancelling the previous one is what keeps the receipt attached to the *last*
+                // copy rather than the first. Each tap used to leave its own two-second timer
+                // running, so copying twice in quick succession let the earlier timer fire a
+                // fraction of a second after the second tap and take the word away while that
+                // copy was still the freshest thing that had happened.
+                copyReceipt?.cancel()
+                copyReceipt = Task {
                     try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
                     didCopy = false
                 }
             } label: {
@@ -157,7 +191,13 @@ struct InvitePanel: View {
     }
 
     @ViewBuilder private var peopleSection: some View {
-        if store.isLoadingPeople {
+        // **Only the first load draws a spinner** — the same rule `E28-06` applied to the group
+        // itself and `GroupScreen` applies to its standings. This panel's `.task` re-runs every
+        // time it reappears, so tapping a member row on The Group and coming back collapsed a
+        // populated shortlist into a single `ProgressView`, jumped the name field, reveal hour
+        // and Leave button up the page, and jumped them back a moment later. A list already in
+        // hand stays on screen through its own refresh.
+        if store.isLoadingPeople, store.people.isEmpty {
             ProgressView().tint(Palette.ink)
         } else if !store.people.isEmpty {
             VStack(alignment: .leading, spacing: Space.sm) {
@@ -187,8 +227,8 @@ struct InvitePanel: View {
     }
 
     @ViewBuilder private func action(for person: KnownPersonDTO) -> some View {
-        if let invitation = store.invitations[person.id],
-           let url = InvitationLink.url(for: invitation.id) {
+        if let invitationID = store.invitations[person.id],
+           let url = InvitationLink.url(for: invitationID) {
             // Invited already. The row becomes the thing worth doing next — sending them the
             // link, since a pending invitation they never open is not an invitation.
             ShareLink(item: url) {
