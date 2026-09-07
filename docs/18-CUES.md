@@ -168,6 +168,16 @@ matching modulus edit.
 > should be more famous" — a generic taste judgment with no clear answer) retexted to "A tiktok
 > song you actually listen to". Still 40 lines. See the dated note in `tasks/E35-cues.md`'s
 > E35-02 section.
+>
+> **Revision, 2026-09-05.** Two more of the same circle's round customs promoted into the
+> catalog: `tied_to_someone` ("A song tied to a specific person") retexted to "A song that makes
+> you think of them" — the two were near-duplicates, so this is really a rewording, not a
+> replacement — and `unexpected_from_you` ("A song that would give the wrong impression of
+> you" — asks the dropper to model a stranger's misreading of their own taste, a level of
+> indirection nothing else in the catalog asks for) retexted to "A song for your current mood".
+> A third round that day ("A song you hate") pointed at the catalog's existing `song_you_hate`
+> verbatim — no catalog change there. Still 40 lines. See the dated note in
+> `tasks/E35-cues.md`'s E35-02 section.
 
 **Confession**
 A song you're embarrassed to love · A song you'd never play in someone else's car · A song you
@@ -180,7 +190,7 @@ ruined for you
 
 **Misdirection**
 A song nobody here would guess is yours · A song from a genre you never listen to · A song your
-parents would put on · A song that would give the wrong impression of you
+parents would put on · A song for your current mood
 
 **Function**
 Your go-to aux song · The song you get ready to · A song for driving at night · The song you'd put
@@ -188,8 +198,8 @@ on to save a party
 
 **Memory**
 A song stuck to one specific summer · A song you got someone else into · A song from your first
-phone · A song tied to a specific person · A song from middle school · A song that was always on
-in your house
+phone · A song that makes you think of them · A song from middle school · A song that was always
+on in your house
 
 **Superlative**
 Your favorite song this year · The song you skip the most · The oldest song you still play · A
@@ -210,17 +220,36 @@ diffing the two so they cannot drift.
 
 ## 7. Where a cue appears
 
-One component, `CueBanner` (`ios/BlindDrop/DesignSystem/Components/`), rendered once by
-`RoundScreen` above whichever phase view is on screen — Submit, Sealed, Voided, Reveal, and
-Results (reached through `RoundScreen`'s own `.scored` branch) all get it from one placement, one
-snapshot suite. Not inside `RoundHeader`: that view is already three tight rows built around one
-uncapped label already having caused a starved-sibling bug once
-(`ios-snapshot-renderer-constraints`-adjacent — see `RoundScreen.swift`'s own header comment); a
-fourth line competing for that space is the wrong place to put this.
+Two components — `CueBanner` and `CueCard` (`ios/BlindDrop/DesignSystem/Components/`) — and **one
+placement per phase**, decided in a single predicate, `RoundDTO.Phase.drawsItsOwnCue`. Not inside
+`RoundHeader` on any of them: that view is already tight rows built around one uncapped label
+having caused a starved-sibling bug once (`ios-snapshot-renderer-constraints`-adjacent — see
+`RoundScreen.swift`'s own header comment); another line competing for that space is the wrong
+place to put this.
 
-- **Round (Submit / Sealed / Voided / Reveal / Results).** `CueBanner`, neutral ink, absent
-  entirely when `cue` is `null` — no "no cue tonight" line; absence is silent, matching how the
-  rest of the open phase already treats "nothing to report."
+It began as one placement for the whole app — `RoundScreen` drawing the banner above whichever
+phase view was up — and came apart twice, both times for the same reason. **A phase that reads as
+a column wants the cue inside the column**, because a cue above a scroll is a header on the work
+and a cue is a brief you read once before it.
+
+- **Sealed and Voided — above the phase, as originally specified.** `CueBanner`, neutral ink,
+  drawn by `RoundScreen`. These two do not scroll, so there is no "before the work" to move it to;
+  above the phase is already where that is.
+- **Submit — a `CueCard`, between the subhead and the field.** The drop screen's whole job is to
+  answer the cue, and the answer is typed immediately below it. The one amber label in the app's
+  cue treatment, argued in §2.
+- **Reveal — a `CueBanner`, inside the flight's own header, under the song count.** *(Owner,
+  2026-09-06.)* Pinned above the scroll it was a two-line strip standing permanently over a list
+  it has nothing further to say to; the same position `CueCard` holds on the drop screen, with the
+  cards in the field's place. It moved together with the round's date, which became the eyebrow
+  over *"Tonight's drop"* — `docs/08` §6 carries that argument.
+- **Results — a `CueCard`, under *"Answers"*.** *(Owner, 2026-09-03.)* There the cards below it
+  are the room's replies to it, and a night read three weeks later is unintelligible without it.
+  Labelled *"The cue"*, not *"Tonight's"*: `PastResultsScreen` pushes this same screen for a night
+  from weeks ago.
+
+On every one of them: absent entirely when `cue` is `null` — no "no cue tonight" line; absence is
+silent, matching how the rest of the open phase already treats "nothing to report."
 - **The dark hours — last night's cue, not the coming one.** *(Owner, 2026-09-02.)* Between
   local midnight and `opens_at`, `GET /rounds/current` already returns the **coming** night's
   round, and the screen over it is *"Tonight's round is done."* — so its `cue` is a brief nobody

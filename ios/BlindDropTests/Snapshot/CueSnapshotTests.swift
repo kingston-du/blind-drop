@@ -7,13 +7,16 @@ import Testing
 private let devices = SnapshotRenderer.Device.matrix
 private let sizes = SnapshotRenderer.typeSizes
 
-/// The cue banner (`docs/18-CUES.md` §7): one neutral line above whichever phase screen is up,
-/// shared by Submit, Sealed, Reveal and Results from a single `RoundScreen` placement.
+/// The cue (`docs/18-CUES.md` §7): one placement per phase, and these goldens are what that
+/// placement actually looks like on each.
 ///
-/// `RoundScreen` renders `CueBanner` once, above `phase(…)` — not inside `RoundHeader` (whose
-/// three rows are already tight) and not duplicated per screen. These goldens compose the banner
-/// over each phase's own `snapshotContent` the same way, so a cue sitting wrong above any one of
-/// the four phases is a picture rather than a claim. The cue value comes off the round's own
+/// It is **not** one placement for the app any more. `RoundScreen` draws `CueBanner` above
+/// `phase(…)` for the two phases that do not scroll — Sealed and Voided — and the three that read
+/// as a column draw it themselves, each in the position that phase argues for: a `CueCard` under
+/// the drop screen's headline, the same card under the answers', and the banner inside the
+/// flight's own header under the count. `RoundDTO.Phase.drawsItsOwnCue` is where that is decided.
+/// Each case below composes the cue the way the phase it pictures actually does, so a cue sitting
+/// wrong on any one of them is a picture rather than a claim. The cue value comes off the round's own
 /// JSON (`ios/Fixtures/payloads`, which `E35-04` made cued) through the real decoder, not built
 /// by hand — `RoundDTO`'s memberwise initialiser is private on purpose (`docs/13` §2).
 /// `.serialized` — the four parameterised tests fan out to 24 `ImageRenderer` draws, and run
@@ -27,11 +30,9 @@ private let sizes = SnapshotRenderer.typeSizes
 
     @Test(arguments: devices, sizes)
     func submit(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        // **No `CueBanner` above this one.** Every other case in this suite composes the
-        // banner over the phase screen because that is what `RoundScreen` does; the drop screen
-        // is the exception `drawsItsOwnCue(_:)` names, and the golden has to be the exception too
-        // or it would prove a screen nobody sees — the cue said twice, once above and once in
-        // the card.
+        // **No `CueBanner` above this one.** The drop screen draws the cue itself, as the card
+        // between its subhead and its field, and a banner composed over it here would prove a
+        // screen nobody sees — the cue said twice, once above and once in the card.
         try verify(named: "Cue-Submit", device, size, fixture: "round_open_nosub") { context, timer in
             Self.submitScreen(context: context, timer: timer)
         }
@@ -80,8 +81,15 @@ private let sizes = SnapshotRenderer.typeSizes
 
     // MARK: - Reveal
 
-    /// Three cards — the length `RevealSnapshots` uses for its full matrix — with the banner
-    /// above the flight's own header. The cue is read off `round_revealed`'s base keys.
+    /// Three cards — the length `RevealSnapshots` uses for its full matrix — with the cue **inside**
+    /// the flight's own header, under the count. The cue is read off `round_revealed`'s base keys.
+    ///
+    /// It used to be composed here, above `snapshotContent`, because that is what `RoundScreen` did.
+    /// The banner moved into the screen (owner, 2026-09-06) and so did this golden's composition —
+    /// it now renders exactly what ships, which is the whole reason this suite draws the real
+    /// screens rather than the banner on its own. The date rides with it: on this phase the pinned
+    /// row that carried it is withheld, so a golden without one would be a picture of a header
+    /// missing a line nobody sees missing.
     @Test(arguments: devices, sizes)
     func reveal(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         let store = RevealFixture.store(cardCount: 3, myCardNumber: 2, guesses: [1: "Cal"])
@@ -92,10 +100,12 @@ private let sizes = SnapshotRenderer.typeSizes
         let cue = try Self.cue("round_revealed")
 
         let image = SnapshotRenderer.image(
-            of: VStack(alignment: .leading, spacing: Space.none) {
-                CueBanner(cue: cue).padding(.bottom, Layout.itemGap)
-                RevealScreen(store: store, timer: timer).snapshotContent(typeSize: size)
-            },
+            of: RevealScreen(
+                store: store,
+                timer: timer,
+                dateHeadline: "Saturday, September 5",
+                cue: cue
+            ).snapshotContent(typeSize: size),
             device: device,
             typeSize: size
         )
@@ -110,7 +120,7 @@ private let sizes = SnapshotRenderer.typeSizes
     //
     // **No case here, deliberately** (owner, 2026-09-03). This suite pictures the cue's one
     // placement per phase, and on `scored` that placement moved inside the screen: the answers
-    // draw the cue as a `CueCard` under their own headline, and `RoundScreen.drawsItsOwnCue`
+    // draw the cue as a `CueCard` under their own headline, and `RoundDTO.Phase.drawsItsOwnCue`
     // withholds the banner exactly as it does for the drop screen. A `Cue-Results` golden with a
     // banner over the cards is a picture of a screen nobody sees, and one without a banner is
     // just `ResultsSnapshots.answersWithACue` rendered twice — so that golden is the coverage,

@@ -88,6 +88,15 @@ struct RevealViewState: Equatable, Sendable {
 struct RevealScreen: View {
     let store: RevealStore
     let timer: CountdownTimer
+    /// The night, drawn as the eyebrow over the headline. `nil` in the goldens that are about the
+    /// flight rather than about the chrome, and on any caller that has no round context to hand.
+    ///
+    /// It lives here rather than in `RoundHeader`'s pinned row because on this phase that row held
+    /// nothing else — the badge beside it is `EmptyView`, this screen counting to the answers in
+    /// its own header instead. `RoundDTO.Phase.scrollsItsOwnDate` carries the full argument.
+    var dateHeadline: String? = nil
+    /// Tonight's cue, under the count. `nil` on an uncued night, and `CueBanner` draws nothing.
+    var cue: CueDTO? = nil
     var groupInitial = ""
     var unseal: UnsealAnimation? = nil
     var player: PreviewPlayer? = nil
@@ -321,42 +330,75 @@ struct RevealScreen: View {
         .padding(.bottom, Layout.blockGap)
     }
 
-    /// *"Tonight's drop"*, the size of the flight, and how long there is to place it.
+    /// The night, *"Tonight's drop"*, the size of the flight, how long there is to place it, and
+    /// the cue it was all played against.
     ///
     /// The countdown sits in a badge on the title's line rather than under it: it is the only
     /// thing in the header that changes while somebody is reading, and putting it in the corner
     /// means nothing in the column moves when it does.
+    ///
+    /// **The date and the cue arrived here from the pinned chrome** (owner, 2026-09-06). Both used
+    /// to stand above the scroll view for the whole evening: the date on `RoundHeader`'s second
+    /// row, the cue as a `CueBanner` between that row and this flight. Together they were most of
+    /// a phone's worth of header over the one screen in the app that is a *list* — and neither had
+    /// anything to say after the first read. The date is now the eyebrow over the headline, which
+    /// is where it always belonged: *"Saturday, September 5"* two lines above *"Tonight's drop"*
+    /// was the same fact stated twice across a seam. The cue is the last thing before the cards,
+    /// the same position `CueCard` holds on the drop screen — brief, then the work.
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            // **The badge takes its own row at accessibility sizes.** Sharing one with the title
-            // is right at ordinary sizes and catastrophic above `.accessibility1`: the countdown
-            // is eight monospaced digits with no line to break on, so it claims the row's whole
-            // width and leaves the title whatever is left — which at `accessibility5` was four
-            // points, one wrapped letter of *"Tonight's drop"*, the descender of a **p** floating
-            // under the date. The `Spacer`'s `minLength` cannot prevent that; only not competing
-            // for the row can. Same `.accessibility1` boundary as `FlightCard` and the standings.
-            if isStacked {
-                Text(verbatim: Copy.string("reveal.title"))
-                    .typeStyle(.displayL)
-                    .foregroundStyle(Palette.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                countdown
-            } else {
-                HStack(alignment: .center, spacing: Space.md) {
-                    Text(verbatim: Copy.string("reveal.title"))
-                        .typeStyle(.displayL)
-                        .foregroundStyle(Palette.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: Space.sm)
-                    countdown
+            // The eyebrow rides at `Space.xs`, not the stack's `Space.sm`: the date and the
+            // headline are one block — *when* this is, then *what* it is — and a full gap between
+            // them would read as two facts that happen to be adjacent, which is exactly what the
+            // pinned row it replaced looked like. Not `Space.xxs` either, which `CueBanner` can
+            // afford between two small lines and a wrapped caption under a `displayL` cannot: at
+            // `accessibility5` the date takes two lines of its own and the pair closes up.
+            VStack(alignment: .leading, spacing: Space.xs) {
+                if let dateHeadline {
+                    RoundDateline(headline: dateHeadline)
+                }
+                // **The badge takes its own row at accessibility sizes.** Sharing one with the
+                // title is right at ordinary sizes and catastrophic above `.accessibility1`: the
+                // countdown is eight monospaced digits with no line to break on, so it claims the
+                // row's whole width and leaves the title whatever is left — which at
+                // `accessibility5` was four points, one wrapped letter of *"Tonight's drop"*, the
+                // descender of a **p** floating under the date. The `Spacer`'s `minLength` cannot
+                // prevent that; only not competing for the row can. Same `.accessibility1`
+                // boundary as `FlightCard` and the standings.
+                if isStacked {
+                    title
+                } else {
+                    HStack(alignment: .center, spacing: Space.md) {
+                        title
+                        Spacer(minLength: Space.sm)
+                        countdown
+                    }
                 }
             }
+            // Outside the tight block, so it keeps the full gap from the title it was pushed off
+            // the row by — and so the eyebrow's spacing does not follow it down here.
+            if isStacked { countdown }
             songCount
+            // **Last thing before the cards.** `CueBanner` renders nothing on an uncued night, so
+            // the `if` is about the gap rather than the view: `Space.xs` on top of the stack's own
+            // `Space.sm` sets the cue slightly apart from the count without making it a section,
+            // and an uncued header should not pay for it.
+            if let cue {
+                CueBanner(cue: cue).padding(.top, Space.xs)
+            }
         }
         // One element, so the title and the status line are one stop rather than three. The
-        // countdown keeps its own `.updatesFrequently` announcement by staying a child of it.
+        // countdown keeps its own `.updatesFrequently` announcement by staying a child of it, and
+        // the cue keeps the single combined stop `CueBanner` gives itself.
         .accessibilityElement(children: .contain)
         .padding(.bottom, Space.sm)
+    }
+
+    private var title: some View {
+        Text(verbatim: Copy.string("reveal.title"))
+            .typeStyle(.displayL)
+            .foregroundStyle(Palette.ink)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var songCount: some View {

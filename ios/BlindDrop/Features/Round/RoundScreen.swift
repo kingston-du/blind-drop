@@ -87,7 +87,24 @@ struct RoundScreen: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Palette.paper)
+            // Ignores the keyboard's own safe area, on the bottom edge only. `content` itself
+            // still shrinks and shifts for the keyboard exactly as it always has — every
+            // phase's own avoidance (`SongSearch`'s careful non-pinned layout, above all) is
+            // untouched, because this reaches only the color painted *behind* `content`, never
+            // `content`'s own frame. Without it, the fill was one keyboard-avoidance timing edge
+            // case away from stopping short of the keyboard and letting the plain system window
+            // colour show through the keyboard's translucent top corners instead of `paper` — a
+            // pale sliver at both corners the moment the keyboard came up, on every keyboard-up
+            // screen this background sits behind.
+            //
+            // **Both regions, not just `.keyboard`.** `.background(Palette.paper)` took the
+            // `ShapeStyle` overload, whose `ignoresSafeAreaEdges` defaults to `.all` — which is
+            // why a bare colour bled under the home indicator without anyone writing that down.
+            // Wrapping it in a modifier makes it a *view*, so the `background(alignment:content:)`
+            // overload applies instead and that bleed is gone: naming only `.keyboard` here left a
+            // white band of bare window across the bottom safe area on every phase. `.ignoresSafeArea()`
+            // with its defaults is `[.container, .keyboard]` on every edge, which is both intents at once.
+            .background(Palette.paper.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             // One task, so construction cannot race the load: two `.task` modifiers have no
             // guaranteed order, and a load that ran first would find no store and never re-run.
@@ -168,17 +185,19 @@ struct RoundScreen: View {
         // bleed. `RoundInsetTests` scans the phase screens' own files, not this one, so the
         // banner's inset is not part of the flag's accounting.
         return VStack(alignment: .leading, spacing: Space.none) {
-            // The cue (`docs/18-CUES.md` §7): one placement above whichever phase screen is up,
-            // shared by Submit, Sealed, Voided, Reveal and (via the `.scored` branch) Results.
+            // The cue (`docs/18-CUES.md` §7): one placement above whichever phase screen is up.
             // Only over a loaded round — never the skeleton or error — and only when there is a
             // cue: `CueBanner` renders `EmptyView` for `nil`, and the padding here is applied to
             // the banner's line rather than to that empty view, so an uncued night adds no gap.
             //
-            // **Except on the drop screen**, which draws its own (`CueCard`). There the cue is
-            // not a fact riding above the phase, it is the brief for the field directly beneath
-            // it, and a line up here plus a card down there would be the same sentence twice.
-            // `drawsItsOwnCue(_:)` is the one place that exception is decided.
-            if let cue = store.state.value?.round.cue, !drawsItsOwnCue(store) {
+            // **Which is now Sealed and Voided and nothing else.** The three phases that read as
+            // a column — the drop screen, the flight, the answers — draw the cue inside it, each
+            // for the same reason: a cue above the scroll is a header on the work, and the cue is
+            // a brief you read once before it. Those two do not scroll, so there is no "before"
+            // to move it to; above the phase is where it already is. `Phase.drawsItsOwnCue` is the
+            // one place the exception is decided.
+            if let cue = store.state.value?.round.cue,
+               store.state.value?.round.phase.drawsItsOwnCue == false {
                 CueBanner(cue: cue)
                     .padding(.horizontal, Layout.screenInset)
                     .padding(.bottom, Layout.itemGap)
@@ -191,8 +210,14 @@ struct RoundScreen: View {
             VStack(alignment: .leading, spacing: Layout.blockGap) {
                 RoundHeader(
                     groupName: headerName(store),
-                    dateHeadline: store.state.value?.dateHeadline,
-                    shortDateHeadline: store.state.value?.shortDateHeadline,
+                    // `nil` on the two phases that scroll, which draw it themselves as the eyebrow
+                    // over their own headline — `Phase.scrollsItsOwnDate` argues why. `nil` here
+                    // collapses the whole second row *and* the rule above it through the existing
+                    // `hasStanding`, which is the loading header's path and needs nothing new.
+                    dateHeadline: pinsDateHeadline(store) ? store.state.value?.dateHeadline : nil,
+                    shortDateHeadline: pinsDateHeadline(store)
+                        ? store.state.value?.shortDateHeadline
+                        : nil,
                     path: $router.path,
                     showHowTo: { isShowingHowTo = true },
                     openSwitcher: openSwitcher,
@@ -382,31 +407,6 @@ struct RoundScreen: View {
     /// The reading as the clock has it *this instant*, before any hold is applied — the value
     /// the `.onChange` in `loaded(…)` watches. Carrying the round's id means the hold is stored
     /// with the thing that makes it valid rather than beside it.
-    /// Whether the phase about to be drawn renders the cue itself.
-    ///
-    /// True for two phases, and for the same reason both times: the cue is the *subject* of that
-    /// screen rather than a fact riding above it, so it is drawn as a `CueCard` inside the screen
-    /// and a `CueBanner` up here would be the same sentence twice.
-    ///
-    /// - `open` with nothing dropped — the drop screen, where the cue is the brief for the field
-    ///   directly beneath it. (This also covers the dark hours, which are that phase; there
-    ///   `SubmitScreen` draws *last* night's cue, which this banner could not have drawn anyway,
-    ///   since it reads the coming round's.)
-    /// - `scored` — the answers, where the cards below the cue are the room's replies to it
-    ///   (owner, 2026-09-03). `ResultsScreen` draws that card from the results payload's own
-    ///   `cue`, which is the same round's.
-    ///
-    /// It is written as a predicate on the store rather than inlined into the banner's `if` so
-    /// that the phase switch in `phase(…)` and this exception cannot drift apart silently: both
-    /// read `round.phase`, and this is the only other place in the file that does.
-    private func drawsItsOwnCue(_ store: RoundStore) -> Bool {
-        switch store.state.value?.round.phase {
-        case let .open(mySubmission): mySubmission == nil
-        case .scored: true
-        default: false
-        }
-    }
-
     private func liveOpenState(_ store: RoundStore) -> HeldOpenState {
         guard let context = store.state.value else { return HeldOpenState() }
         return HeldOpenState(
@@ -503,6 +503,8 @@ struct RoundScreen: View {
                     roundID: context.round.id,
                     payload: payload,
                     answersAt: context.round.scoresAt,
+                    dateHeadline: context.dateHeadline,
+                    cue: context.round.cue,
                     groupInitial: context.groupInitial,
                     me: store.me,
                     timer: timer,
@@ -532,6 +534,16 @@ struct RoundScreen: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// Whether the pinned chrome carries the date, or the phase screen does.
+    ///
+    /// The skeleton and the error state have no phase yet and keep it: they are what is on screen
+    /// while the round is still arriving, so the header is the only thing that could say which
+    /// night this is.
+    private func pinsDateHeadline(_ store: RoundStore) -> Bool {
+        guard let phase = store.state.value?.round.phase else { return true }
+        return !phase.scrollsItsOwnDate
     }
 
     /// The inset for the phase currently on screen, or the ordinary one while there is no phase
@@ -779,6 +791,10 @@ private struct RevealHost: View {
     let roundID: String
     let payload: RevealPayload
     let answersAt: Date
+    /// The night, for the eyebrow over the flight's headline — `Phase.scrollsItsOwnDate`.
+    let dateHeadline: String?
+    /// Tonight's cue, drawn inside the scroll under the count — `RoundDTO.Phase.drawsItsOwnCue`.
+    let cue: CueDTO?
     let groupInitial: String
     let me: String?
     let timer: CountdownTimer
@@ -795,6 +811,8 @@ private struct RevealHost: View {
                 RevealScreen(
                     store: store,
                     timer: timer,
+                    dateHeadline: dateHeadline,
+                    cue: cue,
                     groupInitial: groupInitial,
                     unseal: unseal,
                     player: player,
@@ -909,6 +927,70 @@ extension RoundDTO.Phase {
         case .open, .voided: false
         }
     }
+
+    /// Whether this phase's screen draws the round's **date** itself, as the eyebrow over its own
+    /// headline, rather than being given `RoundHeader`'s pinned second row.
+    ///
+    /// The same two phases as `bleedsToScreenEdge`, and not by coincidence — it is the same fact
+    /// about them, reached from the other side: these are the two that scroll, and a pinned row
+    /// only earns its height from something that changes while somebody is reading. On `open` that
+    /// is the badge — *"SEALS IN 01:29:25"* — and the date rides along beside it, one thought.
+    /// On `revealed` and `scored` `badge(store:timer:)` is `EmptyView`: the reveal draws its own
+    /// countdown in its scrolled header and the answers count to nothing at all. So the row was a
+    /// pinned strip holding one short date, above the only two screens where pinned height is paid
+    /// for out of the list.
+    ///
+    /// **And it was the same fact twice across the seam.** The line said *"Saturday, September 5"*
+    /// two lines above a headline that says *"Tonight's drop"*. Inside the scroll they are one
+    /// block — eyebrow, headline — which is what they always were.
+    ///
+    /// Kept a separate property from `bleedsToScreenEdge` rather than folded into it because the
+    /// two say different things about a phase, and a fifth phase could easily want one without the
+    /// other; `RoundHeader` needs no new "is the row empty" logic either way, since passing `nil`
+    /// for the date is the loading header's existing path (`hasStanding`).
+    var scrollsItsOwnDate: Bool {
+        switch self {
+        case .revealed, .scored: true
+        case .open, .voided: false
+        }
+    }
+
+    /// Whether this phase's screen renders the cue itself, rather than being given `RoundScreen`'s
+    /// `CueBanner` above it.
+    ///
+    /// True for three phases, and the reason is the same one three times: the cue belongs to the
+    /// column the screen is reading, not to a strip above it, so drawing it up there as well would
+    /// be the same sentence twice.
+    ///
+    /// - `open` with nothing dropped — the drop screen, where the cue is the brief for the field
+    ///   directly beneath it, as a `CueCard`. (This also covers the dark hours, which are that
+    ///   phase; there `SubmitScreen` draws *last* night's cue, which the banner could not have
+    ///   drawn anyway, since it reads the coming round's.)
+    /// - `scored` — the answers, where the cards below the cue are the room's replies to it
+    ///   (owner, 2026-09-03). `ResultsScreen` draws that card from the results payload's own
+    ///   `cue`, which is the same round's.
+    /// - `revealed` — the flight, where it keeps the `CueBanner` treatment but moves *inside* the
+    ///   scroll, under the count (owner, 2026-09-06). Pinned, it was a two-line strip standing
+    ///   permanently over a list it has nothing further to say to: the cue is the brief you read
+    ///   once before the cards, and a brief is the last thing before the work, not a header on it.
+    ///   Same placement argument `CueCard` already makes on the drop screen — last thing read
+    ///   before the field — with the cards in the field's place. `RevealScreen` draws it.
+    ///
+    /// It sits here rather than as a predicate on `RoundScreen` for the reason its two siblings
+    /// do: the mistake it guards against is invisible to every golden in the suite — a cue drawn
+    /// twice, or not at all, is a fact about the *container*, and every snapshot renders a screen
+    /// without one. `RoundChromeTests` asserts all three against the screens' own source, which is
+    /// only possible for something the tests can actually read.
+    ///
+    /// `.open`'s answer is derivable from the phase alone because the phase carries the
+    /// submission: there is nothing here that needed the store.
+    var drawsItsOwnCue: Bool {
+        switch self {
+        case let .open(mySubmission): mySubmission == nil
+        case .revealed, .scored: true
+        case .voided: false
+        }
+    }
 }
 
 /// The results, and the second route they live behind.
@@ -945,6 +1027,9 @@ private struct ResultsHost: View {
             if let store {
                 ResultsScreen(
                     state: store.viewState(resolve: resolve),
+                    // The night, over the headline — the pinned row that used to carry it is
+                    // withheld on this phase (`Phase.scrollsItsOwnDate`).
+                    dateHeadline: context.dateHeadline,
                     // Withdrawn once the sequence has landed, so a scroll through settled
                     // answers is a plain scroll and not a gesture with a handler on it.
                     skipResolve: resolve?.isRunning == true ? { resolve?.skip() } : nil,
@@ -1212,17 +1297,12 @@ struct RoundHeader<Badge: View>: View {
     }
 
     /// *When* the round is. `caption` rather than `bodyS` so it reads as apparatus beside the
-    /// badge's mono caps rather than competing with them.
+    /// badge's mono caps rather than competing with them — the treatment lives in
+    /// `RoundDateline`, which the two scrolling phases draw for themselves.
+    ///
+    /// Always spoken as the full date, whichever rung is drawn.
     private func date(_ headline: String) -> some View {
-        Text(verbatim: headline)
-            .typeStyle(.caption)
-            .foregroundStyle(Palette.inkDim)
-            .fixedSize(horizontal: false, vertical: true)
-            // Always the full date, whichever rung is drawn. Abbreviating is a way of fitting a
-            // column, and VoiceOver has no column to fit — *"Tue, Sep 1"* read aloud is worse
-            // than what it replaced, for no gain at all.
-            .accessibilityLabel(Text(verbatim: dateHeadline ?? headline))
-            .accessibilityIdentifier("round.dateHeadline")
+        RoundDateline(headline: headline, spoken: dateHeadline ?? headline)
     }
 }
 

@@ -86,6 +86,12 @@ struct ResultsViewState: Equatable, Sendable {
 /// in `content` so each lands as one addition to one list rather than as another screen.
 struct ResultsScreen: View {
     let state: ResultsViewState
+    /// The night, drawn as the eyebrow over *"The answers."* — the pinned second row that used to
+    /// carry it is withheld on this phase (`RoundDTO.Phase.scrollsItsOwnDate`), because the badge
+    /// that made a pinned row worth its height is `EmptyView` here: a scored round is counting to
+    /// nothing. `nil` from `PastResultsScreen`, which is pushed under a navigation bar of its own
+    /// and says which night it is there, and `nil` in the goldens.
+    var dateHeadline: String? = nil
     /// Any scroll gesture completes the name-resolve (`docs/09` §4). `nil` once there is nothing
     /// left to skip, which is also what a golden passes.
     var skipResolve: (() -> Void)?
@@ -190,10 +196,18 @@ struct ResultsScreen: View {
 
     private var answers: some View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
-            Text("results.title")
-                .typeStyle(.displayL)
-                .foregroundStyle(Palette.ink)
-                .padding(.bottom, Space.xs)
+            // Eyebrow and headline as one block at `Space.xs`, overriding the stack's item gap —
+            // *when* this was, then *what* it is. `RevealScreen.header` sets the same pair the same
+            // way, which is the point: the two scrolling phases open identically.
+            VStack(alignment: .leading, spacing: Space.xs) {
+                if let dateHeadline {
+                    RoundDateline(headline: dateHeadline)
+                }
+                Text("results.title")
+                    .typeStyle(.displayL)
+                    .foregroundStyle(Palette.ink)
+            }
+            .padding(.bottom, Space.xs)
 
             // The question these are the answers to. *(Owner, 2026-09-03.)*
             //

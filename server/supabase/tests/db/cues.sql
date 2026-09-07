@@ -68,9 +68,9 @@ select bag_eq(
     ('slow_morning','A song for a slow morning'),
     ('someone_got_you_into','A song you got someone else into'),
     ('song_you_hate','A song you hate'),
-    ('tied_to_someone','A song tied to a specific person'),
+    ('tied_to_someone','A song that makes you think of them'),
     ('tired_of_hearing','A song that got ruined for you'),
-    ('unexpected_from_you','A song that would give the wrong impression of you'),
+    ('unexpected_from_you','A song for your current mood'),
     ('worst_by_favorite_artist','Your lock tf in song')
   $$,
   'the catalog matches docs/11-COPY-DECK.md''s cue.catalog verbatim'

@@ -8,48 +8,41 @@ import SwiftUI
 /// is not currently colouring (`docs/18-CUES.md` §2). Absence is silent: when `cue` is `nil`
 /// this renders `EmptyView()`, no placeholder, no "no cue tonight" line.
 ///
-/// The label and the cue text read as one line — *"Tonight's cue: a song you hate."* The label
-/// is `inkDim` apparatus, the cue text is the `ink` content it points at. At accessibility type
-/// sizes they stack into two rows instead; see `isStacked`.
+/// **A recessed strip, not a card and not a bare line.** It used to be one `bodyM` sentence on
+/// the paper — *"Tonight's cue: a song you hate"* — which on Reveal sat at the same size and
+/// nearly the same colour as the subhead two lines below it, and on Sealed dangled under the
+/// chrome with nothing binding it to anything. A `CueCard` is the wrong fix: on those two phases
+/// the white rounded rect *is* the content (the polaroid, the ranked rows), so a fourth one at
+/// the top reads as the first item in the list rather than the brief over it.
+///
+/// So it takes the card's **structure** — micro-label over the cue, the same reading rhythm —
+/// with a different **material**: `paperSunk` fill, no border, `Radius.artwork` rather than
+/// `Radius.card`, and a tighter inset than `Layout.cardInset`. Nothing else in the app is
+/// recessed-and-unbordered, which gives three legible tiers: sunk strip is the round's standing
+/// condition, paper is the screen's own copy, a white card is an item. The recession is also what
+/// lets it keep sitting *above* the headline — apparatus can, a runt sentence cannot.
+///
+/// Stacking the label unconditionally retires the old `isStacked` reflow: the two `Text`s never
+/// share a row now, so the accessibility-size failure it existed to dodge cannot occur.
 struct CueBanner: View {
     let cue: CueDTO?
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    /// Label beside cue becomes label above cue above `.accessibility1`, the same reflow
-    /// `FlightCard` and `GroupScreen` make, decided from the type size and not a width check.
-    ///
-    /// Both `Text`s here are body styles, and `docs/07` §3 caps only the display face — so at
-    /// `.accessibility5` on a narrow device the two of them share a row far too tight for
-    /// either. The label does not truncate, it wraps *mid-word*: "Tonight'" on one line and
-    /// "s cue:" on the next, beside a ragged second column. Giving each its own row at large
-    /// type is the fix this codebase already settled on for that failure mode.
-    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
-
     @ViewBuilder var body: some View {
         if let cue {
-            let label = Text("round.cue.label")
-                .typeStyle(.bodyM)
-                .foregroundStyle(Palette.inkDim)
-            let text = Text(verbatim: cue.text)
-                .typeStyle(.bodyM)
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Group {
-                if isStacked {
-                    VStack(alignment: .leading, spacing: Space.xxs) {
-                        label
-                        text
-                    }
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                        label
-                        text
-                    }
-                }
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                SectionLabel("round.cue.card.label")
+                Text(verbatim: cue.text)
+                    .typeStyle(.bodyLStrong)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, Space.sm)
+            .padding(.horizontal, Space.md)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.artwork, style: .continuous)
+                    .fill(Palette.hairline)
+            )
             .accessibilityElement(children: .combine)
         } else {
             EmptyView()
