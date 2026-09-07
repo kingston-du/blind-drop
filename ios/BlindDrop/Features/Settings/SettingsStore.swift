@@ -2,7 +2,13 @@ import Foundation
 
 @Observable @MainActor
 final class SettingsStore {
-    var name: String
+    /// Typing invalidates the receipt. *"Saved"* under a field that no longer holds what was
+    /// saved is a lie about the current state of the row, and it used to stay there until the
+    /// next save — `GroupScreen` already clears its own equivalent on the field's `onChange`,
+    /// and this is that rule, kept in the store where `name` actually lives.
+    var name: String {
+        didSet { if name != oldValue { messageKey = nil } }
+    }
     private(set) var isSaving = false
     private(set) var isSigningOut = false
     private(set) var isDeleting = false

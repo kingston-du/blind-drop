@@ -66,7 +66,13 @@ struct InvitationJoinSheet: View {
         }
     }
 
+    /// Guarded on re-entry, like every other async action in the app (`SettingsStore`'s own note
+    /// on `turnOnNotifications` makes the argument): `isWorking` drives the buttons' disabled
+    /// state, but a disabled state is applied on the next render and two taps landing in the same
+    /// frame both get through it. Accepting an invitation twice is two `POST`s for a membership
+    /// that only exists once.
     private func accept(_ invitation: InvitationDTO) async {
+        guard !isWorking else { return }
         isWorking = true
         failure = nil
         defer { isWorking = false }
@@ -83,6 +89,7 @@ struct InvitationJoinSheet: View {
     }
 
     private func decline(_ invitation: InvitationDTO) async {
+        guard !isWorking else { return }
         isWorking = true
         failure = nil
         defer { isWorking = false }

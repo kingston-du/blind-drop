@@ -217,6 +217,20 @@ struct InviteCodeScreen: View {
 
             Spacer(minLength: Space.none)
 
+            // The step's one way forward re-reads the session, and that read can fail. It used
+            // to fail silently — see `OnboardingStore.finish()` — leaving the only control on the
+            // screen looking broken. The button now says it is working, and this says when it did
+            // not. A sibling of the button stack rather than a member of it, in the outer column,
+            // so it is leading-aligned like the create step's own failure line and the stack below
+            // keeps the centred alignment its two full-width buttons were laid out with.
+            if let key = store.finishFailure {
+                Text(LocalizedStringKey(key))
+                    .typeStyle(.bodyM)
+                    .foregroundStyle(Palette.alert)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
+
             VStack(spacing: Space.sm) {
                 if let url = InviteCode.inviteURL(for: group.inviteCode) {
                     ShareLink(item: url) {
@@ -226,7 +240,7 @@ struct InviteCodeScreen: View {
                     .buttonStyle(.plain)
                 }
 
-                SecondaryButton("onboarding.invite.done") {
+                SecondaryButton("onboarding.invite.done", isEnabled: !store.isFinishing) {
                     Task { await store.finish() }
                 }
             }

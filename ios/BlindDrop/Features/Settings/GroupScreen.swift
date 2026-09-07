@@ -42,7 +42,14 @@ struct GroupScreen: View {
                 readabilityByUserID: store.readabilityByUserID,
                 unrankedMembers: store.unrankedMembers,
                 standingsLoading: store.standings.isLoading && store.standings.value == nil,
-                standingsErrorKey: store.standings.error?.copyKey,
+                // `E28-06`'s rule, which the loading line above already applies, applied to the
+                // failing one as well: a refresh that fails over standings we are **holding**
+                // is `LoadState.stale`, and `stale` is shown *with* the data, never instead of
+                // it. Passing the error through unconditionally meant walking out of signal on
+                // The Group replaced a leaderboard that was on screen a second ago with *You're
+                // offline* and a Retry button — the circle's own settings still rendering below
+                // it, so it read as half the screen having crashed.
+                standingsErrorKey: store.standings.value == nil ? store.standings.error?.copyKey : nil,
                 isThinHistory: store.isThinHistory,
                 isSaving: store.isSaving,
                 isLeaving: store.isLeaving,
@@ -122,6 +129,8 @@ struct GroupDetailView: View {
 
     @State private var nameField = ""
     @State private var didSaveName = false
+    /// Whether `nameField` has been seeded from the circle yet. See the `onAppear` below.
+    @State private var hasSeededName = false
     @State private var confirmsLeaving = false
     @State private var memberToRemove: MemberDTO?
     @FocusState private var nameFocused: Bool
@@ -138,7 +147,17 @@ struct GroupDetailView: View {
                 }
             }
         }
-        .onAppear { nameField = group.name }
+        // **Seeded once, not on every appearance.** `onAppear` fires again when a pushed
+        // destination is popped, and this used to overwrite unconditionally: an admin who typed
+        // a new circle name, tapped a member row to check something and came back found the
+        // field silently reverted and **Save** disabled again. The server's own updates already
+        // have a route in — the guarded `onChange` below, which is careful *not* to do this to a
+        // field somebody is editing.
+        .onAppear {
+            guard !hasSeededName else { return }
+            hasSeededName = true
+            nameField = group.name
+        }
         // Only follows the server when the field still shows what the server last said —
         // `E28-06` dropped the separate `nameDirty` flag in favour of comparing `nameField`
         // against `group.name` directly, and this is the one place that still needs to tell "the
@@ -206,7 +225,7 @@ struct GroupDetailView: View {
                 store: invites,
                 emphasis: .quiet
             )
-            .task { await invites.load(excluding: Set(group.members.map(\.userID))) }
+            .task { await invites.load(excluding: Set(group.members.map(\.userID)), in: group.id) }
         }
     }
 

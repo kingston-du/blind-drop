@@ -184,6 +184,11 @@ final class OnboardingStore {
         do {
             _ = try await api.send(.joinGroup(inviteCode: code))
             await session.loadIdentity()
+            // The join succeeded and the re-read did not. Same reasoning as `finish()`: nothing
+            // on this screen renders `SessionStore.loadFailure`, so without this the button goes
+            // quiet on a person who is *already in the circle* and whose next tap spends another
+            // of the ten joins an hour `Endpoint.joinGroup` deliberately does not retry.
+            if let failure = session.loadFailure { joinFailure = failure.copyKey }
         } catch APIError.notFound {
             joinFailure = "onboarding.group.code.error"
         } catch APIError.alreadyInGroup {
@@ -234,7 +239,22 @@ final class OnboardingStore {
 
     /// **Go to today's round.** The one place the creator's session is re-read, which is what
     /// makes the invite screen a step rather than a flicker.
+    ///
+    /// `loadIdentity()` swallows a transport failure into `SessionStore.loadFailure` rather than
+    /// throwing, because its usual caller is the launch path and `RootView`'s `.waiting` branch
+    /// is what renders it. Nothing renders it here — the session is still `.noGroup`, so
+    /// `OnboardingFlow` stays on this screen — so it has to be read back out. Without that, the
+    /// only control on the invite step did *nothing at all* when the network was flaky: no
+    /// spinner, no message, no movement, and nothing else on the screen to try.
     func finish() async {
+        guard !isFinishing else { return }
+        isFinishing = true
+        finishFailure = nil
+        defer { isFinishing = false }
         await session.loadIdentity()
+        if let failure = session.loadFailure { finishFailure = failure.copyKey }
     }
+
+    private(set) var isFinishing = false
+    private(set) var finishFailure: String?
 }
