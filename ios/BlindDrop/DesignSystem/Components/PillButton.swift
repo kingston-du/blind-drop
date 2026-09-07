@@ -35,17 +35,26 @@ struct PillButton: View {
     private let title: LocalizedStringKey
     private let style: Style
     private let isEnabled: Bool
+    private let fillsWidth: Bool
     private let action: () -> Void
 
+    /// - Parameter fillsWidth: takes all the width offered instead of sizing to its own words.
+    ///   Off by default, because sizing to its words is the whole reason this control exists —
+    ///   an action that belongs to a row, not to a screen. On for a **pair** sharing a row
+    ///   (`CircleSwitcherSheet`'s footer), where two pills sized to their own words leave a
+    ///   ragged right edge and make the shorter label look like the lesser action rather than
+    ///   the shorter one.
     init(
         _ title: LocalizedStringKey,
         style: Style = .filled(.neutral),
         isEnabled: Bool = true,
+        fillsWidth: Bool = false,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.style = style
         self.isEnabled = isEnabled
+        self.fillsWidth = fillsWidth
         self.action = action
     }
 
@@ -53,7 +62,11 @@ struct PillButton: View {
         Button(action: action) {
             Text(title)
                 .typeStyle(.bodyLStrong)
-                .padding(.horizontal, Space.xl)
+                // Two lines rather than one at accessibility sizes: a filled pill that is
+                // exactly as wide as its neighbour cannot also be as wide as its longest word.
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, fillsWidth ? Space.md : Space.xl)
+                .frame(maxWidth: fillsWidth ? .infinity : nil)
                 // A minimum, not a frame: at `.accessibility5` the label makes the pill taller
                 // rather than being clipped by it (`docs/12` §1).
                 .frame(minHeight: Layout.minimumTouchTarget)

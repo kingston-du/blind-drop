@@ -105,6 +105,16 @@ opens a bottom sheet; picking a circle switches the whole app to it.
 partly because they are clutter, and partly because half of them would be `CLAUDE.md` §2.1
 violations wearing a friendly face.
 
+> **Amended by `E42-01` — a name, a state, and a mark on that state.** The "nothing else" above
+> is about *content*, and it still holds: no count, no artwork, no member status, nothing about
+> anybody but the caller. What it stopped being is a rule about *drawing*, twice over. `E38-01`
+> gave the active row a visible selection (now a 3pt `ink` rail, not the `paperSunk` fill it
+> first used — that token means disabled). `E42-01` puts a **phase pip** beside the state word:
+> its colour is `PhaseAccent(myState).mark`, its fill is `needsAction`. Both are facts the row
+> already stated in words and already told VoiceOver; the pip is the sighted reader's version,
+> which is the same argument `E38-01` made about selection. See `CircleSwitcherSheet` for the
+> §2.5 carve-out this spends and the three bounds on it.
+
 Circles needing the user's attention sort first. There is no "Action needed" heading — the order
 *is* the signal, and a section header would turn a quiet nudge into a chore list. When another
 circle wants attention, something small sits beside the current circle's name in the header;
@@ -135,6 +145,12 @@ drifting from that: an active-row border (`rowSurface(border: .ink)`) had crept 
 current circle, visually marked," which the checklist's own "nothing else" rules out. Removed;
 `.isSelected` on the row's accessibility trait says the same thing to VoiceOver without adding a
 sighted-only mark the copy deck doesn't call for.
+
+> **Reversed by `E38-01`, and the reasoning here is the part that was wrong.** `.isSelected`
+> does not say the same thing to everyone — it says it to VoiceOver *only*, and withholding
+> from sighted users a fact you hand to screen-reader users is not restraint, it is an
+> accessibility defect with the asymmetry pointing the other way. The mark came back. `E42-01`
+> redrew it as a rail; see the amendment above.
 
 Switching calls `RoundStore.invalidate()` — a new method, clears to `.loading` — **before**
 bumping the reload, rather than letting `load()`'s own "keep the stale value while refetching"

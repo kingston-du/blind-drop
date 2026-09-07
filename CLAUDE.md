@@ -55,6 +55,19 @@ These are product-defining. A change here needs the owner, not an agent.
    phase does not inherit it, and the rest of How to play (the scoring card, the notes) stays
    neutral. See `Features/HowTo/HowToSheet.swift`, which argues it at length; do not revert it
    as a rule violation.
+
+   **The circle switcher is the third exception, amended by the owner (`E42-01`).** It lists
+   circles that are genuinely in different phases at the same moment, so one accent per screen
+   cannot express what the screen is for. It is bounded, and the bounds are the rule:
+   - **The mark tier only.** `PhaseAccent.mark` on an 8pt pip. Never `text`, never `fill` — four
+     accent-coloured *words* is a category colour, a mark is a signal.
+   - **One accent-bearing element.** Selection (`ink` rail), attention (`ink` vs `inkDim` on the
+     state word) and both footer buttons stay neutral. `PrimaryButton.Fill.neutral` is `ink` and
+     is explicitly not a third accent.
+   - **That sheet and nothing else.** A future screen listing cross-circle state does **not**
+     inherit this by precedent. It needs the owner, the same as this did.
+
+   See `Features/Circles/CircleSwitcherSheet.swift` and `PhaseAccent.init(_:CircleState)`.
 6. **No fixed daily push cap — but the kinds are still a closed set, and coincident circles
    still group.** See `docs/05-JOBS-AND-NOTIFICATIONS.md`. Originally three deliveries per user
    per day; **amended by the owner** when multi-circle landed (ADR-011), which kept the cap at

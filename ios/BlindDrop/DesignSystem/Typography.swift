@@ -438,6 +438,22 @@ enum Typography {
         let font = uiFont(style, for: category)
         return spec.lineHeight * (font.pointSize / spec.size)
     }
+
+    /// A **drawn** size scaled the way `style`'s own size is (`E42-01`).
+    ///
+    /// For a mark that belongs to a run of words rather than to the layout: the switcher's phase
+    /// pip, which sits inside a `label` and has to stay a pip at `.accessibility5` instead of
+    /// becoming the speck the old 4pt needs-action dot was. `@ScaledMetric` is the usual answer
+    /// and the wrong one here — it resolves from the environment, and the snapshot suite renders
+    /// these views as bare values SwiftUI never installs, so it would silently scale by whatever
+    /// the default happens to be while the label beside it scaled correctly.
+    static func scaled(
+        _ value: CGFloat,
+        alongside style: TypeStyle,
+        for category: UIContentSizeCategory = .unspecified
+    ) -> CGFloat {
+        value * (uiFont(style, for: category).pointSize / style.spec.size)
+    }
 }
 
 // MARK: - SwiftUI

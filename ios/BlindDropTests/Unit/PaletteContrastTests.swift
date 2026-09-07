@@ -104,7 +104,9 @@ import UIKit
             documented: 4.24, minimum: 3.0),
         // The other half of `PhaseAccent.mark`, on the same white card. Same bar as its amber
         // sibling for the same reason: it draws `FlightCard`'s number and How to play's step
-        // numeral, both `numberM`. The ratio is the transpose of `white on ultramarine fill`,
+        // numeral, both `numberM`, and — since `E42-01` — the circle switcher's phase pip, which
+        // is the one caller that is a bare mark rather than a glyph and so is the one this bar
+        // is literally about. The ratio is the transpose of `white on ultramarine fill`,
         // and the row is here anyway — a table where one accent's mark tier is written down and
         // the other's is only implied is a table somebody reads as a rule about amber.
         Row(pair: "ultramarine on surface",

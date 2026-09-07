@@ -26,10 +26,48 @@ import SwiftUI
 /// `.isSelected`. `docs/08`'s checklist previously read *"a name and a state and nothing
 /// else"*, with the active row deliberately unmarked; that is amended here, because a fact
 /// stated to one class of user and withheld from another is an accessibility defect and not
-/// restraint. It is drawn as a **sunken** row — `paperSunk` inside the white card — and never
-/// with an accent (`CLAUDE.md` §2.5 is untouched: there is no amber and no ultramarine on this
-/// sheet). Sunken is also the honest reading: the active row is the one row in the list that
-/// does nothing but close the sheet.
+/// restraint.
+///
+/// **What `E42-01` changed, and why.**
+///
+/// Everything on the sheet was drawn at the app's two quietest weights, so nothing on it
+/// outranked anything else. Five moves, in the order they matter:
+///
+/// 1. **The title is a title.** `SectionLabel` is *apparatus* — an 11pt mono micro-label that
+///    runs above a block. As a whole sheet's only headline it made the modal read as a fragment
+///    torn off some other screen. It is `displayS` now, still sharing `CloseButton`'s line.
+/// 2. **Selection is a rail, not a wash.** `paperSunk` is this app's *disabled-control* fill
+///    (`docs/07` §2), so the previous design greyed out the row you were standing in — "spent",
+///    where it meant "here". A 3pt `ink` rail on the leading edge says it without dulling
+///    anything, and lives inside `ListCard`'s clip so the end rows keep the card's corners.
+/// 3. **Name and state stop competing.** 17pt semibold against 15pt regular is barely a step,
+///    which is why a state word read like a button somebody had failed to tap. The name takes
+///    `displayS` and the state drops to `label` — the same mono voice as `SEALS IN 19:26:26` in
+///    the header this sheet is opened from.
+/// 4. **The needs-action mark moved onto the thing it is about.** A 4pt dot to the left of every
+///    name, drawn at zero opacity when unset, is read as a bullet. It is now a pip beside the
+///    *state*, where the fact actually lives, and the name column starts flush.
+/// 5. **The footer is buttons.** Two full-width `OutlineButton`s are the *secondary* weight
+///    spent twice on the two least important actions, and nothing on the sheet was at the
+///    primary weight at all. They are `PillButton`s now — filled for **Join a group**, outlined
+///    for **Start a group** — which is the row-scale control this file's own invitation row
+///    already uses.
+///
+/// **The pip carries the phase, and that is a §2.5 exception.**
+///
+/// `CLAUDE.md` §2.5 allows one accent per screen; this sheet lists circles that are genuinely
+/// in different phases at the same moment, so a phase-coloured pip puts amber and ultramarine
+/// on one screen. That is an **owner call, taken deliberately** (`E42-01`), and it is bounded
+/// three ways: it is `PhaseAccent.mark` and never `text` or `fill` — a mark is a signal, four
+/// accent-coloured *words* would be a category colour; it is the only accent on the sheet, with
+/// selection, attention and both buttons all staying neutral ink; and it is the switcher alone.
+/// A future screen listing cross-circle state does not inherit it by precedent.
+///
+/// The pip carries **two** facts on two channels and neither is a leak: its *colour* is the
+/// phase (`PhaseAccent(circle.myState)`), its *fill* is whether this circle wants you
+/// (`needsAction`) — filled when it does, a ring when it does not. Both are facts about the
+/// caller's own next action and nobody else's, which is what keeps `CLAUDE.md` §2.1 intact: a
+/// row still cannot tell you that somebody *else* has submitted, or how many have.
 struct CircleSwitcherSheet: View {
     /// Already ordered — needs-action circles first — by `CircleSwitcher`. This view does not
     /// re-derive that order, so there is exactly one place the rule lives.
@@ -78,7 +116,7 @@ struct CircleSwitcherSheet: View {
 
     /// Stacks the row at `.accessibility1` and above (`TrackRow`'s own threshold). Below it, a
     /// name and a state word share one line the way every other row in the app does; above it,
-    /// a wide `bodyLStrong` name and a `bodyM` state word fighting for the same line is what
+    /// a wide `displayS` name and a `label` state word fighting for the same line is what
     /// produced `Late…` and `Answe` / `rs` on two lines — a switcher whose entire job is
     /// telling two circles apart is not allowed to make the name the thing that gives.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -101,10 +139,27 @@ struct CircleSwitcherSheet: View {
     /// whole sheet rather than one per block, so nothing ends up half-reflowed.
     private var isStacked: Bool { effectiveTypeSize >= .accessibility1 }
 
-    /// One line of a row's name, at the size this sheet is being laid out against. What the
-    /// needs-action mark is centred in when the row stacks.
-    private var firstLineHeight: CGFloat {
-        Typography.lineHeight(.bodyLStrong, for: UIContentSizeCategory(effectiveTypeSize))
+    /// The phase pip's drawn diameter, scaled alongside the `label` it sits inside rather than
+    /// against the layout — see `Typography.scaled`. A pip that stayed 8pt while the words beside
+    /// it tripled would be the speck the old needs-action dot was.
+    private var pipSize: CGFloat {
+        Typography.scaled(
+            Layout.switcherPip, alongside: .label, for: UIContentSizeCategory(effectiveTypeSize)
+        )
+    }
+
+    /// The gap between the pip and the word it marks, scaled the same way the pip is. A fixed
+    /// 6pt looked right at `.large` and crowded at `.accessibility5`, where the word beside it
+    /// is three times the size and the gap was the only thing in the row that had not moved.
+    private var pipGap: CGFloat {
+        Typography.scaled(
+            Space.sm, alongside: .label, for: UIContentSizeCategory(effectiveTypeSize)
+        )
+    }
+
+    /// One line of the state label, which is what the pip is centred in — see `stateLabel`.
+    private var stateLineHeight: CGFloat {
+        Typography.lineHeight(.label, for: UIContentSizeCategory(effectiveTypeSize))
     }
 
     /// The sheet's own height, corrected once the column has actually laid out
@@ -162,7 +217,7 @@ struct CircleSwitcherSheet: View {
 
     private var column: some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            VStack(alignment: .leading, spacing: Space.sm) {
+            VStack(alignment: .leading, spacing: Space.lg) {
                 titleRow
                 ListCard(data: rows) { circle in
                     row(circle)
@@ -173,12 +228,19 @@ struct CircleSwitcherSheet: View {
         }
     }
 
-    /// The label and the close control on one line. The label is `label`-sized apparatus and the
-    /// button is a 44pt target, so the row is the button's height and the words ride in it —
-    /// which is the whole saving over giving the `✕` a line of its own.
+    /// The title and the close control on one line. The button is a 44pt target and the title
+    /// rides inside it, which is the whole saving over giving the `✕` a line of its own.
+    ///
+    /// `displayS` rather than `SectionLabel` — see the type's note. `docs/07` §3 rations the
+    /// display face to "roughly six places in the entire app", and this is a considered spend of
+    /// one of them: `displayS`'s own job description is *"a card title, a name printed as a
+    /// result"*, and a sheet reached by tapping the app's own title is a card title.
     private var titleRow: some View {
         HStack(spacing: Space.sm) {
-            SectionLabel("switcher.title")
+            Text("switcher.title")
+                .typeStyle(.displayS)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: Space.sm)
             CloseButton(action: close)
         }
@@ -204,87 +266,118 @@ struct CircleSwitcherSheet: View {
         }
     }
 
-    /// The two ways to end up in a circle you are not in yet, side by side because neither is
-    /// the point of this sheet and neither outranks the other. Somebody was sent a code; somebody
-    /// else is starting their own. A single full-width `OutlineButton` for one of them and
-    /// nothing at all for the other — which is what this was — made the wrong one of those two
-    /// look like the answer.
+    /// The two ways to end up in a circle you are not in yet, side by side.
+    ///
+    /// **Ranked, where they used to be equal.** The previous note here argued that neither
+    /// outranks the other, and as a statement about *importance* that is still true. It is not
+    /// true about frequency: almost everybody who opens this sheet meaning to add a circle was
+    /// sent a six-character code by a friend, and almost nobody starts a second group twice.
+    /// So Join is `.filled(.neutral)` and Start is `.outlined` — `PillButton.Style`'s own
+    /// distinction, used the way that type describes it, with the emphasis on the one there is
+    /// a reason to expect.
+    ///
+    /// Filled is also the point. `OutlineButton` is the *secondary* weight, and with two of them
+    /// there was nothing on this sheet at the primary weight at all — which is most of why a
+    /// footer taking a third of the sheet still read as unpressable furniture.
+    ///
+    /// `.neutral` is `Palette.ink`, which `PrimaryButton.Fill` is careful to note "is not a new
+    /// colour pair and not a third accent". The pip is the only accent here; a phase-filled
+    /// button would put a second one on the sheet and undo the §2.5 bound the type's note sets.
     @ViewBuilder private var footer: some View {
         if isStacked {
             VStack(spacing: Space.sm) {
-                OutlineButton("switcher.joinWithCode", action: joinWithCode)
-                OutlineButton("switcher.startGroup", action: startGroup)
+                joinButton
+                startButton
             }
         } else {
             HStack(spacing: Space.sm) {
-                OutlineButton("switcher.joinWithCode", action: joinWithCode)
-                OutlineButton("switcher.startGroup", action: startGroup)
+                joinButton
+                startButton
             }
         }
     }
 
-    /// One circle: its name, its state, and — only when it wants the caller's attention — the
-    /// mark. The active row is drawn sunken; see the type's own note for why that is a change
-    /// and why it is not an accent.
+    /// `fillsWidth` so the pair reads as two halves of one row rather than as two lozenges of
+    /// whatever width their words happened to want. Harmless stacked, where each is the only
+    /// thing on its line anyway.
+    ///
+    /// **Filled only when nothing else on the sheet is.** With a pending invitation there are
+    /// otherwise two black pills a few points apart reading *Join group* and *Join with a code* —
+    /// near-identical words, identical weight, and a genuine chance of tapping the wrong one.
+    /// `PillButton.Style`'s own rule settles it: *"the emphasis stays with whatever there is only
+    /// one of"*. An invitation is time-sensitive and somebody is waiting on the answer; the
+    /// footer is standing furniture that will still be there tomorrow. So the invitation keeps
+    /// the fill and this yields it, rather than the sheet shouting twice.
+    private var joinButton: some View {
+        PillButton(
+            "switcher.joinWithCode",
+            style: invitations.isEmpty ? .filled(.neutral) : .outlined,
+            fillsWidth: true,
+            action: joinWithCode
+        )
+    }
+
+    private var startButton: some View {
+        PillButton("switcher.startGroup", style: .outlined, fillsWidth: true, action: startGroup)
+    }
+
+    /// One circle: its name, its state, and the pip on that state.
+    ///
+    /// The active row is marked by the **leading rail** — `Stroke.rail` of `Palette.ink`, drawn
+    /// as an overlay so the row keeps `surface` underneath it. The pip is the only thing on this
+    /// row that is ever an accent; the rail is neutral, and deliberately so. See the type's own
+    /// note for why the rail replaced a `paperSunk` fill, and for the three bounds on the §2.5
+    /// carve-out the pip spends.
     private func row(_ circle: CircleSummaryDTO) -> some View {
         let isActive = circle.id == activeID
         let state = Copy.switcherState(circle.myState)
-        // Twice the size once rows stack. A 4pt dot beside 40pt type at `.accessibility5` is a
-        // speck, and the mark is the sighted reader's half of a fact VoiceOver gets as a
-        // sentence (`a11y.switcher.attention`, `docs/12` §3) — it may be quiet, but it has to be
-        // *there*. Two tokens rather than a ratio: the ramp is `Space`'s to own.
-        let markSize = isStacked ? Space.sm : Space.xs
-        let mark = Circle()
-            .fill(Palette.inkDim)
-            .frame(width: markSize, height: markSize)
-            .opacity(circle.needsAction ? 1 : 0)
 
         return Button {
             select(circle.id)
         } label: {
             Group {
                 if isStacked {
-                    VStack(alignment: .leading, spacing: Space.xxs) {
-                        // `.top`, not the default `.center` — a name long enough to wrap at this
-                        // size must not pull the mark down into the gap between its own lines.
-                        // The mark is then given exactly one line box of its own height, so it
-                        // sits *on* the first line rather than above its cap height, where a
-                        // bare `.top` leaves it looking like a stray speck.
-                        HStack(alignment: .top, spacing: Space.sm) {
-                            mark
-                                .frame(height: firstLineHeight)
-                            Text(verbatim: circle.name)
-                                .typeStyle(.bodyLStrong)
-                                .foregroundStyle(Palette.ink)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Text(verbatim: state)
-                            .typeStyle(.bodyM)
-                            .foregroundStyle(Palette.inkDim)
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Text(verbatim: circle.name)
+                            .typeStyle(.displayS)
+                            .foregroundStyle(Palette.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        stateLabel(circle, state)
                     }
                 } else {
-                    HStack(spacing: Space.sm) {
-                        // Reserved whether or not it is filled, so names line up down the column
-                        // instead of the ones with a mark starting a few points further right.
-                        mark
+                    HStack(spacing: Space.md) {
                         Text(verbatim: circle.name)
-                            .typeStyle(.bodyLStrong)
+                            .typeStyle(.displayS)
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         Spacer(minLength: Space.sm)
-                        Text(verbatim: state)
-                            .typeStyle(.bodyM)
-                            .foregroundStyle(Palette.inkDim)
+                        // The name truncates and the state never does. A switcher's job is
+                        // telling two circles apart, so the *name* would seem the thing to
+                        // protect — but the state column is barely ninety points and has
+                        // nowhere to wrap to, and a name is recoverable from a prefix in a way
+                        // that `Answ` / `ers` is not.
+                        stateLabel(circle, state)
+                            .fixedSize()
                     }
                 }
             }
             .padding(.horizontal, Space.lg)
             .padding(.vertical, Space.md)
-            .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
-            // The fill is the selection. It is inside the `ListCard`'s clip, so the first and
-            // last rows keep the card's corners rather than squaring them off.
-            .background(isActive ? Palette.paperSunk : Palette.surface)
+            .frame(
+                maxWidth: .infinity, minHeight: Layout.switcherRowHeight, alignment: .leading
+            )
+            .background(Palette.surface)
+            // The selection. Inside `ListCard`'s clip, so the first and last rows keep the
+            // card's corners rather than squaring them off, and drawn as an overlay rather than
+            // a fill so the active row stays as bright as the ones around it — it is the row
+            // you are standing in, not a spent one.
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(Palette.ink)
+                    .frame(width: Stroke.rail)
+                    .opacity(isActive ? 1 : 0)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -294,6 +387,57 @@ struct CircleSwitcherSheet: View {
         )
         .accessibilityHint(Copy.A11y.switcherRowHint)
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// The state word, and the pip that carries the phase.
+    ///
+    /// `label` rather than `bodyM`: at 15pt regular beside a name the state read as a second
+    /// title competing with the first, and as something you might have failed to tap. In the
+    /// mono micro-label it reads as a status column, in the same voice the header's
+    /// `SEALS IN 19:26:26` is set in.
+    ///
+    /// The word carries attention in **weight** (`ink` when this circle wants you, `inkDim`
+    /// otherwise) and the pip carries the phase in **colour**. Keeping those on two channels is
+    /// what lets the sheet say both things at once; colouring the word instead would spend the
+    /// channel attention was using and leave the pip to carry two facts alone.
+    private func stateLabel(_ circle: CircleSummaryDTO, _ state: String) -> some View {
+        // `.top` with the pip given exactly one line box of its own, rather than the default
+        // `.center` — at `.accessibility5` the state wraps (`DROP` / `A SONG`) and a centred pip
+        // floats into the gap between its two lines, reading as a bullet for a list rather than
+        // as a mark on a status. Boxed this way it sits *on* the first line at every size, which
+        // a bare `.top` does not do either: that pins it to the line's ascender, above the cap
+        // height, where it looks like a stray speck. Same trick the old needs-action mark used
+        // against the name; it belongs to the state now.
+        HStack(alignment: .top, spacing: pipGap) {
+            pip(for: circle)
+                .frame(height: stateLineHeight)
+            Text(verbatim: state)
+                .typeStyle(.label)
+                .foregroundStyle(circle.needsAction ? Palette.ink : Palette.inkDim)
+        }
+    }
+
+    /// Filled when this circle wants the caller, a ring when it does not, and `PhaseAccent.mark`
+    /// either way.
+    ///
+    /// `mark` is the deliberate tier — *"marks, borders, icons"*, and the one that clears 3.0:1
+    /// on `surface`, which is the bar a non-text graphic has to meet. Not `text`, which would
+    /// put four accent-coloured words on a sheet with no phase of its own; not `fill`, whose own
+    /// note says it goes behind something and is "never a word and never a lone mark".
+    ///
+    /// `strokeBorder` rather than `stroke`: `stroke` straddles the path, so a 2pt ring on an 8pt
+    /// circle would draw a point outside the frame it was given and sit a point closer to the
+    /// word than the filled version does.
+    private func pip(for circle: CircleSummaryDTO) -> some View {
+        let accent = PhaseAccent(circle.myState).mark
+        return Group {
+            if circle.needsAction {
+                Circle().fill(accent)
+            } else {
+                Circle().strokeBorder(accent, lineWidth: Stroke.mark)
+            }
+        }
+        .frame(width: pipSize, height: pipSize)
     }
 
     private func invitationRow(_ invitation: InvitationDTO) -> some View {
@@ -337,8 +481,12 @@ private struct SwitcherInvitationRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
+            // `displayS`, matching a membership row above it (`E42-01`) — the two cards sit one
+            // gap apart and a circle's name should not change size according to whether you are
+            // already in it. It carries no pip: an invitation has no phase, because you are not
+            // in the round yet.
             Text(verbatim: invitation.group.name)
-                .typeStyle(.bodyLStrong)
+                .typeStyle(.displayS)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text(verbatim: Copy.format("group.join.by", invitation.invitedBy.displayName))

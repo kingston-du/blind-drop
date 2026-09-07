@@ -13,6 +13,16 @@ import SwiftUI
 ///
 /// The reveal transition is the one place both appear, and it appears here as an animation
 /// between two values of this type rather than as a third case.
+///
+/// > **Amended (`E42-01`, owner call).** "A screen decides once" is no longer quite true, and
+/// > pretending otherwise in this comment would hide the exception rather than bound it. The
+/// > circle switcher lists several circles that are genuinely in different phases at the same
+/// > moment, and `init(_ state: CircleState)` below exists so it can ask **per row**. That is
+/// > the third carve-out from §2.5, beside the reveal transition and How to play, and it is
+/// > deliberately narrow: the switcher spends the accent on a 8pt **mark** (`mark`, never
+/// > `text` and never `fill`), because a mark is a signal and four accent-coloured words would
+/// > be a category colour. A screen that lists cross-circle state does **not** inherit this by
+/// > precedent — it needs the owner, the same as this did.
 enum PhaseAccent: Sendable, Equatable, CaseIterable {
     /// Amber. The blind window: `open`, and `voided`.
     case sealed
@@ -26,6 +36,21 @@ enum PhaseAccent: Sendable, Equatable, CaseIterable {
         self = switch state {
         case .open, .voided: .sealed
         case .revealed, .scored: .revealed
+        }
+    }
+
+    /// The accent a **member's own next action** wears, for the one screen that shows several
+    /// circles at once (`E42-01`; see the type's note).
+    ///
+    /// It mirrors `init(_ state: RoundState)` deliberately, including `voided` landing on
+    /// amber — *nothing was revealed, so nothing is open*. `drop` and `sealed` are both inside
+    /// the blind window; `guess` and `answers` are both past the reveal. That the two
+    /// initialisers agree is the point: a circle's row and that circle's own screen must never
+    /// disagree about which phase it is in.
+    init(_ state: CircleState) {
+        self = switch state {
+        case .drop, .sealed, .voided: .sealed
+        case .guess, .answers: .revealed
         }
     }
 
