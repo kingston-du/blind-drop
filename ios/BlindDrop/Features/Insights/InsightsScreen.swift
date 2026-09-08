@@ -254,32 +254,7 @@ private struct InsightPairList: View {
             } else {
                 VStack(spacing: Space.none) {
                     ForEach(pairs) { pair in
-                        // A list row, not a card: the names and their denominator lead, and the
-                        // rate rides the trailing edge in the data voice.
-                        HStack(spacing: Space.md) {
-                            VStack(alignment: .leading, spacing: Space.xxs) {
-                                HStack(spacing: Space.xs) {
-                                    ForEach(Array(pair.members.enumerated()), id: \.element.userID) { memberIndex, member in
-                                        if memberIndex > 0 {
-                                            Text("insights.pair.separator").typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                        }
-                                        Button { select(member) } label: {
-                                            Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityIdentifier("insights.member.\(member.userID)")
-                                        .accessibilityHint(Copy.string("insights.profile.hint"))
-                                    }
-                                }
-                                Text(verbatim: Copy.format("insights.detail", pair.correct, pair.possible))
-                                    .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
-                            }
-                            Spacer(minLength: Space.sm)
-                            Text(verbatim: ScoringFormat.percent(pair.rate))
-                                .typeStyle(.monoM).foregroundStyle(accent)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, Space.sm)
+                        InsightPairRow(pair: pair, accent: accent, select: select)
                         if pair.id != pairs.last?.id { Rule() }
                     }
                 }
@@ -301,36 +276,7 @@ private struct InsightConfusionList: View {
             } else {
                 VStack(spacing: Space.none) {
                     ForEach(confusion.pairs) { pair in
-                        // Names on the leading edge, the count as a large display-face numeral on
-                        // the trailing edge — the same number language the percentage bars above
-                        // speak, so "5 times" reads as a fact of the same weight as a percentage.
-                        HStack(alignment: .top, spacing: Space.md) {
-                            HStack(spacing: Space.xs) {
-                                Button { select(pair.actualMember) } label: {
-                                    Text(verbatim: pair.actualMember.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("insights.member.\(pair.actualMember.userID)")
-                                .accessibilityHint(Copy.string("insights.profile.hint"))
-                                Text("insights.confusion.as").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
-                                Button { select(pair.mistakenForMember) } label: {
-                                    Text(verbatim: pair.mistakenForMember.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("insights.member.\(pair.mistakenForMember.userID)")
-                                .accessibilityHint(Copy.string("insights.profile.hint"))
-                            }
-                            Spacer(minLength: Space.sm)
-                            VStack(alignment: .trailing, spacing: Space.none) {
-                                Text(verbatim: "\(pair.count)")
-                                    .typeStyle(.numberM).foregroundStyle(Palette.ink)
-                                Text("insights.confusion.times")
-                                    .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
-                            }
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(Text(verbatim: Copy.format("insights.confusion.detail", pair.count)))
-                        }
-                        .padding(.vertical, Space.sm)
+                        InsightConfusionRow(pair: pair, select: select)
                         if pair.id != confusion.pairs.last?.id { Rule() }
                     }
                 }
@@ -338,6 +284,158 @@ private struct InsightConfusionList: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface(radius: Radius.panel, inset: Layout.rowInset)
+    }
+}
+
+/// One mutual-recognition row. At default sizes the names and their denominator lead and the
+/// rate rides the trailing edge; from `.accessibility1` up the row reflows to a single leading
+/// column — names, denominator, rate — and the names themselves break one per line.
+///
+/// **The reflow is the fix, not a nicety.** Before it, the names, the `&` and the trailing
+/// percentage all competed for one row's width with no floor under the name, so on an SE at
+/// `.accessibility5` "Ana & Hal" was squeezed past wrapping into *letter*-wrapping — "An / a"
+/// with "& Hal" laid over the fragment. `docs/12` §1 and `StandingRowContent` settle the same
+/// argument the same way: decide from `dynamicTypeSize`, give the label its own row, never
+/// shrink or truncate the person's name to make a number fit beside it.
+private struct InsightPairRow: View {
+    let pair: InsightPairDTO
+    let accent: Color
+    let select: (MemberDTO) -> Void
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
+
+    var body: some View {
+        Group {
+            if isStacked {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    names
+                    detail
+                    rate
+                }
+            } else {
+                HStack(spacing: Space.md) {
+                    VStack(alignment: .leading, spacing: Space.xxs) {
+                        names
+                        detail
+                    }
+                    Spacer(minLength: Space.sm)
+                    rate
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, Space.sm)
+    }
+
+    /// *"Ana & Hal"* on one line, or *"Ana"* over *"& Hal"* when stacked — the separator travels
+    /// with the name it introduces, so the pair still reads as a pair once it is two lines.
+    @ViewBuilder private var names: some View {
+        let runs = ForEach(Array(pair.members.enumerated()), id: \.element.userID) { memberIndex, member in
+            HStack(spacing: Space.xs) {
+                if memberIndex > 0 {
+                    Text("insights.pair.separator").typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                }
+                Button { select(member) } label: {
+                    Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("insights.member.\(member.userID)")
+                .accessibilityHint(Copy.string("insights.profile.hint"))
+            }
+        }
+        if isStacked {
+            VStack(alignment: .leading, spacing: Space.xxs) { runs }
+        } else {
+            HStack(spacing: Space.xs) { runs }
+        }
+    }
+
+    private var detail: some View {
+        Text(verbatim: Copy.format("insights.detail", pair.correct, pair.possible))
+            .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
+    }
+
+    private var rate: some View {
+        Text(verbatim: ScoringFormat.percent(pair.rate))
+            .typeStyle(.monoM).foregroundStyle(accent)
+    }
+}
+
+/// One mistaken-identity row: *"Dee as Gus"* and the number of times. Names on the leading edge
+/// and the count as a large display-face numeral on the trailing edge — the same number language
+/// the percentage rows above speak, so "8 times" reads as a fact of the same weight as a rate.
+///
+/// Stacked from `.accessibility1`, for the reason spelled out on `InsightPairRow`: the two names,
+/// the connector and the count were four things in one row's width, and at `.accessibility5`
+/// "Dee as Gus" letter-wrapped into overlapping fragments.
+private struct InsightConfusionRow: View {
+    let pair: InsightConfusionPairDTO
+    let select: (MemberDTO) -> Void
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
+
+    var body: some View {
+        Group {
+            if isStacked {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    names
+                    count
+                }
+            } else {
+                HStack(alignment: .top, spacing: Space.md) {
+                    names
+                    Spacer(minLength: Space.sm)
+                    count
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, Space.sm)
+    }
+
+    /// The connector travels with the name it governs, so stacked this is *"Dee"* over *"as Gus"*
+    /// rather than an orphaned "as".
+    @ViewBuilder private var names: some View {
+        let actual = memberButton(pair.actualMember)
+        let mistaken = HStack(spacing: Space.xs) {
+            Text("insights.confusion.as").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+            memberButton(pair.mistakenForMember)
+        }
+        if isStacked {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                actual
+                mistaken
+            }
+        } else {
+            HStack(spacing: Space.xs) {
+                actual
+                mistaken
+            }
+        }
+    }
+
+    private func memberButton(_ member: MemberDTO) -> some View {
+        Button { select(member) } label: {
+            Text(verbatim: member.displayName).typeStyle(.bodyLStrong).foregroundStyle(Palette.ink)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("insights.member.\(member.userID)")
+        .accessibilityHint(Copy.string("insights.profile.hint"))
+    }
+
+    private var count: some View {
+        VStack(alignment: isStacked ? .leading : .trailing, spacing: Space.none) {
+            Text(verbatim: "\(pair.count)")
+                .typeStyle(.numberM).foregroundStyle(Palette.ink)
+            Text("insights.confusion.times")
+                .typeStyle(.bodyS).foregroundStyle(Palette.inkDim)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: Copy.format("insights.confusion.detail", pair.count)))
     }
 }
 
