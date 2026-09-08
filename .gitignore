@@ -38,7 +38,6 @@ xcuserdata/
 
 # ── Test output ──────────────────────────────────────────────────────────────
 server/supabase/tests/.out/
-ios/BlindDropTests/__Snapshots__/__Failures__/
 *.instrumentstrace
 
 # ── macOS ────────────────────────────────────────────────────────────────────
