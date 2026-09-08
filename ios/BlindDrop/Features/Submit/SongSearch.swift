@@ -40,6 +40,15 @@ struct SongSearch<Header: View, Footer: View>: View {
     /// What sits under it while there is nothing to show.
     @ViewBuilder let footer: Footer
 
+    /// The gap between the four things in the column — the header block, the field, and what
+    /// sits under it.
+    ///
+    /// `blockGap` is the right rhythm for a sheet that owns its whole screen. It is too much for
+    /// `SubmitScreen`, whose column has to fit between the round's own chrome and a keyboard
+    /// that is up from the moment it appears — see that caller for what overflowing that band
+    /// actually costs. A parameter rather than a computed guess, so the tight arrangement is
+    /// something one screen asks for rather than something this view infers about its host.
+    var blockSpacing: CGFloat = Layout.blockGap
     /// A ceiling on the gap above `header`, or `nil` for a plain, uncapped `Spacer`.
     ///
     /// `SubmitScreen` is the one caller that sets this: its header sits directly under the
@@ -71,7 +80,7 @@ struct SongSearch<Header: View, Footer: View>: View {
     /// keyboard — rather than against the window. So the column places its block with a capped
     /// gap above it and an open one below, and everything lands above the keyboard every time.
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.blockGap) {
+        VStack(alignment: .leading, spacing: blockSpacing) {
             // Two flexible gaps when there is nothing to show, one when there is. That is the
             // whole of the rise: SwiftUI resolves the field to the middle of an empty screen and
             // to just under the headline on a full one.

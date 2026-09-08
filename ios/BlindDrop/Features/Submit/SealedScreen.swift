@@ -104,6 +104,17 @@ struct SealedScreen: View {
             OutlineButton("sealed.replace", action: replace)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // **Nothing on this screen has a keyboard, so nothing on it moves for one.**
+        //
+        // A keyboard raised anywhere in the window insets this hierarchy too, and the one place
+        // that happens is the replacement sheet's search field — presented *over* this screen,
+        // which keeps laying out underneath it. The cover is square-to-fit and takes whatever
+        // height the column has left (see the note on `body`), so a bottom inset arriving from
+        // a field this screen does not own resized the artwork behind the sheet; dismissing the
+        // sheet then played that resize back as an animation, on a card whose whole contract is
+        // that it does not move. There is no text input here and never will be, so the keyboard
+        // region is simply not this screen's to react to.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         // A peek that survives the app going to the background is a screenshot in the app
         // switcher with the song in it (`E22-01`). `scenePhase` is the one signal every one of
         // those failure modes shares — the switcher appearing, backgrounding, a call arriving —

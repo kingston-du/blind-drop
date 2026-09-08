@@ -71,7 +71,14 @@ enum Layout {
     /// Horizontal inset on every screen.
     static let screenInset = Space.xxl
     /// Top breathing room for screen chrome inside the safe area.
-    static let chromeTop = Space.sm
+    ///
+    /// `none`, and that is not the same as no breathing room (owner, 2026-09-07). The first row
+    /// of the round's chrome is a 44pt touch target around a 20pt line, so it already carries a
+    /// dozen points of slack above the text; eight more on top of that put the group's name
+    /// visibly lower than a title bar sits in any other app on the phone. Zero here lands the
+    /// name where a reader expects to find it, and the row's own target keeps it off the status
+    /// bar.
+    static let chromeTop = Space.none
     /// Vertical gap between distinct blocks.
     static let blockGap = Space.x3
     /// Vertical gap within a block.

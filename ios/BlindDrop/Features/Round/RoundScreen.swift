@@ -233,14 +233,19 @@ struct RoundScreen: View {
             .padding(.horizontal, Layout.screenInset)
             .padding(.top, Layout.chromeTop)
             // **Less below the name row when the rule is what closes the block** (owner,
-            // 2026-09-07). `Layout.itemGap` is the right gap to the *content* of a pinned phase,
-            // where the header's own two rows have already ended and the next thing is a block.
-            // It is too much above a hairline: the name row is a 44pt touch target around a
-            // 20pt line, so it already contributes a dozen points of slack under the text, and
-            // twelve more put the rule nearer the date beneath it than the name it belongs to.
-            // `Space.xs` leaves the rule where the row visually ends, and the clearance under it
-            // is the scrolling phases' own (`RevealScreen.flight`, `ResultsScreen`).
-            .padding(.bottom, pinsDateHeadline(store) ? Layout.itemGap : Space.xs)
+            // 2026-09-07). A gap here is too much above a hairline: the name row is a 44pt touch
+            // target around a 20pt line, so it already contributes a dozen points of slack under
+            // the text, and a full `itemGap` more put the rule nearer the date beneath it than
+            // the name it belongs to. `Space.xs` leaves the rule where the row visually ends,
+            // and the clearance under it is the scrolling phases' own (`RevealScreen.flight`,
+            // `ResultsScreen`).
+            //
+            // `Space.sm` rather than `Layout.itemGap` on the pinned phases, where the next thing
+            // is a block rather than a rule. Four of those points are the last of what the drop
+            // screen's column needed to fit between this chrome and its keyboard — see
+            // `SubmitScreen`'s `blockSpacing` for what overflowing that band costs, and why the
+            // gaps paid for it rather than a line of copy.
+            .padding(.bottom, pinsDateHeadline(store) ? Space.sm : Space.xs)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.paper)
             // **The bottom of the chrome, where a list passes under it** (owner, 2026-09-06).

@@ -207,7 +207,7 @@ struct CircleSwitcherSheet: View {
                 }
         }
         .scrollBounceBehavior(.basedOnSize)
-        .background(Palette.paper)
+        .presentationBackground(Palette.paper)
         .presentationDetents([.height(measuredHeight)])
         .presentationCornerRadius(Radius.sheet)
         .presentationDragIndicator(.visible)

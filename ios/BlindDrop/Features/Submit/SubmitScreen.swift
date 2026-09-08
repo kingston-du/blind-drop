@@ -91,30 +91,21 @@ struct SubmitScreen: View {
                 choose: choose,
                 header: { browsing in prompt(browsing: browsing) },
                 footer: { footer },
-                // This is the round's own search screen, sitting directly under `RoundHeader` —
-                // an uncapped gap here left "Today's song." a variable, often large distance
-                // under it, and the block ends up wherever the column's full height happens to
-                // put it.
+                // **This column has to fit between the round's chrome and the keyboard, and
+                // the two numbers below are how it does.** Overflowing that band is not a
+                // clipped screen — UIKit makes the difference up by lifting the whole window,
+                // chrome included, and the lift only goes away once results arrive and the
+                // subhead and cue card step aside. That is a pinned header that jumps thirteen
+                // points the moment somebody stops typing (owner, 2026-09-07).
                 //
-                // **The cap is the block's vertical position, so it is set against what is
-                // actually visible.** The keyboard is up from the moment this appears and covers
-                // the bottom of the column, so the room to place the block in is the band
-                // between the header and the keyboard — and the block wants to sit in the middle
-                // of *that*, not of the column. Two changes just took height out of the top of
-                // that band: the header's badge moved up onto the date's row, and the paste
-                // fallback left the column entirely. Both would have dragged the headline
-                // upwards; this is where the height they gave back is spent instead.
-                //
-                // The value was measured rather than guessed, and the measurement is worth
-                // writing down because the relationship is not the obvious one: SwiftUI's
-                // keyboard avoidance lifts this column by however much it overlaps the
-                // keyboard, so a taller top gap makes a taller column, which earns a bigger
-                // lift, which gives most of the gap straight back. Roughly three points of cap
-                // buy one point of movement. On an iPhone 17 with the keyboard up this leaves
-                // the block sitting a little below centre in the band between the cue and the
-                // keyboard — which is where it is wanted, and which no larger number can
-                // meaningfully change.
-                topGapCap: Space.x4 + Space.sm
+                // So the gaps pay for the cue card, rather than the subhead paying for it.
+                // `itemGap` between the four things instead of `blockGap` frees forty points
+                // across the two gaps; `Space.none` above the headline puts the block directly
+                // under the badge row, which is where it was asked to be. What is left over
+                // goes to the open gap *below* the block, so the blind line sits close to the
+                // keyboard rather than floating in the middle of the column.
+                blockSpacing: Layout.itemGap,
+                topGapCap: Space.none
             )
         }
     }
@@ -156,12 +147,12 @@ struct SubmitScreen: View {
             // step aside at accessibility sizes, though; there the subhead goes instead, because
             // between the tutorial and the brief the brief is the one with something to say.
             if !browsing, let cue {
-                // A full `itemGap` of its own on top of the stack's, so the card sits a clear
-                // step below the pair above it rather than reading as a third line of the
-                // headline block. It is a different kind of thing: they are the screen's title,
-                // this is tonight's instruction.
+                // No extra gap of its own on top of the stack's (owner, 2026-09-07). It used to
+                // take a full `itemGap` more, so the card sat a clear step below the pair above
+                // it — but this column has twelve points to spare, not twenty-four, and the
+                // step it was buying is one the card's own border and fill already draw. The
+                // three things now sit on one rhythm: title, aside, brief.
                 CueCard(cue: cue)
-                    .padding(.top, Space.md)
                     .transition(.opacity)
             }
         }
@@ -181,6 +172,11 @@ struct SubmitScreen: View {
     /// the subhead is the tutorial and the card is tonight's actual instruction: a reader who
     /// loses the cue is guessing at the round, and a reader who loses the subhead has lost a
     /// sentence the reveal will teach them anyway.
+    ///
+    /// **It does not step aside for a cue at ordinary sizes** (owner, 2026-09-07). A cued night
+    /// is the common night, and the line it would cost is the one that says what the app is
+    /// for. The room the cue card needs comes out of the gaps instead — see `blockSpacing` and
+    /// `topGapCap` at the call site.
     private func showsSubhead(browsing: Bool) -> Bool {
         !browsing && !dynamicTypeSize.isAccessibilitySize
     }
