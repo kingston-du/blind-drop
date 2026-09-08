@@ -305,9 +305,7 @@ struct RecordScreen: View {
         .padding(.vertical, Space.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.paper)
-        .overlay(alignment: .top) {
-            Rectangle().fill(Palette.edge).frame(height: Stroke.border)
-        }
+        .overlay(alignment: .top) { Rule(color: Palette.edge) }
     }
 
     @ViewBuilder

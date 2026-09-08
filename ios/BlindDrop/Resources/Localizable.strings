@@ -272,7 +272,6 @@
 "sealed.opens.label" = "Drops in";
 "sealed.countdown.label" = "until reveal";
 "sealed.replace" = "Replace song";
-"sealed.replaced" = "Sealed again.";
 "push.permission.title" = "Want to know when it opens?";
 "push.permission.body" = "Know when songs go up, and when answers land. Nothing else.";
 "push.permission.allow" = "Turn on notifications";

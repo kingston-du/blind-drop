@@ -358,11 +358,7 @@ struct GuessSheet: View {
                 style: .continuous
             )
         )
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Palette.edge)
-                .frame(height: Stroke.border)
-        }
+        .overlay(alignment: .top) { Rule(color: Palette.edge) }
     }
 
     /// The grab bar, the label and the status, as one block — and as one tap target.

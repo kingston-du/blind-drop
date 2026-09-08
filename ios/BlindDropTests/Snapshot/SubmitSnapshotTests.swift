@@ -108,15 +108,6 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
-    /// After a replacement — *"Sealed again."* Never announced to anybody else, never counted.
-    @Test(arguments: devices, [DynamicTypeSize.large])
-    func sealedAfterReplacing(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
-        try verify(named: "Sealed-replaced", device, size) { context, timer in
-            SealedScreen(context: context, submission: try! Self.submission(), timer: timer,
-                         didReplace: true, replace: {})
-        }
-    }
-
     // MARK: - Voided (`docs/08` §5)
 
     /// Muted amber, the song back, and **no count of how many did drop**.

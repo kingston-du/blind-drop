@@ -293,17 +293,21 @@ word beside it repeated a fact the countdown already carries.
 | `sealed.opens.label` | Drops in |
 | `sealed.countdown.label` | until reveal |
 | `sealed.replace` | Replace song |
-| `sealed.replaced` | Sealed again. |
 | `push.permission.title` | Want to know when it opens? |
 | `push.permission.body` | Know when songs go up, and when answers land. Nothing else. |
 | `push.permission.allow` | Turn on notifications |
 | `push.permission.skip` | Not now |
 
-`sealed.status` takes the group's reveal time, e.g. "Sealed until 8:00." **It is drawn only
-after a replacement** (owner, 2026-09-05), where `sealed.replaced` is what it says: unreplaced,
-it restated the countdown standing 40pt beneath it, and the sealed screen has no room to say
-anything twice. `sealed.company` — *"Come back for the reveal to see today's drops."* — was
-retired the same day and for the same reason, the badge and the countdown having already said it.
+`sealed.status` takes the group's reveal time, e.g. "Sealed until 8:00." **The sealed screen draws
+neither it nor `sealed.replaced`** — the first restated the countdown standing 40pt beneath it
+(owner, 2026-09-05), and the second, *"Sealed again."*, was retired the day after (owner,
+2026-09-06): it appeared only after a replacement, and on a column whose cover takes whatever
+height is left, a line that appears is 24pt of cover width that disappears. The card visibly
+resized under the one change that is meant to be invisible. A replacement already announces itself
+the only way it should — the seal runs again over the new song on the way back. `sealed.company` —
+*"Come back for the reveal to see today's drops."* — went the same way and for the same reason, the
+badge and the countdown having already said it. `sealed.status` stays in use on `ConfirmScreen`,
+where it is the only such line on the screen.
 
 `sealed.peek` replaces the title and artist in place, in the same spot, until the card is held
 (`E22-01`). VoiceOver never sees it — the sealed card's own label always names the title and

@@ -60,10 +60,18 @@ extension View {
 
 // MARK: - Rule
 
-/// A hairline across a card, between two things that belong to the same card.
+/// **The app's one horizontal separator** — inside a card, and at the edge of a pinned block.
 ///
 /// One device pixel, not one point: at 3× a 1pt rule is three pixels of grey where the design
-/// wants the thinnest line the screen can draw.
+/// wants the thinnest line the screen can draw. `Stroke.border` is for a *border* — a closed
+/// shape around a white surface, where a full point is right. Drawn flat on `paper` as a rule
+/// the same weight is a bar, which is what the chrome's separators looked like until they were
+/// brought here (owner, 2026-09-07). Any new rule uses this; none of them re-roll the
+/// `Rectangle`, because the whole point is that they cannot then disagree about the weight.
+///
+/// Not for the seal cover's amber lip (`SealedCard`, `UnsealAnimation`), which keeps
+/// `Stroke.border`: that is a mark on a moving object, not a separator, and a device pixel of
+/// amber on `amberWash` is not visible.
 struct Rule: View {
     var color: Color = Palette.hairline
     @Environment(\.displayScale) private var displayScale

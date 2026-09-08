@@ -2,6 +2,15 @@ import SwiftUI
 
 /// The open round, after the caller has dropped: their song under a cover, and a clock.
 ///
+/// **Four things, and the same four whichever night it is**: the cue, the card, the clock, the way
+/// out. The card is the flexible one — the cover is square-to-fit and takes whatever height the
+/// column has left — so anything that comes and goes above or below it comes out of the artwork,
+/// and the same phone draws a different-sized cover from one moment to the next. That is why
+/// nothing here is conditional. *"Sealed again."* used to appear under the card after a
+/// replacement and took 24pt of cover width with it, which read as the card resizing under a
+/// change that is meant to be invisible (owner, 2026-09-06). The replacement already announces
+/// itself the only way it should: the seal runs again over the new song on the way back here.
+///
 /// The whole screen is one fact and one number. There is nothing here about anybody else —
 /// no count, no *waiting on*, no sense of whether the caller was early or last. The line under
 /// the countdown is the only nod to the others in the group, and it is deliberately unfalsifiable:
@@ -10,10 +19,6 @@ struct SealedScreen: View {
     let context: RoundContext
     let submission: SubmissionDTO
     let timer: CountdownTimer
-    /// Whether this song replaced an earlier one in this round. Replacing is *"never penalised,
-    /// never announced, and the replaced-song count is never displayed"* (`docs/08` §4) — what it
-    /// changes is one line of the caller's own copy, and nothing anybody else can ever see.
-    var didReplace = false
     let replace: () -> Void
     /// The 30-second preview (`Core/Audio/PreviewPlayer.swift`). `nil` in every golden, which is
     /// what keeps a snapshot silent and keeps `RevealScreen`/`SearchSheet`'s "one at a time" rule
@@ -38,7 +43,6 @@ struct SealedScreen: View {
         context: RoundContext,
         submission: SubmissionDTO,
         timer: CountdownTimer,
-        didReplace: Bool = false,
         replace: @escaping () -> Void,
         player: PreviewPlayer? = nil,
         isPeekingForSnapshot: Bool = false
@@ -46,7 +50,6 @@ struct SealedScreen: View {
         self.context = context
         self.submission = submission
         self.timer = timer
-        self.didReplace = didReplace
         self.replace = replace
         self.player = player
         _isPeeking = State(initialValue: isPeekingForSnapshot)
@@ -61,41 +64,38 @@ struct SealedScreen: View {
         // `.padding(.top)`; what closed up is the run to the button, which had the most air and
         // the least to say (owner, 2026-09-05).
         VStack(alignment: .leading, spacing: Space.sm) {
-            VStack(alignment: .leading, spacing: Layout.itemGap) {
-                SealedCard(
-                    track: submission.track,
-                    groupInitial: context.groupInitial,
-                    remaining: Copy.countdown(timer.display),
-                    // The cover's upper-right is empty — the stamp lands lower-right (`docs/09`
-                    // §2) — so the one compact service menu belongs there. It is the card's own
-                    // now rather than an overlay this screen hangs off it: only the card knows
-                    // where its artwork actually ends. See `SealedCard.linksMenu`.
-                    menuColor: accent.text,
-                    isPeeking: isPeeking,
-                    // A press begins in the ordinary way; a release goes through `reseal()`, the
-                    // same no-animation path every other way a hold ends uses, so a release is
-                    // never the one that behaves differently.
-                    onHoldChange: { holding in
-                        if holding {
-                            // A release just before this re-hold queued a one-turn-later pause.
-                            // Cancel it: the audio is still playing (it was never actually
-                            // stopped), and the hold this finger is now starting owns it.
-                            pendingStop?.cancel()
-                            pendingStop = nil
-                            isPeeking = true
-                            // `E28-04`: the caller's own preview, for exactly as long as the
-                            // hold lasts. `toggle` already no-ops a track with no `preview_url`
-                            // (`docs/06` §7) — a peek on those stays silent, same as before.
-                            if player?.playing != submission.track.trackKey {
-                                player?.toggle(submission.track)
-                            }
-                        } else {
-                            reseal()
+            SealedCard(
+                track: submission.track,
+                groupInitial: context.groupInitial,
+                remaining: Copy.countdown(timer.display),
+                // The cover's upper-right is empty — the stamp lands lower-right (`docs/09`
+                // §2) — so the one compact service menu belongs there. It is the card's own
+                // now rather than an overlay this screen hangs off it: only the card knows
+                // where its artwork actually ends. See `SealedCard.linksMenu`.
+                menuColor: accent.text,
+                isPeeking: isPeeking,
+                // A press begins in the ordinary way; a release goes through `reseal()`, the
+                // same no-animation path every other way a hold ends uses, so a release is
+                // never the one that behaves differently.
+                onHoldChange: { holding in
+                    if holding {
+                        // A release just before this re-hold queued a one-turn-later pause.
+                        // Cancel it: the audio is still playing (it was never actually
+                        // stopped), and the hold this finger is now starting owns it.
+                        pendingStop?.cancel()
+                        pendingStop = nil
+                        isPeeking = true
+                        // `E28-04`: the caller's own preview, for exactly as long as the
+                        // hold lasts. `toggle` already no-ops a track with no `preview_url`
+                        // (`docs/06` §7) — a peek on those stays silent, same as before.
+                        if player?.playing != submission.track.trackKey {
+                            player?.toggle(submission.track)
                         }
+                    } else {
+                        reseal()
                     }
-                )
-                if didReplace { status }
-            }
+                }
+            )
             countdown
                 .padding(.top, Space.md)
             Spacer(minLength: Space.none)
@@ -145,21 +145,6 @@ struct SealedScreen: View {
                 player?.toggle(track)
             }
         }
-    }
-
-    /// *"Sealed until 8:00."*, or *"Sealed again."* after a replacement (`docs/11`).
-    ///
-    /// The second line is the whole of what a replacement does to the interface. It drops the
-    /// hour, which is not a loss: the countdown directly under it is counting to exactly that
-    /// hour, and the sentence a person wants after replacing is the one that says the new song
-    /// is in.
-    private var status: some View {
-        Text(verbatim: didReplace
-             ? Copy.string("sealed.replaced")
-             : Copy.format("sealed.status", context.revealTime))
-            .typeStyle(.bodyM)
-            .foregroundStyle(accent.text)
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// The number the screen is really about, centred, with the word for what it counts to above

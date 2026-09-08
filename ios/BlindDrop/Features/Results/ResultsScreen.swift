@@ -138,6 +138,11 @@ struct ResultsScreen: View {
                 // do it.
                 content
                     .padding(.horizontal, Layout.screenInset)
+                    // Clearance under the chrome's rule, the same gap and the same argument as
+                    // the flight's — see `RevealScreen.flight`. Applied before `minHeight` so a
+                    // short night still measures to exactly the viewport rather than gaining a
+                    // twelve-point overscroll it has nothing to show in.
+                    .padding(.top, Layout.itemGap)
                     .frame(minHeight: proxy.size.height, alignment: .top)
             }
             // **"Any scroll gesture completes the entire sequence immediately"** (`docs/09` §4).

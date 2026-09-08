@@ -102,11 +102,14 @@ enum Layout {
     /// One row of the circle switcher (`E42-01`).
     ///
     /// Not `minimumTouchTarget`, which is what it was and which is a *floor* rather than a
-    /// rhythm — 44pt around a 24pt name leaves ten points top and bottom, and a list of those
-    /// reads as a menu somebody compressed. Not `buttonHeight` either: a row is not a control,
-    /// and borrowing that token would make the two move together the next time one of them
-    /// wants to change. 64 is the number, written down once.
-    static let switcherRowHeight: CGFloat = 64
+    /// rhythm — a list of 44s reads as a menu somebody compressed. Not `buttonHeight` either:
+    /// a row is not a control, and borrowing that token would make the two move together the
+    /// next time one of them wants to change.
+    ///
+    /// 56, revised down from 64 when the name went from `displayS` back to `bodyLStrong`. The
+    /// height was chosen against a 24pt name; the same box around a 17pt one is not generous,
+    /// it is a name adrift in it. The two numbers belong together and should move together.
+    static let switcherRowHeight: CGFloat = 56
 
     /// The phase mark on a switcher row (`E42-01`).
     ///

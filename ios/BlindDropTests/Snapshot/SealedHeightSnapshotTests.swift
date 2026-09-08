@@ -50,6 +50,11 @@ import Testing
         named name: String,
         sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
+        let image = try render(track: track, peeking: peeking)
+        SnapshotRenderer.verify(image, named: name, in: "Submit", sourceLocation: sourceLocation)
+    }
+
+    private func render(track: TrackDTO, peeking: Bool) throws -> UIImage {
         let context = try SnapshotFixture.context("round_open", revealsIn: 7 * 3600 + 53 * 60, opensIn: -5 * 3600)
         let clock = ServerClock(uptime: { 1_000 })
         clock.sync(serverNow: CountdownFixture.serverNow)
@@ -73,7 +78,6 @@ import Testing
         }
         .frame(width: 402 - 2 * Layout.screenInset, height: Self.available, alignment: .top)
 
-        let image = SnapshotRenderer.image(of: view, device: Self.device, typeSize: .large)
-        SnapshotRenderer.verify(image, named: name, in: "Submit", sourceLocation: sourceLocation)
+        return SnapshotRenderer.image(of: view, device: Self.device, typeSize: .large)
     }
 }

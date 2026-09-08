@@ -50,8 +50,6 @@ struct RoundScreen: View {
     /// and one value driving both would try to push inside the sheet and present over the screen
     /// at the same moment.
     @State private var confirmingDirect: TrackDTO?
-    /// Whether the song on screen replaced an earlier one **this session** (`docs/08` §4).
-    @State private var didReplace = false
     /// The how-to sheet (`docs/08` §2, §8). Reachable from every phase through the same
     /// `[?]` in `RoundHeader`, and — like Search — a sheet rather than a fourth `Route`.
     @State private var isShowingHowTo = false
@@ -234,9 +232,44 @@ struct RoundScreen: View {
             }
             .padding(.horizontal, Layout.screenInset)
             .padding(.top, Layout.chromeTop)
-            .padding(.bottom, Layout.itemGap)
+            // **Less below the name row when the rule is what closes the block** (owner,
+            // 2026-09-07). `Layout.itemGap` is the right gap to the *content* of a pinned phase,
+            // where the header's own two rows have already ended and the next thing is a block.
+            // It is too much above a hairline: the name row is a 44pt touch target around a
+            // 20pt line, so it already contributes a dozen points of slack under the text, and
+            // twelve more put the rule nearer the date beneath it than the name it belongs to.
+            // `Space.xs` leaves the rule where the row visually ends, and the clearance under it
+            // is the scrolling phases' own (`RevealScreen.flight`, `ResultsScreen`).
+            .padding(.bottom, pinsDateHeadline(store) ? Layout.itemGap : Space.xs)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.paper)
+            // **The bottom of the chrome, where a list passes under it** (owner, 2026-09-06).
+            //
+            // Edge to edge, outside the horizontal inset, because it is the edge of a block and
+            // not a divider inside one — the same rule, in the same `edge` rather than `hairline`,
+            // that `GuessSheet` draws at its own join across the bottom of this very screen. That
+            // sheet's note is the argument in full: `docs/07` §2 rules out a shadow, so a hairline
+            // is what stops `paper` showing through a seam that is meant to be an edge. A fade was
+            // the alternative and is wrong here twice over: a gradient to `paper` washes grey
+            // across the white cards it crosses and does nothing in the gaps between them — the
+            // mistake the name pool's own fade already documents — and the `.mask()` that avoids
+            // the tint dissolves the borders off a bordered, rounded card instead. One screen
+            // should not answer the same question two different ways at its two edges.
+            //
+            // **Only when the header is a single row**, which is the same test as the date being
+            // withheld. With the date pinned, `RoundHeader` draws its own rule between its two
+            // rows and the block is already legibly a block; a second line a few points below it
+            // is noise, and on those phases nothing scrolls under the chrome anyway. Withholding
+            // the date collapses that internal rule along with the row (`hasStanding`), which is
+            // what left the name row on Reveal and Results floating over a moving list with
+            // nothing marking where the chrome stopped. This puts the mark back where it went.
+            .overlay(alignment: .bottom) {
+                if !pinsDateHeadline(store) {
+                    // `Rule`, not a hand-rolled rectangle: one device pixel, and hidden from
+                    // VoiceOver for free — a mark, not a stop.
+                    Rule(color: Palette.edge)
+                }
+            }
         }
         .task(id: phaseDeadlineID(store)) { await refreshAtPhaseDeadline(store) }
         // Open, sealed, reveal and voided already render this timer. Its concrete deadline is
@@ -431,8 +464,7 @@ struct RoundScreen: View {
                         context: context,
                         submission: mySubmission,
                         timer: timer,
-                        didReplace: didReplace,
-                        replace: { startSearching(replacing: true, seal: seal) },
+                        replace: { startSearching(seal: seal) },
                         // The one shared player (`docs/06` §4: one at a time) — the same instance
                         // Submit's search sheet and the reveal flight already play through, so
                         // holding a peek here stops whatever either of those had going.
@@ -469,7 +501,6 @@ struct RoundScreen: View {
                         },
                         choose: { track in
                             seal.reset()
-                            didReplace = false
                             confirmingDirect = track
                         }
                     )
@@ -645,11 +676,10 @@ struct RoundScreen: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func startSearching(replacing: Bool, seal: SealAnimation) {
+    private func startSearching(seal: SealAnimation) {
         // A replacement re-runs the seal, so the confirm layout must start unsealed — `docs/08`
         // §4: *"After replacing, the seal animation runs again."*
         seal.reset()
-        didReplace = replacing
         confirming = nil
         isSearching = true
     }
@@ -1144,7 +1174,11 @@ struct RoundHeader<Badge: View>: View {
     /// spacing around it collapses to nothing and a badgeless phase gets a plain date line,
     /// whereas a padded empty view would reserve its padding and leave a gap either side.
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
+        // `Space.none`, with the rule below carrying both of its own gaps. The stack's own
+        // spacing cannot express what this block needs: the name row is a 44pt touch target
+        // around a 20pt line, so a symmetric gap lands the rule a dozen points further from the
+        // name than from the date and reads as a line over the date rather than under the name.
+        VStack(alignment: .leading, spacing: Space.none) {
             HStack(alignment: .center, spacing: Space.sm) {
                 if let groupName {
                     Button(action: openSwitcher) {
@@ -1220,10 +1254,12 @@ struct RoundHeader<Badge: View>: View {
             // when something is under it: on the loading header, where `standing` is empty, a
             // rule would be a line under the circle's name and nothing else.
             if hasStanding {
-                Rectangle()
-                    .fill(Palette.hairline)
-                    .frame(height: Stroke.border)
-                    .accessibilityHidden(true)
+                // Close under the name row, clear above the date — the same pair of gaps the
+                // chrome's own rule uses on the phases that scroll, so the two rules sit the
+                // same way whichever phase drew them (owner, 2026-09-07).
+                Rule()
+                    .padding(.top, Space.xs)
+                    .padding(.bottom, Layout.itemGap)
             }
 
             standing

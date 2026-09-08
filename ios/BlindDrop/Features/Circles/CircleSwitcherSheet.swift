@@ -41,17 +41,25 @@ import SwiftUI
 ///    where it meant "here". A 3pt `ink` rail on the leading edge says it without dulling
 ///    anything, and lives inside `ListCard`'s clip so the end rows keep the card's corners.
 /// 3. **Name and state stop competing.** 17pt semibold against 15pt regular is barely a step,
-///    which is why a state word read like a button somebody had failed to tap. The name takes
-///    `displayS` and the state drops to `label` — the same mono voice as `SEALS IN 19:26:26` in
-///    the header this sheet is opened from.
+///    which is why a state word read like a button somebody had failed to tap. The name keeps
+///    `bodyLStrong` — it is a list row, and that is what every list row title in the app is set
+///    in — and the state drops to `label`, the same mono voice as `SEALS IN 19:26:26` in the
+///    header this sheet is opened from. The interval is now 17pt semibold against 11pt mono
+///    uppercase, which is a step you can see across the room.
+///
+///    The name was briefly `displayS` too, to match the title. That was wrong twice: it put the
+///    rows in the same size and face as the heading above them, so nothing on the sheet outranked
+///    anything (the original complaint, in a new costume), and it spent `docs/07` §3's rationed
+///    display face a second time on the same screen — once considered, twice a habit.
 /// 4. **The needs-action mark moved onto the thing it is about.** A 4pt dot to the left of every
 ///    name, drawn at zero opacity when unset, is read as a bullet. It is now a pip beside the
 ///    *state*, where the fact actually lives, and the name column starts flush.
 /// 5. **The footer is buttons.** Two full-width `OutlineButton`s are the *secondary* weight
 ///    spent twice on the two least important actions, and nothing on the sheet was at the
-///    primary weight at all. They are `PillButton`s now — filled for **Join a group**, outlined
-///    for **Start a group** — which is the row-scale control this file's own invitation row
-///    already uses.
+///    primary weight at all. They are `PillButton`s now — filled for **Join with a code**,
+///    outlined for **Start a group** — which is the row-scale control this file's own invitation
+///    row already uses. No word changed: the label wrapped because it was in a half-width
+///    `OutlineButton`, and at the pill's full width it sits on one line.
 ///
 /// **The pip carries the phase, and that is a §2.5 exception.**
 ///
@@ -116,7 +124,7 @@ struct CircleSwitcherSheet: View {
 
     /// Stacks the row at `.accessibility1` and above (`TrackRow`'s own threshold). Below it, a
     /// name and a state word share one line the way every other row in the app does; above it,
-    /// a wide `displayS` name and a `label` state word fighting for the same line is what
+    /// a wide `bodyLStrong` name and a `label` state word fighting for the same line is what
     /// produced `Late…` and `Answe` / `rs` on two lines — a switcher whose entire job is
     /// telling two circles apart is not allowed to make the name the thing that gives.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -339,7 +347,7 @@ struct CircleSwitcherSheet: View {
                 if isStacked {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(verbatim: circle.name)
-                            .typeStyle(.displayS)
+                            .typeStyle(.bodyLStrong)
                             .foregroundStyle(Palette.ink)
                             .fixedSize(horizontal: false, vertical: true)
                         stateLabel(circle, state)
@@ -347,7 +355,7 @@ struct CircleSwitcherSheet: View {
                 } else {
                     HStack(spacing: Space.md) {
                         Text(verbatim: circle.name)
-                            .typeStyle(.displayS)
+                            .typeStyle(.bodyLStrong)
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -481,12 +489,12 @@ private struct SwitcherInvitationRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            // `displayS`, matching a membership row above it (`E42-01`) — the two cards sit one
-            // gap apart and a circle's name should not change size according to whether you are
-            // already in it. It carries no pip: an invitation has no phase, because you are not
-            // in the round yet.
+            // `bodyLStrong`, matching a membership row above it (`E42-01`) — the two cards sit
+            // one gap apart and a circle's name should not change size according to whether you
+            // are already in it. It carries no pip: an invitation has no phase, because you are
+            // not in the round yet.
             Text(verbatim: invitation.group.name)
-                .typeStyle(.displayS)
+                .typeStyle(.bodyLStrong)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text(verbatim: Copy.format("group.join.by", invitation.invitedBy.displayName))
