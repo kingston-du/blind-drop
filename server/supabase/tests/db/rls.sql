@@ -154,7 +154,12 @@ select set_eq(
        -- E35-02 (20260827120000_cues.sql). Called by the cadence PATCH path after updating
        -- groups.cue_cadence; `cue_for_round` is deliberately absent — it is an internal
        -- helper reached only through the definer functions, never by a client RPC.
-       ('rewrite_open_round_cues'::information_schema.sql_identifier) $$,
+       ('rewrite_open_round_cues'::information_schema.sql_identifier),
+       -- Owner amendment, 2026-09-09 (20260909120000). Called by the reveal_hour PATCH path
+       -- after updating groups.reveal_hour, exactly as the cadence path calls the cue rewrite
+       -- above. Admin-only is enforced in the Edge Function, which is why `authenticated` is
+       -- absent here and asserted absent in retime_unopened_rounds.sql.
+       ('retime_unopened_rounds'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
 
 select is_empty($$

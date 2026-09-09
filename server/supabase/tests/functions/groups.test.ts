@@ -286,28 +286,73 @@ Deno.test("PATCH /groups/current changes name and reveal_hour", async () => {
   assertEquals(keysOf(rehoured.body.data), GROUP_KEYS);
   assertEquals(rehoured.body.data.reveal_hour, 18);
   // No round has been materialised for a group this new, so the next one created will use the
-  // new hour and there is nothing to wait for. The round-table case is the test below.
+  // new hour and there is nothing to wait for. The round-table cases are the two tests below.
   assertEquals(rehoured.body.data.reveal_effective_from, null);
 });
 
-// `reveal_effective_from` is about the rounds already on the books, and it is the field the
-// settings screen prints "Starts %@." from. The two answers it has to get right are *"the hour
-// you are looking at is not the hour tonight will use"* and *"yes it is"* — and the second is
-// the one that used to be impossible to say, because the date only existed in the reply to the
-// change and the screen had nowhere to read it from afterwards (docs/04 §3).
-Deno.test("reveal_effective_from names a date only while rounds still run on the old hour", async () => {
-  // 08:00 local, so both a 21:00 and an 18:00 reveal are still ahead today and `ensure_rounds`
-  // will materialise the pair of rounds this test needs.
+// The owner's 2026-09-09 amendment (docs/02 §1): a reveal_hour change re-times every round
+// that has not yet opened, and stops at one that has. These two tests are the two sides of
+// that line — the round nobody has been able to drop into yet moves, and the round that is
+// live does not. `reveal_effective_from` is what the settings screen prints "Starts %@." from,
+// and it has exactly one thing left to report: the live round still running on the old hour.
+
+const localDateIn = (timezone: string, at: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(at);
+
+const revealsAt = async (token: string) => {
+  const res = await call("rounds", "/current", { token });
+  assertEquals(res.status, 200);
+  return res.body.data.reveals_at as string;
+};
+
+Deno.test("a reveal_hour change re-times a round that has not opened yet", async () => {
+  // 08:00 local. A 21:00 reveal opens at 11:00, so nothing is open and everything is fair game.
   const timezone = zoneWhereLocalHourIs(8);
   const { user } = await newGroupOwner("Ana", { timezone, reveal_hour: 21 });
   await tickRounds();
+
+  const before = await revealsAt(user.token);
+
+  const moved = await groups("/current", {
+    method: "PATCH",
+    token: user.token,
+    body: { reveal_hour: 18 },
+  });
+  assertEquals(moved.status, 200);
+  assertEquals(
+    moved.body.data.reveal_effective_from,
+    null,
+    "nothing was open, so the new hour is in force tonight and there is no date to wait for",
+  );
+
+  const after = await revealsAt(user.token);
+  assert(after !== before, "tonight's round did not move, and it should have");
+  assertEquals(
+    new Date(after).getTime(),
+    new Date(before).getTime() - 3 * 3_600_000,
+    "21:00 to 18:00 is three hours earlier, tonight",
+  );
+});
+
+Deno.test("a reveal_hour change never re-times a round that is already open", async () => {
+  // 14:00 local. A 21:00 reveal opened at 11:00 — three hours ago — and reveals in seven.
+  const timezone = zoneWhereLocalHourIs(14);
+  const { user } = await newGroupOwner("Ana", { timezone, reveal_hour: 21 });
+  await tickRounds();
+
+  const tonight = await revealsAt(user.token);
 
   const settled = await groups("/current", { token: user.token });
   assertEquals(settled.status, 200);
   assertEquals(
     settled.body.data.reveal_effective_from,
     null,
-    "an unchanged hour is already in force and has no date to wait for",
+    "an unchanged hour is already in force",
   );
 
   const moved = await groups("/current", {
@@ -316,17 +361,24 @@ Deno.test("reveal_effective_from names a date only while rounds still run on the
     body: { reveal_hour: 18 },
   });
   assertEquals(moved.status, 200);
-  const effective = moved.body.data.reveal_effective_from;
-  assert(
-    typeof effective === "string",
-    "rounds already exist at 21:00, so 18:00 is not in force yet",
+
+  assertEquals(
+    await revealsAt(user.token),
+    tonight,
+    "tonight's round is open and somebody may have sealed against its clock",
   );
 
-  // And it keeps saying so on an ordinary read, which is the whole point of the field.
-  const reread = await groups("/current", { token: user.token });
-  assertEquals(reread.body.data.reveal_effective_from, effective);
+  // So the change lands tomorrow — the next round, not the one after it, which is what an
+  // admin waiting two nights used to be told.
+  const tomorrow = localDateIn(timezone, new Date(Date.now() + 24 * 3_600_000));
+  assertEquals(moved.body.data.reveal_effective_from, tomorrow);
 
-  // Put it back and the answer goes away again: every round ahead reveals at 21:00 once more.
+  // And it keeps saying so on an ordinary read, which is the whole point of the field: the
+  // date used to exist only in the reply to the change, and the screen forgot it on reopen.
+  const reread = await groups("/current", { token: user.token });
+  assertEquals(reread.body.data.reveal_effective_from, tomorrow);
+
+  // Put it back and the answer goes away: the open round is on 21:00 and so is everything else.
   const restored = await groups("/current", {
     method: "PATCH",
     token: user.token,
@@ -334,6 +386,7 @@ Deno.test("reveal_effective_from names a date only while rounds still run on the
   });
   assertEquals(restored.status, 200);
   assertEquals(restored.body.data.reveal_effective_from, null);
+  assertEquals(await revealsAt(user.token), tonight, "and tonight never moved through any of it");
 });
 
 Deno.test("PATCH /groups/current changes the cue cadence and names the effective date", async () => {

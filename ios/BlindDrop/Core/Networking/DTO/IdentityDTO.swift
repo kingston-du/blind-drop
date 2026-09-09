@@ -72,14 +72,18 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
     /// Read-only; only the PATCH response is acted on.
     let cueEffectiveFrom: String?
     /// The local date from which `revealHour` first applies, and `nil` — the ordinary answer —
-    /// when it already applies to every round still ahead (`docs/04` §3).
+    /// when the very next round ahead already uses it (`docs/04` §3).
     ///
-    /// A reveal hour never re-times a round that is already on the books (`docs/03` §4), and
-    /// `ensure_rounds` materialises two days, so an hour changed this evening can be two nights
-    /// from taking effect. The server answers that on **every** read rather than only in the
-    /// reply to the change, which is what lets the settings screen keep saying it — a member who
-    /// changed the hour, left the screen and came back used to see the new hour with nothing to
-    /// say tonight was still running on the old one.
+    /// A change re-times every round that has not yet opened (`docs/02` §1, owner amendment
+    /// 2026-09-09), so the only round that can still be on the old hour is one that is *open* —
+    /// somebody may have sealed a song against its clock. Change the hour in the morning and
+    /// this is `nil`, because tonight is already the new hour; change it in the evening and it
+    /// is tomorrow.
+    ///
+    /// The server answers on **every** read rather than only in the reply to the change, which
+    /// is what lets the settings screen keep saying it — a member who changed the hour, left the
+    /// screen and came back used to see the new hour with nothing to say tonight was still
+    /// running on the old one.
     let revealEffectiveFrom: String?
 
     init(

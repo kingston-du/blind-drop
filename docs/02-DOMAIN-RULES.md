@@ -38,8 +38,15 @@ Submission open/close are **not** independently configurable in v1. Too many kno
 | 20 *(default)* | 10:00 | 20:00 | 22:00 |
 | 21 | 11:00 | 21:00 | 23:00 |
 
-Changing `reveal_hour` takes effect from the **next** round. It never mutates a round that
-already exists. Enforce this in the API.
+Changing `reveal_hour` takes effect from the **next** round. It never mutates a round that has
+already **opened** — somebody may have sealed a song against that clock. Everything ahead of
+`opens_at` is re-timed, including tomorrow's already-materialised round. Enforce this in the API.
+
+> **Owner amendment, 2026-09-09.** This paragraph used to end "never mutates a round that
+> already exists", and `ensure_rounds()` materialises two days — so an admin who moved the hour
+> in the evening waited two nights, and the settings copy had to hedge about it. That was the
+> two-day horizon leaking into the product, not a decision. The line a change must not cross is
+> a round that is open, which is the same line `18-CUES.md` §10 draws for the cue cadence.
 
 ### DST
 

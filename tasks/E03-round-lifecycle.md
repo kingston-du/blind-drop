@@ -19,8 +19,12 @@ so the timezone offset used is never stale across a DST boundary.
 - [x] Local date computed with `timezone(g.timezone, ...)`, never a fixed offset
 - [x] `reveals_at` is the UTC instant of `reveal_hour:00` group-local **on that local date**
 - [x] `opens_at = reveals_at - 10h`, `scores_at = reveals_at + 2h`
-- [x] `on conflict (group_id, local_date) do nothing` — an existing round is never re-timed
-- [x] A `reveal_hour` change therefore lands on the first uncreated round; test this
+- [x] `on conflict (group_id, local_date) do nothing` — *this function* never re-times a round
+- [x] ~~A `reveal_hour` change therefore lands on the first uncreated round; test this~~
+      **Superseded by the owner's 2026-09-09 amendment** (`docs/02` §1): a change re-times every
+      round whose `opens_at` is still ahead, via `retime_unopened_rounds()`
+      (20260909120000). `ensure_rounds()` itself is unchanged — the conflict clause is about
+      outage recovery, not about settings.
 - [x] Test: `America/New_York` spring-forward and fall-back dates both produce 20:00 local
 - [x] Test: `Australia/Lord_Howe` (30-minute offset) works
 - [x] Test: an invalid timezone raises for that group only and the loop continues

@@ -314,10 +314,16 @@ Notes:
 - Today's round is created only while its reveal time is still in the future. A group created
   after reveal starts tomorrow instead of receiving an immediately expired, voided round.
   Existing rounds are never removed or re-timed, so outage recovery is unaffected.
-- `on conflict do nothing` means an existing round is never re-timed. A `reveal_hour` change
-  therefore takes effect from the first *not-yet-created* round — exactly the rule in
-  `02-DOMAIN-RULES.md` §1. If that day's round already exists, the change lands the day after.
-  This is acceptable and must be stated in the UI copy (`11-COPY-DECK.md`).
+- `on conflict do nothing` means **this function** never re-times a round. That is about
+  outage recovery, not about settings: creation and re-timing are separate operations, so a
+  late cron run cannot rewrite a round's clock.
+- A `reveal_hour` change **does** re-time rounds, through `retime_unopened_rounds()`
+  (20260909120000), and reaches every round whose `opens_at` is still ahead — which is the rule
+  `02-DOMAIN-RULES.md` §1 always stated. Owner amendment, 2026-09-09: it used to take effect
+  from the first not-yet-*created* round, and since this function materialises two days that
+  meant an evening change waited two nights. The bound that matters is that a round somebody
+  may already have sealed against never moves, and that is `opens_at`, not existence. Same set
+  of rounds `rewrite_open_round_cues()` touches, for the same reason.
 - The local-date arithmetic must use `timezone(g.timezone, ...)`, never `at time zone` with a
   fixed offset.
 

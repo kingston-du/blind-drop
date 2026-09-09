@@ -181,10 +181,12 @@ async function currentGroupDTO(ctx: MemberCtx, group?: GroupRow): Promise<GroupD
 /**
  * The local date of the first round that does not exist yet.
  *
- * A `reveal_hour` change never re-times a round that has already been created — `ensure_rounds`
- * is `on conflict do nothing` (docs/03 §4) — so the change lands the day after the last round
- * on the books, and the UI can say which day precisely (docs/02 §1, docs/11
- * `settings.hour.effective`).
+ * **This is no longer the reveal-hour rule** — it is the fallback under it, and the cue
+ * cadence's. Since the owner's 2026-09-09 amendment a `reveal_hour` change re-times every round
+ * that has not yet opened (`retime_unopened_rounds`), so the ordinary answer comes from a round
+ * that already exists. This date is what is left when none does: `ensure_rounds` is `on
+ * conflict do nothing` (docs/03 §4), so a round nobody has created yet is the next thing that
+ * will be created, and it will be created at the current hour.
  */
 async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
   const { data, error } = await db
@@ -203,36 +205,48 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
 
 /**
  * The local date from which this circle's **current** `reveal_hour` first applies, or `null`
- * when it already applies to every round still ahead of the member.
+ * when the very next round ahead already uses it.
  *
- * `effectiveFrom` above answers *"where would a change land"*, which is a fact about the round
- * table and is true whether or not anything changed. This answers the question the settings
- * screen is actually asking — *"is the hour on this row the hour tonight will use?"* — and it
- * is the difference between a line that appears when it means something and a line that says
- * "Starts 11 September." forever on a circle that has never moved its hour.
+ * Since the owner's 2026-09-09 amendment a change re-times every round that has not yet opened
+ * (`retime_unopened_rounds`), so this has exactly one thing left to report: the round that is
+ * *already open* still reveals at the hour it opened under, because nothing may move a night
+ * somebody has sealed against. Change the hour in the morning and there is nothing to say —
+ * tonight is the new hour. Change it in the evening and the answer is tomorrow's date.
  *
  * The comparison is against the **materialised rounds**, not against a remembered previous
- * value: `ensure_rounds` writes `reveals_at` as an instant (0004), so the hour a round will
- * actually reveal at is the hour that instant reads as in the circle's zone, and a round
- * created before a DST transition answers that correctly where a stored offset would not. Any
- * round still to come whose hour differs from the column means the column is not in force yet.
+ * value: `reveals_at` is an instant, so the hour a round will actually reveal at is the hour
+ * that instant reads as in the circle's zone, and a round created on the far side of a DST
+ * transition answers correctly where a stored offset would not.
  *
- * Only rounds whose reveal is still ahead of us are examined. A round that has already
- * revealed cannot be re-timed by anything, so it has no bearing on what the member is waiting
- * for — and including it would pin the line up permanently the first time the hour ever moved.
+ * Only rounds whose reveal is still ahead are examined. A round that has already revealed
+ * cannot be re-timed by anything, so it has no bearing on what the member is waiting for.
  */
 async function revealEffectiveFrom(db: Db, group: GroupRow): Promise<string | null> {
   const { data, error } = await db
     .from("rounds")
-    .select("reveals_at")
+    .select("local_date, reveals_at")
     .eq("group_id", group.id)
-    .gt("reveals_at", serverNow().toISOString());
+    .gt("reveals_at", serverNow().toISOString())
+    .order("local_date", { ascending: true });
   if (error) throw dbFailure("groups.revealEffectiveFrom", error);
 
-  const alreadyInForce = (data ?? []).every(
-    (row) => localHour(group.timezone, new Date(row.reveals_at)) === group.reveal_hour,
-  );
-  return alreadyInForce ? null : await effectiveFrom(db, group);
+  const ahead = data ?? [];
+  const onTheHour = (row: { reveals_at: string }) =>
+    localHour(group.timezone, new Date(row.reveals_at)) === group.reveal_hour;
+
+  // Nothing ahead at all — a circle whose rounds have not been materialised yet. The next one
+  // created will be created at this hour, so it is in force; there is nothing to wait for.
+  if (ahead.length === 0) return null;
+
+  // The next round ahead already reveals at this hour: same answer, for the same reason. A
+  // "starts on" line over a setting that is simply true would be noise.
+  if (onTheHour(ahead[0])) return null;
+
+  // Otherwise the first one that does. `find` rather than `ahead[1]` because a round may sit
+  // between them that this circle cannot re-time for a reason a future slice invents; naming
+  // the first date that genuinely uses the hour survives that, and reads the same today.
+  const first = ahead.find(onTheHour);
+  return first ? first.local_date : await effectiveFrom(db, group);
 }
 
 /**
@@ -755,6 +769,17 @@ async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
   if (error) throw dbFailure("groups.patch", error);
 
   const group = data as GroupRow;
+
+  // A reveal_hour change re-times every round that has not yet opened — never one somebody may
+  // already have sealed against, and never a night later than that (docs/02 §1, owner
+  // amendment 2026-09-09). Before this the change simply waited for a round nobody had created
+  // yet, which on the two-day horizon `ensure_rounds()` keeps meant waiting two nights.
+  if (body.reveal_hour !== undefined) {
+    const { error: retimeError } = await ctx.db.rpc("retime_unopened_rounds", {
+      p_group_id: ctx.groupId,
+    });
+    if (retimeError) throw dbFailure("groups.patch.retime", retimeError);
+  }
 
   // A cadence change rewrites the cue on every round that has not yet opened — never one
   // somebody may already have sealed against (docs/18-CUES.md §10). The helper returns the

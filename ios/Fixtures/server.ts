@@ -639,9 +639,13 @@ function currentState(): string {
 /** `GET /groups`'s per-circle state (`E18-02`), mapped off the same `PHASE` the round fixtures
  *  already key off — so switching phase through `__fixture/phase` moves this row too, the way
  *  a real reveal or score would. */
-/** The fixture's stand-in for the server's round-table comparison: the hour is in force unless
- *  it has been moved off the one the circle's rounds were materialised at, in which case it
- *  starts on a fixed date the goldens can assert. */
+/** The fixture's stand-in for the server's round-table comparison.
+ *
+ *  A change re-times every round that has not yet opened (docs/02 §1), so the only round that
+ *  can still be on the old hour is the one that is *open* — and the fixture's primary circle
+ *  always has one. So a moved hour reports the next day, and an unmoved one reports nothing.
+ *  The date is fixed rather than derived: the goldens assert it, and the payload file's round
+ *  is dated 2026-08-11 whatever day it is read on. */
 function revealEffectiveFrom(
   group: Record<string, unknown>,
   body: Record<string, unknown>,
