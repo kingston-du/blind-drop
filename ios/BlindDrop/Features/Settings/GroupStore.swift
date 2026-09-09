@@ -10,7 +10,6 @@ final class GroupStore {
     private(set) var isLeaving = false
     private(set) var isManagingMember = false
     private(set) var errorKey: String?
-    private(set) var revealHourEffectiveFrom: String?
     private(set) var cueEffectiveFrom: String?
 
     /// Four or fewer completed rounds used to be shown without percentages or rank.
@@ -80,8 +79,7 @@ final class GroupStore {
         errorKey = nil
         defer { isSaving = false }
         do {
-            let patch = try await api.send(.updateGroup(groupID, name: trimmed, revealHour: nil))
-            state = .loaded(patch.group)
+            state = .loaded(try await api.send(.updateGroup(groupID, name: trimmed, revealHour: nil)))
             return true
         } catch {
             errorKey = error.copyKey
@@ -95,9 +93,7 @@ final class GroupStore {
         errorKey = nil
         defer { isSaving = false }
         do {
-            let patch = try await api.send(.updateGroup(groupID, name: nil, revealHour: hour))
-            state = .loaded(patch.group)
-            revealHourEffectiveFrom = patch.effectiveFrom
+            state = .loaded(try await api.send(.updateGroup(groupID, name: nil, revealHour: hour)))
             return true
         } catch {
             errorKey = error.copyKey
@@ -111,11 +107,11 @@ final class GroupStore {
         errorKey = nil
         defer { isSaving = false }
         do {
-            let patch = try await api.send(
+            let updated = try await api.send(
                 .updateGroup(groupID, name: nil, revealHour: nil, cueCadence: cadence)
             )
-            state = .loaded(patch.group)
-            cueEffectiveFrom = patch.group.cueEffectiveFrom
+            state = .loaded(updated)
+            cueEffectiveFrom = updated.cueEffectiveFrom
             return true
         } catch {
             errorKey = error.copyKey

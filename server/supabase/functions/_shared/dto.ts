@@ -85,6 +85,12 @@ export interface GroupDTO {
   /** The local date from which the current cadence is in effect — always "tomorrow" for an
    *  already-open round, computed from the rewrite date (`docs/18-CUES.md` §10). */
   cue_effective_from: string;
+  /** The local date from which `reveal_hour` first applies, or `null` when it already applies
+   *  to every round still ahead — a change never re-times a round that has been created
+   *  (docs/02 §1, docs/03 §4), and `ensure_rounds` materialises two days, so a change made
+   *  this evening can be two nights away. `null` is the ordinary answer; a date means the
+   *  circle is still running on the hour it had before. */
+  reveal_effective_from: string | null;
 }
 
 export function groupDTO(
@@ -99,6 +105,7 @@ export function groupDTO(
   isAdmin: boolean,
   members: RosterMemberDTO[],
   cueEffectiveFrom: string,
+  revealEffectiveFrom: string | null,
 ): GroupDTO {
   return {
     id: group.id,
@@ -110,35 +117,15 @@ export function groupDTO(
     members,
     cue_cadence: group.cue_cadence,
     cue_effective_from: cueEffectiveFrom,
+    reveal_effective_from: revealEffectiveFrom,
   };
 }
 
-/**
- * `PATCH /groups/current`, which is the group DTO plus the date the settings start applying.
- *
- * `effective_from` is the local date of the first round that does not exist yet: a
- * `reveal_hour` change never re-times a round that has already been created (docs/02 §1,
- * docs/03 §4). It is `null` when the patch did not touch `reveal_hour`, because then there is
- * nothing to wait for.
- */
-export interface GroupPatchDTO extends GroupDTO {
-  effective_from: string | null;
-}
-
-export function groupPatchDTO(group: GroupDTO, effectiveFrom: string | null): GroupPatchDTO {
-  return {
-    id: group.id,
-    name: group.name,
-    timezone: group.timezone,
-    reveal_hour: group.reveal_hour,
-    invite_code: group.invite_code,
-    is_admin: group.is_admin,
-    members: group.members,
-    cue_cadence: group.cue_cadence,
-    cue_effective_from: group.cue_effective_from,
-    effective_from: effectiveFrom,
-  };
-}
+// `PATCH /groups/current` answers with the group DTO and nothing else. It used to carry an
+// extra `effective_from`, set only when the patch touched `reveal_hour`; `reveal_effective_from`
+// on the DTO itself says the same thing on every read, which is what the settings screen needed
+// — the old field vanished the moment the screen was reopened, and the reader was left looking
+// at an hour that was not yet the hour.
 
 // ─── invitations — E20-01 ─────────────────────────────────────────────────────
 //

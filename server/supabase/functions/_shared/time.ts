@@ -39,6 +39,19 @@ export function localDate(timezone: string, at: Date): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+/** The wall-clock hour at `at` in `timezone`, 0-23. The companion to `localDate`, and the only
+ *  correct way to ask what hour a stored instant reads as for a group: a round materialised
+ *  before a DST transition and one after it are the same `reveal_hour` and different UTC
+ *  offsets (docs/02 §1). `timezone` must already be validated. */
+export function localHour(timezone: string, at: Date): number {
+  const hour = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(at).find((p) => p.type === "hour")?.value ?? "";
+  return Number(hour);
+}
+
 /** The day after a `YYYY-MM-DD` date, as `YYYY-MM-DD`. Calendar arithmetic only — no clock. */
 export function nextDate(date: string): string {
   const [y, m, d] = date.split("-").map(Number);

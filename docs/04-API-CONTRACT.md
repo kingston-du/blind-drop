@@ -210,12 +210,24 @@ the switcher needs and deliberately the entire payload it gets:
   "reveal_hour": 20,
   "invite_code": "K7MQ2X",
   "is_admin": true,
+  "reveal_effective_from": null,
   "members": [
     { "user_id": "u_…", "display_name": "Ana", "role": "admin" },
     { "user_id": "u_…", "display_name": "Ben", "role": "member" }
   ]
 }}
 ```
+
+`reveal_effective_from` is the local date from which `reveal_hour` first applies, and `null`
+— the ordinary answer — when it already applies to every round still ahead of the caller. It
+is not derived from anyone's participation: it compares the circle's own column against the
+`reveals_at` of its already-materialised rounds, which exist whether or not a single person
+has dropped anything.
+
+It is on the DTO rather than only on the `PATCH` response because *"the hour on this row is
+not the hour tonight will use"* stays true until the rounds catch up, and a field that only
+existed in the reply to the change told the reader once and then forgot. See
+`11-COPY-DECK.md`'s `group.revealhour.effective`.
 
 `members` is the active-membership roster and is **safe in every phase** — it is who is in
 the group, not who has submitted. It carries no timestamps beyond nothing at all: do **not**
@@ -235,8 +247,10 @@ entry all reuse the same member shape without it, and their own golden tests hol
 ```
 
 `timezone` is **immutable** after creation. `reveal_hour` changes apply to the first round
-not yet created (`03-DATA-MODEL.md` §4) — the response echoes
-`"effective_from": "2026-08-12"` so the UI can say so precisely.
+not yet created (`03-DATA-MODEL.md` §4), which — since `ensure_rounds()` materialises today's
+and tomorrow's — can be two nights away, not one. The response is the group DTO above, whose
+`reveal_effective_from` names the date; there is no separate `effective_from` on the patch,
+because the reader needs that date on every subsequent read and not only on this one.
 
 ### `POST /groups/current/leave`
 

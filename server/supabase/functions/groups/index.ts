@@ -79,7 +79,6 @@ import {
   exportTrackDTO,
   type GroupDTO,
   groupDTO,
-  groupPatchDTO,
   invitationDTO,
   knownPersonDTO,
   type MemberDTO,
@@ -113,7 +112,7 @@ import {
   wilsonUpperBound,
 } from "../_shared/insights.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
-import { localDate, nextDate, type RoundState, serverNow } from "../_shared/time.ts";
+import { localDate, localHour, nextDate, type RoundState, serverNow } from "../_shared/time.ts";
 
 interface GroupRow {
   id: string;
@@ -175,6 +174,7 @@ async function currentGroupDTO(ctx: MemberCtx, group?: GroupRow): Promise<GroupD
     ctx.role === "admin",
     await roster(ctx.db, ctx.groupId),
     await cueEffectiveFrom(ctx.db, row),
+    await revealEffectiveFrom(ctx.db, row),
   );
 }
 
@@ -199,6 +199,40 @@ async function effectiveFrom(db: Db, group: GroupRow): Promise<string> {
   const today = localDate(group.timezone, serverNow());
   if (!data) return today;
   return data.local_date >= today ? nextDate(data.local_date) : today;
+}
+
+/**
+ * The local date from which this circle's **current** `reveal_hour` first applies, or `null`
+ * when it already applies to every round still ahead of the member.
+ *
+ * `effectiveFrom` above answers *"where would a change land"*, which is a fact about the round
+ * table and is true whether or not anything changed. This answers the question the settings
+ * screen is actually asking — *"is the hour on this row the hour tonight will use?"* — and it
+ * is the difference between a line that appears when it means something and a line that says
+ * "Starts 11 September." forever on a circle that has never moved its hour.
+ *
+ * The comparison is against the **materialised rounds**, not against a remembered previous
+ * value: `ensure_rounds` writes `reveals_at` as an instant (0004), so the hour a round will
+ * actually reveal at is the hour that instant reads as in the circle's zone, and a round
+ * created before a DST transition answers that correctly where a stored offset would not. Any
+ * round still to come whose hour differs from the column means the column is not in force yet.
+ *
+ * Only rounds whose reveal is still ahead of us are examined. A round that has already
+ * revealed cannot be re-timed by anything, so it has no bearing on what the member is waiting
+ * for — and including it would pin the line up permanently the first time the hour ever moved.
+ */
+async function revealEffectiveFrom(db: Db, group: GroupRow): Promise<string | null> {
+  const { data, error } = await db
+    .from("rounds")
+    .select("reveals_at")
+    .eq("group_id", group.id)
+    .gt("reveals_at", serverNow().toISOString());
+  if (error) throw dbFailure("groups.revealEffectiveFrom", error);
+
+  const alreadyInForce = (data ?? []).every(
+    (row) => localHour(group.timezone, new Date(row.reveals_at)) === group.reveal_hour,
+  );
+  return alreadyInForce ? null : await effectiveFrom(db, group);
 }
 
 /**
@@ -735,12 +769,7 @@ async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
     if (cueError) throw dbFailure("groups.patch.cue", cueError);
   }
 
-  return ok(
-    groupPatchDTO(
-      await currentGroupDTO(ctx, group),
-      body.reveal_hour === undefined ? null : await effectiveFrom(ctx.db, group),
-    ),
-  );
+  return ok(await currentGroupDTO(ctx, group));
 }
 
 // docs/04 §4. Two lists that deliberately do not have the same shape.
@@ -1511,7 +1540,13 @@ async function acceptInvitation(ctx: ProfileCtx, invitationId: string): Promise<
   if (outcome.outcome !== "accepted" || !outcome.group_id) throw new ApiError("NOT_FOUND");
   const group = await loadGroup(ctx.db, outcome.group_id);
   return ok(
-    groupDTO(group, false, await roster(ctx.db, group.id), await cueEffectiveFrom(ctx.db, group)),
+    groupDTO(
+        group,
+        false,
+        await roster(ctx.db, group.id),
+        await cueEffectiveFrom(ctx.db, group),
+        await revealEffectiveFrom(ctx.db, group),
+      ),
   );
 }
 
@@ -1628,6 +1663,7 @@ serveFunction("groups", {
             true,
             [rosterMemberDTO({ user_id: ctx.userId, display_name: ctx.displayName, role: "admin" })],
             await cueEffectiveFrom(ctx.db, group),
+            await revealEffectiveFrom(ctx.db, group),
           ),
         );
       }
@@ -1686,7 +1722,13 @@ serveFunction("groups", {
     if (joinError) throw dbFailure("groups.join", joinError);
 
     return ok(
-      groupDTO(group, false, await roster(ctx.db, group.id), await cueEffectiveFrom(ctx.db, group)),
+      groupDTO(
+        group,
+        false,
+        await roster(ctx.db, group.id),
+        await cueEffectiveFrom(ctx.db, group),
+        await revealEffectiveFrom(ctx.db, group),
+      ),
     );
   },
 

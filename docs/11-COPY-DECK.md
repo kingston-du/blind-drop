@@ -592,7 +592,7 @@ already uses — a cadence change rewrites only rounds that have not yet opened.
 | `group.name.save` | Save name |
 | `group.name.saved` | Saved. |
 | `group.revealhour.label` | Reveal hour |
-| `group.revealhour.help` | A change applies to the next round, never the current one. |
+| `group.revealhour.help` | A change applies to the first round not yet scheduled, which can be two nights away. |
 | `group.revealhour.effective` | Starts %@. |
 | `group.timezone.label` | Timezone |
 | `group.timezone.help` | Set when the circle was created. It can't be changed. |

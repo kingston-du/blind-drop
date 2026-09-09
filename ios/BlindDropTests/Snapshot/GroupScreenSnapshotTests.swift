@@ -15,7 +15,8 @@ import Testing
     }
 
     private func group(
-        isAdmin: Bool, revealHour: Int = 20, memberCount: Int = 3, cueCadence: Int = 2
+        isAdmin: Bool, revealHour: Int = 20, memberCount: Int = 3, cueCadence: Int = 2,
+        revealEffectiveFrom: String? = nil
     ) throws -> GroupDTO {
         let allMembers = [
             ("u_ana", "Ana", "admin"),
@@ -34,6 +35,7 @@ import Testing
           "invite_code": "K7MQ2X",
           "is_admin": \(isAdmin),
           "cue_cadence": \(cueCadence),
+          "reveal_effective_from": \(revealEffectiveFrom.map { #""\#($0)""# } ?? "null"),
           "members": [\(members)]
         }
         """
@@ -57,8 +59,7 @@ import Testing
     @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
     func revealHourEffectiveDate(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         let view = GroupDetailView(
-            group: try group(isAdmin: true, revealHour: 19),
-            revealHourEffectiveFrom: "2026-08-20",
+            group: try group(isAdmin: true, revealHour: 19, revealEffectiveFrom: "2026-08-20"),
             currentUserID: "u_ana",
             rendersForSnapshot: true
         )

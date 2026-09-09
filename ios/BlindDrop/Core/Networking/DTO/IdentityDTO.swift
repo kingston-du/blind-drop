@@ -69,14 +69,24 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
     /// decoding rather than throwing.
     let cueCadence: Int
     /// The local date from which the current cadence is in effect (`docs/18-CUES.md` §10).
-    /// Read-only; only the PATCH response is acted on, the same way `GroupPatchDTO.effectiveFrom`
-    /// is for a reveal-hour change.
+    /// Read-only; only the PATCH response is acted on.
     let cueEffectiveFrom: String?
+    /// The local date from which `revealHour` first applies, and `nil` — the ordinary answer —
+    /// when it already applies to every round still ahead (`docs/04` §3).
+    ///
+    /// A reveal hour never re-times a round that is already on the books (`docs/03` §4), and
+    /// `ensure_rounds` materialises two days, so an hour changed this evening can be two nights
+    /// from taking effect. The server answers that on **every** read rather than only in the
+    /// reply to the change, which is what lets the settings screen keep saying it — a member who
+    /// changed the hour, left the screen and came back used to see the new hour with nothing to
+    /// say tonight was still running on the old one.
+    let revealEffectiveFrom: String?
 
     init(
         id: String, name: String, timezone: String, revealHour: Int,
         inviteCode: String, isAdmin: Bool, members: [MemberDTO],
-        cueCadence: Int = 2, cueEffectiveFrom: String? = nil
+        cueCadence: Int = 2, cueEffectiveFrom: String? = nil,
+        revealEffectiveFrom: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -87,6 +97,7 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
         self.members = members
         self.cueCadence = cueCadence
         self.cueEffectiveFrom = cueEffectiveFrom
+        self.revealEffectiveFrom = revealEffectiveFrom
     }
 
     enum CodingKeys: String, CodingKey {
@@ -96,6 +107,7 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
         case isAdmin = "is_admin"
         case cueCadence = "cue_cadence"
         case cueEffectiveFrom = "cue_effective_from"
+        case revealEffectiveFrom = "reveal_effective_from"
     }
 
     init(from decoder: any Decoder) throws {
@@ -109,27 +121,8 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
         members = try c.decode([MemberDTO].self, forKey: .members)
         cueCadence = try c.decodeIfPresent(Int.self, forKey: .cueCadence) ?? 2
         cueEffectiveFrom = try c.decodeIfPresent(String.self, forKey: .cueEffectiveFrom)
+        revealEffectiveFrom = try c.decodeIfPresent(String.self, forKey: .revealEffectiveFrom)
     }
 }
 
-/// `PATCH /groups/current` — the group's keys, plus the day a changed reveal hour starts
-/// applying (`docs/04` §3). The group is flattened into the payload rather than nested, so it
-/// is decoded that way here too.
-///
-/// `effectiveFrom` is `nil` when the hour did not change. It exists because a reveal hour
-/// never re-times a round that is already on the books (`docs/03` §4), so the honest answer to
-/// "when does this take effect" is a date, and the UI states it.
-struct GroupPatchDTO: Decodable, Sendable, Equatable {
-    let group: GroupDTO
-    let effectiveFrom: String?
 
-    init(from decoder: any Decoder) throws {
-        group = try GroupDTO(from: decoder)
-        effectiveFrom = try decoder.container(keyedBy: CodingKeys.self)
-            .decodeIfPresent(String.self, forKey: .effectiveFrom)
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case effectiveFrom = "effective_from"
-    }
-}

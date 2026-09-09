@@ -160,7 +160,7 @@ extension Endpoint {
 
     static func updateGroup(
         _ groupID: String, name: String?, revealHour: Int?, cueCadence: Int? = nil
-    ) -> Endpoint<GroupPatchDTO> {
+    ) -> Endpoint<GroupDTO> {
         .init(
             .patch, scoped("/groups", groupID),
             body: json(PatchGroupBody(name: name, reveal_hour: revealHour, cue_cadence: cueCadence))

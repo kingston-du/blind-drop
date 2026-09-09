@@ -105,6 +105,14 @@ const SECONDARY_GROUP_ID = "b0000000-0000-4000-8000-000000000099";
 // `payloads/`, and a restart forgets them, so no existing test's expectations move.
 const createdGroups = new Map<string, Record<string, unknown>>();
 
+/** Settings patched onto the **primary** circle, which comes from a payload file rather than
+ *  from `createdGroups` and so had nowhere to remember a change. Held for the life of the
+ *  process, like everything else here. It is what lets a driver — a UI test, or somebody
+ *  tapping through the app — change the reveal hour, leave the settings screen and come back to
+ *  a circle that still knows: `reveal_effective_from` is *about* outliving the reply it arrived
+ *  in (`docs/04` §3), and a fixture that forgot on the next GET could not show that. */
+const patchedPrimary: Record<string, unknown> = {};
+
 /// The name `PUT /me` was last given, so `GET /me` answers with it (`E38`). `null` until
 /// somebody has actually set one, which keeps `payloads/me.json` the source of truth for every
 /// test that never touches the name.
@@ -113,7 +121,7 @@ let savedDisplayName: string | null = null;
 async function groupPayloadFor(groupId: string): Promise<Record<string, unknown> | null> {
   const created = createdGroups.get(groupId);
   if (created) return created;
-  if (groupId === PRIMARY_GROUP_ID) return await payload("group_current") as Record<string, unknown>;
+  if (groupId === PRIMARY_GROUP_ID) return await primaryGroup();
   if (groupId === SECONDARY_GROUP_ID) {
     const primary = await payload("group_current") as Record<string, unknown>;
     return {
@@ -371,7 +379,7 @@ async function route(req: Request, url: URL): Promise<Response> {
     }));
     return ok({ circles: [primary, secondary, ...created] });
   }
-  if (m === "GET" && p === "/groups/current") return ok(await payload("group_current"));
+  if (m === "GET" && p === "/groups/current") return ok(await primaryGroup());
   if (m === "GET" && p === "/groups/people-you-played-with") {
     const group = await payload("group_current") as Record<string, unknown>;
     const members = (group.members as Array<Record<string, unknown>>) ?? [];
@@ -413,9 +421,7 @@ async function route(req: Request, url: URL): Promise<Response> {
   }
   if (m === "PATCH" && p === "/groups/current") {
     const body = await req.json().catch(() => ({}));
-    const g = await payload("group_current") as Record<string, unknown>;
-    // reveal_hour changes land on the first round not yet created (docs/04 §3).
-    return ok({ ...g, ...body, effective_from: "2026-08-12" });
+    return ok(await patchPrimary(body));
   }
   if (m === "POST" && p === "/groups/current/leave") return noContent();
   if (m === "GET" && p === "/groups/current/standings") return ok(await payload("standings"));
@@ -518,7 +524,8 @@ async function route(req: Request, url: URL): Promise<Response> {
     if (!group) return fail(404, "NOT_FOUND", "That's not available right now.");
     if (m === "GET") return ok(group);
     const body = await req.json().catch(() => ({}));
-    return ok({ ...group, ...body, effective_from: "2026-08-12" });
+    if (groupOnly[1] === PRIMARY_GROUP_ID) return ok(await patchPrimary(body));
+    return ok({ ...group, ...body, reveal_effective_from: revealEffectiveFrom(group, body) });
   }
   const groupLeave = p.match(/^\/groups\/([^/]+)\/leave$/);
   if (m === "POST" && groupLeave && groupLeave[1] !== "current") {
@@ -632,6 +639,36 @@ function currentState(): string {
 /** `GET /groups`'s per-circle state (`E18-02`), mapped off the same `PHASE` the round fixtures
  *  already key off — so switching phase through `__fixture/phase` moves this row too, the way
  *  a real reveal or score would. */
+/** The fixture's stand-in for the server's round-table comparison: the hour is in force unless
+ *  it has been moved off the one the circle's rounds were materialised at, in which case it
+ *  starts on a fixed date the goldens can assert. */
+function revealEffectiveFrom(
+  group: Record<string, unknown>,
+  body: Record<string, unknown>,
+): string | null {
+  const hour = body.reveal_hour ?? group.reveal_hour;
+  return hour === group.reveal_hour ? null : "2026-08-12";
+}
+
+/** The primary circle as it currently stands: the payload file, plus anything patched onto it. */
+async function primaryGroup(): Promise<Record<string, unknown>> {
+  return { ...(await payload("group_current")) as Record<string, unknown>, ...patchedPrimary };
+}
+
+/** Apply a patch to the primary circle and remember it. The effective date is computed against
+ *  the **payload file's** hour, not the patched one — that file is what the circle's already
+ *  materialised rounds were built from, so it is the thing the current column is compared to. */
+async function patchPrimary(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const original = await payload("group_current") as Record<string, unknown>;
+  Object.assign(patchedPrimary, body, {
+    reveal_effective_from: revealEffectiveFrom(original, {
+      ...patchedPrimary,
+      ...body,
+    }),
+  });
+  return await primaryGroup();
+}
+
 function switcherStateFor(phase: Phase): { my_state: string; needs_action: boolean } {
   switch (phase) {
     case "open":

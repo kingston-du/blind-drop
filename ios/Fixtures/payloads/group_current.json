@@ -5,6 +5,7 @@
   "reveal_hour": 20,
   "invite_code": "K7MQ2X",
   "is_admin": true,
+  "reveal_effective_from": null,
   "members": [
     {
       "user_id": "a0000000-0000-4000-8000-000000000001",

@@ -55,7 +55,6 @@ struct GroupScreen: View {
                 isLeaving: store.isLeaving,
                 isManagingMember: store.isManagingMember,
                 errorKey: store.errorKey,
-                revealHourEffectiveFrom: store.revealHourEffectiveFrom,
                 cueEffectiveFrom: store.cueEffectiveFrom,
                 currentUserID: env.session.user?.userID,
                 select: { selectedMember = $0 },
@@ -102,7 +101,6 @@ struct GroupDetailView: View {
     var isLeaving = false
     var isManagingMember = false
     var errorKey: String?
-    var revealHourEffectiveFrom: String?
     var cueEffectiveFrom: String?
     var currentUserID: String?
     var select: (MemberDTO) -> Void = { _ in }
@@ -393,7 +391,11 @@ struct GroupDetailView: View {
                 .disabled(isSaving).accessibilityLabel(Text("group.revealhour.label"))
             }
             Text("group.revealhour.help").typeStyle(.caption).foregroundStyle(Palette.inkDim)
-            if let effective = revealHourEffectiveFrom,
+            // The circle's own answer, on every read — not a field that only existed in the reply
+            // to the change and was gone the next time this screen opened (`docs/04` §3). `nil` is
+            // the ordinary case: the hour on the row above is the hour tonight will use, and there
+            // is nothing to wait for, so the line is absent rather than reassuring.
+            if let effective = group.revealEffectiveFrom,
                let date = GroupCalendar(timezone: group.timezone).shareDate(localDate: effective) {
                 Text(verbatim: Copy.format("group.revealhour.effective", date)).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
             }
