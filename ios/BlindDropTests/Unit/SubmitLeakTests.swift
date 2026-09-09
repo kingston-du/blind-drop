@@ -72,6 +72,18 @@ private let submitScreenCopy = [
         #expect(withoutClockTimes.filter(\.isNumber).isEmpty)
     }
 
+    /// The same check on the tutorial line, which became a format the day a circle's own reveal
+    /// hour started reaching it (`RevealHourCopyTests`). Before that it was a literal and the
+    /// template test above was the whole story; now `%@` is where a value arrives, so the
+    /// composed string is what has to be clean.
+    @Test func theTutorialLineCarriesOnlyAnHour() throws {
+        let context = try RoundFixture.context()
+        let line = Copy.format("submit.subhead", context.revealTime)
+
+        let withoutClockTimes = line.replacing(/\d{1,2}:\d{2}/, with: "")
+        #expect(withoutClockTimes.filter(\.isNumber).isEmpty)
+    }
+
     /// And the payload behind the screen cannot express one either — which is the half of AC-1 the
     /// UI could not fix if it were wrong.
     ///

@@ -134,7 +134,7 @@ struct SubmitScreen: View {
                 // `bodyM`, not `bodyL`: with the cue card directly beneath it at `displayS`,
                 // a 17pt subhead and a 24pt cue read as two headings arguing. Dropping the
                 // subhead a step puts the three lines in order — headline, the aside, the brief.
-                Text("submit.subhead")
+                Text(verbatim: Copy.format("submit.subhead", context.revealTime))
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.inkDim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -162,7 +162,8 @@ struct SubmitScreen: View {
         .animation(.easeInOut(duration: 0.22), value: browsing)
     }
 
-    /// Whether *"Nobody sees it until 8:00 PM."* is drawn.
+    /// Whether *"Nobody sees it until 8:00 PM."* — the circle's own hour, never the 20:00
+    /// default — is drawn.
     ///
     /// Two reasons it is not. The first is `E26-03`'s: once there are results, the subhead has
     /// done its job and the rows need the room. The second is the cue card's. At accessibility

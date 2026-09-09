@@ -31,7 +31,7 @@ level up, don't miss out, hurry.*
 | Key | String |
 |---|---|
 | `onboarding.title` | Blind Drop |
-| `onboarding.subtitle` | One song each, every day. Guess who submitted each song at the 8:00 PM reveal. |
+| `onboarding.subtitle` | One song each, every day. Guess who submitted each song at your circle's reveal. |
 | `onboarding.signin.apple` | Sign in with Apple |
 | `onboarding.signin.review` | App Review Sign In |
 | `onboarding.name.title` | What should we call you? |
@@ -248,7 +248,7 @@ word beside it repeated a fact the countdown already carries.
 | Key | String |
 |---|---|
 | `submit.headline` | Today's song. |
-| `submit.subhead` | Nobody sees it until 8:00 PM. |
+| `submit.subhead` | Nobody sees it until %@. |
 | `submit.countdown.label` | until reveal |
 | `submit.action` | Drop a song |
 | `submit.badge` | Seals in %@ |

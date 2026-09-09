@@ -67,7 +67,7 @@ import Testing
         assertIdentical("EmptyState") {
             EmptyState(
                 headline: "submit.headline",
-                message: "submit.subhead",
+                message: "search.empty",
                 action: .init(title: "submit.action", accent: .sealed) {}
             )
         }
