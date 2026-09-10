@@ -1,5 +1,5 @@
 /**
- * The four names a card offers (`docs/02` §3.1).
+ * The four names a card offers (`docs/02` §3.2).
  *
  * A guess sheet is `S − 1` decisions over `S − 1` names, and both halves grow with the circle
  * while the knowledge anyone actually has does not. Somebody who can read three people cold

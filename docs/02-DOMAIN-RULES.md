@@ -120,7 +120,7 @@ of `submission_id`. Position `i` (0-based) is `card_no = i + 1`.
 | **User replaces their song** | Allowed any number of times before reveal. Not penalised, not announced, not counted. `updated_at` moves; `created_at` does not. |
 | **User un-submits** | **Not supported.** There is no delete. Once sealed, you are in the round. |
 
-### The name pool
+### 3.1 The name pool
 
 During `revealed`, the guess sheet's name pool is **exactly the set of users who submitted
 this round**, minus yourself.
@@ -133,7 +133,41 @@ rounds.
 Corollary: **the name pool must not be visible before `revealed`.** It is derived from
 submissions, so it is a submission-count leak with extra steps.
 
-### Who may guess
+### 3.2 The shortlist
+
+Each card offers **four** names — its owner and three others — rather than the whole pool.
+
+A guess sheet is `S − 1` decisions over `S − 1` names, so both halves grow with the circle
+while the knowledge anyone actually has does not. Somebody who can read three people cold
+still has to be right about those three *and* not be dragged off by eight cards they are
+flipping a coin on. Narrowing each card makes the *decision* the same size in every circle:
+one card, four names, one of whom dropped it.
+
+Three properties, all of them testable:
+
+- **The owner is always in it.** The shortlist narrows the field; it never removes the answer.
+  A card whose four excluded its owner would be unwinnable with no way to know.
+- **The viewer is never in it.** You know you did not drop it, so your own name would be a
+  wasted slot — it would quietly make your cards 1-in-3 while everyone else played 1-in-4.
+- **It never moves.** The same (round, card, viewer) yields the same four on every read, for
+  the life of the round. `GET /current` is polled; a shortlist that reshuffled under a
+  half-finished sheet would be indistinguishable from the app lying.
+
+Otherwise it is the same list for everybody: a card draws one canonical four from a seed with
+no viewer in it, and the three members who *are* in that four see their own name replaced, in
+place, by one other. Two players comparing screens can therefore narrow a card from four to
+three. That is the price of the list being shared at all, and it needs two people
+co-operating, which they can already do far more directly by comparing reasoning.
+
+Below six submitters this is a no-op in effect — four names *is* the pool, so nothing is taken
+away and nothing should look different. The problem does not exist in a circle of five.
+
+**This is a narrowing, not a rule.** A name from outside a card's four is always wrong, but it
+is never *illegal*: the API accepts it, and the sheet still supports naming somebody from the
+full pool first and choosing a card second. It is also strictly a post-reveal construct —
+cards do not exist until `revealed`, so it narrows nothing that was sealed.
+
+### 3.3 Who may guess
 
 Only users who submitted a song in this round. Enforced server-side (`403 NOT_A_SUBMITTER`),
 and reflected in the UI as a disabled sheet with an explanation — never as a hidden feature.

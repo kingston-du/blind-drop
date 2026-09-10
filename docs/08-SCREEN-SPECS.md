@@ -536,19 +536,18 @@ Reachable from the header menu in every phase. An archive, not a feed.
 
 ```
 ┌─────────────────────────────┐
-│  ‹ The Record       [Ana ▾] │   member filter
+│  ‹ The Record   [Ana ▾] [↑] │   member filter, then export
 │                             │
-│  10 August                  │   label, inkDim, sticky section header
+│  Every song anyone has      │   lede, bodyM, inkDim
+│  dropped, newest first.     │
+│                             │
+│  10 August              ›   │   displayS, ink, sticky; rule beneath
 │  ┌───────────────────────┐  │
 │  │ ▓▓  Redbone           │  │   TrackRow + attribution
 │  │ ▓▓  Childish Gambino  │  │
 │  │     Cal            ▶︎  │  │   attribution in bodyM, ink
 │  └───────────────────────┘  │
 │              ⋮              │
-│                             │
-│  ─────────────────────────  │
-│  Export to Spotify          │   pinned footer, two SecondaryButtons
-│  Export to Apple Music      │
 └─────────────────────────────┘
 ```
 
@@ -564,6 +563,27 @@ Reachable from the header menu in every phase. An archive, not a feed.
   reaching it meant picking an arbitrary song first. The whole header is the button, with a
   trailing chevron — not an ellipsis, because there is exactly one night-scoped action and an
   overflow holding one item promises a set and charges two taps for it.
+- **Amended: no `displayL` title, and the date headers carry the page.** The screen used to
+  print *The Record* a second time directly under a navigation bar already saying it, then a
+  subtitle, before the first night. The heading is gone and the lede is one line.
+  `InsightsScreen` has never drawn its own title over the inline one and reads the better for
+  it. The date moves the other way — from an 11pt tracked `SectionLabel` in `inkDim` up to
+  `displayS` in `ink` — because a date is the unit this screen is organised by, and so is the
+  thing a reader scrolls *to*.
+- **The sticky header is `paper` with a rule, not a `paperSunk` fill.** The fill existed so a
+  pinned header read as on top of the list — a real problem solved the wrong way. It made the
+  strip a plate wedged under a translucent bar, crisp along its top edge and mushy along its
+  bottom, which is what read as *clipped*. An opaque navigation bar removes the ghosting the
+  fill was compensating for; a full-bleed rule then gives the strip the one boundary it needs.
+- A night's cue sits under the date in `bodyLStrong` — the face a cue wears everywhere else —
+  in `inkDim` rather than `CueBanner`'s `ink`, because the roles invert here: on a live round
+  the cue is the brief, while in the archive the night is what you navigate by and the cue is a
+  fact about it. The live round's *"Tonight's cue:"* label is not repeated; the date already
+  names the night.
+- **Export is a trailing toolbar item**, not a pinned footer. Two full-width buttons held the
+  bottom of every screenful to advertise an action taken once a month, and the archive is a
+  thing you scroll. It is declared in the same `toolbar` as the filter so the order is ours —
+  filter, then export — rather than SwiftUI's, which put the glyph on the wrong side.
 - Export: see `06-MUSIC-INTEGRATION.md` §6. Unresolved counts are stated plainly.
 - Empty state (first week): *"Nothing in the record yet. It starts filling tonight."*
 
