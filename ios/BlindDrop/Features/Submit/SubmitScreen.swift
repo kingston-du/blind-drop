@@ -63,21 +63,6 @@ struct SubmitScreen: View {
     private let accent = PhaseAccent.sealed
 
     @FocusState private var isFieldFocused: Bool
-    /// Whether the keyboard is up, as far as the column's spacing is concerned.
-    ///
-    /// **`@State` shadowing `@FocusState` rather than reading it directly**, for two reasons.
-    ///
-    /// It starts `true`, which is what the screen is a beat later: `.onAppear` focuses the field
-    /// on every arrival at a round that is taking songs. Deriving the gap from `isFieldFocused`
-    /// instead would draw the first frame open and then animate it shut on every single arrival
-    /// at the most-visited screen in the app — a flinch, on the way in, for nothing.
-    ///
-    /// It is also what the goldens read. `snapshotContent` renders a bare `SubmitScreen` value
-    /// that SwiftUI never installs, where `@FocusState` answers `false` — the same trap
-    /// `GuessSheet.effectiveTypeSize` and `CircleSwitcherSheet.typeSizeOverride` document for
-    /// `@Environment`. A `@State` read that way gives back its initial value, so the goldens keep
-    /// depicting the screen as it is actually seen: keyboard up, from the moment it appears.
-    @State private var isKeyboardUp = true
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -88,10 +73,6 @@ struct SubmitScreen: View {
             // a round trip raising a keyboard over the dark hours on every app open, and it is
             // fixed above rather than here: `isBeforeOpen` is now settled before it arrives.
             .onAppear { if !isBeforeOpen { isFieldFocused = true } }
-            // The dark hours never raise it, and their branch draws no field to lose focus from,
-            // so the seeded `true` has to be corrected for them rather than left standing.
-            .onAppear { if isBeforeOpen { isKeyboardUp = false } }
-            .onChange(of: isFieldFocused) { _, focused in isKeyboardUp = focused }
             .onDisappear { player.stop() }
     }
 
@@ -117,24 +98,30 @@ struct SubmitScreen: View {
                 // subhead and cue card step aside. That is a pinned header that jumps thirteen
                 // points the moment somebody stops typing (owner, 2026-09-07).
                 //
-                // So the gaps pay for the cue card, rather than the subhead paying for it.
-                // `itemGap` between the four things instead of `blockGap` frees forty points
-                // across the two gaps; `Space.none` above the headline puts the block directly
-                // under the badge row, which is where it was asked to be. What is left over
-                // goes to the open gap *below* the block, so the blind line sits close to the
-                // keyboard rather than floating in the middle of the column.
+                // **The two numbers are not the same knob, and that is what makes both
+                // answerable** (owner, 2026-09-10). `blockSpacing` is how dense the block reads;
+                // `topGapCap` is how far it travels when the keyboard arrives. Squeezing the
+                // spacing to buy fitting room, as `itemGap` did, pays for one with the other.
                 //
-                // **But only while the keyboard is actually up** (owner, 2026-09-09). Squeezing
-                // is what the band costs, and with the keyboard down there is no band and
-                // nothing to pay: the block sat hunched under the badge row over half a screen
-                // of empty paper. So the cap is the old one back whenever nothing is focused,
-                // and `Space.none` only for as long as there is a keyboard to fit above.
+                // `blockGap` is the app's rhythm and this screen takes it, like every other
+                // column. Its whole cost is height, and the cap is where that is found instead.
                 //
-                // The spacing does *not* come back with it. Forty points of gap is a second,
-                // larger reflow riding on the same moment, and the tight rhythm is not what was
-                // wrong with the screen — the position was.
-                blockSpacing: Layout.itemGap,
-                topGapCap: isKeyboardUp ? Space.none : Space.x4 + Space.sm
+                // **The cap is a ceiling, not a position.** This gap and the open one under the
+                // block are both flexible, so they split whatever the column has left over: with
+                // the keyboard down this one takes its full ceiling, and as the keyboard comes up
+                // the leftover shrinks and this gap gives up half of the loss, continuously, to
+                // zero at the limit. The block therefore rises by exactly what the keyboard costs
+                // and no more, and nothing here has to know whether a keyboard is up.
+                //
+                // Which is also why the ceiling is `xxl` and not the 48 it used to be. A taller
+                // ceiling is a longer fall: at `blockGap` the block sits near the top of the band
+                // once the keyboard is up, so every point of ceiling above that is a point the
+                // screen visibly drops through on the way there. 24 keeps the travel to roughly
+                // what it was at the tighter spacing, which is the part that was asked to stay
+                // small — a focus flag briefly lived here doing the same job much worse, snapping
+                // between 48 and zero, and it is gone.
+                blockSpacing: Layout.blockGap,
+                topGapCap: Space.xxl
             )
         }
     }
