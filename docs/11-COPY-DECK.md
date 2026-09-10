@@ -482,6 +482,7 @@ either must be able to happen without the other.
 | `record.open.apple` | Open in Apple Music |
 | `record.results` | See that night's results |
 | `record.actions` | Song actions |
+| `record.export.label` | Export the record to a playlist |
 | `record.export.spotify` | Export to Spotify |
 | `record.export.apple` | Export to Apple Music |
 | `record.export.working` | Building the playlist |

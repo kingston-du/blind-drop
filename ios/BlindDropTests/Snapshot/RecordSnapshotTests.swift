@@ -67,33 +67,40 @@ private struct RecordSnapshotContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.none) {
             ForEach(days) { day in
-                // The sticky strip the screen draws, background included: a header pinned over a
-                // scrolling list has to be visibly on top of it rather than floating in it. A
-                // cued night carries its cue under the date, mirroring `RecordScreen.dateHeader`
-                // (`docs/18-CUES.md` §7), and the trailing chevron is that header's own — the
-                // whole strip is the button into that night's results (owner, 2026-09-03). The
-                // `Button` itself is not reproduced, only its label: what the golden checks is
-                // that the chevron and the date share a row without either starving the other at
-                // `.accessibility5`, which is the layout risk the change actually carries.
+                // The sticky night header the screen draws, background and rule included. It is
+                // `paper` now, with a bottom `edge` rule instead of a darker fill — see
+                // `RecordScreen.dateHeader`. A cued night carries its cue under the date in the
+                // face the cue wears everywhere else (`docs/18-CUES.md` §7), and the trailing
+                // chevron is the header's own: the whole strip is the button into that night's
+                // results (owner, 2026-09-03). The `Button` itself is not reproduced, only its
+                // label. What the golden checks is that the chevron and a 24pt date share a row
+                // without either starving the other at `.accessibility5`, which is the layout
+                // risk the change actually carries — and it carries more of it now than it did
+                // when the date was 11pt.
                 HStack(alignment: .center, spacing: Space.sm) {
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        SectionLabel(verbatim: GroupCalendar(timezone: "America/New_York")
+                        Text(verbatim: GroupCalendar(timezone: "America/New_York")
                             .shareDate(localDate: day.localDate) ?? day.localDate)
+                            .typeStyle(.displayS)
+                            .foregroundStyle(Palette.ink)
+                            .fixedSize(horizontal: false, vertical: true)
                         if let cue = day.cue {
                             Text(verbatim: cue.text)
-                                .typeStyle(.bodyS)
+                                .typeStyle(.bodyLStrong)
                                 .foregroundStyle(Palette.inkDim)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.right")
-                        .font(Font(Typography.uiFont(.bodyM)))
-                        .foregroundStyle(Palette.inkDim)
+                        .font(Font(Typography.uiFont(.bodyLStrong)))
+                        .foregroundStyle(Palette.inkSubtle)
                 }
-                .padding(.vertical, Space.sm)
+                .padding(.top, Space.xl)
+                .padding(.bottom, Space.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.paperSunk)
+                .background(Palette.paper)
+                .overlay(alignment: .bottom) { Rule(color: Palette.edge) }
 
                 let entries = Array(day.entries.prefix(3))
                 ForEach(entries) { entry in
@@ -115,12 +122,6 @@ private struct RecordSnapshotContent: View {
                     if entry.id != entries.last?.id { Rule(color: Palette.edge) }
                 }
             }
-
-            HStack(spacing: Space.sm) {
-                IconOutlineButton(systemImage: "square.and.arrow.up", "record.export.spotify") {}
-                IconOutlineButton(systemImage: "square.and.arrow.up", "record.export.apple") {}
-            }
-            .padding(.top, Layout.blockGap)
         }
     }
 }

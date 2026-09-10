@@ -140,6 +140,28 @@ final class RecordStore {
         }
     }
 
+    /// Forget a finished export when the reader leaves the screen.
+    ///
+    /// A finished export is news about something you just did, not a standing fact about the
+    /// archive, and `RouteStoreCache` keeps this store alive for the whole session — so without
+    /// this a playlist built once goes on announcing itself above the list every time the Record
+    /// is reopened. That mattered less when the report was two lines tucked under a footer's
+    /// buttons; as a `paperSunk` strip under the bar it competes with the night headers.
+    ///
+    /// **Leaving the screen, not `load()`.** Clearing on load was the first answer and it was
+    /// wrong in the one case the report matters most: MusicKit's permission alert drives the
+    /// scene through `.inactive` and back, `RecordScreen` refetches on every `.active`, and the
+    /// refetch swallowed *"Apple Music access was turned down"* before anybody could read it —
+    /// the failure that most needs explaining, silently eaten by the fix. A visit is the right
+    /// scope: whatever happened during it stays up until the visit ends.
+    ///
+    /// Terminal states only. An export still in flight when the reader wanders off keeps
+    /// reporting when they come back, because it is still telling the truth about *now*.
+    func clearFinishedExports() {
+        if spotifyExport != .working { spotifyExport = .idle }
+        if appleExport != .working { appleExport = .idle }
+    }
+
     func exportToSpotify() async {
         guard spotifyExport != .working else { return }
         spotifyExport = .working
