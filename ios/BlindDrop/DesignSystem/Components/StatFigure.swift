@@ -24,8 +24,11 @@ struct StatFigure: View {
     var progress: Double?
     /// Readability uses a spectrum and tick instead of a progress fill.
     var readabilityBand: ReadabilityBand?
-    /// Ultramarine on the number and its bar when this is the one figure being celebrated — the
-    /// profile's Ear. Only one figure in a set ever takes it, so it never reads as a scoreboard.
+    /// Ultramarine on the number, and on a plain proportion bar's fill where the figure carries
+    /// one rather than a readability spectrum. Whether a set spends it on one figure or several is
+    /// the caller's call — Results accents the caller's own judgement alone, the profile accents
+    /// Ear, Accuracy and Readability. A readability spectrum ignores it; that meter carries its
+    /// own accent.
     var isAccented = false
     /// A revealed-data bar can stay blue while its number remains secondary to Ear.
     var progressFill: Color?

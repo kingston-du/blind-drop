@@ -101,8 +101,9 @@ struct MemberProfileContent: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("profile.stats")
             VStack(spacing: Space.none) {
-                // Ear is the recent count from the leaderboard. Accuracy is the all-time
-                // rate, given its own figure and blue bar rather than buried in Ear's caption.
+                // The three revealed rates — Ear's count, Accuracy and Readability — read in
+                // ultramarine. Drops is a raw count and stays neutral, so the panel keeps one
+                // unaccented row to anchor the others.
                 statRow(StatFigure(
                     label: "results.ear.label",
                     value: "\(profile.earReads)",
@@ -115,6 +116,7 @@ struct MemberProfileContent: View {
                     value: ScoringFormat.percent(profile.ear.value),
                     detail: historyDetail(profile.ear),
                     progress: profile.ear.value,
+                    isAccented: true,
                     progressFill: Palette.ultramarine
                 ))
                 Rule()
@@ -123,7 +125,8 @@ struct MemberProfileContent: View {
                     value: ScoringFormat.percent(profile.readability.value),
                     detail: historyDetail(profile.readability),
                     progress: profile.readability.value,
-                    readabilityBand: profile.readability.value.map { ReadabilityBand(readability: $0) }
+                    readabilityBand: profile.readability.value.map { ReadabilityBand(readability: $0) },
+                    isAccented: true
                 ))
                 Rule()
                 statRow(StatFigure(label: "profile.drops", value: "\(profile.dropCount)"))
