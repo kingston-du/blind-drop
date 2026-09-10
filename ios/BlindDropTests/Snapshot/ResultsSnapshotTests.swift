@@ -188,7 +188,21 @@ private let sizes = SnapshotRenderer.typeSizes
     @Test(arguments: devices, sizes)
     func tonightTopEar(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
         verify(named: "Results-tonight", device, size) {
-            TonightTopEarView(rows: ResultsSnapshotFixture.results.tonightTopEar)
+            TonightTopEarView(
+                rows: ResultsSnapshotFixture.results.tonightTopEar,
+                submitterCount: ResultsSnapshotFixture.results.submitterCount
+            )
+        }
+    }
+
+    @Test(arguments: devices, sizes)
+    func pastNightRanking(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-that-night", device, size) {
+            TonightTopEarView(
+                rows: ResultsSnapshotFixture.results.tonightTopEar,
+                submitterCount: ResultsSnapshotFixture.results.submitterCount,
+                isPastRound: true
+            )
         }
     }
 

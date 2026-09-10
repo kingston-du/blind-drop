@@ -39,7 +39,7 @@ struct MemberProfileDTO: Decodable, Sendable, Equatable {
     let earReads: Int
     /// How many rounds `earReads` covers: 14 in a settled circle, fewer in a young one.
     let earWindowRounds: Int
-    /// All-time rate. The supporting line *under* the count, never a second headline.
+    /// All-time accuracy. The API retains `ear`; the profile gives it its own percentage.
     let ear: ProfileRateDTO
     let readability: ProfileRateDTO
     let dropCount: Int

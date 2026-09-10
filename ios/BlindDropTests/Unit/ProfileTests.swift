@@ -8,6 +8,7 @@ import Testing
         let json = """
         {
           "member":{"user_id":"u_ben","display_name":"Ben","role":"member"},
+          "ear_reads":0,"ear_window_rounds":5,
           "ear":{"value":null,"samples":0},
           "readability":{"value":0.5,"samples":5},
           "drop_count":5,
@@ -22,11 +23,18 @@ import Testing
 
         #expect(profile.member.displayName == "Ben")
         #expect(profile.ear.value == nil)
+        #expect(profile.earReads == 0)
+        #expect(profile.earWindowRounds == 5)
         #expect(profile.readability.value == 0.5)
         #expect(profile.dropCount == 5)
         #expect(profile.recentTracks.map(\.localDate) == ["2026-08-10"])
         #expect(profile.youReadThem?.rate == 0.6)
         #expect(profile.theyReadYou == nil)
+    }
+
+    @Test func allTimeHistoryNamesItsScopeAndPluralizesRounds() {
+        #expect(Copy.format("profile.history", 1) == "All time · 1 round")
+        #expect(Copy.format("profile.history", 24) == "All time · 24 rounds")
     }
 
     @Test func theProfileEndpointNamesBothTheCircleAndMember() {

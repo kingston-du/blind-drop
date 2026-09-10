@@ -222,6 +222,8 @@ The service name alone, for a card's corner (Sealed, Results' answer card) where
 | `howto.step4.body` | See your friends' real music taste, and how right or wrong you were. |
 | `howto.scoring.title` | Scoring |
 | `howto.ear.title` | Ear |
+| `howto.accuracy.title` | Accuracy |
+| `howto.accuracy.body` | The percentage of answers you get right. Results show this round; your profile shows all time. Rounds you sit out don't count toward accuracy. |
 | `howto.ear.body` | How well you know your friends (musically at least). How many answers you get correct in the last 14 rounds, so playing more helps. (Ranked) |
 | `howto.read.title` | Readability |
 | `howto.read.body` | How "readable", or guessable your music taste is. There's no bad or good, it's a spectrum. High and low scores are equally intriguing. (Unranked) |
@@ -401,11 +403,16 @@ reads as a decision rather than as an oversight, and so nobody adds it back as a
 | `results.readability.detail` | %lld of %lld read you |
 | `results.readability.none` | You didn't drop tonight. |
 | `results.ear.label` | Ear |
-| `results.ear.detail` | %lld of %lld correct |
-| `results.ear.none` | You sat this one out. |
+| `results.accuracy.label` | Accuracy |
+| `results.accuracy.detail` | %lld of %lld correct |
+| `results.accuracy.none` | You sat this one out. |
 | `results.spectrum.low` | Unreadable |
 | `results.spectrum.high` | Easy to read |
 | `results.tonight.title` | Tonight |
+| `results.tonight.past.title` | That night |
+| `results.tonight.scope` | This round |
+| `results.tonight.correct` | %lld correct |
+| `results.tonight.a11y` | Rank %lld. %@. %lld correct. |
 | `results.standings.title` | Standings |
 | `results.standings.rounds` | Last %lld rounds |
 | `results.standings.ear.row` | Ear %lld |
@@ -447,7 +454,7 @@ sharer's own night wherever it truthfully can (`docs/10` §2's rewritten precede
 | `share.headline.fallback` | %lld songs, %lld guesses |
 | `share.overflow` | + %lld more | additional song rows or guessed identities beyond the artifact's cap (`docs/10` §2) |
 | `share.kicker` | Your night | retained for compatibility; the redesigned card uses `reveal.title` ("Tonight's drop") for every night |
-| `share.ear.label` | Your ear | heading above the percentage and proportion bar |
+| `share.accuracy.label` | Your accuracy | heading above the percentage and proportion bar |
 | `share.read.label` | Readability | heading above the percentage and neutral spectrum |
 | `share.read.fraction` | %lld of %lld | e.g. "4 of 7", paired with the band word from `band.*` |
 | `share.room.title` | The room thought you were | the tally of names guessed on the caller's own card |
@@ -458,7 +465,7 @@ sharer's own night wherever it truthfully can (`docs/10` §2's rewritten precede
 | `share.wordmark` | Blind Drop |
 
 `share.bestear.label` ("Best ear") is retired on the share card. The personal artifact names
-the caller's metric `share.ear.label` ("Your ear") instead.
+the caller's metric `share.accuracy.label` ("Your accuracy") instead.
 
 `share.wordmark` is *"the name at the bottom is the whole marketing"* (`docs/10` §2). It is its
 own row rather than a reuse of `onboarding.title` because the two are different jobs: one is a
@@ -640,7 +647,7 @@ had to be read rather than used.
 | `profile.stats` | The numbers |
 | `profile.samples` | %lld rounds |
 | `profile.ear.window` | Last %lld rounds |
-| `profile.ear.window.rate` | Last %lld rounds, %@ all time |
+| `profile.history` | All time · %lld rounds |
 | `profile.drops` | Drops |
 | `profile.rounds.none` | No rounds |
 | `profile.pairwise` | You and them |

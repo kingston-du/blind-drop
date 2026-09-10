@@ -101,25 +101,29 @@ struct MemberProfileContent: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("profile.stats")
             VStack(spacing: Space.none) {
-                // **The count leads, the rate is the line under it.** This figure is the one
-                // Best Ear ranked them on, so arriving here from a standings row lands on the
-                // same number rather than a different one wearing the same word. The all-time
-                // rate survives as prose in `detail` — carrying a `%` and the words "all time",
-                // which is what makes it unmistakable for the ranked figure. No `progress` bar:
-                // a count has no denominator to fill, and reusing the rate's bar would draw a
-                // proportion of something the number above it is not a proportion of.
+                // Ear is the recent count from the leaderboard. Accuracy is the all-time
+                // rate, given its own figure and blue bar rather than buried in Ear's caption.
                 statRow(StatFigure(
                     label: "results.ear.label",
                     value: "\(profile.earReads)",
-                    detail: earDetail,
+                    detail: Copy.format("profile.ear.window", profile.earWindowRounds),
                     isAccented: true
                 ))
                 Rule()
                 statRow(StatFigure(
+                    label: "results.accuracy.label",
+                    value: ScoringFormat.percent(profile.ear.value),
+                    detail: historyDetail(profile.ear),
+                    progress: profile.ear.value,
+                    progressFill: Palette.ultramarine
+                ))
+                Rule()
+                statRow(StatFigure(
                     label: "results.readability.label",
-                    value: profile.readability.value != nil ? ScoringFormat.percent(profile.readability.value) : ScoringFormat.unavailable,
-                    detail: profile.readability.value != nil ? Copy.format("profile.samples", profile.readability.samples) : Copy.string("profile.rounds.none"),
-                    progress: profile.readability.value
+                    value: ScoringFormat.percent(profile.readability.value),
+                    detail: historyDetail(profile.readability),
+                    progress: profile.readability.value,
+                    readabilityBand: profile.readability.value.map { ReadabilityBand(readability: $0) }
                 ))
                 Rule()
                 statRow(StatFigure(label: "profile.drops", value: "\(profile.dropCount)"))
@@ -128,14 +132,10 @@ struct MemberProfileContent: View {
         }
     }
 
-    /// *"Last 14 rounds"*, or *"Last 14 rounds, 62% all time"* once there is a rate to add.
-    /// Person-neutral on purpose: this screen is opened on other members as often as on
-    /// yourself, and "you've" would be wrong on four rows out of five.
-    private var earDetail: String {
-        guard let rate = profile.ear.value else {
-            return Copy.format("profile.ear.window", profile.earWindowRounds)
-        }
-        return Copy.format("profile.ear.window.rate", profile.earWindowRounds, ScoringFormat.percent(rate))
+    private func historyDetail(_ rate: ProfileRateDTO) -> String {
+        rate.value != nil
+            ? Copy.format("profile.history", rate.samples)
+            : Copy.string("profile.rounds.none")
     }
 
     private func statRow(_ figure: StatFigure) -> some View {
@@ -186,7 +186,7 @@ struct MemberProfileContent: View {
     }
 }
 
-/// The profile's shape in `paperSunk` — a mark and a name, a three-row panel, a list (`E28-08`).
+/// The profile's shape in `paperSunk` — a mark and a name, a four-row panel, a list.
 /// `RoundSkeleton` promised a round's three generic blocks, the wrong shape for this screen; with
 /// `E28-06`'s in-place refresh this is now seen once per visit rather than on every return trip.
 struct ProfileSkeleton: View {
@@ -198,7 +198,7 @@ struct ProfileSkeleton: View {
                     .fill(Palette.paperSunk).frame(width: Space.x6 * 2 + Space.lg, height: Layout.buttonHeight * 0.6)
             }
             RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
-                .fill(Palette.paperSunk).frame(height: Layout.buttonHeight * 3)
+                .fill(Palette.paperSunk).frame(height: Layout.buttonHeight * 4)
             RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
                 .fill(Palette.paperSunk).frame(height: Layout.buttonHeight * 2)
         }

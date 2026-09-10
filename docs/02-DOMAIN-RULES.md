@@ -145,6 +145,12 @@ This is the participation-pressure mechanic. Keep it.
 
 Simple and legible. **Do not invent a composite score.**
 
+**UI terminology (2026-09-10):** Ear names the recent correct-answer count. Accuracy names
+both the per-round percentage and the all-time pooled percentage, with the timeframe stated
+on each surface. Existing API/database fields retain `ear` for compatibility. Tonight shows
+correct counts and preserves the server's ranks; its shared `S − 1` denominator makes the
+ordering identical to ordering by the raw rate.
+
 ### 4.1 Per round
 
 Let `S` = number of submitters in the round (`S ≥ 3`, else voided).

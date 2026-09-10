@@ -98,7 +98,7 @@ true for them.
 **Always:** group name · date · "Tonight's drop" · the first four numbered song rows · overflow
 count · one-line headline · wordmark.
 
-**On a personal night** (`content.hasPersonalNight`): the caller's own ear as a percentage and
+**On a personal night** (`content.hasPersonalNight`): the caller's Accuracy as a percentage and
 left-fill proportion bar · readability as a percentage, fraction, band and neutral spectrum
 marker (never a rank) — each on its own `surface` panel, the same card treatment the results
 screen's two `StatTile`s wear · a surfaced tally table of who the room guessed for the caller's
@@ -146,7 +146,7 @@ the app, because that is the entire distribution mechanism.
   cropping (`theCardFits` measures the worst case).
 - Artwork is 84px, `Radius.artwork`, unmodified — no scrim, gradient or overlay.
 - Both variants use 72px margins. Story reserves an extra 72px at the bottom for sharing chrome.
-- Ear uses `ProportionTrack`; readability uses `StatMeter` with one solid gray track and its
+- Accuracy uses `ProportionTrack`; readability uses `StatMeter` with one solid gray track and its
   blue position marker. The distinct meter semantics remain: readability is not a better/worse
   fill.
 - The one legend the card allows: in the room's tally, the caller's own name is set in
@@ -206,7 +206,7 @@ ear and readability, from a private group. Consequences for the implementation:
 | Display face present | Snapshot test asserts the numeral glyph is not SF Pro |
 | Artwork loaded | Unit test: renderer awaits all image loads before producing output |
 | Headline precedence | Unit test over every rule in §2 — the four personal rules and the five group rules, plus precedence-order and non-submitter-falls-through cases |
-| Longest name plus 100% | Snapshot with a 24-character display name (`DisplayName.maximumLength`) in the one-line headline and a visible 100% Ear value |
+| Longest name plus 100% | Snapshot with a 24-character display name (`DisplayName.maximumLength`) in the one-line headline and a visible 100% Accuracy value |
 | The no-personal-night fallback | Snapshot with no own card and both rates `nil` — flight and headline remain; personal bands disappear |
 | The room tally at its worst case | Snapshot with six distinct guessed names, two of them `DisplayName.maximumLength`, forcing the tally overflow |
 | **The card fits.** `ImageRenderer` does not clip a view that overflows its frame — it draws past the canvas and the pixels are gone — so this is measured, not assumed: `ShareCardStack`'s natural height, rendered without the fixed outer frame, must be no taller than the frame `ShareCardView` actually gives it, for every fixture above at both variants | `ShareCardSnapshots.theCardFits` |

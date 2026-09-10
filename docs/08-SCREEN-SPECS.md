@@ -495,50 +495,33 @@ see who guessed someone else.
 
 ### 7.2 You
 
-```
-   ┌───────────────────┐ ┌───────────────────┐
-   │ READABILITY       │ │ EAR               │   label
-   │ 86%               │ │ 71%               │   displayXL; Ear in ultramarine
-   │ 6 of 7 read you   │ │ 5 of 7 correct    │   bodyS, inkDim
-   └───────────────────┘ └───────────────────┘
-   ┌───────────────────────────────────────┐
-   │ UNREADABLE              EASY TO READ  │   label, both ends
-   │ ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁●▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ │   StatMeter, marker only
-   │ Clear                                 │   the band, in words
-   └───────────────────────────────────────┘
-```
+Two equal tiles: **Readability** and **Accuracy**, each showing its percentage and underlying
+counts. Accuracy wears the ultramarine accent; Readability remains neutral. At accessibility
+sizes, stack the tiles. Accuracy is the percentage of possible answers the caller got right in
+this round; the API retains the field name `ear`.
 
-- Two tiles, equal width, side by side. **Only one of them wears the accent** — Ear, because it
-  is the number about the caller's own judgement. Two accented numbers side by side is a
-  scoreboard, and `docs/16` rules the app out of having one.
-- Readability's spectrum is its own panel under the pair, with a marker, **no fill from the
-  left**, both ends named, and the active one-word band under it. There is no better end.
-  No rank, no arrow, no comparison to yesterday.
-- Ear with no guesses renders as **—** with the line *"You sat this one out."* Never `0%`.
-- Readability for a non-submitter is absent, not zero, and the spectrum panel is absent with it.
+Readability's spectrum stays in its own panel below the pair, with a tick, both ends named,
+and the active band. No fill from the left: neither end is better.
+
+Accuracy with no guesses renders **—** and *"You sat this one out."*, never `0%`.
+Readability for a non-submitter is absent, not zero, and its spectrum is absent with it.
 
 ### 7.3 Standings
-**One table, sorted on ear only**, on a single `surface` with `hairline` rules between rows.
 
-```
-   ALL TIME                             41 ROUNDS
-   ┌───────────────────────────────────────────┐
-   │ 1   sam            EAR 78 · READ 62       │
-   │ 2   ivy            EAR 74 · READ 55       │
-   │ 3   mara           EAR 71 · READ 19       │
-   └───────────────────────────────────────────┘
-```
+**Tonight** is a separate module above the recent standings. It shows the server's top ranks,
+with a correct-answer count beside each name: **4 correct**. Its caption is **This round**.
+Historical results use **That night** as the heading. Ties share a rank and a tie crossing the
+third-place boundary stays whole. No Readability ranking.
 
-Readability **rides along in the row** as a trait rather than being ranked in a list of its
-own: there is no better end of the readability scale, so a list ordered by it would be a
-leaderboard for something that is not a competition. Rendering a readability rank position is
-a spec violation (`02-DOMAIN-RULES.md` §4.5). Both numbers are set in the mono micro-label so
-neither reads as *the* score, and the raw correct count stays in the row's VoiceOver label —
-a 100% off two rounds must not pass for a 100% off fourteen.
+Everyone in a round has the same denominator, `submitter_count − 1`, so sorting by the raw
+per-round rate already sorts by correct counts. The client converts that unformatted rate to
+an integer count and preserves the server's order and ranks. At accessibility sizes, the count
+moves below the name rather than squeezing it.
 
-**Tonight** (`E29-01`). A small module beside this table, never merged into it — this round's
-top 3 by Ear, ties sharing a rank the same way. Distinct enough that nobody mistakes a single
-night's ranking for the all-time one above it. Never a readability counterpart, at any scope.
+**Standings** ranks on **Ear**, the number of correct answers over the circle's last 14 scored
+rounds (or its actual shorter history). The window is stated beside the heading. Rows use
+**Ear 42**, never a percentage. Readability may accompany each row as a trait with its spectrum;
+it is not a second ranking.
 
 ### 7.4 Share
 One `PrimaryButton`: **Share tonight**. See `10-SHARE-CARD-SPEC.md`. This is the app's
@@ -635,12 +618,22 @@ No notification settings. No theme setting.
 
 ## 10.1 Member profile
 
-Tapping a roster row opens a **circle-scoped** profile, never a global identity page. The header
-uses the person's name and the one-line context copy; three equal cards state Ear, Readability,
-and drops. Ear and readability stay as `—` until five scored rounds support them, with the
-sample threshold written underneath rather than a small-sample percentage. On somebody else’s
-profile, a second two-card row says **You read them** and **They read you**; it follows the same
-five-shared-round threshold. The caller’s own profile omits that comparison entirely.
+Tapping a roster row opens a **circle-scoped** profile. The header uses the person's name,
+monogram, and recent artwork. The caller's own profile omits the **You read them / They read
+you** comparison; other profiles show both rates with their underlying counts.
+
+Keep one ruled stats panel, in this order:
+
+- **Ear**: the recent correct count, accented, with **Last N rounds**. No progress bar.
+- **Accuracy**: the all-time percentage in a full-size stat row, with a blue proportion bar
+  underneath and **All time · N rounds** as context. The number remains neutral so Ear leads.
+- **Readability**: the all-time percentage with the same gradient spectrum, blue tick, and
+  active band as the group page. It never uses a progress fill. Show **All time · N rounds**.
+- **Drops**: the count.
+
+Absent rates show **—** and **No rounds**, with no bar or tick. A real zero
+retains its meter. Accuracy retains the API's pooled calculation and excludes zero-guess
+rounds. The profile loading skeleton represents four stats.
 
 Below, **Recent songs** is a newest-first list of up to five scored drops with their local dates.
 There is no bio, edit control, follower/following count, activity feed, or non-scored round

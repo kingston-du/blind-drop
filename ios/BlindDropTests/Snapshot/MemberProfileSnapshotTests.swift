@@ -2,8 +2,8 @@ import SwiftUI
 import Testing
 @testable import BlindDrop
 
-/// The two honesty boundaries that need a picture: a well-supported comparison, and a first
-/// week's profile where numbers must stay unavailable rather than dressing two nights as 100%.
+/// A recent Ear count, a separate all-time Accuracy bar, and a Readability spectrum.
+/// Thin history keeps its sample count; unavailable rates never draw a zero or a meter.
 @MainActor
 @Suite struct MemberProfileSnapshotTests {
 
@@ -19,6 +19,14 @@ import Testing
     func yourThinHistory(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
         let fixture = try profile("thin")
         verify(named: "Profile-own-thin", device, size) {
+            MemberProfileContent(profile: fixture, isOwnProfile: true)
+        }
+    }
+
+    @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
+    func noHistory(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        let fixture = try profile("empty")
+        verify(named: "Profile-empty", device, size) {
             MemberProfileContent(profile: fixture, isOwnProfile: true)
         }
     }
@@ -39,10 +47,11 @@ import Testing
     }
 
     private func profile(_ kind: String) throws -> MemberProfileDTO {
-        // `ear_reads` leads the ear row and the all-time rate is the sentence beneath it. The
-        // thin profile is the interesting one: two nights played, so the window is 2 rather
-        // than 14, and the label has to say the smaller number rather than claim a fortnight.
-        let rates = kind == "thin"
+        // Accuracy has its own all-time scope. Ear always names the circle's real window.
+        let rates = kind == "empty"
+            ? "\"ear_reads\":0,\"ear_window_rounds\":14,"
+              + "\"ear\":{\"value\":null,\"samples\":0},\"readability\":{\"value\":null,\"samples\":0}"
+            : kind == "thin"
             ? "\"ear_reads\":4,\"ear_window_rounds\":2,"
               + "\"ear\":{\"value\":1,\"samples\":2},\"readability\":{\"value\":0,\"samples\":2}"
             : "\"ear_reads\":42,\"ear_window_rounds\":14,"
@@ -54,12 +63,15 @@ import Testing
           ,{"local_date":"2026-08-10","track":\(track("am:1440818664", "Redbone", "Childish Gambino"))}
           ,{"local_date":"2026-08-09","track":\(track("am:1440765580", "Motion Sickness", "Phoebe Bridgers"))}
         """
+        let recentTracks = kind == "empty" ? "" : """
+          {"local_date":"2026-08-11","track":\(track("am:1452874255", "SZA", "Kendrick Lamar"))}\(tracks)
+        """
         let json = """
         {
           "member":{"user_id":"u_ben","display_name":"Ben","role":"member"},
           \(rates),
-          "drop_count":\(kind == "thin" ? 2 : 14),
-          "recent_tracks":[{"local_date":"2026-08-11","track":\(track("am:1452874255", "SZA", "Kendrick Lamar"))}\(tracks)],
+          "drop_count":\(kind == "empty" ? 0 : kind == "thin" ? 2 : 14),
+          "recent_tracks":[\(recentTracks)],
           \(comparisons)
         }
         """
