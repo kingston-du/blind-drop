@@ -70,6 +70,7 @@ struct RecordScreen: View {
                     .padding(Layout.screenInset)
                 memberFilter(store)
                     .padding(.horizontal, Layout.screenInset)
+                    .padding(.bottom, Space.sm)
                 if let error = store.state.error, store.state.value != nil {
                     OfflineBanner(error: error)
                         .padding(.horizontal, Layout.screenInset)

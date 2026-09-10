@@ -72,6 +72,7 @@ private struct RecordSnapshotContent: View {
         VStack(alignment: .leading, spacing: Space.none) {
             RecordPageHeading().padding(.bottom, Layout.screenInset)
             RecordFilterLabel(name: Copy.string("record.filter.all"))
+                .padding(.bottom, Space.sm)
             ForEach(days) { day in
                 // The sticky night header the screen draws, background and rule included. It is
                 // `paper` now, with a bottom `edge` rule instead of a darker fill — see
