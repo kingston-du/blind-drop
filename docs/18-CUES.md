@@ -289,6 +289,7 @@ silent, matching how the rest of the open phase already treats "nothing to repor
 ```jsonc
 // GET /rounds/current — every phase, top-level, alongside opens_at/reveals_at/scores_at
 "cue": { "key": "song_you_hate", "text": "A song you hate" }   // absent (not null) when there is none
+"cue": { "key": "custom", "text": "A song for 3am" }           // an admin-written line: key always present
 
 // GET /rounds/current — the dark hours only (state `open`, `opens_at` still ahead), and only
 // when the circle has a finished round behind it. The cue of the round that just ended.
@@ -350,6 +351,29 @@ switch runs.
 keys, so a build from before this feature simply never reads `cue` — the round plays exactly as it
 does today, no crash, no missing-field error. No migration-in-place is needed for compatibility;
 this is additive on both the DB and the wire.
+
+### 8.1 `key` is always on the wire — including for a hand-written cue
+
+An admin-written cue has no catalog entry (§11.6), so `prompt_key` is `null` in the database.
+It is **not** null on the wire: `cueDTO` emits the sentinel `"custom"`, and `key` is always a
+string.
+
+This is a compatibility rule, not a modelling one, and it is load-bearing. Builds already in
+users' hands decode `key` as a **non-optional** string. A cue object without it fails to decode,
+and because the cue is nested inside the round payload that failure takes the *whole*
+`GET /rounds/current` response with it — the screen does not lose its cue, it fails to load and
+shows `error.generic`. Omitting the key for a custom cue did exactly that in production on
+2026-09-10, for every user on the shipped build whose circle had a hand-written cue. `null` is
+not an escape hatch: a non-optional string fails just as hard on an explicit null as on a
+missing field.
+
+`"custom"` is deliberately not a `cue_catalog` key and is never joined against one. Nothing in
+the app reads `key` at all — it is carried for joins and future localisation — which is what
+makes the sentinel harmless.
+
+**Do not remove it** until no shipped build decodes `key` as non-optional. Tidying it away
+early reintroduces the outage, and the shape is pinned by a test in
+`tests/functions/rounds.test.ts` for that reason.
 
 ## 9. `docs/16` and `tasks/ICEBOX.md` changes (land with `E35-01`)
 

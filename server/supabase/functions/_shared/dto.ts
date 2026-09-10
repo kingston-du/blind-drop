@@ -318,22 +318,46 @@ export function submissionDTO(row: { track_meta: unknown; updated_at: string }):
  * cue. `null` — and therefore the whole `cue` key absent from the wire — when the round has
  * none, which is the same absent-value state `prompt` has always had.
  */
+/**
+ * The `key` an admin-written cue carries instead of a catalog key.
+ *
+ * **Not a catalog key and never joined against one** — `cue_catalog` has no such row, which is
+ * the point: a hand-set line has no catalog entry and is never promoted into one (owner
+ * decision, 2026-09-09 — `docs/18-CUES.md` §11.6). It exists only so that `key` is always a
+ * string on the wire. See `cueDTO` for why that matters.
+ */
+export const CUSTOM_CUE_KEY = "custom";
+
 export interface CueDTO {
-  /** Absent on an admin-written cue: a hand-set line has no catalog entry and is never
-   *  promoted into one (owner decision, 2026-09-09 — `docs/18-CUES.md` §11.6). `text` is what
-   *  actually shipped that night either way, which is why it is the field the guard below
-   *  checks and the only one every surface renders. */
-  key?: string;
+  /** The catalog key, or `CUSTOM_CUE_KEY` for an admin-written line. **Always present.** It was
+   *  briefly omitted for a custom cue, which shipped a payload the then-current app could not
+   *  decode — see `cueDTO`. Nothing in the app reads this field; it is carried for joins and
+   *  future localisation. */
+  key: string;
   text: string;
 }
 
+/**
+ * **`key` is always emitted, even when there is no catalog key behind it.**
+ *
+ * This is a wire-compatibility rule, not a modelling one, and it is load-bearing. Builds
+ * already in users' hands decode `key` as a *non-optional* `String`; a cue object without it
+ * fails to decode, and because the cue is nested inside the round payload the failure takes
+ * the **whole** `GET /rounds/current` response down with it — the screen does not lose its cue,
+ * it fails to load, showing `error.generic`. Emitting the key absent for a custom cue did
+ * exactly that in production on 2026-09-10. `null` is not an escape hatch either: a
+ * non-optional `String` fails just as hard on an explicit null as on a missing field.
+ *
+ * So the sentinel stays until no shipped build decodes `key` as non-optional. It is safe to
+ * remove only then, and removing it earlier reintroduces the same outage.
+ */
 export function cueDTO(row: { prompt_key: string | null; prompt: string | null }): CueDTO | null {
   // Deliberately not `prompt_key === null || …`: that was the guard until E43-01, and it meant
   // a keyless custom cue vanished from every surface in the app. The five hand-written cues
   // that shipped before this feature all had to point `prompt_key` at an unrelated placeholder
   // key to get past it (20260901130000, 20260905110000).
   if (row.prompt === null) return null;
-  return { ...(row.prompt_key === null ? {} : { key: row.prompt_key }), text: row.prompt };
+  return { key: row.prompt_key ?? CUSTOM_CUE_KEY, text: row.prompt };
 }
 
 /**

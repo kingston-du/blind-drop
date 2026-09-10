@@ -120,6 +120,16 @@ struct RevealPayload: Sendable, Equatable {
 /// custom line has no catalog entry and is never promoted into one. Nothing in the app reads
 /// `key`, which is exactly why a keyless cue renders identically to a catalog one.
 struct CueDTO: Decodable, Sendable, Equatable {
+    /// **Keep this optional.** The server always sends a `key` — `"custom"` for an admin-written
+    /// line (`docs/18-CUES.md` §8.1) — so nothing here needs it to be absent. It stays optional
+    /// because the version that was *not* is what caused the 2026-09-10 outage: a build shipped
+    /// decoding `key` as a non-optional `String`, the server briefly stopped sending it for a
+    /// custom cue, and since a cue is nested inside the round payload the decode failure took
+    /// the whole screen down rather than one line of it.
+    ///
+    /// A non-essential field the app never reads should never be able to fail a response. This
+    /// one is read nowhere outside `NetworkingTests`; tightening it buys nothing and re-arms
+    /// exactly that failure for the next build that ships before a server change.
     let key: String?
     let text: String
 }

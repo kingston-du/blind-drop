@@ -484,6 +484,31 @@ Deno.test("the dark hours carry the previous night's cue, and never the coming o
   assert(!("previous_round_id" in (res.body.data as Record<string, unknown>)));
 });
 
+Deno.test("an admin-written cue still carries a key — the shape old builds decode", async () => {
+  // The regression from 2026-09-10. `set_round_cue` writes `prompt_key = null` by design, and
+  // for one deploy `cueDTO` answered that by omitting `key` from the wire. Shipped builds
+  // decode `key` as a non-optional String, and because the cue is nested inside the round
+  // payload the decode failure took the whole `GET /rounds/current` response down — users saw
+  // `error.generic`, not a missing cue. Nothing covered a keyless cue's shape, which is why it
+  // shipped; this is that cover.
+  const { user, group } = await darkHoursGroup("Hand Written");
+  await current(user);
+  await serviceRpc("seed_previous_round", {
+    p_group_id: group.id,
+    p_prompt_key: null,
+    p_prompt: "A song you would put on at 3am",
+  });
+
+  const res = await current(user);
+  assertEquals(res.status, 200);
+  const cue = res.body.data.previous_cue as Record<string, unknown>;
+  // Present, a string, and never null — an explicit null fails a non-optional String just as
+  // hard as a missing field does.
+  assert("key" in cue, "a custom cue must still carry `key`; omitting it breaks shipped builds");
+  assertEquals(typeof cue.key, "string");
+  assertEquals(cue, { key: "custom", text: "A song you would put on at 3am" });
+});
+
 Deno.test("a scored night behind the dark hours is linkable; a voided one is not", async () => {
   const { user, group } = await darkHoursGroup("Linkable");
   await current(user);
