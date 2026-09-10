@@ -99,6 +99,12 @@ struct SongSearch<Header: View, Footer: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.22), value: isBrowsing)
+        // The cap is a parameter, so this view animates its own argument changing rather than
+        // needing to be told what changed it. Its one mover is `SubmitScreen` swapping caps as
+        // the keyboard comes and goes, and the block has to travel with the keyboard rather than
+        // snapping into place ahead of it — the same duration as the browsing reflow above,
+        // which is close enough to the system's own curve to read as one movement.
+        .animation(.easeInOut(duration: 0.22), value: topGapCap)
         // Only the paper behind the controls dismisses focus; rows and the field keep their own
         // gestures and do not become accidental keyboard-dismiss taps.
         //

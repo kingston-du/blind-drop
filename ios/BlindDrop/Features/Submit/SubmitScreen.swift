@@ -63,6 +63,21 @@ struct SubmitScreen: View {
     private let accent = PhaseAccent.sealed
 
     @FocusState private var isFieldFocused: Bool
+    /// Whether the keyboard is up, as far as the column's spacing is concerned.
+    ///
+    /// **`@State` shadowing `@FocusState` rather than reading it directly**, for two reasons.
+    ///
+    /// It starts `true`, which is what the screen is a beat later: `.onAppear` focuses the field
+    /// on every arrival at a round that is taking songs. Deriving the gap from `isFieldFocused`
+    /// instead would draw the first frame open and then animate it shut on every single arrival
+    /// at the most-visited screen in the app — a flinch, on the way in, for nothing.
+    ///
+    /// It is also what the goldens read. `snapshotContent` renders a bare `SubmitScreen` value
+    /// that SwiftUI never installs, where `@FocusState` answers `false` — the same trap
+    /// `GuessSheet.effectiveTypeSize` and `CircleSwitcherSheet.typeSizeOverride` document for
+    /// `@Environment`. A `@State` read that way gives back its initial value, so the goldens keep
+    /// depicting the screen as it is actually seen: keyboard up, from the moment it appears.
+    @State private var isKeyboardUp = true
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -73,6 +88,10 @@ struct SubmitScreen: View {
             // a round trip raising a keyboard over the dark hours on every app open, and it is
             // fixed above rather than here: `isBeforeOpen` is now settled before it arrives.
             .onAppear { if !isBeforeOpen { isFieldFocused = true } }
+            // The dark hours never raise it, and their branch draws no field to lose focus from,
+            // so the seeded `true` has to be corrected for them rather than left standing.
+            .onAppear { if isBeforeOpen { isKeyboardUp = false } }
+            .onChange(of: isFieldFocused) { _, focused in isKeyboardUp = focused }
             .onDisappear { player.stop() }
     }
 
@@ -104,8 +123,18 @@ struct SubmitScreen: View {
                 // under the badge row, which is where it was asked to be. What is left over
                 // goes to the open gap *below* the block, so the blind line sits close to the
                 // keyboard rather than floating in the middle of the column.
+                //
+                // **But only while the keyboard is actually up** (owner, 2026-09-09). Squeezing
+                // is what the band costs, and with the keyboard down there is no band and
+                // nothing to pay: the block sat hunched under the badge row over half a screen
+                // of empty paper. So the cap is the old one back whenever nothing is focused,
+                // and `Space.none` only for as long as there is a keyboard to fit above.
+                //
+                // The spacing does *not* come back with it. Forty points of gap is a second,
+                // larger reflow riding on the same moment, and the tight rhythm is not what was
+                // wrong with the screen — the position was.
                 blockSpacing: Layout.itemGap,
-                topGapCap: Space.none
+                topGapCap: isKeyboardUp ? Space.none : Space.x4 + Space.sm
             )
         }
     }
