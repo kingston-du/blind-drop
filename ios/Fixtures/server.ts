@@ -423,6 +423,20 @@ async function route(req: Request, url: URL): Promise<Response> {
     const body = await req.json().catch(() => ({}));
     return ok(await patchPrimary(body));
   }
+  // E43-02. The admin writes the next round's cue by hand, or puts the derivation back.
+  if (m === "PUT" && p === "/groups/current/cue") {
+    const body = await req.json().catch(() => ({}));
+    const text = String(body.text ?? "").trim();
+    if (text.length === 0 || text.length > 56) {
+      return fail(400, "INVALID_INPUT", "Check that and try again.");
+    }
+    customCue = { text, is_custom: true };
+    return ok(await primaryGroup());
+  }
+  if (m === "DELETE" && p === "/groups/current/cue") {
+    customCue = {};
+    return ok(await primaryGroup());
+  }
   if (m === "POST" && p === "/groups/current/leave") return noContent();
   if (m === "GET" && p === "/groups/current/standings") return ok(await payload("standings"));
   if (m === "GET" && p === "/groups/current/record") return ok(await payload("record"));
@@ -526,6 +540,25 @@ async function route(req: Request, url: URL): Promise<Response> {
     const body = await req.json().catch(() => ({}));
     if (groupOnly[1] === PRIMARY_GROUP_ID) return ok(await patchPrimary(body));
     return ok({ ...group, ...body, reveal_effective_from: revealEffectiveFrom(group, body) });
+  }
+  // E43-02. The client addresses the circle by id, so this sibling is the one it actually
+  // reaches; the `/current` pair above is kept for the same compatibility reason as the rest.
+  const groupCue = p.match(/^\/groups\/([^/]+)\/cue$/);
+  if ((m === "PUT" || m === "DELETE") && groupCue && groupCue[1] !== "current") {
+    if (groupCue[1] !== PRIMARY_GROUP_ID) {
+      return fail(404, "NOT_FOUND", "That's not available right now.");
+    }
+    if (m === "DELETE") {
+      customCue = {};
+      return ok(await primaryGroup());
+    }
+    const body = await req.json().catch(() => ({}));
+    const text = String(body.text ?? "").trim();
+    if (text.length === 0 || text.length > 56) {
+      return fail(400, "INVALID_INPUT", "Check that and try again.");
+    }
+    customCue = { text, is_custom: true };
+    return ok(await primaryGroup());
   }
   const groupLeave = p.match(/^\/groups\/([^/]+)\/leave$/);
   if (m === "POST" && groupLeave && groupLeave[1] !== "current") {
@@ -656,8 +689,28 @@ function revealEffectiveFrom(
 
 /** The primary circle as it currently stands: the payload file, plus anything patched onto it. */
 async function primaryGroup(): Promise<Record<string, unknown>> {
-  return { ...(await payload("group_current")) as Record<string, unknown>, ...patchedPrimary };
+  const group = {
+    ...(await payload("group_current")) as Record<string, unknown>,
+    ...patchedPrimary,
+  };
+  // `next_cue` is admin-only on the real server (`docs/18-CUES.md` §11.6), and its
+  // `editable_until` is a live instant — a date baked into the payload file would go stale and
+  // the settings row would render itself permanently locked. Eight hours out is the dark-hours
+  // case the row is designed around: the next unopened round is *today's*.
+  if (group.is_admin === true) {
+    group.next_cue = {
+      ...(group.next_cue as Record<string, unknown> ?? {}),
+      ...customCue,
+      editable_until: new Date(Date.now() + Number(Deno.env.get("CUE_HOURS") ?? 8) * 3_600_000).toISOString(),
+    };
+  } else {
+    delete group.next_cue;
+  }
+  return group;
 }
+
+/** What `PUT`/`DELETE /groups/current/cue` have done to the next round's cue this run. */
+let customCue: Record<string, unknown> = {};
 
 /** Apply a patch to the primary circle and remember it. The effective date is computed against
  *  the **payload file's** hour, not the patched one — that file is what the circle's already

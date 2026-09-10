@@ -6,6 +6,12 @@
   "invite_code": "K7MQ2X",
   "is_admin": true,
   "reveal_effective_from": null,
+  "next_cue": {
+    "local_date": "2026-09-10",
+    "text": "A song you hate",
+    "is_custom": false,
+    "editable_until": "2026-09-10T10:00:00Z"
+  },
   "members": [
     {
       "user_id": "a0000000-0000-4000-8000-000000000001",

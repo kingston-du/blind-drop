@@ -84,8 +84,12 @@ struct RevealPayload: Sendable, Equatable {
 /// every member, that steers what people drop without changing how the game is scored. It is a
 /// value the server sends — `key` is for joins and future localisation, `text` is what shipped
 /// that night and is what every surface renders.
+///
+/// `key` is `nil` on a cue an admin wrote by hand (`§11.6`, owner amendment 2026-09-09): a
+/// custom line has no catalog entry and is never promoted into one. Nothing in the app reads
+/// `key`, which is exactly why a keyless cue renders identically to a catalog one.
 struct CueDTO: Decodable, Sendable, Equatable {
-    let key: String
+    let key: String?
     let text: String
 }
 

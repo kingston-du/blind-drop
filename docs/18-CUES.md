@@ -312,7 +312,27 @@ silent, matching how the rest of the open phase already treats "nothing to repor
 
 // PATCH /groups/current, PATCH /groups/:id — admin only
 { "cue_cadence": 0 | 1 | 2 | 3 }
+
+// GET /groups/current, GET /groups/:id — **admin only**, absent (not null) for a member.
+// The next round that has not opened, and whether its cue can still be changed (§11.6's
+// amendment). `local_date` is the round's own date and never the word "tomorrow": during the
+// dark hours the next unopened round is *today's*.
+"next_cue": {
+  "local_date": "2026-09-10",
+  "text": "A song you hate",              // null when the cadence gives that night no cue
+  "is_custom": false,
+  "editable_until": "2026-09-10T10:00:00Z"
+}
+
+// PUT /groups/current/cue, PUT /groups/:id/cue — admin only. Free text, trimmed, 1–56 chars.
+{ "text": "Your lock tf in song" }        // → the group DTO, next_cue included
+
+// DELETE /groups/current/cue, DELETE /groups/:id/cue — admin only. Back to the derived line
+// for that round's ordinal, which on an uncued night is correctly no line at all.
 ```
+
+`next_cue` is the only key on the group payload whose presence depends on the caller's role, and
+`WRONG_PHASE` is what the two writes answer with once the round has opened.
 
 `previous_cue` and `previous_round_id` are the only keys on this endpoint whose presence depends
 on the clock, and that decides a *payload*, never a phase (`CLAUDE.md` §2.2): `rounds.state` is still whatever
@@ -351,6 +371,13 @@ pattern `revealHourEffectiveFrom` already renders, driven by `cue_effective_from
 response. Non-admin members see the current cadence as static text, same treatment as the reveal
 hour they cannot edit.
 
+**And the cue itself, under the cadence** (`E43`, §11.6's amendment). Admin-only: the next
+unopened round's date as an eyebrow, its current cue as a row, and a sheet with one free-text
+field behind it. Neutral throughout — §2's amber carve-out is `CueCard` on the drop screen,
+argued from that card being the brief for the field below it, and a settings row inherits
+nothing from it. Once the round has opened the row goes read-only and says so, rather than
+offering a control the server would refuse.
+
 **Effective date, and why it is not "first uncreated round."** A cue must never be added to,
 changed on, or removed from a round that has already opened — someone may have already sealed
 against it. Unlike `reveal_hour` (which only affects rounds not yet created and therefore lands on
@@ -386,9 +413,50 @@ exact date rather than an indeterminate one.
    deliberate re-capture (`GOLDEN=update npm run test:functions -- leak`), and a new assertion
    that `cue` is byte-identical across every caller's response for the same round, independent of
    who has or hasn't submitted (`E35-03`).
-6. **No admin-authored custom cues.** Explicitly not built. That is content moderation, abuse
+6. **No admin-authored custom cues.** ~~Explicitly not built.~~ That is content moderation, abuse
    surface, and a length-policing job this spec does not take on — the catalog in §6 is the
    complete, closed set, the same way the notification kinds in `CLAUDE.md` §6 are closed.
+
+   > **Amended by the owner, 2026-09-09 (`E43`).** Struck. An admin can now write the next
+   > round's cue by hand, from circle settings, until that round opens. Decided directly by the
+   > owner, on the same footing as ADR-011 and `docs/17` §5's amendment to the notification cap
+   > — not inferred by an agent.
+   >
+   > **Why the original reasoning did not hold.** It was written as a scope refusal, and the
+   > scope arrived anyway: the ban was worked around by hand five times in nine days
+   > (`20260901130000_cue_promote_kingston_customs.sql`,
+   > `20260905110000_cue_promote_more_kingston_customs.sql`, and the plain data updates
+   > alongside them), each time by writing the text straight into `rounds.prompt`, pointing
+   > `prompt_key` at an unrelated placeholder key to satisfy `cueDTO()`'s not-null check, and
+   > retexting a weak catalog line so the new one had somewhere to live. A feature that ships
+   > as a migration every time is a feature, just an expensive one. The moderation objection is
+   > also weaker than it read: a circle is at most a handful of people who know each other
+   > (ADR-011 caps membership), the admin is one of them, and the line is visible to exactly
+   > that room — this is not a public surface. The length-policing objection is the one that
+   > survived, and it is answered rather than dismissed: `set_round_cue()` holds a hand-written
+   > line to `cue_catalog.text`'s own 56-character constraint, so nothing an admin types can
+   > overflow where a catalog line could not.
+   >
+   > **The bounds, which are the amendment:**
+   > - **Free text, no picker.** The admin types a line; they do not browse the catalog. Owner
+   >   decision — the line is already in mind, and listing the 40 is a different screen for a
+   >   different need.
+   > - **A custom cue is never promoted into the catalog.** Owner decision. It is that night's
+   >   text and nothing more; `prompt_key` is null on it, and §6's catalog stays the shared
+   >   default rather than growing from one circle's usage. Promoting a good line remains a
+   >   deliberate migration, exactly as it is today.
+   > - **One round, and only before it opens.** `state = 'open' AND opens_at > now_()` — the
+   >   same predicate §10 already uses, enforced in `set_round_cue()` rather than by a disabled
+   >   button, because a round that has opened may already have been sealed against the brief
+   >   it carries.
+   > - **A hand-set cue is not the derivation's to rewrite.** `rewrite_open_round_cues()` skips
+   >   `prompt_custom` rows, so touching the cadence picker does not erase the line.
+   > - **Admin-only, on the read as well as the write.** `next_cue` is absent — not null — for a
+   >   member, because §7's argument against showing the coming night's cue early does not stop
+   >   applying just because the screen is settings.
+   >
+   > Everything else in this document is unchanged. §3's derivation is still what assigns a cue
+   > on every night nobody touches, which is nearly all of them.
 7. **Fixture server.** `server/functions/tests` fixtures and the iOS `FixtureRoundTests` need at
    least one cued and one uncued round in their canned payloads, or none of the iOS surfaces in
    §7 get exercised by `-only-testing:BlindDropUnitTests` / the UI loop (`E35-04`).

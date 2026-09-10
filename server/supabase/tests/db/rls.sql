@@ -159,7 +159,13 @@ select set_eq(
        -- after updating groups.reveal_hour, exactly as the cadence path calls the cue rewrite
        -- above. Admin-only is enforced in the Edge Function, which is why `authenticated` is
        -- absent here and asserted absent in retime_unopened_rounds.sql.
-       ('retime_unopened_rounds'::information_schema.sql_identifier) $$,
+       ('retime_unopened_rounds'::information_schema.sql_identifier),
+       -- E43-01 (20260909130000). The admin writes the next round's cue by hand and clears it
+       -- back to the derivation (docs/18-CUES.md §11.6's owner amendment). `next_uncued_round`
+       -- is deliberately absent for the same reason `cue_for_round` is — an internal helper
+       -- reached only through these two, never by a client RPC.
+       ('set_round_cue'::information_schema.sql_identifier),
+       ('clear_round_cue'::information_schema.sql_identifier) $$,
   'service_role can execute exactly the RPC allowlist');
 
 select is_empty($$

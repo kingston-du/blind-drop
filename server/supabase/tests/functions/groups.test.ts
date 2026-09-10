@@ -412,6 +412,148 @@ Deno.test("PATCH /groups/current changes the cue cadence and names the effective
   assertEquals(refused.body.error.code, "NOT_ADMIN");
 });
 
+// ─── the next round's cue — E43-02, docs/18-CUES.md §11.6 ────────────────────
+//
+// A circle whose local hour is 02:00 with the default 20:00 reveal has today's round opening at
+// 10:00 local — eight hours out — so there is always exactly one editable round in these tests,
+// and it is today's, not tomorrow's. That is the dark-hours case, and it is why nothing in this
+// feature is labelled "tomorrow".
+async function circleWithAnEditableRound(cadence = 1) {
+  const owner = await newGroupOwner("Ana", {
+    timezone: zoneWhereLocalHourIs(2),
+    reveal_hour: 20,
+    cue_cadence: cadence,
+  });
+  await tickRounds();
+  return owner;
+}
+
+Deno.test("GET /groups/current carries next_cue for an admin and not for a member", async () => {
+  const { user, group } = await circleWithAnEditableRound();
+
+  const mine = await groups("/current", { token: user.token });
+  assertEquals(mine.status, 200);
+  const next = mine.body.data.next_cue as Record<string, unknown>;
+  assert(next, "an admin is told what the next round's cue is");
+  assertEquals(keysOf(next), ["editable_until", "is_custom", "local_date", "text"]);
+  assertEquals(next.is_custom, false, "and that nobody has written it by hand");
+  assertEquals(typeof next.text, "string", "cadence 1 cues every night");
+
+  // Absent, not null. docs/18-CUES.md §7 argues that handing out the *coming* night's cue early
+  // is wrong — it is why the dark hours render `previous_cue` instead — so a member never sees
+  // this key at all.
+  const ben = await newMember(group.invite_code as string, "Ben");
+  const theirs = await groups("/current", { token: ben.token });
+  assertEquals(theirs.status, 200);
+  assert(!("next_cue" in theirs.body.data), "a member is not told tomorrow's brief today");
+});
+
+Deno.test("PUT /groups/current/cue writes the admin's own line onto the next round", async () => {
+  const { user, group } = await circleWithAnEditableRound();
+
+  const res = await groups("/current/cue", {
+    method: "PUT",
+    token: user.token,
+    body: { text: "  Your lock tf in song  " },
+  });
+  assertEquals(res.status, 200);
+  const next = res.body.data.next_cue as Record<string, unknown>;
+  assertEquals(next.text, "Your lock tf in song", "trimmed, and exactly what was typed");
+  assertEquals(next.is_custom, true);
+
+  // It is on the round, not just in the reply to the write: the next read agrees.
+  const reread = await groups("/current", { token: user.token });
+  assertEquals((reread.body.data.next_cue as Record<string, unknown>).text, "Your lock tf in song");
+
+  const ben = await newMember(group.invite_code as string, "Ben");
+  const refused = await groups("/current/cue", {
+    method: "PUT",
+    token: ben.token,
+    body: { text: "Not yours to write" },
+  });
+  assertEquals(refused.status, 403);
+  assertEquals(refused.body.error.code, "NOT_ADMIN");
+});
+
+Deno.test("PUT /groups/current/cue holds the line to the catalog's own length bar", async () => {
+  const { user } = await circleWithAnEditableRound();
+
+  for (const text of ["", "   ", "x".repeat(57)]) {
+    const res = await groups("/current/cue", { method: "PUT", token: user.token, body: { text } });
+    assertEquals(res.status, 400, `refused: ${JSON.stringify(text)}`);
+    assertEquals(res.body.error.code, "INVALID_INPUT");
+  }
+
+  // 56 is `cue_catalog.text`'s own check constraint — what keeps a line from overflowing on an
+  // SE at accessibility5 (docs/18-CUES.md §6). A hand-written cue is held to the same bar.
+  const ok56 = await groups("/current/cue", {
+    method: "PUT",
+    token: user.token,
+    body: { text: "x".repeat(56) },
+  });
+  assertEquals(ok56.status, 200);
+
+  // And the bar is measured *after* the trim, the same order `set_round_cue()` uses and the
+  // same string the client's "N left" counter counts. A 56-character line that arrives with a
+  // trailing space is 57 raw characters and still valid.
+  const padded = await groups("/current/cue", {
+    method: "PUT",
+    token: user.token,
+    body: { text: `  ${"y".repeat(56)}  ` },
+  });
+  assertEquals(padded.status, 200);
+  assertEquals((padded.body.data.next_cue as Record<string, unknown>).text, "y".repeat(56));
+});
+
+Deno.test("a hand-set cue survives a cadence change, and DELETE puts the derivation back", async () => {
+  const { user } = await circleWithAnEditableRound();
+
+  const before = await groups("/current", { token: user.token });
+  const derived = (before.body.data.next_cue as Record<string, unknown>).text;
+
+  await groups("/current/cue", {
+    method: "PUT",
+    token: user.token,
+    body: { text: "A song you hate" },
+  });
+
+  // The load-bearing one. A cadence change rewrites the cue on exactly the rounds this feature
+  // edits, and without `not prompt_custom` in `rewrite_open_round_cues()` the admin's line would
+  // vanish the moment they touched the cadence picker.
+  const patched = await groups("/current", {
+    method: "PATCH",
+    token: user.token,
+    body: { cue_cadence: 1 },
+  });
+  assertEquals(patched.status, 200);
+  assertEquals((patched.body.data.next_cue as Record<string, unknown>).text, "A song you hate");
+
+  const cleared = await groups("/current/cue", { method: "DELETE", token: user.token });
+  assertEquals(cleared.status, 200);
+  const after = cleared.body.data.next_cue as Record<string, unknown>;
+  assertEquals(after.is_custom, false);
+  assertEquals(after.text, derived, "back to exactly the line the sequence would have given");
+});
+
+Deno.test("the cue can be set on a night the cadence gives no cue", async () => {
+  const { user } = await circleWithAnEditableRound(0);
+
+  const off = await groups("/current", { token: user.token });
+  assertEquals((off.body.data.next_cue as Record<string, unknown>).text, null, "cadence 0, no cue");
+
+  const res = await groups("/current/cue", {
+    method: "PUT",
+    token: user.token,
+    body: { text: "A song for your current mood" },
+  });
+  assertEquals(res.status, 200);
+  assertEquals((res.body.data.next_cue as Record<string, unknown>).text, "A song for your current mood");
+
+  // And clearing it on an uncued night is correctly *no cue*, not a failure.
+  const cleared = await groups("/current/cue", { method: "DELETE", token: user.token });
+  assertEquals((cleared.body.data.next_cue as Record<string, unknown>).text, null);
+});
+
 Deno.test("PATCH /groups/current refuses to change the timezone", async () => {
   const { user } = await newGroupOwner("Ana");
   const res = await groups("/current", {

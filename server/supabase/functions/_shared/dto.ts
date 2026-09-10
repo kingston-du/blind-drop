@@ -85,6 +85,9 @@ export interface GroupDTO {
   /** The local date from which the current cadence is in effect — always "tomorrow" for an
    *  already-open round, computed from the rewrite date (`docs/18-CUES.md` §10). */
   cue_effective_from: string;
+  /** The next round's cue, and whether it can still be changed (`docs/18-CUES.md` §11.6).
+   *  Present only for an admin — absent, not null, for everyone else. */
+  next_cue?: NextCueDTO;
   /** The local date from which `reveal_hour` first applies, or `null` when it already applies
    *  to every round still ahead — a change never re-times a round that has been created
    *  (docs/02 §1, docs/03 §4), and `ensure_rounds` materialises two days, so a change made
@@ -106,6 +109,7 @@ export function groupDTO(
   members: RosterMemberDTO[],
   cueEffectiveFrom: string,
   revealEffectiveFrom: string | null,
+  nextCue: NextCueDTO | null = null,
 ): GroupDTO {
   return {
     id: group.id,
@@ -118,6 +122,7 @@ export function groupDTO(
     cue_cadence: group.cue_cadence,
     cue_effective_from: cueEffectiveFrom,
     reveal_effective_from: revealEffectiveFrom,
+    ...(nextCue ? { next_cue: nextCue } : {}),
   };
 }
 
@@ -314,13 +319,48 @@ export function submissionDTO(row: { track_meta: unknown; updated_at: string }):
  * none, which is the same absent-value state `prompt` has always had.
  */
 export interface CueDTO {
-  key: string;
+  /** Absent on an admin-written cue: a hand-set line has no catalog entry and is never
+   *  promoted into one (owner decision, 2026-09-09 — `docs/18-CUES.md` §11.6). `text` is what
+   *  actually shipped that night either way, which is why it is the field the guard below
+   *  checks and the only one every surface renders. */
+  key?: string;
   text: string;
 }
 
 export function cueDTO(row: { prompt_key: string | null; prompt: string | null }): CueDTO | null {
-  if (row.prompt_key === null || row.prompt === null) return null;
-  return { key: row.prompt_key, text: row.prompt };
+  // Deliberately not `prompt_key === null || …`: that was the guard until E43-01, and it meant
+  // a keyless custom cue vanished from every surface in the app. The five hand-written cues
+  // that shipped before this feature all had to point `prompt_key` at an unrelated placeholder
+  // key to get past it (20260901130000, 20260905110000).
+  if (row.prompt === null) return null;
+  return { ...(row.prompt_key === null ? {} : { key: row.prompt_key }), text: row.prompt };
+}
+
+/**
+ * The one round an admin may still write a cue onto, and what is on it right now
+ * (`docs/18-CUES.md` §11.6). **Admin-only** — `groupDTO` is handed `null` for a member.
+ *
+ * That gate is a product call, not a `CLAUDE.md` §2.1 one: a cue is identical for everyone and
+ * independent of anyone's participation, so it leaks nothing. But §7 argues that showing the
+ * *coming* night's cue early is wrong — it is the whole reason the dark hours render
+ * `previous_cue` instead of the base `cue` — and handing this to a member would do exactly
+ * that. Gating it also keeps `/rounds/current`, the byte-pinned blind-window response,
+ * completely untouched by this feature.
+ */
+export interface NextCueDTO {
+  /** The round's group-local date. Not "tomorrow": during the dark hours (local midnight →
+   *  `opens_at`) the next unopened round is *today's*, so the date is the only label that is
+   *  always true, and it is what the settings row shows. */
+  local_date: string;
+  /** `null` when the cadence gives that night no cue. Setting one anyway is allowed. */
+  text: string | null;
+  /** True when an admin wrote this line rather than the derivation assigning it. Only then is
+   *  there anything to revert, which is what the reset control keys off. */
+  is_custom: boolean;
+  /** When the round opens and the cue stops being editable — `reveals_at` minus ten hours, so
+   *  a circle revealing at 20:00 locks at 10:00 local. The server enforces this; the client
+   *  renders it. */
+  editable_until: string;
 }
 
 /**

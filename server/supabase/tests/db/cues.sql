@@ -13,10 +13,12 @@
 --      rollovers, not just a single instant — 20260827130000 fixed a permanent off-by-one here.
 --   5. A cadence change rewrites only not-yet-opened rounds, and a demo group ships with the
 --      cue off, reproducibly, whatever the clock says.
+--   6. An admin-written cue (E43-01) lands on the next unopened round, survives a cadence
+--      change, refuses an already-opened round, and reverts to the derived line on clear.
 
 begin;
 set search_path = public, extensions, tests;
-select plan(26);
+select plan(38);
 
 -- ─── 1 · the catalog ─────────────────────────────────────────────────────────
 
@@ -232,6 +234,87 @@ select is(
   null,
   'and the derivation returns no cue at cadence 0, whatever the clock'
 );
+
+-- ─── 7 · an admin writes the cue by hand (E43-01) ────────────────────────────
+-- docs/18-CUES.md §11.6's owner amendment, 2026-09-09. The properties that matter are the
+-- window (only a round that has not opened), the survival (a cadence change is a change to
+-- the derivation, and a hand-set line was not derived), and the revert (back to exactly the
+-- line the sequence would have given, which on an uncued night is no line at all).
+
+insert into public.groups (id, name, timezone, reveal_hour, invite_code, created_by, cue_cadence)
+values ('e1000000-0000-4000-8000-0000000000f5','Cue custom','America/New_York',20,'CUEC64',
+        tests.person('Ben'), 1);
+
+select tests.set_test_now('2026-09-01T18:00:00Z');   -- 14:00: today has opened, not revealed
+select lives_ok('select public.ensure_rounds()', 'the custom-cue group materialises its rounds');
+
+select is((select local_date from public.next_uncued_round('e1000000-0000-4000-8000-0000000000f5')),
+  date '2026-09-02',
+  'the editable round is the earliest one that has not opened, not today''s');
+
+select is(
+  (select prompt from public.set_round_cue(
+     'e1000000-0000-4000-8000-0000000000f5', '  A song you hate  ', tests.person('Ben'))),
+  'A song you hate',
+  'a hand-set cue is trimmed and written onto that round');
+
+select is(
+  (select prompt_key from public.rounds
+    where group_id = 'e1000000-0000-4000-8000-0000000000f5' and local_date = date '2026-09-02'),
+  null,
+  'and its prompt_key is cleared — a custom line has no catalog entry');
+
+select ok(
+  (select prompt_custom and prompt_set_by = tests.person('Ben') and prompt_set_at is not null
+     from public.rounds
+    where group_id = 'e1000000-0000-4000-8000-0000000000f5' and local_date = date '2026-09-02'),
+  'the round records that a person wrote it, and which one');
+
+-- The load-bearing one. Without `not prompt_custom` in rewrite_open_round_cues(), toggling the
+-- cadence picker silently erases the line the admin just typed.
+select lives_ok(
+  $$ select public.rewrite_open_round_cues('e1000000-0000-4000-8000-0000000000f5', 3::smallint) $$,
+  'a cadence change runs over a circle carrying a hand-set cue');
+
+select is(
+  (select prompt from public.rounds
+    where group_id = 'e1000000-0000-4000-8000-0000000000f5' and local_date = date '2026-09-02'),
+  'A song you hate',
+  'and the hand-set cue survives it');
+
+select throws_ok(
+  $$ select public.set_round_cue('e1000000-0000-4000-8000-0000000000f5', '   ', tests.person('Ben')) $$,
+  '22023', null,
+  'an empty cue is refused');
+
+select throws_ok(
+  $$ select public.set_round_cue('e1000000-0000-4000-8000-0000000000f5',
+       repeat('x', 57), tests.person('Ben')) $$,
+  '22023', null,
+  'a cue over 56 characters is refused, the same bar the catalog carries');
+
+-- Clearing puts back exactly what the derivation would have assigned — read from the group's
+-- *stored* cadence, which is still 1: `rewrite_open_round_cues()` takes the new cadence as an
+-- argument and does not write `groups.cue_cadence` itself (the PATCH handler does that, just
+-- before calling it). So the expectation below is ordinal 1 at cadence 1, and on an uncued
+-- night it would legitimately be no line at all.
+select lives_ok($$ select public.clear_round_cue('e1000000-0000-4000-8000-0000000000f5') $$,
+  'the cue clears back to the derivation');
+
+select is(
+  (select prompt from public.rounds
+    where group_id = 'e1000000-0000-4000-8000-0000000000f5' and local_date = date '2026-09-02'),
+  (select prompt from public.cue_for_round('e1000000-0000-4000-8000-0000000000f5', 1, 1::smallint)),
+  'and it matches cue_for_round() at that round''s true ordinal, null included');
+
+-- Past opens_at there is nothing to edit: today has opened and tomorrow's round is the only
+-- candidate, so winding the clock past *its* opens_at leaves the circle with no editable round.
+select tests.set_test_now('2026-09-02T18:00:00Z');   -- 14:00 the next day: 09-02 has opened
+
+select throws_ok(
+  $$ select public.set_round_cue('e1000000-0000-4000-8000-0000000000f5', 'Too late', tests.person('Ben')) $$,
+  'P0002', null,
+  'a round that has already opened cannot be given a cue');
 
 select * from finish();
 rollback;

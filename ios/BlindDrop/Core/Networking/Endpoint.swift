@@ -86,6 +86,7 @@ private struct PatchGroupBody: Encodable, Sendable {
     let reveal_hour: Int?
     let cue_cadence: Int?
 }
+private struct SetCueBody: Encodable, Sendable { let text: String }
 private struct MemberRoleBody: Encodable, Sendable { let role: String }
 private struct InvitePersonBody: Encodable, Sendable { let user_id: String }
 private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignment] }
@@ -165,6 +166,23 @@ extension Endpoint {
             .patch, scoped("/groups", groupID),
             body: json(PatchGroupBody(name: name, reveal_hour: revealHour, cue_cadence: cueCadence))
         )
+    }
+
+    /// `PUT /groups/:id/cue` — the admin writes the next round's cue by hand
+    /// (`docs/18-CUES.md` §11.6). Answers with the whole group, `next_cue` included, so the
+    /// settings screen reads the result rather than guessing at it.
+    ///
+    /// Not retried: it is a write the server refuses outright once the round has opened
+    /// (`WRONG_PHASE`), and a silent second attempt against a round that just opened is exactly
+    /// the case the refusal exists for.
+    static func setNextCue(_ groupID: String, text: String) -> Endpoint<GroupDTO> {
+        .init(.put, scoped("/groups", groupID, "/cue"), body: json(SetCueBody(text: text)))
+    }
+
+    /// `DELETE /groups/:id/cue` — back to the line the cadence would have given that night,
+    /// which on an uncued night is correctly no line at all.
+    static func clearNextCue(_ groupID: String) -> Endpoint<GroupDTO> {
+        .init(.delete, scoped("/groups", groupID, "/cue"))
     }
 
     static func leaveGroup(_ groupID: String) -> Endpoint<NoContent> {

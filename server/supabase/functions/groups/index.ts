@@ -16,6 +16,10 @@
 //   GET   /groups/:group_id                    the same, for a named circle
 //   PATCH /groups/current                      admin only; name and reveal_hour
 //   PATCH /groups/:group_id                    the same, for a named circle
+//   PUT    /groups/current/cue                 admin only; the next round's cue, hand-set
+//   DELETE /groups/current/cue                 admin only; back to the derived cue
+//   PUT    /groups/:group_id/cue               the same, for a named circle
+//   DELETE /groups/:group_id/cue               the same, for a named circle
 //   GET   /groups/current/standings            all-time, ranked one way and not the other
 //   GET   /groups/:group_id/standings          the same, for a named circle
 //   GET   /groups/:group_id/members/:user_id/profile   scored history and pairwise reads only
@@ -85,6 +89,7 @@ import {
   memberDTO,
   memberProfileDTO,
   type MemberProfileDTO,
+  type NextCueDTO,
   insightsDTO,
   type InsightsDTO,
   type ReadabilityBand,
@@ -112,7 +117,14 @@ import {
   wilsonUpperBound,
 } from "../_shared/insights.ts";
 import { generateInviteCode, normaliseInviteCode } from "../_shared/invite.ts";
-import { localDate, localHour, nextDate, type RoundState, serverNow } from "../_shared/time.ts";
+import {
+  localDate,
+  localHour,
+  nextDate,
+  rfc3339,
+  type RoundState,
+  serverNow,
+} from "../_shared/time.ts";
 
 interface GroupRow {
   id: string;
@@ -175,6 +187,7 @@ async function currentGroupDTO(ctx: MemberCtx, group?: GroupRow): Promise<GroupD
     await roster(ctx.db, ctx.groupId),
     await cueEffectiveFrom(ctx.db, row),
     await revealEffectiveFrom(ctx.db, row),
+    await nextCueFor(ctx),
   );
 }
 
@@ -260,18 +273,51 @@ async function revealEffectiveFrom(db: Db, group: GroupRow): Promise<string | nu
  * back to the first not-yet-created date.
  */
 async function cueEffectiveFrom(db: Db, group: GroupRow): Promise<string> {
+  const row = await nextUnopenedRound(db, group.id);
+  if (row) return row.local_date;
+  return effectiveFrom(db, group);
+}
+
+/** The row behind both `cue_effective_from` and `next_cue`: the earliest round that is open and
+ *  has not yet opened. The same predicate `rewrite_open_round_cues()` and the database's
+ *  `next_uncued_round()` use, kept as a plain select here so the helper stays an internal
+ *  definer-only function rather than a granted RPC (`tests/db/rls.sql`'s allowlist). */
+async function nextUnopenedRound(db: Db, groupId: string): Promise<NextRoundRow | null> {
   const { data, error } = await db
     .from("rounds")
-    .select("local_date")
-    .eq("group_id", group.id)
+    .select("local_date, opens_at, prompt, prompt_custom")
+    .eq("group_id", groupId)
     .eq("state", "open")
     .gt("opens_at", serverNow().toISOString())
     .order("local_date", { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (error) throw dbFailure("groups.cueEffectiveFrom", error);
-  if (data) return data.local_date;
-  return effectiveFrom(db, group);
+  if (error) throw dbFailure("groups.nextUnopenedRound", error);
+  return (data as NextRoundRow | null) ?? null;
+}
+
+interface NextRoundRow {
+  local_date: string;
+  opens_at: string;
+  prompt: string | null;
+  prompt_custom: boolean;
+}
+
+function nextCueDTOOf(row: NextRoundRow): NextCueDTO {
+  return {
+    local_date: row.local_date,
+    text: row.prompt,
+    is_custom: row.prompt_custom,
+    editable_until: rfc3339(row.opens_at),
+  };
+}
+
+/** `next_cue`, for an admin only — a member gets `null` and therefore no key at all. See
+ *  `NextCueDTO`'s own note for why that gate is here rather than left to the client. */
+async function nextCueFor(ctx: MemberCtx): Promise<NextCueDTO | null> {
+  if (ctx.role !== "admin") return null;
+  const row = await nextUnopenedRound(ctx.db, ctx.groupId);
+  return row ? nextCueDTOOf(row) : null;
 }
 
 // ─── the switcher — docs/04 §3, docs/02 §2, `E18-02` ─────────────────────────
@@ -795,6 +841,66 @@ async function patchGroup(req: Request, ctx: MemberCtx): Promise<Response> {
   }
 
   return ok(await currentGroupDTO(ctx, group));
+}
+
+/**
+ * `PUT /groups/:id/cue` — the admin writes the next round's cue by hand.
+ *
+ * `docs/18-CUES.md` §11.6 said custom cues were "explicitly not built"; the owner reversed that
+ * on 2026-09-09, after the ban had been worked around by hand five times as migrations. Free
+ * text only, and a custom line is never promoted into `cue_catalog` — the catalog stays the
+ * shared default.
+ *
+ * **The edit window lives in the database**, not here: `set_round_cue()` resolves the round
+ * itself (`state = 'open' AND opens_at > now_()`) and refuses when there is none. That is
+ * deliberate — the client renders `editable_until`, but a round that has opened may already
+ * have been sealed against, and "someone typed a new brief under a song that was already
+ * dropped for the old one" is not a state a disabled button can be trusted to prevent.
+ */
+async function putGroupCue(req: Request, ctx: MemberCtx): Promise<Response> {
+  // 56 is `cue_catalog.text`'s own check constraint (docs/18 §6) — what keeps a line from
+  // overflowing on an SE at accessibility5. A hand-written cue is held to the same bar; nothing
+  // beyond length and emptiness is policed, because style is the admin's business.
+  //
+  // **Bounded after the trim, not before**, which is the order `set_round_cue()` uses and the
+  // order the client's own "N left" counter counts in. Checking the raw body first would refuse
+  // a 56-character line that arrived with a trailing space — valid by every other reckoning,
+  // and the counter would have been reading zero-remaining while the server said no.
+  const body = await parseBody(req, { text: str({ min: 1, max: 200 }) });
+  const text = body.text.trim();
+  if (text.length === 0 || text.length > 56) {
+    throw new ApiError("INVALID_INPUT", { field: "text" });
+  }
+
+  const { error } = await ctx.db.rpc("set_round_cue", {
+    p_group_id: ctx.groupId,
+    p_text: text,
+    p_user: ctx.userId,
+  });
+  if (error) throw cueWriteFailure("groups.cue.put", error);
+
+  return ok(await currentGroupDTO(ctx));
+}
+
+/** `DELETE /groups/:id/cue` — back to the derived line for that round's own ordinal, which on
+ *  an uncued night is correctly no line at all. */
+async function deleteGroupCue(_req: Request, ctx: MemberCtx): Promise<Response> {
+  const { error } = await ctx.db.rpc("clear_round_cue", { p_group_id: ctx.groupId });
+  if (error) throw cueWriteFailure("groups.cue.delete", error);
+  return ok(await currentGroupDTO(ctx));
+}
+
+/**
+ * The two refusals `set_round_cue`/`clear_round_cue` raise, mapped onto codes the client
+ * already knows. `P0002` is "no round is open for editing" — the round opened while the sheet
+ * was up, which is a phase refusal and nothing else; `22023` is the length/emptiness guard,
+ * already checked above, kept as a backstop so a database-side rule can never surface as
+ * `INTERNAL`. Anything else is a real failure and keeps its usual treatment.
+ */
+function cueWriteFailure(scope: string, error: Parameters<typeof dbFailure>[1]): Error {
+  if (error.code === "P0002") return new ApiError("WRONG_PHASE");
+  if (error.code === "22023") return new ApiError("INVALID_INPUT", { field: "text" });
+  return dbFailure(scope, error);
 }
 
 // docs/04 §4. Two lists that deliberately do not have the same shape.
@@ -1787,6 +1893,34 @@ serveFunction("groups", {
       await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
     );
     return patchGroup(req, ctx);
+  },
+
+  // ─── the next round's cue — E43-02, docs/18-CUES.md §11.6 ──────────────────
+  // Admin-guarded by the same `requireAdmin` the reveal-hour and cadence patches use. A member
+  // gets NOT_ADMIN here and no `next_cue` key on the read, which is the same answer twice.
+  "PUT /current/cue": async (req, route) => {
+    const ctx = requireAdmin(
+      await requireDefaultMembership(await requireProfile(await requireUser(req, route))),
+    );
+    return putGroupCue(req, ctx);
+  },
+  "PUT /:group_id/cue": async (req, route, params) => {
+    const ctx = requireAdmin(
+      await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
+    );
+    return putGroupCue(req, ctx);
+  },
+  "DELETE /current/cue": async (req, route) => {
+    const ctx = requireAdmin(
+      await requireDefaultMembership(await requireProfile(await requireUser(req, route))),
+    );
+    return deleteGroupCue(req, ctx);
+  },
+  "DELETE /:group_id/cue": async (req, route, params) => {
+    const ctx = requireAdmin(
+      await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
+    );
+    return deleteGroupCue(req, ctx);
   },
 
   // ─── standings ─────────────────────────────────────────────────────────────

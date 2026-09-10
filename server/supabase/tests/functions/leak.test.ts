@@ -754,6 +754,14 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups POST /:group_id/leave": null, // 204
     // E21-02. A role update returns the same reviewed roster DTO as the group settings route;
     // removal is a bodiless 204 and therefore cannot widen an open-phase response.
+    // E43-02. Writing or clearing the next round's cue answers with the same reviewed group
+    // DTO the settings routes above already return — the one new key on it, `next_cue`, is
+    // admin-only and describes a round that has not opened, so it is a fact about the coming
+    // brief and never about anyone's participation in tonight's (docs/18-CUES.md §11.6).
+    "groups PUT /current/cue": "groups_current",
+    "groups DELETE /current/cue": "groups_current",
+    "groups PUT /:group_id/cue": "groups_current",
+    "groups DELETE /:group_id/cue": "groups_current",
     "groups PATCH /:group_id/members/:user_id": "groups_current",
     "groups DELETE /:group_id/members/:user_id": null,
     // E20-01. Pending invitations, distinct from membership — see the two captures above.

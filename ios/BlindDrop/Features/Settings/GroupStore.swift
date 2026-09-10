@@ -119,6 +119,46 @@ final class GroupStore {
         }
     }
 
+    /// Writes the admin's own line onto the next round that has not opened
+    /// (`docs/18-CUES.md` §11.6). The trim is the same one the server does — doing it here too
+    /// means the field's own "N left" counter and the server's 56-character bar agree about what
+    /// is being counted.
+    func setNextCue(_ text: String) async -> Bool {
+        guard let groupID = group?.id, !isSaving else { return false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= Self.cueLimit else { return false }
+        isSaving = true
+        errorKey = nil
+        defer { isSaving = false }
+        do {
+            state = .loaded(try await api.send(.setNextCue(groupID, text: trimmed)))
+            return true
+        } catch {
+            errorKey = error.copyKey
+            return false
+        }
+    }
+
+    /// Back to the cue the cadence would have given that night — which may be none.
+    func clearNextCue() async -> Bool {
+        guard let groupID = group?.id, !isSaving else { return false }
+        isSaving = true
+        errorKey = nil
+        defer { isSaving = false }
+        do {
+            state = .loaded(try await api.send(.clearNextCue(groupID)))
+            return true
+        } catch {
+            errorKey = error.copyKey
+            return false
+        }
+    }
+
+    /// `cue_catalog.text`'s own check constraint (`docs/18-CUES.md` §6) — the length that keeps
+    /// a line from overflowing on an SE at `accessibility5`. A hand-written cue is held to the
+    /// same bar as a catalog one, and the server enforces it independently.
+    static let cueLimit = 56
+
     func leave() async -> Bool {
         guard let groupID = group?.id, !isLeaving else { return false }
         isLeaving = true

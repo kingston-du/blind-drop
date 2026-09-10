@@ -56,12 +56,15 @@ struct GroupScreen: View {
                 isManagingMember: store.isManagingMember,
                 errorKey: store.errorKey,
                 cueEffectiveFrom: store.cueEffectiveFrom,
+                serverNow: env.clock.now,
                 currentUserID: env.session.user?.userID,
                 select: { selectedMember = $0 },
                 onRetryStandings: { await store.load() },
                 onSaveName: { await store.rename(to: $0) },
                 onPickRevealHour: { await store.setRevealHour($0) },
                 onPickCueCadence: { await store.setCueCadence($0) },
+                onSetNextCue: { await store.setNextCue($0) },
+                onClearNextCue: { await store.clearNextCue() },
                 onSetRole: { member, role in await store.setRole(role, for: member.userID) },
                 onRemove: { member in await store.remove(member.userID) },
                 onLeave: {
@@ -102,12 +105,20 @@ struct GroupDetailView: View {
     var isManagingMember = false
     var errorKey: String?
     var cueEffectiveFrom: String?
+    /// `ServerClock`'s reading, not `Date()` (`CLAUDE.md` §2.2). The next-cue row turns
+    /// read-only at an instant the server owns, so deciding it against the device's wall clock
+    /// would let a skewed phone offer an edit the server refuses — or withhold one it would
+    /// have allowed. `nil` while the clock is unanchored, which the row treats as "cannot say
+    /// yet" and reads as locked rather than inviting a write that may already be too late.
+    var serverNow: Date?
     var currentUserID: String?
     var select: (MemberDTO) -> Void = { _ in }
     var onRetryStandings: () async -> Void = {}
     var onSaveName: (String) async -> Bool = { _ in true }
     var onPickRevealHour: (Int) async -> Bool = { _ in true }
     var onPickCueCadence: (Int) async -> Bool = { _ in true }
+    var onSetNextCue: (String) async -> Bool = { _ in true }
+    var onClearNextCue: () async -> Bool = { true }
     var onSetRole: (MemberDTO, String) async -> Bool = { _, _ in true }
     var onRemove: (MemberDTO) async -> Bool = { _ in true }
     var onLeave: () async -> Bool = { true }
@@ -130,6 +141,7 @@ struct GroupDetailView: View {
     /// Whether `nameField` has been seeded from the circle yet. See the `onAppear` below.
     @State private var hasSeededName = false
     @State private var confirmsLeaving = false
+    @State private var editsNextCue = false
     @State private var memberToRemove: MemberDTO?
     @FocusState private var nameFocused: Bool
 
@@ -162,6 +174,18 @@ struct GroupDetailView: View {
         // caller is mid-edit" apart from "nothing has changed here yet": `old` is what `nameField`
         // was set from the last time this ran, so a field that still matches it is untouched.
         .onChange(of: group.name) { old, new in if nameField == old { nameField = new } }
+        .sheet(isPresented: $editsNextCue) {
+            NextCueSheet(
+                cue: group.nextCue,
+                isSaving: isSaving,
+                // The screen's own error line is *behind* this sheet, so a refused write would
+                // otherwise read as the button doing nothing at all — which is exactly how it
+                // read the first time it was exercised against a server that said no.
+                errorKey: errorKey,
+                onSave: onSetNextCue,
+                onReset: onClearNextCue
+            )
+        }
         .alert("group.leave.confirm.title", isPresented: $confirmsLeaving) {
             Button("group.leave.confirm.action", role: .destructive) { Task { _ = await onLeave() } }
             Button("settings.cancel", role: .cancel) {}
@@ -438,6 +462,56 @@ struct GroupDetailView: View {
                let date = GroupCalendar(timezone: group.timezone).shareDate(localDate: effective) {
                 Text(verbatim: Copy.format("settings.cue.effective", date)).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
             }
+            if group.isAdmin, let next = group.nextCue { nextCueRow(next, isSnapshot: isSnapshot) }
+        }
+    }
+
+    /// The next round's cue, and the way in to changing it (`docs/18-CUES.md` §11.6).
+    ///
+    /// **Labelled with the round's date, never "tomorrow."** Between local midnight and the
+    /// round's own `opens_at` the next unopened round is *today's* — the same window the drop
+    /// screen spends showing last night's cue — so the date is the only label that is always
+    /// true. Neutral throughout: §2's amber carve-out is `CueCard` on the drop screen, argued
+    /// from that card being the brief for the field directly below it, and a settings row
+    /// inherits nothing from it.
+    @ViewBuilder private func nextCueRow(_ next: NextCueDTO, isSnapshot: Bool) -> some View {
+        let date = GroupCalendar(timezone: group.timezone).shareDate(localDate: next.localDate)
+        // `nil` clock → locked. The alternative is offering Save against an instant nobody has
+        // established yet, and the failure mode of guessing wrong here is an admin typing a
+        // brief for a round that already opened.
+        let isOpen = (serverNow.map { $0 < next.editableUntil }) ?? false
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionLabel("settings.cue.next.label")
+            if let date {
+                Text(verbatim: Copy.format("settings.cue.next.date", date))
+                    .typeStyle(.caption).foregroundStyle(Palette.inkDim)
+            }
+            if isOpen && !isSnapshot {
+                Button { editsNextCue = true } label: {
+                    controlRow(chevron: true) { nextCueText(next) }
+                }
+                .buttonStyle(.plain).disabled(isSaving)
+                .accessibilityLabel(Text("settings.cue.next.edit"))
+            } else {
+                controlRow(chevron: isOpen) { nextCueText(next) }
+            }
+            // Not a disabled button with no explanation: the round has opened, somebody may
+            // already have sealed a song against the brief it carries, and that is the whole
+            // reason the server refuses the write too.
+            if !isOpen {
+                Text("settings.cue.next.locked").typeStyle(.caption).foregroundStyle(Palette.inkDim)
+            }
+        }
+    }
+
+    /// The line itself, or the fact that there isn't one. A night the cadence skips is not an
+    /// error and not an invitation — absence is stated once, quietly, and writing a cue onto
+    /// that night is still allowed.
+    @ViewBuilder private func nextCueText(_ next: NextCueDTO) -> some View {
+        if let text = next.text {
+            Text(verbatim: text)
+        } else {
+            Text("settings.cue.next.empty").foregroundStyle(Palette.inkDim)
         }
     }
 
@@ -450,6 +524,78 @@ struct GroupDetailView: View {
         .padding(.horizontal, Space.lg).frame(minHeight: Layout.buttonHeight).frame(maxWidth: .infinity)
         .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(Palette.surface))
         .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).stroke(Palette.edge, lineWidth: Stroke.border))
+    }
+}
+
+/// Writing the next round's cue by hand (`docs/18-CUES.md` §11.6, owner amendment 2026-09-09).
+///
+/// One field, because that is the whole feature: free text, no catalog picker. The admin
+/// already has the line in mind — browsing forty of them is a different screen for a different
+/// need, and a custom line is never promoted into the catalog anyway, so there is nothing here
+/// that has to reconcile with it.
+private struct NextCueSheet: View {
+    let cue: NextCueDTO?
+    var isSaving = false
+    var errorKey: String?
+    var onSave: (String) async -> Bool = { _ in true }
+    var onReset: () async -> Bool = { true }
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var field = ""
+    @State private var hasSeeded = false
+    @FocusState private var focused: Bool
+
+    private var trimmed: String { field.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var remaining: Int { GroupStore.cueLimit - trimmed.count }
+    private var canSave: Bool { !trimmed.isEmpty && remaining >= 0 && !isSaving }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Layout.blockGap) {
+            SectionLabel("settings.cue.next.field")
+            TextField("settings.cue.next.field", text: $field, axis: .vertical)
+                .typeStyle(.bodyL).foregroundStyle(Palette.ink)
+                .textInputAutocapitalization(.sentences)
+                .lineLimit(1...3)
+                .focused($focused)
+                .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(Palette.surface))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).stroke(Palette.edge, lineWidth: Stroke.border))
+            // Counts down against the same 56 the catalog's own check constraint carries, and
+            // the same trimmed string the server will be handed — a counter measuring something
+            // other than what gets saved is worse than no counter.
+            Text(verbatim: Copy.format("settings.cue.next.remaining", "\(remaining)"))
+                .typeStyle(.caption)
+                .foregroundStyle(remaining < 0 ? Palette.alert : Palette.inkDim)
+            Text("settings.cue.next.help").typeStyle(.caption).foregroundStyle(Palette.inkDim)
+            if let errorKey {
+                Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
+            }
+            Spacer(minLength: .zero)
+            PrimaryButton("settings.cue.next.save", fill: .neutral, isEnabled: canSave) {
+                Task { if await onSave(trimmed) { dismiss() } }
+            }
+            // Only when there is something to revert *to*: a derived cue is already the
+            // automatic one, and offering to restore it would be offering to do nothing.
+            if cue?.isCustom == true {
+                Button("settings.cue.next.reset") {
+                    Task { if await onReset() { dismiss() } }
+                }
+                .buttonStyle(.plain).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
+                .disabled(isSaving)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(Layout.screenInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.paper)
+        .presentationBackground(Palette.paper)
+        .presentationDetents([.medium])
+        .onAppear {
+            guard !hasSeeded else { return }
+            hasSeeded = true
+            field = cue?.text ?? ""
+            focused = true
+        }
     }
 }
 

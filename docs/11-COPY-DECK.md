@@ -572,10 +572,28 @@ The active count no longer needs to be prime; `docs/18-CUES.md` §3 explains why
 | `settings.cue.cadence.rare` | Now and then |
 | `settings.cue.cadence.alternate` | Every other night |
 | `settings.cue.cadence.daily` | Every night |
+| `settings.cue.next.label` | The next cue |
+| `settings.cue.next.date` | %@ |
+| `settings.cue.next.empty` | No cue that night. |
+| `settings.cue.next.locked` | That round has opened. The cue is set. |
+| `settings.cue.next.edit` | Write the cue |
+| `settings.cue.next.field` | The cue |
+| `settings.cue.next.remaining` | %@ left |
+| `settings.cue.next.save` | Save it |
+| `settings.cue.next.reset` | Use the automatic cue |
+| `settings.cue.next.help` | Everyone sees the same line when the round opens. |
 
 The four cadence options map to `cue_cadence` `0/3/2/1` respectively (`docs/18-CUES.md` §4).
 `settings.cue.effective` renders the same "from tomorrow" pattern `group.revealhour.effective`
 already uses — a cadence change rewrites only rounds that have not yet opened.
+
+The `settings.cue.next.*` block is `E43`'s hand-set cue (`docs/18-CUES.md` §11.6, owner
+amendment 2026-09-09), admin-only. **`settings.cue.next.date` is the round's own date and not
+the word "tomorrow"** — between local midnight and the round's `opens_at` the next unopened
+round is *today's*, so the date is the only label that is always true. `settings.cue.next.empty`
+is what the row says on a night the cadence gives no cue; writing one anyway is allowed, which
+is why it reads as a statement rather than a refusal. `settings.cue.next.save` keeps the app's
+button discipline (`CLAUDE.md` §6) — it names what happens, and it is never "Submit".
 
 ---
 

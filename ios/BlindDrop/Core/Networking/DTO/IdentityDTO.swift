@@ -85,12 +85,18 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
     /// screen and came back used to see the new hour with nothing to say tonight was still
     /// running on the old one.
     let revealEffectiveFrom: String?
+    /// The next round's cue, and whether it can still be changed (`docs/18-CUES.md` §11.6).
+    ///
+    /// `nil` for a member: the server sends the key to an admin only, because handing out the
+    /// *coming* night's brief today is the thing §7 spends the dark hours avoiding. `nil` for an
+    /// admin too when the circle has no round ahead of it yet.
+    let nextCue: NextCueDTO?
 
     init(
         id: String, name: String, timezone: String, revealHour: Int,
         inviteCode: String, isAdmin: Bool, members: [MemberDTO],
         cueCadence: Int = 2, cueEffectiveFrom: String? = nil,
-        revealEffectiveFrom: String? = nil
+        revealEffectiveFrom: String? = nil, nextCue: NextCueDTO? = nil
     ) {
         self.id = id
         self.name = name
@@ -102,6 +108,7 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
         self.cueCadence = cueCadence
         self.cueEffectiveFrom = cueEffectiveFrom
         self.revealEffectiveFrom = revealEffectiveFrom
+        self.nextCue = nextCue
     }
 
     enum CodingKeys: String, CodingKey {
@@ -112,6 +119,7 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
         case cueCadence = "cue_cadence"
         case cueEffectiveFrom = "cue_effective_from"
         case revealEffectiveFrom = "reveal_effective_from"
+        case nextCue = "next_cue"
     }
 
     init(from decoder: any Decoder) throws {
@@ -126,6 +134,41 @@ struct GroupDTO: Decodable, Sendable, Equatable, Identifiable {
         cueCadence = try c.decodeIfPresent(Int.self, forKey: .cueCadence) ?? 2
         cueEffectiveFrom = try c.decodeIfPresent(String.self, forKey: .cueEffectiveFrom)
         revealEffectiveFrom = try c.decodeIfPresent(String.self, forKey: .revealEffectiveFrom)
+        nextCue = try c.decodeIfPresent(NextCueDTO.self, forKey: .nextCue)
+    }
+}
+
+/// The one round an admin may still write a cue onto (`docs/18-CUES.md` §11.6).
+///
+/// Not "tomorrow's": between local midnight and `editableUntil` the next unopened round is
+/// *today's*, so `localDate` is the only label that is always true, and it is what the settings
+/// row shows.
+struct NextCueDTO: Decodable, Sendable, Equatable {
+    /// The round's group-local calendar date, `YYYY-MM-DD`. A string for the same reason
+    /// `RoundDTO.localDate` is one — parsing it here would reinterpret it in the device's zone.
+    let localDate: String
+    /// `nil` when the cadence gives that night no cue. Writing one anyway is allowed.
+    let text: String?
+    /// True when an admin wrote this line rather than the derivation assigning it — the only
+    /// case where there is anything to revert.
+    let isCustom: Bool
+    /// When the round opens and the cue stops being editable. The server enforces this; the
+    /// client only renders it, because a round that has opened may already have been sealed
+    /// against a brief somebody read.
+    let editableUntil: Date
+
+    init(localDate: String, text: String?, isCustom: Bool, editableUntil: Date) {
+        self.localDate = localDate
+        self.text = text
+        self.isCustom = isCustom
+        self.editableUntil = editableUntil
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case localDate = "local_date"
+        case isCustom = "is_custom"
+        case editableUntil = "editable_until"
     }
 }
 

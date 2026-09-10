@@ -609,6 +609,21 @@ slices, all client-only — no migration, no endpoint, no push-worker change. De
 
 ---
 
+## E43 — Set tomorrow's cue · [file](E43-set-tomorrows-cue.md)
+
+The admin writes the next round's cue by hand, from circle settings, until that round opens.
+Reverses `docs/18-CUES.md` §11.6's "no admin-authored custom cues" — an owner amendment on the
+same footing as ADR-011, made because the ban had been worked around as a migration five times.
+Free text only, and a custom line is never promoted into the catalog.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E43-01 The override survives a cadence change | done | — | no | — |
+| E43-02 The API reads and writes the next cue | done | E43-01 | no | AC-1 (leak) |
+| E43-03 The row in circle settings | done | E43-02 | no | — |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -658,6 +673,7 @@ slices, all client-only — no migration, no endpoint, no push-worker change. De
 | E35 cues | 6 / 6 |
 | E36 personal share card | 1 / 1 |
 | E37 drop screen redesign | 1 / 1 |
+| E43 set tomorrow's cue | 3 / 3 |
 | E38 circles end to end | 4 / 4 |
 | E40 reads maths | 1 / 1 |
 | E41 quick pass | 3 / 3 |
