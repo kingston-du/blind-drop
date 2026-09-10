@@ -96,6 +96,11 @@ struct SealedScreen: View {
                     }
                 }
             )
+            // Two equal spacers centre the countdown in the gap between the card and **Replace
+            // song**, instead of hugging the card and leaving all the free space for the run down
+            // to the button. The `.padding(.top)` below is unchanged — the countdown keeps its own
+            // breathing room, and only its position in the gap moves (owner, 2026-09-10).
+            Spacer(minLength: Space.none)
             countdown
                 .padding(.top, Space.md)
             Spacer(minLength: Space.none)
