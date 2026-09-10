@@ -77,34 +77,3 @@ struct ProportionTrack: View {
     }
 }
 
-/// The one mono line under a screen's title — `12 MEMBERS · 144 ROUNDS` — over a rule (`E28-08`).
-/// It replaces a deleted subtitle sentence with a fact instead, in the same apparatus voice
-/// `SectionLabel` already speaks.
-///
-/// A trailing control can sit on the same line, to the right of the fact — the Group screen's
-/// Record chip — which is why the fact and the trailing control are separate accessibility
-/// elements rather than one combined phrase: the fact is a static label, the control is a button,
-/// and a button folded into a static text element could not be reached.
-struct SheetMeta<Trailing: View>: View {
-    let text: String
-    @ViewBuilder let trailing: Trailing
-
-    init(text: String, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
-        self.text = text
-        self.trailing = trailing()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            HStack(alignment: .center, spacing: Space.md) {
-                Text(verbatim: text)
-                    .typeStyle(.label)
-                    .foregroundStyle(Palette.inkDim)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: Space.sm)
-                trailing
-            }
-            Rule()
-        }
-    }
-}

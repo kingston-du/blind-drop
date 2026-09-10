@@ -605,6 +605,18 @@ person already in a circle could only be reached by a direct invitation from som
 already played with. It is one `InvitePanel`, shared with that creation sheet, drawn quiet here
 because this screen's subject is the standings above it.
 
+**Amended again: the screen opens on a masthead.** The navigation bar carries no title — the
+word *Group* named a category, not this circle — and the screen's first block is the circle's
+own name at `displayM`, the `N MEMBERS · N ROUNDS` fact on its own full-width line beneath it,
+and The Record's entry point as a full-width row between two rules. Three changes are folded
+into that. The meta fact no longer shares a row with a control, so it stops wrapping to two
+ragged lines on a circle with a long enough count. The Record stops being a pill chip — card
+vocabulary at a fifth of a card's size, and the only rounded object in a flat header — and
+becomes the same text-plus-chevron row The Record's own date headers already use, with no
+leading glyph. And the name, which used to be an editable field two thirds of the way down the
+screen, is the title: an admin taps it to open a rename sheet, the same way the next cue is
+edited, so the screen holds one copy of the name rather than two that have to agree.
+
 **Admin sees more, not different.** Renaming and the reveal-hour picker are absent for a member,
 not shown disabled — a wall of greyed-out controls tells a member what they cannot have, and
 that is not the point. Both are `PATCH /groups/{group_id}`, admin-enforced server-side

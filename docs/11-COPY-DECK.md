@@ -615,8 +615,8 @@ had to be read rather than used.
 | `group.role.admin` | Admin |
 | `group.role.member` | Member |
 | `group.name.label` | Group name |
+| `group.name.edit` | Rename this circle |
 | `group.name.save` | Save name |
-| `group.name.saved` | Saved. |
 | `group.revealhour.label` | Reveal hour |
 | `group.revealhour.help` | A change applies to the next round, never one that's already open. |
 | `group.revealhour.effective` | Starts %@. |

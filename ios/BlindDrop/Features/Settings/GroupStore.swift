@@ -31,7 +31,7 @@ final class GroupStore {
     var members: [MemberDTO] { group?.members ?? [] }
     // Restore before public beta: `standings.value.map { $0.roundsPlayed < Self.thinHistoryThreshold } ?? false`.
     var isThinHistory: Bool { false }
-    /// The circle's own scored-round count (`E28-08`'s `SheetMeta` line) — `nil` while standings
+    /// The circle's own scored-round count (`E28-08`'s meta line) — `nil` while standings
     /// have not loaded, same as every other standings-derived value here.
     var roundsPlayed: Int? { standings.value?.roundsPlayed }
     var bestEar: [EarStandingDTO] { standings.value?.bestEar ?? [] }

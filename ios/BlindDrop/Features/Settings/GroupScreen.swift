@@ -18,7 +18,11 @@ struct GroupScreen: View {
             else { GroupSkeleton().padding(Layout.screenInset) }
         }
         .background(Palette.paper)
-        .navigationTitle(Text("group.title"))
+        // **No title in the bar.** The masthead below names the circle, in the circle's own
+        // name rather than the word "Group" — and a bar that repeated it would be saying the
+        // same thing twice, forty points apart. `group.title` is still the label the round
+        // screen's menu uses to point *here*, which is the place a generic noun belongs.
+        .navigationTitle(Text(verbatim: ""))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedMember) { MemberProfileScreen(member: $0) }
         .task {
@@ -88,11 +92,17 @@ struct GroupScreen: View {
     }
 }
 
+/// The two modals this screen can be showing, which is never both at once.
+private enum SheetRoute: String, Identifiable {
+    case name, nextCue
+    var id: String { rawValue }
+}
+
 /// Value-driven content keeps the live screen and snapshot coverage on the same layout.
 struct GroupDetailView: View {
     let group: GroupDTO
-    /// `nil` while standings have not loaded — `SheetMeta` below only prints the round count
-    /// once it has something honest to say.
+    /// `nil` while standings have not loaded — the masthead's meta line below only prints the
+    /// round count once it has something honest to say.
     var roundsPlayed: Int? = nil
     var bestEar: [EarStandingDTO] = []
     var readabilityByUserID: [String: ReadabilityStandingDTO] = [:]
@@ -136,14 +146,14 @@ struct GroupDetailView: View {
     /// `ScrollView` and UIKit-backed controls `ImageRenderer` cannot draw.
     var rendersForSnapshot = false
 
-    @State private var nameField = ""
-    @State private var didSaveName = false
-    /// Whether `nameField` has been seeded from the circle yet. See the `onAppear` below.
-    @State private var hasSeededName = false
     @State private var confirmsLeaving = false
-    @State private var editsNextCue = false
+    /// **One `@State`, not one per sheet.** Two `.sheet(isPresented:)` modifiers on the same
+    /// view is not two sheets — SwiftUI keeps one of them and silently drops the other, which is
+    /// exactly what happened the first time the rename sheet was added next to the cue's: the
+    /// title was tappable, the state flipped, and nothing appeared. An enum makes the two
+    /// mutually exclusive in the type, which is what they always were on screen.
+    @State private var sheet: SheetRoute?
     @State private var memberToRemove: MemberDTO?
-    @FocusState private var nameFocused: Bool
 
     var body: some View {
         Group {
@@ -157,34 +167,26 @@ struct GroupDetailView: View {
                 }
             }
         }
-        // **Seeded once, not on every appearance.** `onAppear` fires again when a pushed
-        // destination is popped, and this used to overwrite unconditionally: an admin who typed
-        // a new circle name, tapped a member row to check something and came back found the
-        // field silently reverted and **Save** disabled again. The server's own updates already
-        // have a route in — the guarded `onChange` below, which is careful *not* to do this to a
-        // field somebody is editing.
-        .onAppear {
-            guard !hasSeededName else { return }
-            hasSeededName = true
-            nameField = group.name
-        }
-        // Only follows the server when the field still shows what the server last said —
-        // `E28-06` dropped the separate `nameDirty` flag in favour of comparing `nameField`
-        // against `group.name` directly, and this is the one place that still needs to tell "the
-        // caller is mid-edit" apart from "nothing has changed here yet": `old` is what `nameField`
-        // was set from the last time this ran, so a field that still matches it is untouched.
-        .onChange(of: group.name) { old, new in if nameField == old { nameField = new } }
-        .sheet(isPresented: $editsNextCue) {
-            NextCueSheet(
-                cue: group.nextCue,
-                isSaving: isSaving,
-                // The screen's own error line is *behind* this sheet, so a refused write would
-                // otherwise read as the button doing nothing at all — which is exactly how it
-                // read the first time it was exercised against a server that said no.
-                errorKey: errorKey,
-                onSave: onSetNextCue,
-                onReset: onClearNextCue
-            )
+        // The circle name no longer has a permanently-mounted field to keep in sync with the
+        // server: `GroupNameSheet` seeds itself from `group.name` when it opens and is gone
+        // again when it closes, which is the whole of what the `onAppear` seed and the guarded
+        // `onChange` here used to be arranging between them (`E28-06`).
+        .sheet(item: $sheet) { route in
+            switch route {
+            case .name:
+                GroupNameSheet(name: group.name, isSaving: isSaving, errorKey: errorKey, onSave: onSaveName)
+            case .nextCue:
+                NextCueSheet(
+                    cue: group.nextCue,
+                    isSaving: isSaving,
+                    // The screen's own error line is *behind* this sheet, so a refused write
+                    // would otherwise read as the button doing nothing at all — which is exactly
+                    // how it read the first time it was exercised against a server that said no.
+                    errorKey: errorKey,
+                    onSave: onSetNextCue,
+                    onReset: onClearNextCue
+                )
+            }
         }
         .alert("group.leave.confirm.title", isPresented: $confirmsLeaving) {
             Button("group.leave.confirm.action", role: .destructive) { Task { _ = await onLeave() } }
@@ -206,16 +208,22 @@ struct GroupDetailView: View {
     /// container that would turn a meaningful golden into blank paper.
     var snapshotContent: some View { content(isSnapshot: true) }
 
-    // **Order** (`E28-06`, `E28-08`): the meta fact and The Record's entry point share the header
-    // row, then the leaderboard — what a circle is for — then the name a person can change, then
-    // the reveal hour and timezone that describe when the game happens, then Leave, which stays
-    // last as the one destructive action on the screen.
+    // **Order** (`E28-06`, `E28-08`, amended here): the masthead — the circle's name, the meta
+    // fact, and The Record's entry point — then the leaderboard, which is what a circle is for,
+    // then how it grows, then the reveal hour and timezone that describe when the game happens,
+    // then Leave, which stays last as the one destructive action on the screen.
+    //
+    // The name used to be a section of its own down here, between the invite panel and the
+    // details. It is in the masthead now because it is the answer to *which circle is this*, and
+    // that question is asked at the top of a screen, not two thirds of the way down it. For an
+    // admin it is still editable — through `GroupNameSheet`, the same way the next cue is
+    // edited — which is what lets one name serve as both the title and the control instead of
+    // the screen carrying two copies of it that have to agree.
     @ViewBuilder private func content(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            SheetMeta(text: meta) { recordButton }
+            masthead
             leaderboard(isSnapshot: isSnapshot)
             inviteSection
-            nameSection(isSnapshot: isSnapshot)
             details(isSnapshot: isSnapshot)
             if let errorKey {
                 Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
@@ -251,7 +259,7 @@ struct GroupDetailView: View {
         }
     }
 
-    /// `12 MEMBERS · 144 ROUNDS` — `SheetMeta`'s fact, standing in for the sentence a subtitle
+    /// `12 MEMBERS · 144 ROUNDS` — the masthead's fact, standing in for the sentence a subtitle
     /// used to be (`E28-08`). Member count is always known; the round count waits for standings.
     private var meta: String {
         let members = Copy.format("group.meta.members", group.members.count)
@@ -259,67 +267,99 @@ struct GroupDetailView: View {
         return "\(members) · \(Copy.format("group.meta.rounds", roundsPlayed))".uppercased()
     }
 
-    /// The Record's entry point, in the header's top-right corner beside the meta fact. A pill
-    /// chip rather than a bare link: `surface` + `edge` is the app's only elevation, so the chip
-    /// reads as a raised control, and the `music.note.list` glyph is the archive itself — a list
-    /// of every song dropped. The chevron keeps the app's "this pushes a screen" affordance.
-    private var recordButton: some View {
+    /// **The masthead.** The circle's name, the fact that introduces the standings, and the way
+    /// into The Record — the three things that say what this screen is, before the screen starts.
+    ///
+    /// It replaces a `SheetMeta` row — a `DesignSystem` component that carried the meta fact on
+    /// the left and a trailing control on the right, and which is deleted with this change
+    /// because this screen was its only caller. Two things were wrong with it here. The Record
+    /// sat in that trailing slot as a pill chip, and the chip drew itself in
+    /// `surface` + `edge` at `chipHeight` — the app's card vocabulary at a fifth of a card's
+    /// size — so it read as a member row that had failed to grow, and it was the only rounded
+    /// object in an otherwise flat header. And it shared an `HStack` with an uncapped label, so
+    /// on a real circle `15 MEMBERS · 26 ROUNDS` wrapped to two ragged lines to make room for
+    /// it: the same starving-sibling failure the roster rows were already fixed for.
+    ///
+    /// Both go away by giving each its own full-width line.
+    private var masthead: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            nameLine
+            Text(verbatim: meta)
+                .typeStyle(.label)
+                .foregroundStyle(Palette.inkDim)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, Space.md)
+            // **`edge`, not the default `hairline`.** `hairline` is 0xEAEDF1, the rule drawn
+            // *inside* a white card between two of its own rows; on `paper` at 0xEFF1F5 it is a
+            // five-value difference and simply does not appear, which is what the first render
+            // of this masthead showed — The Record floating in whitespace as a stray line of
+            // text rather than sitting in a row. `edge` is the boundary colour that already
+            // works against `paper`, because it is what closes every card on this screen.
+            Rule(color: Palette.edge)
+            recordRow
+            Rule(color: Palette.edge)
+        }
+    }
+
+    /// The circle, named. An admin's is a button onto `GroupNameSheet`; a member's is the same
+    /// text with nothing to tap, since renaming is the admin's to do and the server says so
+    /// regardless of what this screen draws.
+    @ViewBuilder private var nameLine: some View {
+        if group.isAdmin {
+            Button { sheet = .name } label: {
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                    Text(verbatim: group.name)
+                        .typeStyle(.displayM)
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Image(systemName: "chevron.right")
+                        .font(Font(Typography.uiFont(.bodyM)))
+                        .foregroundStyle(Palette.inkDim)
+                    Spacer(minLength: .zero)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isSaving)
+            .accessibilityLabel(Text("group.name.edit"))
+            .accessibilityValue(Text(verbatim: group.name))
+        } else {
+            Text(verbatim: group.name)
+                .typeStyle(.displayM)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The Record's entry point (`E28-06`, amendment A3 — still between the fact that introduces
+    /// the standings and the standings themselves, which was A3's whole argument for moving it
+    /// out of the header menu).
+    ///
+    /// A full-width row between two rules, and **no leading glyph**. The row is the same
+    /// shape The Record's own date headers use to push a night's results — text on the left, a
+    /// `chevron.right` on the right, nothing else (`RecordScreen.dayHeader`) — so the entry
+    /// point and the screen it opens are built out of the same part. The `music.note.list` that
+    /// used to sit in front of the title was the only leading icon on this screen, decorating a
+    /// list of one; the chevron stays because it is structural, not ornament. It is what says
+    /// this pushes.
+    private var recordRow: some View {
         Button(action: onOpenRecord) {
-            HStack(spacing: Space.xs) {
-                Image(systemName: "music.note.list")
-                    .font(Font(Typography.uiFont(.bodyM)))
-                    .foregroundStyle(Palette.inkDim)
+            HStack(spacing: Space.sm) {
                 Text("record.title")
-                    .typeStyle(.bodyM)
+                    .typeStyle(.bodyL)
                     .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Space.sm)
                 Image(systemName: "chevron.right")
                     .font(Font(Typography.uiFont(.bodyM)))
                     .foregroundStyle(Palette.inkDim)
             }
-            .padding(.horizontal, Space.md)
-            .frame(minHeight: Layout.chipHeight)
-            .background(RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).fill(Palette.surface))
-            .overlay(RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).stroke(Palette.edge, lineWidth: Stroke.border))
-            // 38pt drawn, 44pt tapped — the chip's breathing room is part of its hit region, the
-            // same contract `NameChip` keeps so a row of targets has no dead gaps (`docs/12` §5).
-            .frame(minHeight: Layout.minimumTouchTarget)
+            .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(.isButton)
-    }
-
-    @ViewBuilder private func nameSection(isSnapshot: Bool) -> some View {
-        if group.isAdmin {
-            VStack(alignment: .leading, spacing: Space.sm) {
-                SectionLabel("group.name.label")
-                if isSnapshot {
-                    controlRow { Text(verbatim: group.name) }
-                } else {
-                    InsetField("group.name.label", text: $nameField, isFocused: nameFocused)
-                        .focused($nameFocused).textInputAutocapitalization(.words).submitLabel(.done)
-                        .onChange(of: nameField) { _, _ in didSaveName = false }
-                        .onSubmit { Task { await saveName() } }
-                }
-                if didSaveName { Text("group.name.saved").typeStyle(.bodyM).foregroundStyle(Palette.inkDim) }
-                PrimaryButton("group.name.save", fill: .neutral, isEnabled: canSaveName) { Task { await saveName() } }
-            }
-        } else {
-            Text(verbatim: group.name).typeStyle(.displayM).foregroundStyle(Palette.ink)
-        }
-    }
-
-    // `E28-06`: disabled until an actual keystroke changes the field, the same rule Settings'
-    // display name save already follows — comparing against `group.name` directly rather than a
-    // separate flag means there is nothing to forget to set.
-    private var canSaveName: Bool {
-        !isSaving && nameField != group.name
-            && !nameField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-    private func saveName() async {
-        guard canSaveName else { return }
-        nameFocused = false
-        if await onSaveName(nameField) { didSaveName = true }
     }
 
     @ViewBuilder private func leaderboard(isSnapshot: Bool) -> some View {
@@ -483,7 +523,7 @@ struct GroupDetailView: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("settings.cue.next.label")
             if isOpen && !isSnapshot {
-                Button { editsNextCue = true } label: {
+                Button { sheet = .nextCue } label: {
                     controlRow(chevron: true) { nextCueText(next) }
                 }
                 .buttonStyle(.plain).disabled(isSaving)
@@ -534,6 +574,78 @@ struct GroupDetailView: View {
     }
 }
 
+/// Renaming the circle.
+///
+/// The name used to be a field permanently mounted two thirds of the way down this screen, with
+/// a **Save name** button under it that was disabled for all but a few seconds of its life. It
+/// is a sheet now for the same reason the next cue is one: it is an occasional act on a fact
+/// that is otherwise just displayed, and the display is the masthead at the top.
+///
+/// Modelled on `NextCueSheet` down to the self-measuring detent, deliberately — two sheets on
+/// one screen that opened differently would read as two different mechanisms.
+private struct GroupNameSheet: View {
+    let name: String
+    var isSaving = false
+    var errorKey: String?
+    var onSave: (String) async -> Bool = { _ in true }
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var field = ""
+    @State private var measuredHeight: CGFloat = Layout.fieldHeight + Layout.buttonHeight
+        + Layout.blockGap * 2
+    @FocusState private var focused: Bool
+
+    private var trimmed: String { field.trimmingCharacters(in: .whitespacesAndNewlines) }
+    /// Unchanged is not savable — `E28-06`'s rule for the old inline field, kept: the sheet
+    /// opens on the name that is already set, so an enabled button there offers to write what is
+    /// already written.
+    private var canSave: Bool { !trimmed.isEmpty && !isSaving && trimmed != name }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            SectionLabel("group.name.label")
+            InsetField("group.name.label", text: $field, isFocused: focused)
+                .focused($focused)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.done)
+                .onSubmit { Task { await save() } }
+            // The screen's own error line is behind this sheet, so a refused rename would
+            // otherwise read as the button doing nothing at all.
+            if let errorKey {
+                Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
+            }
+            PrimaryButton("group.name.save", fill: .neutral, isEnabled: canSave) {
+                Task { await save() }
+            }
+        }
+        .padding(.horizontal, Layout.screenInset)
+        .padding(.top, Layout.blockGap)
+        .padding(.bottom, Space.xxl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { measuredHeight = proxy.size.height }
+                    .onChange(of: proxy.size.height) { _, height in measuredHeight = height }
+            }
+        }
+        .background(Palette.paper)
+        .presentationBackground(Palette.paper)
+        .presentationDetents([.height(measuredHeight)])
+        .presentationCornerRadius(Radius.sheet)
+        .presentationDragIndicator(.visible)
+        .task {
+            field = name
+            focused = true
+        }
+    }
+
+    private func save() async {
+        guard canSave else { return }
+        if await onSave(trimmed) { dismiss() }
+    }
+}
+
 /// Writing the next round's cue by hand (`docs/18-CUES.md` §11.6, owner amendment 2026-09-09).
 ///
 /// One field, because that is the whole feature: free text, no catalog picker. The admin
@@ -549,7 +661,6 @@ private struct NextCueSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var field = ""
-    @State private var hasSeeded = false
     /// The sheet is exactly as tall as its own column, the same trick `CircleSwitcherSheet`
     /// uses. Seeded at roughly the field plus the button so the first frame is not a flash of
     /// nothing, and so the sheet does not visibly grow into place on open.
@@ -618,16 +729,20 @@ private struct NextCueSheet: View {
         .presentationDetents([.height(measuredHeight)])
         .presentationCornerRadius(Radius.sheet)
         .presentationDragIndicator(.visible)
-        // **Focus in `task`, not `onAppear`.** `onAppear` lands after the presentation
-        // animation has committed, so the sheet slid to its detent and *then* the keyboard
-        // pushed it further — two motions for one gesture. `task` runs early enough that the
-        // keyboard is part of the same transition.
-        .task {
-            guard !hasSeeded else { return }
-            hasSeeded = true
-            field = cue?.text ?? ""
-            focused = true
-        }
+        // **`defaultFocus`, not a `focused = true` in `onAppear` or `task`.** Both of those
+        // request focus *after* the sheet has been presented, and SwiftUI defers the request
+        // until the presentation settles: measured frame by frame, the sheet arrived and the
+        // keyboard followed a second and a half later — two motions for one tap, which is
+        // exactly what this sheet was reported for. `defaultFocus` is resolved as part of the
+        // presentation itself, so the keyboard is already on its way up while the sheet is.
+        .defaultFocus($focused, true)
+        // Seeded on every appearance, unlike the circle name's one-shot seed on the screen
+        // behind: that guards against `onAppear` firing again when a pushed destination is
+        // popped and stomping an edit in progress. This is a modal that opens on the cue as it
+        // stands and closes when it is done, so seeding every time is the contract — a
+        // `hasSeeded` flag here survived SwiftUI reusing the sheet's identity between
+        // presentations, and the second open came up with a stale field and no keyboard.
+        .onAppear { field = cue?.text ?? "" }
     }
 }
 
