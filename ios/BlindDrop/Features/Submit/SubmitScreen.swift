@@ -121,15 +121,24 @@ struct SubmitScreen: View {
                 // zero at the limit. The block therefore rises by exactly what the keyboard costs
                 // and no more, and nothing here has to know whether a keyboard is up.
                 //
-                // Which is also why the ceiling is `xxl` and not the 48 it used to be. A taller
-                // ceiling is a longer fall: the block sits near the top of the band once the
-                // keyboard is up, so every point of ceiling above that is a point the screen
-                // visibly drops through on the way there. 24 keeps the travel short, which is
-                // the half of this that was asked to stay small — a focus flag briefly lived
-                // here doing the same job much worse, snapping between 48 and zero, and it is
-                // gone.
+                // **So the ceiling sets the resting position and nothing else** (owner,
+                // 2026-09-10), which is the useful consequence: with the keyboard up the
+                // leftover is around thirty points and half of that is well under any ceiling
+                // worth setting, so the ceiling is not what is binding there. Raise it and the
+                // keyboard-up screen does not move at all; only the screen at rest comes down,
+                // out of a bottom gap that had a third of a page in it and nothing to say.
+                //
+                // `x5` rather than the 24 that stopped the lift: 56 at rest, which is where the
+                // block wants to sit under the badge row, and the same place as before once the
+                // keyboard is up. The travel is longer for it — about forty points — and that is
+                // bought deliberately, unlike the hard forty-eight a focus flag briefly snapped
+                // through here before the flexible pair was left to do it continuously.
+                //
+                // The floor under this is roughly the keyboard-up leftover: set the ceiling
+                // below half of that and it starts binding in both states again, which is when
+                // moving it would start moving the keyboard-up block too.
                 blockSpacing: Space.xxl,
-                topGapCap: Space.xxl
+                topGapCap: Space.x5
             )
         }
     }
