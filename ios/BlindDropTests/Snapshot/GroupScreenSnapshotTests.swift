@@ -16,7 +16,7 @@ import Testing
 
     private func group(
         isAdmin: Bool, revealHour: Int = 20, memberCount: Int = 3, cueCadence: Int = 2,
-        revealEffectiveFrom: String? = nil
+        revealEffectiveFrom: String? = nil, nextCue: String? = nil
     ) throws -> GroupDTO {
         let allMembers = [
             ("u_ana", "Ana", "admin"),
@@ -36,10 +36,44 @@ import Testing
           "is_admin": \(isAdmin),
           "cue_cadence": \(cueCadence),
           "reveal_effective_from": \(revealEffectiveFrom.map { #""\#($0)""# } ?? "null"),
+          \(nextCue.map { #""next_cue":{"local_date":"2026-08-20","text":"\#($0)","is_custom":true,"editable_until":"2026-08-20T14:00:00Z"},"# } ?? "")
           "members": [\(members)]
         }
         """
-        return try JSONDecoder().decode(GroupDTO.self, from: Data(json.utf8))
+        // `JSONDecoder.api`, not a bare one: `next_cue.editable_until` is a `Date`, and only
+        // the app's own decoder carries the `.iso8601` strategy the wire format needs. A bare
+        // decoder expects a Double there and throws before the view is ever built.
+        return try JSONDecoder.api.decode(GroupDTO.self, from: Data(json.utf8))
+    }
+
+    /// The next round's cue, editable (`docs/18-CUES.md` §11.6, `E43`).
+    ///
+    /// `serverNow` is what decides editable-versus-locked — `CLAUDE.md` §2.2, so the row asks
+    /// the server clock rather than `Date()`. Pinned an hour before the fixture's
+    /// `editable_until` so this golden is the live state and cannot drift into the locked one
+    /// as the wall clock moves.
+    @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
+    func nextCueEditable(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        let view = GroupDetailView(
+            group: try group(isAdmin: true, nextCue: "A song you hate"),
+            serverNow: Date(timeIntervalSince1970: 1_787_230_800),
+            currentUserID: "u_ana",
+            rendersForSnapshot: true
+        )
+        verify(named: "Group-admin-nextcue", device, size) { view }
+    }
+
+    /// The same row once the round has opened: no chevron, and a line saying why. The clock is
+    /// past `editable_until`, which is the whole difference.
+    @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
+    func nextCueLocked(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) throws {
+        let view = GroupDetailView(
+            group: try group(isAdmin: true, nextCue: "A song you hate"),
+            serverNow: Date(timeIntervalSince1970: 1_787_238_000),
+            currentUserID: "u_ana",
+            rendersForSnapshot: true
+        )
+        verify(named: "Group-admin-nextcue-locked", device, size) { view }
     }
 
     @Test(arguments: SnapshotRenderer.Device.matrix, SnapshotRenderer.typeSizes)
