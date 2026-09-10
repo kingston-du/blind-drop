@@ -208,17 +208,7 @@ struct GroupDetailView: View {
     /// container that would turn a meaningful golden into blank paper.
     var snapshotContent: some View { content(isSnapshot: true) }
 
-    // **Order** (`E28-06`, `E28-08`, amended here): the masthead — the circle's name, the meta
-    // fact, and The Record's entry point — then the leaderboard, which is what a circle is for,
-    // then how it grows, then the reveal hour and timezone that describe when the game happens,
-    // then Leave, which stays last as the one destructive action on the screen.
-    //
-    // The name used to be a section of its own down here, between the invite panel and the
-    // details. It is in the masthead now because it is the answer to *which circle is this*, and
-    // that question is asked at the top of a screen, not two thirds of the way down it. For an
-    // admin it is still editable — through `GroupNameSheet`, the same way the next cue is
-    // edited — which is what lets one name serve as both the title and the control instead of
-    // the screen carrying two copies of it that have to agree.
+    // Name and standings lead; editable settings follow invitations. Leave stays last.
     @ViewBuilder private func content(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
             masthead
@@ -267,46 +257,9 @@ struct GroupDetailView: View {
         return "\(members) · \(Copy.format("group.meta.rounds", roundsPlayed))".uppercased()
     }
 
-    /// **The masthead.** The circle's name, the fact that introduces the standings, and the way
-    /// into The Record — the three things that say what this screen is, before the screen starts.
-    ///
-    /// It replaces a `SheetMeta` row — a `DesignSystem` component that carried the meta fact on
-    /// the left and a trailing control on the right, and which is deleted with this change
-    /// because this screen was its only caller. Two things were wrong with it here. The Record
-    /// sat in that trailing slot as a pill chip, and the chip drew itself in
-    /// `surface` + `edge` at `chipHeight` — the app's card vocabulary at a fifth of a card's
-    /// size — so it read as a member row that had failed to grow, and it was the only rounded
-    /// object in an otherwise flat header. And it shared an `HStack` with an uncapped label, so
-    /// on a real circle `15 MEMBERS · 26 ROUNDS` wrapped to two ragged lines to make room for
-    /// it: the same starving-sibling failure the roster rows were already fixed for.
-    ///
-    /// Both go away by giving each its own full-width line.
     private var masthead: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            nameLine
-            Text(verbatim: meta)
-                .typeStyle(.label)
-                .foregroundStyle(Palette.inkDim)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, Space.md)
-            // **`edge`, not the default `hairline`.** `hairline` is 0xEAEDF1, the rule drawn
-            // *inside* a white card between two of its own rows; on `paper` at 0xEFF1F5 it is a
-            // five-value difference and simply does not appear, which is what the first render
-            // of this masthead showed — The Record floating in whitespace as a stray line of
-            // text rather than sitting in a row. `edge` is the boundary colour that already
-            // works against `paper`, because it is what closes every card on this screen.
-            Rule(color: Palette.edge)
-            recordRow
-            Rule(color: Palette.edge)
-        }
-    }
-
-    /// The circle, named. An admin's is a button onto `GroupNameSheet`; a member's is the same
-    /// text with nothing to tap, since renaming is the admin's to do and the server says so
-    /// regardless of what this screen draws.
-    @ViewBuilder private var nameLine: some View {
-        if group.isAdmin {
-            Button { sheet = .name } label: {
+            Button(action: onOpenRecord) {
                 HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
                     Text(verbatim: group.name)
                         .typeStyle(.displayM)
@@ -317,49 +270,32 @@ struct GroupDetailView: View {
                         .foregroundStyle(Palette.inkDim)
                     Spacer(minLength: .zero)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
                 .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: group.name))
+            .accessibilityHint(Text("record.title"))
+            .accessibilityIdentifier("group.openRecord")
+            Text(verbatim: meta)
+                .typeStyle(.label)
+                .foregroundStyle(Palette.inkDim)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, Space.md)
+        }
+    }
+
+    private var nameSection: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionLabel("group.name.label")
+            Button { sheet = .name } label: {
+                controlRow(chevron: true) { Text(verbatim: group.name) }
             }
             .buttonStyle(.plain)
             .disabled(isSaving)
             .accessibilityLabel(Text("group.name.edit"))
             .accessibilityValue(Text(verbatim: group.name))
-        } else {
-            Text(verbatim: group.name)
-                .typeStyle(.displayM)
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    /// The Record's entry point (`E28-06`, amendment A3 — still between the fact that introduces
-    /// the standings and the standings themselves, which was A3's whole argument for moving it
-    /// out of the header menu).
-    ///
-    /// A full-width row between two rules, and **no leading glyph**. The row is the same
-    /// shape The Record's own date headers use to push a night's results — text on the left, a
-    /// `chevron.right` on the right, nothing else (`RecordScreen.dayHeader`) — so the entry
-    /// point and the screen it opens are built out of the same part. The `music.note.list` that
-    /// used to sit in front of the title was the only leading icon on this screen, decorating a
-    /// list of one; the chevron stays because it is structural, not ornament. It is what says
-    /// this pushes.
-    private var recordRow: some View {
-        Button(action: onOpenRecord) {
-            HStack(spacing: Space.sm) {
-                Text("record.title")
-                    .typeStyle(.bodyL)
-                    .foregroundStyle(Palette.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: Space.sm)
-                Image(systemName: "chevron.right")
-                    .font(Font(Typography.uiFont(.bodyM)))
-                    .foregroundStyle(Palette.inkDim)
-            }
-            .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder private func leaderboard(isSnapshot: Bool) -> some View {
@@ -433,7 +369,10 @@ struct GroupDetailView: View {
 
     private func details(isSnapshot: Bool) -> some View {
         VStack(alignment: .leading, spacing: Layout.blockGap) {
-            if group.isAdmin { revealHourSection(isSnapshot: isSnapshot) }
+            if group.isAdmin {
+                nameSection
+                revealHourSection(isSnapshot: isSnapshot)
+            }
             cueSection(isSnapshot: isSnapshot)
             timezoneSection
         }

@@ -6,7 +6,7 @@ import XCTest
 /// interaction names itself instead of leaving one opaque 90-second number.
 @MainActor
 final class FullLoopUITests: XCTestCase {
-    private let fixture = URL(string: "http://127.0.0.1:8787")!
+    private let fixture = URL(string: ProcessInfo.processInfo.environment["BLINDDROP_FIXTURE_API"] ?? "http://127.0.0.1:8787")!
 
     func testFullLoopUnder90Seconds() async throws {
         try await runLoop(reducedMotion: false)
@@ -49,6 +49,74 @@ final class FullLoopUITests: XCTestCase {
         XCTAssertTrue(record.staticTexts["The Record"].waitForExistence(timeout: 5),
                       "record screen never appeared")
         assertVisibleControlsHaveLabels(record, screen: "record")
+    }
+
+    func testRecordHeadingAndFilterScrollWhileExportStaysInBar() async throws {
+        try await requireControllableFixture()
+        let app = makeApp(reducedMotion: false)
+        app.launchArguments.append("-uiTestRecord")
+        app.launch()
+        let title = app.staticTexts["The Record"]
+        let filter = app.buttons["Filter The Record by member"]
+        let export = app.buttons["Export the record to a playlist"].firstMatch
+        require(filter, within: 5, message: "Record filter did not load")
+        XCTAssertTrue(title.isHittable)
+        XCTAssertFalse(app.navigationBars.staticTexts["The Record"].exists)
+        XCTAssertFalse(app.navigationBars.buttons["Filter The Record by member"].exists)
+        XCTAssertTrue(export.isHittable)
+        capture(app, name: "Record-top")
+        filter.tap()
+        app.collectionViews.buttons["Ben"].tap()
+        XCTAssertEqual(filter.value as? String, "Ben")
+        filter.tap()
+        app.collectionViews.buttons["Everyone"].tap()
+        XCTAssertEqual(filter.value as? String, "Everyone")
+        let scroll = app.scrollViews.firstMatch
+        scroll.swipeUp(velocity: .slow)
+        XCTAssertFalse(title.isHittable)
+        XCTAssertFalse(filter.isHittable)
+        XCTAssertTrue(export.isHittable)
+        capture(app, name: "Record-pinned-cue")
+        scroll.swipeUp(velocity: .slow)
+        capture(app, name: "Record-pinned-next-date")
+        scroll.swipeDown(velocity: .slow)
+        capture(app, name: "Record-section-transition")
+        export.tap()
+        XCTAssertTrue(app.buttons["Export to Spotify"].exists)
+    }
+
+    func testGroupNameOpensRecordAndRenameLivesInSettings() async throws {
+        try await requireControllableFixture()
+        try await setPhase("open")
+        let app = makeApp(reducedMotion: false)
+        app.launch()
+        require(app.buttons["Menu"], within: 5, message: "Menu did not load")
+        app.buttons["Menu"].tap()
+        app.buttons["Group"].tap()
+        let recordLink = app.buttons["group.openRecord"]
+        require(recordLink, within: 5, message: "Group name is not a Record link")
+        capture(app, name: "Group-top")
+        recordLink.tap()
+        XCTAssertTrue(app.staticTexts["The Record"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let rename = app.buttons["Rename this circle"]
+        for _ in 0..<8 where !rename.isHittable { app.swipeUp() }
+        XCTAssertTrue(rename.isHittable)
+        capture(app, name: "Group-settings")
+        rename.tap()
+        let field = app.textFields.firstMatch
+        require(field, within: 3, message: "Rename sheet did not open")
+        field.tap()
+        field.typeText(" updated")
+        app.buttons["Save name"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+    }
+
+    private func capture(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     func testHeaderMenuOpensInsightsAndANameOpensItsProfile() async throws {
