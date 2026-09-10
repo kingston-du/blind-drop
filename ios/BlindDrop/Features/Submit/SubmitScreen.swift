@@ -163,12 +163,22 @@ struct SubmitScreen: View {
             // step aside at accessibility sizes, though; there the subhead goes instead, because
             // between the tutorial and the brief the brief is the one with something to say.
             if !browsing, let cue {
-                // No extra gap of its own on top of the stack's (owner, 2026-09-07). It used to
-                // take a full `itemGap` more, so the card sat a clear step below the pair above
-                // it — but this column has twelve points to spare, not twenty-four, and the
-                // step it was buying is one the card's own border and fill already draw. The
-                // three things now sit on one rhythm: title, aside, brief.
+                // **`Space.xl` on top of the stack's own `itemGap`, to make thirty-two** — the
+                // same gap `SongSearch` puts *below* the card on its way to the field, because
+                // this is the one element in the column with a drawn edge on both sides and
+                // unequal air around it reads as the card having slipped upward (owner,
+                // 2026-09-10). Written as the padding that closes the difference rather than as
+                // `blockGap` outright, since the stack's gap is already paid.
+                //
+                // It costs the column twenty points, and the column was already close to the
+                // floor: at `blockGap` the band between the chrome and the keyboard has only a
+                // dozen or so to give on an iPhone 17 at the default size. The flexible ceiling
+                // above the block absorbs what it can and then it is out of room — so if the
+                // header ever starts lifting again on a cued night, this padding and
+                // `blockSpacing` are the two places the height is, and `blockSpacing` is the
+                // one with forty-eight points in it.
                 CueCard(cue: cue)
+                    .padding(.top, Space.xl)
                     .transition(.opacity)
             }
         }
