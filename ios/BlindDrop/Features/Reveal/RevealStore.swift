@@ -132,6 +132,31 @@ final class RevealStore {
 
     // MARK: - Deriving the view
 
+    /// The names one card offers, in pool order — the server's four (`CardDTO.shortlist`),
+    /// resolved against the pool and with anyone no longer in it dropped.
+    ///
+    /// **Pool order, not the server's order.** The shortlist arrives shuffled, and a pool that
+    /// reordered itself card to card would make the four names a memory test on top of a
+    /// guessing game. Sorting by the pool means *Ana* is always left of *Ben*, in the sheet and
+    /// in the quick pass, whichever cards they happen to appear on.
+    ///
+    /// **Falls back to the whole pool**, for an empty shortlist and for a shortlist that has
+    /// nothing left in it. Both mean the same thing — the server expressed no opinion about
+    /// this card — and the answer to no opinion is the sheet as it has always been. A card that
+    /// narrowed to zero names would be a card nobody could play.
+    ///
+    /// The name currently *on* the card is deliberately not forced in. If it came from the full
+    /// pool and is not one of the four, it stays on the card and is cleared there — the `✕` on
+    /// the inline chip, or by naming one of the four over it. Padding the pool with it would
+    /// make the count of candidates vary by what the player had already done.
+    func shortlist(for cardNumber: Int) -> [MemberDTO] {
+        guard let card = cards.first(where: { $0.cardNumber == cardNumber }) else { return pool }
+        let offered = Set(card.shortlist)
+        guard !offered.isEmpty else { return pool }
+        let narrowed = pool.filter { offered.contains($0.userID) }
+        return narrowed.isEmpty ? pool : narrowed
+    }
+
     /// The names as the cards and the pool print them. A `user_id` remains the identity through
     /// assignment; this is presentation only, resolved once so a chip and its matching card can
     /// never disagree about whether it is *Sam B.* or *Sam K.*.

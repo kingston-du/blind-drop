@@ -136,7 +136,7 @@ struct QuickPassScreen: View {
                 chrome
                 numeral(number)
                 artwork(card, availableHeight: availableHeight, availableWidth: availableWidth)
-                lower(card, number: number)
+                lower(card, number: number, availableWidth: availableWidth)
             }
             .padding(.horizontal, Layout.screenInset)
             .padding(.bottom, Layout.blockGap)
@@ -236,8 +236,13 @@ struct QuickPassScreen: View {
         availableWidth: CGFloat
     ) -> some View {
         let columnWidth = max(availableWidth - Layout.screenInset * 2, 1)
-        let columns = max(1, Int((columnWidth + Space.sm) / (poolColumnMinimum + Space.sm)))
-        let rows = max(1, Int(ceil(Double(store.pool.count) / Double(columns))))
+        // The card's own candidates, not the whole pool — this screen shows four names, so the
+        // block under the artwork is four names tall. The count is the same on every card of a
+        // round (`RevealStore.shortlist(for:)`), so the artwork settles once and does not
+        // resize as the run advances.
+        let poolCount = store.shortlist(for: card.cardNumber).count
+        let columns = poolColumns(count: poolCount, width: columnWidth)
+        let rows = max(1, Int(ceil(Double(poolCount) / Double(columns))))
         let poolHeight = CGFloat(rows) * Layout.chipHeightLarge + CGFloat(rows - 1) * Space.sm
         let side = min(
             min(
@@ -263,10 +268,10 @@ struct QuickPassScreen: View {
             .accessibilityHidden(true)
     }
 
-    private func lower(_ card: CardDTO, number: Int) -> some View {
+    private func lower(_ card: CardDTO, number: Int, availableWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: Space.none) {
             track(card)
-            pool(on: number)
+            pool(on: number, availableWidth: availableWidth)
             navigation
         }
     }
@@ -308,13 +313,38 @@ struct QuickPassScreen: View {
     ///
     /// A spent name stays struck through and stays tappable. The API permits naming one person
     /// twice (`docs/04` §4 rule 6) and the quick pass must not be stricter than the sheet it feeds.
-    private func pool(on number: Int) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: poolColumnMinimum), spacing: Space.sm)],
+    ///
+    /// **The card's four, not the pool.** The same names the call sheet narrows to when this card
+    /// is focused, so a player who starts here and finishes there is answering one question about
+    /// one card rather than two differently-shaped ones.
+    /// How many columns the pool draws in — **one derivation, two readers.** The grid lays the
+    /// chips out and `artwork(_:availableHeight:availableWidth:)` reserves the height they will
+    /// need, and the two agreeing is what stops the artwork resizing on the frame after the
+    /// pool lands. An `.adaptive` grid could not be asked what it decided.
+    ///
+    /// **Four is a square.** The width fits three chips, so four used to draw as a row of three
+    /// with a single name stranded underneath — which reads as a fourth option that arrived late
+    /// rather than as one of four. Two columns of two is the same four names as a shape.
+    private func poolColumns(count: Int, width: CGFloat) -> Int {
+        let natural = max(1, Int((width + Space.sm) / (poolColumnMinimum + Space.sm)))
+        if count == 4 { return min(2, natural) }
+        return max(1, min(natural, count))
+    }
+
+    private func pool(on number: Int, availableWidth: CGFloat) -> some View {
+        let members = store.shortlist(for: number)
+        return LazyVGrid(
+            columns: Array(
+                repeating: GridItem(.flexible(minimum: poolColumnMinimum), spacing: Space.sm),
+                count: poolColumns(
+                    count: members.count,
+                    width: max(availableWidth - Layout.screenInset * 2, 1)
+                )
+            ),
             alignment: .leading,
             spacing: Space.sm
         ) {
-            ForEach(store.pool) { member in
+            ForEach(members) { member in
                 NameChip(
                     member: member,
                     displayName: store.displayNames[member.userID],

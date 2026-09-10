@@ -82,6 +82,7 @@ import {
   type SubmissionDTO,
   submissionDTO,
 } from "../_shared/dto.ts";
+import { cardShortlist } from "../_shared/shortlist.ts";
 import { localDate, type RoundState, serverNow } from "../_shared/time.ts";
 import { storefrontFor } from "../_shared/music/appleMusic.ts";
 import { resolveTrack } from "../_shared/music/resolve.ts";
@@ -316,7 +317,12 @@ interface CardRow {
 async function cardsInOrder(
   ctx: MemberCtx,
   round: RoundRow,
-): Promise<{ cards: CardDTO[]; rows: Map<string, CardRow>; order: string[] }> {
+): Promise<{
+  cards: CardDTO[];
+  rows: Map<string, CardRow>;
+  order: string[];
+  submitterIds: string[];
+}> {
   const order = round.card_order ?? [];
   const { data, error } = await ctx.db
     .from("submissions")
@@ -325,14 +331,31 @@ async function cardsInOrder(
   if (error) throw dbFailure("rounds.cards", error);
 
   const rows = new Map<string, CardRow>((data as CardRow[]).map((row) => [row.id, row]));
+  // Every submitter in the round, in `card_order`. The shortlist draws from this and nothing
+  // else, so a member who has since left the circle is still a candidate — the round happened,
+  // and `namePool` keeps them for the same reason.
+  const submitterIds = order
+    .map((id) => rows.get(id)?.user_id)
+    .filter((id): id is string => !!id);
   const cards = order
     .map((submissionId, index) => {
       const row = rows.get(submissionId);
-      return row ? cardDTO(index + 1, row.track_meta) : null;
+      if (!row) return null;
+      return cardDTO(
+        index + 1,
+        row.track_meta,
+        cardShortlist({
+          roundId: round.id,
+          cardNo: index + 1,
+          ownerId: row.user_id,
+          viewerId: ctx.userId,
+          submitterIds,
+        }),
+      );
     })
     .filter((card): card is CardDTO => card !== null);
 
-  return { cards, rows, order };
+  return { cards, rows, order, submitterIds };
 }
 
 /**
@@ -445,7 +468,7 @@ async function currentRoundResponse(ctx: MemberCtx): Promise<Response> {
   const base = roundDTO(round, mine, isBeforeOpen ? await previousRound(ctx, round) : null);
   if (round.state !== "revealed") return ok(base);
 
-  const { cards, rows, order } = await cardsInOrder(ctx, round);
+  const { cards, rows, order, submitterIds } = await cardsInOrder(ctx, round);
   const mySubmissionId = order.find((id) => rows.get(id)?.user_id === ctx.userId) ?? null;
 
   return ok(
@@ -453,10 +476,7 @@ async function currentRoundResponse(ctx: MemberCtx): Promise<Response> {
       myCardNo: mySubmissionId === null ? null : order.indexOf(mySubmissionId) + 1,
       cannotGuessReason: cannotGuessReason(ctx, round, mySubmissionId),
       cards,
-      namePool: await namePool(
-        ctx,
-        order.map((id) => rows.get(id)?.user_id).filter((id): id is string => !!id),
-      ),
+      namePool: await namePool(ctx, submitterIds),
       myGuesses: await myGuesses(ctx, round, order),
     }),
   );

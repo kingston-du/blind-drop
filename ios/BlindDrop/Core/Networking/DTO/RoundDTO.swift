@@ -26,12 +26,43 @@ struct SubmissionDTO: Decodable, Sendable, Equatable {
 struct CardDTO: Decodable, Sendable, Equatable, Identifiable {
     let cardNumber: Int
     let track: TrackDTO
+    /// The `user_id`s this card offers: its owner and up to three others, never the caller.
+    /// Chosen by the server and stable for the life of the round (`_shared/shortlist.ts`).
+    ///
+    /// Near enough the same four for everybody: the card has one canonical list, and only the
+    /// members who appear in it get a substitute in their own slot. The client does not need to
+    /// know that — it renders what it is given — but it is why two people can compare a card.
+    ///
+    /// **This is a narrowing, not a rule.** The owner is always among them, so a name from
+    /// outside is always wrong — but it is never *illegal*, and the API accepts it. That is why
+    /// nothing in the client blocks a tap: the sheet still supports naming somebody from the
+    /// full pool first and choosing a card second, and the shortlist just means the card-first
+    /// path stops asking a question with eleven answers.
+    ///
+    /// Empty when the payload predates this field, which is the honest fallback: an empty
+    /// shortlist means "no opinion", and every consumer widens back to the full pool.
+    let shortlist: [String]
 
     var id: Int { cardNumber }
 
     enum CodingKeys: String, CodingKey {
         case cardNumber = "card_no"
         case track
+        case shortlist
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cardNumber = try container.decode(Int.self, forKey: .cardNumber)
+        track = try container.decode(TrackDTO.self, forKey: .track)
+        shortlist = try container.decodeIfPresent([String].self, forKey: .shortlist) ?? []
+    }
+
+    /// Tests and previews. The decoder above is the only path a real card takes.
+    init(cardNumber: Int, track: TrackDTO, shortlist: [String] = []) {
+        self.cardNumber = cardNumber
+        self.track = track
+        self.shortlist = shortlist
     }
 }
 

@@ -499,8 +499,11 @@ Deno.test("golden: GET /rounds/current, revealed", async () => {
     view.body,
     "GET /rounds/current for a `revealed` round. Wider than `open` by design — docs/02 §3 " +
       "accepts that the name pool discloses who participated, because the game is unsolvable " +
-      "otherwise. A card carries a number and a track and nothing that identifies its owner: " +
-      "`submission_id` never crosses the wire before `scored` (ADR-003).",
+      "otherwise. A card carries a number, a track, and the four user ids it offers as " +
+      "candidates (`_shared/shortlist.ts`) — which narrows who owns it, deliberately, and only " +
+      "ever after the reveal. What it still never carries is `submission_id`, which does not " +
+      "cross the wire before `scored` (ADR-003): the shortlist is a hint that expires with the " +
+      "round, a submission id is a durable handle to the answer.",
   );
 
   const anaCard = (view.body.data as Record<string, unknown>).my_card_no as number;

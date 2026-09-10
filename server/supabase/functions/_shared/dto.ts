@@ -530,10 +530,24 @@ export function circleSummaryFields(): readonly string[] {
 export interface CardDTO {
   card_no: number;
   track: TrackDTO;
+  /**
+   * The names this card offers: the owner and up to three others, never the caller
+   * (`_shared/shortlist.ts`). User ids, all of them present in `name_pool`.
+   *
+   * **Mostly the same list for everybody.** The card draws one canonical four; a member who is
+   * not in it sees exactly that, and a member who *is* sees their own name replaced in place by
+   * one other. So this field varies by caller, but only for the three people it has to.
+   *
+   * This is the one field on a card that is *about* its owner, and it is safe for exactly one
+   * reason: a card only exists once the round is `revealed`. Before that there are no cards at
+   * all — `RevealedRoundDTO` is not the shape `GET /current` returns during `open` — so there is
+   * no phase in which this narrows anything that was supposed to be sealed.
+   */
+  shortlist: string[];
 }
 
-export function cardDTO(cardNo: number, meta: unknown): CardDTO {
-  return { card_no: cardNo, track: trackDTO(meta) };
+export function cardDTO(cardNo: number, meta: unknown, shortlist: string[]): CardDTO {
+  return { card_no: cardNo, track: trackDTO(meta), shortlist };
 }
 
 /** One saved assignment on the caller's own sheet. `card_no`, never a submission id. */

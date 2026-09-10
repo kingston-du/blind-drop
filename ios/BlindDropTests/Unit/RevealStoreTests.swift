@@ -395,10 +395,13 @@ extension RevealFixture {
         cardCount: Int = 6,
         myCardNumber: Int? = nil,
         canGuess: Bool = true,
-        reason: CannotGuessReason? = nil
+        reason: CannotGuessReason? = nil,
+        shortlists: [Int: [String]] = [:]
     ) -> RevealStore {
         RevealStore(
-            cards: (1...cardCount).map(card(number:)),
+            cards: (1...cardCount).map { number in
+                CardDTO(cardNumber: number, track: track, shortlist: shortlists[number] ?? [])
+            },
             pool: members + [me],
             myCardNumber: myCardNumber,
             canGuess: canGuess,

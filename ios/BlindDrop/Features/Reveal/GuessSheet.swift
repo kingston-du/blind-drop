@@ -102,6 +102,7 @@ struct GuessSheet: View {
     private let accent = PhaseAccent.revealed
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dragOffset: CGFloat = 0
     /// Whether the two `GeometryReader`s below have reported yet.
     ///
@@ -522,6 +523,11 @@ struct GuessSheet: View {
                 .scrollIndicators(.visible)
                 .frame(maxHeight: availableHeight.map { $0 * Layout.namePoolMaximumHeightFraction }
                     ?? Layout.namePoolSnapshotMaximumHeight)
+            } else if isNarrowed {
+                // No scroll container at all. Four equal shares always fit, so a scroll view here
+                // would be a gesture with nowhere to go — and the trailing fade below would be a
+                // fade over nothing, telling the player there are more names when there are not.
+                equalWidthRow.padding(.horizontal, Layout.screenInset)
             } else {
                 ScrollView(.horizontal) {
                     chips.padding(.horizontal, Layout.screenInset)
@@ -552,6 +558,10 @@ struct GuessSheet: View {
     @ViewBuilder private func snapshotPool(layout: NamePoolLayout) -> some View {
         if layout == .verticalGrid {
             gridChips.padding(.horizontal, Layout.screenInset)
+        } else if isNarrowed {
+            // Nothing to stand in for: the narrowed row has no scroll container and no overflow,
+            // so the golden renders the production view itself.
+            equalWidthRow.padding(.horizontal, Layout.screenInset)
         } else if let sizer = store.pool.first {
             // The flat row stands in for the scroll container; it must not also stand in for its
             // width. `chips` is `.fixedSize()`, and placed straight into the sheet's stack the
@@ -596,9 +606,58 @@ struct GuessSheet: View {
         chipRow.fixedSize()
     }
 
+    /// The names the pool is currently offering: the focused card's four, or — with nothing
+    /// focused — everybody.
+    ///
+    /// The full pool is the resting state rather than a placeholder, and that is what keeps the
+    /// *name-first* half of `docs/08` §6 working unchanged: tap a chip with no card focused and
+    /// it still selects and waits for a card, chosen from everyone. Narrowing is something the
+    /// card-first path gets, not a mode the sheet enters.
+    private var poolMembers: [MemberDTO] {
+        store.focusedCard.map(store.shortlist(for:)) ?? store.pool
+    }
+
+    /// Whether the pool is currently showing a card's four rather than everybody.
+    ///
+    /// A focused card in a circle small enough that its shortlist *is* the pool is **not**
+    /// narrowed: nothing was taken away, so nothing should look different. This is the flag
+    /// that keeps a five-person round rendering exactly as it did before any of this existed.
+    private var isNarrowed: Bool {
+        poolMembers.count < store.pool.count
+    }
+
+    /// The narrowed row: four chips, equal width, filling the sheet, no scroll.
+    ///
+    /// **Equal shares rather than natural widths.** A row of four is a set of choices, and a set
+    /// of choices should look like one — *Ana* getting a third of the width of *Christopher*
+    /// makes the short name look like the lesser option and the long one like the answer. It is
+    /// also the shape that fits: four equal chips fill any width down to an SE's, so the four
+    /// names the card offers are all on screen, which is the entire promise of narrowing them.
+    ///
+    /// Wrapping is on for the same reason. At a quarter of the width a long name would truncate,
+    /// and a truncated name is not a candidate — it is a riddle. Two lines is fine; guessing at
+    /// *Christoph…* is not.
+    private var equalWidthRow: some View {
+        HStack(spacing: Space.sm) {
+            ForEach(poolMembers) { member in
+                NameChip(
+                    member: member,
+                    displayName: store.displayNames[member.userID],
+                    state: store.chipState(for: member),
+                    action: { store.tapName(member.userID) },
+                    unavailableReason: store.blockedReason,
+                    allowsWrapping: true
+                )
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .disabled(!store.canGuess || store.isLocked)
+        .opacity(store.canGuess && !store.isLocked ? 1 : 0.5)
+    }
+
     private var chipRow: some View {
         HStack(spacing: Space.sm) {
-            ForEach(store.pool) { member in
+            ForEach(poolMembers) { member in
                 NameChip(
                     member: member,
                     displayName: store.displayNames[member.userID],
@@ -610,6 +669,7 @@ struct GuessSheet: View {
         }
         .disabled(!store.canGuess || store.isLocked)
         .opacity(store.canGuess && !store.isLocked ? 1 : 0.5)
+        .animation(Motion.NamePool.swap(reducedMotion: reduceMotion), value: store.focusedCard)
     }
 
     /// The large-text alternative. The task says "2-row" *and* requires a vertical scroll;
@@ -624,7 +684,7 @@ struct GuessSheet: View {
             alignment: .center,
             spacing: Space.sm
         ) {
-            ForEach(store.pool) { member in
+            ForEach(poolMembers) { member in
                 NameChip(
                     member: member,
                     displayName: store.displayNames[member.userID],
@@ -638,6 +698,7 @@ struct GuessSheet: View {
         }
         .disabled(!store.canGuess || store.isLocked)
         .opacity(store.canGuess && !store.isLocked ? 1 : 0.5)
+        .animation(Motion.NamePool.swap(reducedMotion: reduceMotion), value: store.focusedCard)
     }
 }
 

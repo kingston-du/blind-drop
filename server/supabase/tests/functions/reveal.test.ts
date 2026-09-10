@@ -188,6 +188,90 @@ Deno.test("the name pool is exactly this round's submitters, caller included", a
   );
 });
 
+Deno.test("every card offers four names, and never the caller's own", async () => {
+  // `_shared/shortlist.ts` in the payload it is actually served in. `shortlist.test.ts` proves
+  // the selection; this proves the wiring — that the ids are real pool members, that the caller
+  // is not among them, and that the number of candidates does not move card to card. A
+  // shortlist whose length varied would hand some cards better odds than others, silently.
+  const { submitters } = await revealedRound("Shortlist", 8);
+
+  for (const member of submitters) {
+    const res = await call("rounds", "/current", { token: member.token });
+    const data = res.body.data as Record<string, unknown>;
+    const cards = data.cards as { card_no: number; shortlist: string[] }[];
+    const poolIds = new Set((data.name_pool as { user_id: string }[]).map((p) => p.user_id));
+    const myCardNo = data.my_card_no as number;
+
+    for (const card of cards) {
+      assertEquals(card.shortlist.length, 4, `card ${card.card_no} did not offer four names`);
+      assertEquals(new Set(card.shortlist).size, 4, "a name was offered twice on one card");
+      for (const id of card.shortlist) {
+        assert(poolIds.has(id), "a shortlist named somebody who is not in the pool");
+      }
+      if (card.card_no !== myCardNo) {
+        assert(
+          !card.shortlist.includes(member.id),
+          `card ${card.card_no} offered the caller their own name`,
+        );
+      }
+    }
+  }
+});
+
+Deno.test("two members looking at the same card see the same four", async () => {
+  // The sharing property, end to end. A card draws one canonical four; only the members who
+  // are themselves in it get a substitute in their own slot. So on any card, most of the room
+  // is looking at an identical list — which is what makes a card a thing two people can talk
+  // about at all, and it is the half of the design that the per-viewer seed pays for.
+  const { submitters } = await revealedRound("Shortlist Shared", 8);
+
+  const byMember = new Map<string, Map<number, string>>();
+  for (const member of submitters) {
+    const res = await call("rounds", "/current", { token: member.token });
+    const data = res.body.data as Record<string, unknown>;
+    const cards = data.cards as { card_no: number; shortlist: string[] }[];
+    const myCardNo = data.my_card_no as number;
+    byMember.set(
+      member.id,
+      new Map(
+        cards.filter((c) => c.card_no !== myCardNo).map((c) => [c.card_no, c.shortlist.join(",")]),
+      ),
+    );
+  }
+
+  for (let cardNo = 1; cardNo <= 8; cardNo++) {
+    const seen: string[] = [];
+    for (const cards of byMember.values()) {
+      const list = cards.get(cardNo);
+      if (list) seen.push(list);
+    }
+    // Seven viewers, three of whom are in the canonical four. So one list is shared by at least
+    // three people, and nobody who differs from it differs in the same way as anybody else.
+    const counts = new Map<string, number>();
+    for (const list of seen) counts.set(list, (counts.get(list) ?? 0) + 1);
+    const [, majority] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    assert(
+      majority >= 2,
+      `card ${cardNo}: no two members saw the same four, so nothing is shared`,
+    );
+  }
+});
+
+Deno.test("a card's four names are the same four on the next read", async () => {
+  // `GET /current` is polled. A shortlist that redrew each time would be indistinguishable
+  // from the app lying about a card the player had already reasoned through.
+  const { submitters } = await revealedRound("Shortlist Stable", 8);
+  const [member] = submitters;
+
+  const read = async () => {
+    const res = await call("rounds", "/current", { token: member.token });
+    const cards = res.body.data.cards as { card_no: number; shortlist: string[] }[];
+    return cards.map((c) => `${c.card_no}:${[...c.shortlist].sort().join(",")}`).join("|");
+  };
+
+  assertEquals(await read(), await read(), "the shortlists moved between two reads");
+});
+
 Deno.test("a non-submitter can see the reveal but is told why they cannot guess", async () => {
   // docs/02 §3: this is the participation-pressure mechanic, and it is reflected in the UI as
   // a disabled sheet with an explanation — never as a hidden feature.

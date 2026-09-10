@@ -26,7 +26,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1452874255",
         "spotify_id": "0wXuerDYiBnERgIpbb3JBR",
         "spotify_url": "https://open.spotify.com/track/0wXuerDYiBnERgIpbb3JBR"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000004",
+        "a0000000-0000-4000-8000-000000000003",
+        "a0000000-0000-4000-8000-000000000007",
+        "a0000000-0000-4000-8000-000000000008"
+      ]
     },
     {
       "card_no": 2,
@@ -44,7 +50,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1440818664",
         "spotify_id": "2QjOHCTQ1JF3zJyfWY7EMU",
         "spotify_url": "https://open.spotify.com/track/2QjOHCTQ1JF3zJyfWY7EMU"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000002",
+        "a0000000-0000-4000-8000-000000000006",
+        "a0000000-0000-4000-8000-000000000005",
+        "a0000000-0000-4000-8000-000000000007"
+      ]
     },
     {
       "card_no": 3,
@@ -62,7 +74,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1468055107",
         "spotify_id": "3AwF0Ea5jUqLDWWDaXocxT",
         "spotify_url": "https://open.spotify.com/track/3AwF0Ea5jUqLDWWDaXocxT"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000002",
+        "a0000000-0000-4000-8000-000000000006",
+        "a0000000-0000-4000-8000-000000000008",
+        "a0000000-0000-4000-8000-000000000004"
+      ]
     },
     {
       "card_no": 4,
@@ -80,7 +98,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1440818664",
         "spotify_id": "2QjOHCTQ1JF3zJyfWY7EMU",
         "spotify_url": "https://open.spotify.com/track/2QjOHCTQ1JF3zJyfWY7EMU"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000007",
+        "a0000000-0000-4000-8000-000000000001",
+        "a0000000-0000-4000-8000-000000000003",
+        "a0000000-0000-4000-8000-000000000008"
+      ]
     },
     {
       "card_no": 5,
@@ -98,7 +122,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1656689279",
         "spotify_id": "1Qrg8KqiBpW07V7PNxwwwL",
         "spotify_url": "https://open.spotify.com/track/1Qrg8KqiBpW07V7PNxwwwL"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000008",
+        "a0000000-0000-4000-8000-000000000002",
+        "a0000000-0000-4000-8000-000000000007",
+        "a0000000-0000-4000-8000-000000000005"
+      ]
     },
     {
       "card_no": 6,
@@ -116,7 +146,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1440765580",
         "spotify_id": "7eqoqGkKwgOaWNNHx90uEZ",
         "spotify_url": "https://open.spotify.com/track/7eqoqGkKwgOaWNNHx90uEZ"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000002",
+        "a0000000-0000-4000-8000-000000000003",
+        "a0000000-0000-4000-8000-000000000007",
+        "a0000000-0000-4000-8000-000000000004"
+      ]
     },
     {
       "card_no": 7,
@@ -134,7 +170,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1440830827",
         "spotify_id": "0YSjKUbxJYuJ4Zk9CWjWLu",
         "spotify_url": "https://open.spotify.com/track/0YSjKUbxJYuJ4Zk9CWjWLu"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000008",
+        "a0000000-0000-4000-8000-000000000007",
+        "a0000000-0000-4000-8000-000000000002",
+        "a0000000-0000-4000-8000-000000000005"
+      ]
     },
     {
       "card_no": 8,
@@ -152,7 +194,13 @@
         "apple_music_url": "https://music.apple.com/us/song/1442571948",
         "spotify_id": "3KkXRkHbMCARz0aVfEt68P",
         "spotify_url": "https://open.spotify.com/track/3KkXRkHbMCARz0aVfEt68P"
-      }
+      },
+      "shortlist": [
+        "a0000000-0000-4000-8000-000000000007",
+        "a0000000-0000-4000-8000-000000000004",
+        "a0000000-0000-4000-8000-000000000002",
+        "a0000000-0000-4000-8000-000000000006"
+      ]
     }
   ],
   "name_pool": [

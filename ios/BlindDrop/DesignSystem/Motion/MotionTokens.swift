@@ -240,6 +240,29 @@ enum Motion {
         }
     }
 
+    /// The call sheet's pool narrowing to one card's four names, and widening back.
+    ///
+    /// **A contraction, not a swap.** The chips are a `ForEach` keyed by member, so the names
+    /// that survive the narrowing are the same views throughout and never blink — the seven that
+    /// leave fade out and the row closes up around the four that stay. That reads as the pool
+    /// getting smaller, which is what happened. Crossfading the whole row would read as a
+    /// different screen arriving, which is not.
+    ///
+    /// Short and unaccented on purpose. This fires on every focus and every blur, dozens of
+    /// times in a sheet, and `docs/09` §1 spends the motion budget on the seal and the unseal —
+    /// an apparatus that flourished each time a card was tapped would be spending it here.
+    enum NamePool {
+        static let duration = 0.180
+        static let swap = Animation.easeOut(duration: duration)
+        /// The same fade. There is no travel in it to remove, only the removal's own reflow,
+        /// which is layout rather than motion (`docs/12` §4).
+        static let reduced = Animation.easeInOut(duration: duration)
+
+        static func swap(reducedMotion: Bool) -> Animation {
+            reducedMotion ? reduced : swap
+        }
+    }
+
     /// **Hold to peek** (`docs/08` §4, `E22-01`, amended `E28-04`). Opening — the cover fading
     /// back and the artwork settling from a slight hold-scale — is a real animation, because a
     /// finger is still down and there is time to spend on it. Closing is not: every path that

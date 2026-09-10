@@ -153,6 +153,48 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// **The narrowed pool.** A card is focused, so the eleven names are four.
+    ///
+    /// This is the golden that says what the whole change looks like, and it is a pair with
+    /// `GuessSheet` above rather than a replacement for it: that one is the same sheet with
+    /// nothing focused, still holding everybody. Reviewed together, the two images are the
+    /// feature — the pool contracts around the card you are answering and widens back when you
+    /// let go of it.
+    ///
+    /// `.accessibility5` is the half that matters most. Eleven chips there is a six-row grid
+    /// pinned to its 40%-of-screen cap with a scroll indicator down the side; four is two rows
+    /// that fit, and the sheet stops being a scrolling apparatus at the size where scrolling
+    /// apparatus is worst.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func guessSheetShortlisted(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "GuessSheet-shortlist", device, size) {
+            GuessSheet(store: RevealFixture.store(
+                cardCount: 12,
+                myCardNumber: 7,
+                guesses: [1: "Cal", 3: "Ana"],
+                shortlists: [5: ["Ben", "Dee", "Hal", "Kit"]],
+                focus: 5
+            ))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size), typeSize: size)
+        }
+    }
+
+    /// The same sheet, same twelve-person round, **unfocused** — the full pool, the trailing
+    /// fade, and the grid at its cap. Without this the pair above proves only that four chips
+    /// render; with it, the diff between the two goldens is the behaviour.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func guessSheetShortlistUnfocused(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "GuessSheet-shortlist-unfocused", device, size) {
+            GuessSheet(store: RevealFixture.store(
+                cardCount: 12,
+                myCardNumber: 7,
+                guesses: [1: "Cal", 3: "Ana"],
+                shortlists: [5: ["Ben", "Dee", "Hal", "Kit"]]
+            ))
+                .content(layout: NamePoolLayout(dynamicTypeSize: size), typeSize: size)
+        }
+    }
+
     // MARK: - Rendering
 
     /// The screen with a **started** timer.
@@ -240,10 +282,20 @@ enum RevealFixture {
         canGuess: Bool = true,
         reason: CannotGuessReason? = nil,
         poolSize: Int = members.count,
-        guesses: [Int: String] = [:]
+        guesses: [Int: String] = [:],
+        shortlists: [Int: [String]] = [:],
+        focus: Int? = nil
     ) -> RevealStore {
         let store = RevealStore(
-            cards: (1...cardCount).map(card(number:)),
+            cards: (1...cardCount).map { number in
+                CardDTO(
+                    cardNumber: number,
+                    track: number.isMultiple(of: 2) ? .ribs : .motionSickness,
+                    shortlist: (shortlists[number] ?? []).compactMap { name in
+                        members.first { $0.displayName == name }?.userID
+                    }
+                )
+            },
             pool: Array(members.prefix(poolSize)) + [me],
             myCardNumber: myCardNumber,
             canGuess: canGuess,
@@ -255,6 +307,9 @@ enum RevealFixture {
         store.adopt(guesses.compactMap { card, name in
             byName[name].map { GuessDTO(cardNumber: card, guessedUserID: $0) }
         })
+        // A golden of a *focused* sheet has to be focused, and `tapCard` is the only way in —
+        // setting `focusedCard` from a test would be a picture of a state the app cannot reach.
+        if let focus { store.tapCard(focus) }
         return store
     }
 }
