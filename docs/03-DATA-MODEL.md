@@ -517,7 +517,7 @@ functions, all of which no-op on a group that is not a demo group.
 | `demo_arm(round, seconds)` | Brings the round's next transition `seconds` away — `reveals_at` while open, `scores_at` once revealed. Never moves `reveals_at` after the reveal: `cannotGuessReason()` reads it against `joined_at`, and moving it misreads as a late join. |
 | `demo_tick(group)` | The state machine. Scores a revealed round whose window ran out, reveals an open one once every member has submitted, carries an unplayed round across local midnight, and rolls a fresh round two minutes after the last one scored. Never voids, never writes `notification_outbox`. |
 | `shuffle_submissions(round)` | The Fisher–Yates from `0015`, extracted so `tick_rounds()` and `demo_tick()` share one implementation and `tests/db/shuffle.sql` proves both. |
-| `demo_provision(group)` | Owner-run fixture setup: names the founding member *App Reviewer*, installs three companions, writes three finished nights, opens tonight's round. **Not granted to `service_role`** — no API path should manufacture players or backdated rounds. |
+| `demo_provision(group)` | Owner-run fixture setup: names the founding member *App Reviewer*, installs five companions, writes three finished nights, opens tonight's round. **Not granted to `service_role`** — no API path should manufacture players or backdated rounds. |
 
 `ensure_rounds()` and all three `tick_rounds()` loops carry `not g.is_demo`, so the scheduler
 and the demo lifecycle can never both own a round.

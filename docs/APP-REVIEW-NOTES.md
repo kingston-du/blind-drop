@@ -48,8 +48,8 @@ Project `blind-drop` (`ojzwgaffeegssfscoaiv`, `us-west-1`).
 |---|---|
 | Migrations | `20260815090000_demo_groups`, `20260815090500_demo_lifecycle`, `20260815120000_backfill_demo_groups` — pushed 2026-08-15 |
 | Edge Function | `rounds` redeployed 2026-08-15 (the two `demo_arm` calls and the `demo_tick` before the round read) |
-| Demo group | "App Review", `is_demo = true`. Members: **App Reviewer** (admin, `demo@blinddrop.dev`) plus fixtures Kai, Mo, Nell |
-| State | Three finished nights in The Record (4 songs and 12 guesses each) and one open round with the three fixtures already in it |
+| Demo group | "App Review", `is_demo = true`. Members: **App Reviewer** (admin, `demo@blinddrop.dev`) plus fixtures Kai, Mo, Nell, Rae, Sol |
+| State | Three finished nights in The Record (6 songs and 30 guesses each) and one open round with the five fixtures already in it |
 
 The real pilot group ("Family") is **not** a demo group and is untouched by any of this. The
 exclusion is enforced in both directions — `ensure_rounds()` and all three `tick_rounds()`

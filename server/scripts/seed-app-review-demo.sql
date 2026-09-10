@@ -69,7 +69,7 @@ begin
   perform public.demo_provision(v_group_id);
 
   raise notice
-    'App Review ready. group=% — the reviewer is "App Reviewer", three companions are in the '
+    'App Review ready. group=% — the reviewer is "App Reviewer", five companions are in the '
     'room, three nights are in The Record, and tonight''s round is open at any hour.',
     v_group_id;
 end $$;

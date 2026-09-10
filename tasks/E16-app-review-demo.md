@@ -87,3 +87,18 @@ clock. It is a server change end to end: the client keeps rendering a countdown 
 > sentinel dates in January 2020 left by the previous script, a `voided` night from before the
 > companions existed, and a round materialised by a scheduler that no longer runs for it — so
 > The Record would have opened on "Wednesday 1 January 2020".
+
+> **Amended by the owner, 2026-09-10 (`20260910120000_demo_room_of_six`).** The room is six
+> now, not four: five fixture companions — Kai, Mo, Nell, **Rae, Sol** — so the reveal is five
+> cards and the guess sheet five names rather than the two a four-person room allows. The
+> fixture catalogue is twelve songs instead of nine, and every row was re-resolved against the
+> iTunes catalogue: the `apple_music_id` on each row had been the *album's* id, so every
+> `music.apple.com/us/song/<id>` link opened the wrong page, and `preview_url` was null
+> throughout — which under `docs/06` §7 means no preview control at all on any card a reviewer
+> saw. Both are now real and were fetched and checked.
+>
+> `demo_provision()` is generalised over the roster rather than counting to four, and it now
+> backfills a live `open` round with any companion missing from it. That last part is not
+> tidiness: a group provisioned under the three-companion roster holds a round the two new
+> members are not in, and `demo_tick()` never reveals a room that is short — it would slide
+> the reveal forward for ever. **The hosted project needs `seed-app-review-demo.sql` re-run.**

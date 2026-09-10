@@ -5,7 +5,7 @@
 --
 --   npx supabase db query --linked --file server/scripts/status-app-review-demo.sql
 --
--- A ready group looks like: is_demo true, four members one of whom is App Reviewer, three
+-- A ready group looks like: is_demo true, six members one of whom is App Reviewer, five
 -- companions, three or more scored rounds, and exactly one open round holding the companions'
 -- submissions and not the reviewer's.
 

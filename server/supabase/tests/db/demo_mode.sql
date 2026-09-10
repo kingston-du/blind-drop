@@ -16,7 +16,7 @@
 -- whole played session below sits inside local 2026-08-15.
 begin;
 set search_path = public, extensions, tests;
-select plan(41);
+select plan(46);
 
 -- ─── a demo group, via the cohort that creates one ───────────────────────────
 -- `seed.sql` disables every cohort locally, so that a `PUT /me` in the Edge Function suite
@@ -69,8 +69,8 @@ select is((select display_name from public.profiles
             where id = 'd0000000-0000-4000-8000-000000000001'),
   'App Reviewer', 'the founding member is renamed for review');
 select is((select count(*)::int from public.demo_companions
-            where group_id = tests.demo_group()), 3,
-  'three companions join the demo group');
+            where group_id = tests.demo_group()), 5,
+  'five companions join the demo group, so the room is six and reads like a real one');
 select is((select count(*)::int from public.rounds
             where group_id = tests.demo_group() and state = 'scored'), 3,
   'three finished nights are in the archive before the reviewer opens the app');
@@ -79,10 +79,33 @@ select is((select count(distinct is_correct)::int from public.guess_results gr
            where r.group_id = tests.demo_group()), 2,
   'the archive holds both hits and misses, so results and standings look played');
 
+-- ─── the catalogue a reviewer actually looks at ──────────────────────────────
+-- `demo_track` is fixture data, but it is fixture data on screen during App Review, so the
+-- two things a reviewer can *press* have to be real: the artwork template `ArtworkView` sizes
+-- into, and the preview URL `PreviewPlayer` plays. A null preview is not a broken control,
+-- it is no control at all (docs/06 §7) — which is why its absence went unnoticed for a month.
+
+select is((select count(*)::int from pg_catalog.generate_series(0, 11) as i
+            where public.demo_track(i) ->> 'preview_url' is not null
+              and public.demo_track(i) ->> 'artwork_url' like '%{w}x{h}%'
+              and public.demo_track(i) ->> 'apple_music_id' is not null), 12,
+  'every catalogue row carries a preview to play and an artwork template to size');
+select is((select count(distinct public.demo_track(i) ->> 'track_key')::int
+             from pg_catalog.generate_series(0, 11) as i), 12,
+  'and twelve distinct songs, so a round of six never deals the same one twice');
+
+select is((select count(*)::int from (
+             select r.id from public.rounds r
+              join public.submissions s on s.round_id = r.id
+             where r.group_id = tests.demo_group()
+             group by r.id
+             having count(distinct s.track_key) <> count(*)) dup), 0,
+  'no night in the archive holds one song under two names');
+
 -- ─── the live round, before the reviewer drops ───────────────────────────────
 
 select is(tests.demo_state(), 'open', 'a live open round exists at 03:17');
-select is((select count(*)::int from public.submissions where round_id = tests.demo_round()), 3,
+select is((select count(*)::int from public.submissions where round_id = tests.demo_round()), 5,
   'the companions are already in it; the reviewer is the only one outstanding');
 select is((select reveals_at from public.rounds where id = tests.demo_round()),
   '2026-08-16 03:00:00+00'::timestamptz,
@@ -93,6 +116,19 @@ select is((select reveals_at from public.rounds where id = tests.demo_round()),
 -- song at all. It must never be in the future, from the moment the round is rolled.
 select ok((select opens_at <= public.now_() from public.rounds where id = tests.demo_round()),
   'a freshly rolled demo round is droppable immediately, hours before its real 10:00 open');
+
+-- ─── provisioning twice ──────────────────────────────────────────────────────
+-- The seed script says it is idempotent, and the owner re-runs it whenever the fixture is in
+-- doubt. The second call now walks the live round as well — that is where a group provisioned
+-- under an older, smaller roster gets its missing companions — so it has to leave a room that
+-- is already complete exactly as it found it rather than dealing anybody a second song.
+
+select public.demo_provision(tests.demo_group());
+select is((select count(*)::int from public.demo_companions
+            where group_id = tests.demo_group()), 5,
+  're-provisioning installs the same five companions rather than a second set');
+select is((select count(*)::int from public.submissions where round_id = tests.demo_round()), 5,
+  'and the live round it walks keeps the five drops it already had');
 
 -- ─── the scheduler cannot see any of this ────────────────────────────────────
 -- 20:30 local, so the demo round is past its own reveals_at with a room that is one short.
@@ -153,7 +189,7 @@ select tests.set_test_now('2026-08-16 04:00:13+00');
 select public.demo_tick(tests.demo_group());
 select is(tests.demo_state(), 'revealed', 'and the countdown reaching zero reveals it');
 select is((select jsonb_array_length(card_order) from public.rounds where id = tests.demo_round()),
-  4, 'with all four cards in the shuffled order');
+  6, 'with all six cards in the shuffled order');
 
 -- ─── guess → score ───────────────────────────────────────────────────────────
 
@@ -186,7 +222,7 @@ select is(tests.demo_state(), 'scored',
 select tests.set_test_now('2026-08-16 04:03:00+00');
 select public.demo_tick(tests.demo_group());
 select is(tests.demo_state(), 'open', 'two minutes later a fresh round is open');
-select is((select count(*)::int from public.submissions where round_id = tests.demo_round()), 3,
+select is((select count(*)::int from public.submissions where round_id = tests.demo_round()), 5,
   'with the companions in it and the reviewer outstanding again');
 select is((select count(*)::int from public.rounds
             where group_id = tests.demo_group() and state = 'scored'), 4,
