@@ -18,6 +18,8 @@ import SwiftUI
 struct StatMeter: View {
     /// 0…1. Clamped, because a rate arriving out of range is a bug that should not become a
     /// marker drawn off the end of its track.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let value: Double
     let band: ReadabilityBand
     /// Whether the meter prints its own band label beneath the track.
@@ -60,14 +62,34 @@ struct StatMeter: View {
     }
 
     /// The two ends, in the micro-label. They are the scale, not a legend for it.
-    private var ends: some View {
-        HStack(spacing: Space.sm) {
-            SectionLabel("results.spectrum.low")
-            Spacer(minLength: Space.sm)
-            SectionLabel("results.spectrum.high")
+    ///
+    /// **They stop sharing a row at accessibility sizes.** Two uncapped labels in one `HStack`
+    /// compete for a width neither of them can have on an SE at `accessibility5`, and
+    /// `SectionLabel`'s tracked caps lose that fight by letter-wrapping mid-word — the golden
+    /// for this read `UNREA / DABLE`, which is not a word and so not a scale. Stacked, each end
+    /// gets the full width and stays one word per line. The low end keeps the leading edge and
+    /// the high end the trailing one, so the left-to-right sense of the scale survives the
+    /// change of axis.
+    @ViewBuilder private var ends: some View {
+        if isStacked {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                SectionLabel("results.spectrum.low")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SectionLabel("results.spectrum.high")
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .accessibilityHidden(true)
+        } else {
+            HStack(spacing: Space.sm) {
+                SectionLabel("results.spectrum.low")
+                Spacer(minLength: Space.sm)
+                SectionLabel("results.spectrum.high")
+            }
+            .accessibilityHidden(true)
         }
-        .accessibilityHidden(true)
     }
+
+    private var isStacked: Bool { dynamicTypeSize >= .accessibility1 }
 
     /// The in-app spectrum uses two neutrals to distinguish its ends. A share artifact can ask
     /// for one solid neutral instead; neither treatment fills from the left or implies rank.

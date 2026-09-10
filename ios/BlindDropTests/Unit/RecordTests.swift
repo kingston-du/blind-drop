@@ -428,7 +428,13 @@ struct RecordTests {
     /// argument left off is exactly what this catches.
     @Test func pastResultsScreenWiresTheSharedPreviewPlayerThrough() throws {
         let screen = try source("Results/PastResultsScreen.swift")
-        #expect(screen.contains("ResultsScreen(state: store.viewState(resolve: nil), player: player)"))
+        // Matched in two pieces rather than as one argument list. Pinning the whole call meant
+        // that adding an unrelated argument to `ResultsScreen` failed this test without the
+        // player ever having been dropped — `isPastRound:` did exactly that. The invariant is
+        // that the screen is constructed from the store's state *and* handed the shared player;
+        // an argument arriving between them is not a regression and should not read as one.
+        #expect(screen.contains("ResultsScreen(state: store.viewState(resolve: nil)"))
+        #expect(screen.contains("player: player)"))
         #expect(screen.contains("let player: PreviewPlayer"))
 
         for caller in ["Record/RecordScreen.swift", "Round/RoundScreen.swift"] {
