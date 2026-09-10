@@ -103,8 +103,16 @@ struct SubmitScreen: View {
                 // `topGapCap` is how far it travels when the keyboard arrives. Squeezing the
                 // spacing to buy fitting room, as `itemGap` did, pays for one with the other.
                 //
-                // `blockGap` is the app's rhythm and this screen takes it, like every other
-                // column. Its whole cost is height, and the cap is where that is found instead.
+                // `blockGap` is the app's rhythm and this screen wanted it, like every other
+                // column — but it does not have the height for it. At 32 the column overflowed
+                // the band between the chrome and the keyboard and the header lifted again,
+                // which is the whole thing `E43` was fixed to stop (owner, 2026-09-10).
+                //
+                // `xxl` is one step down the ramp and the smallest one there is: 28 is not a
+                // token, so 24 is the least this can give up. It returns 32 points across the
+                // four gaps, and another 8 come from the cue card's own padding, which steps
+                // down with it so the card keeps even air — see `prompt(browsing:)`. Forty
+                // points, for a deficit that measured around eight.
                 //
                 // **The cap is a ceiling, not a position.** This gap and the open one under the
                 // block are both flexible, so they split whatever the column has left over: with
@@ -114,13 +122,13 @@ struct SubmitScreen: View {
                 // and no more, and nothing here has to know whether a keyboard is up.
                 //
                 // Which is also why the ceiling is `xxl` and not the 48 it used to be. A taller
-                // ceiling is a longer fall: at `blockGap` the block sits near the top of the band
-                // once the keyboard is up, so every point of ceiling above that is a point the
-                // screen visibly drops through on the way there. 24 keeps the travel to roughly
-                // what it was at the tighter spacing, which is the part that was asked to stay
-                // small — a focus flag briefly lived here doing the same job much worse, snapping
-                // between 48 and zero, and it is gone.
-                blockSpacing: Layout.blockGap,
+                // ceiling is a longer fall: the block sits near the top of the band once the
+                // keyboard is up, so every point of ceiling above that is a point the screen
+                // visibly drops through on the way there. 24 keeps the travel short, which is
+                // the half of this that was asked to stay small — a focus flag briefly lived
+                // here doing the same job much worse, snapping between 48 and zero, and it is
+                // gone.
+                blockSpacing: Space.xxl,
                 topGapCap: Space.xxl
             )
         }
@@ -163,22 +171,21 @@ struct SubmitScreen: View {
             // step aside at accessibility sizes, though; there the subhead goes instead, because
             // between the tutorial and the brief the brief is the one with something to say.
             if !browsing, let cue {
-                // **`Space.xl` on top of the stack's own `itemGap`, to make thirty-two** — the
+                // **`Space.md` on top of the stack's own `itemGap`, to make twenty-four** — the
                 // same gap `SongSearch` puts *below* the card on its way to the field, because
-                // this is the one element in the column with a drawn edge on both sides and
+                // this is the one element in the column with a drawn edge on both sides, and
                 // unequal air around it reads as the card having slipped upward (owner,
                 // 2026-09-10). Written as the padding that closes the difference rather than as
-                // `blockGap` outright, since the stack's gap is already paid.
+                // the gap outright, since the stack's own `itemGap` is already paid.
                 //
-                // It costs the column twenty points, and the column was already close to the
-                // floor: at `blockGap` the band between the chrome and the keyboard has only a
-                // dozen or so to give on an iPhone 17 at the default size. The flexible ceiling
-                // above the block absorbs what it can and then it is out of room — so if the
-                // header ever starts lifting again on a cued night, this padding and
-                // `blockSpacing` are the two places the height is, and `blockSpacing` is the
-                // one with forty-eight points in it.
+                // **It was 32 either side for a day and the column could not afford it.** The
+                // header lifted again — `E43`'s bug, back — so both gaps came down one step of
+                // the ramp together, which is the least they can move and still land on tokens:
+                // there is nothing at 28. This padding gives up 8 and `blockSpacing` gives up 32
+                // across its four gaps, and the pair stay equal, which was the point of the
+                // padding in the first place. Move one of these and move the other.
                 CueCard(cue: cue)
-                    .padding(.top, Space.xl)
+                    .padding(.top, Space.md)
                     .transition(.opacity)
             }
         }
