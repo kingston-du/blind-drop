@@ -28,10 +28,14 @@ import Testing
     func filteredEmptyMatrix(_ device: SnapshotRenderer.Device) {
         for typeSize in SnapshotRenderer.typeSizes {
             let image = SnapshotRenderer.image(
-                of: Text(verbatim: Copy.format("record.empty.filtered", "Ana"))
-                    .typeStyle(.displayM)
-                    .foregroundStyle(Palette.ink)
-                    .fixedSize(horizontal: false, vertical: true),
+                of: VStack(alignment: .leading, spacing: Layout.blockGap) {
+                    RecordPageHeading()
+                    RecordFilterLabel(name: "Ana")
+                    Text(verbatim: Copy.format("record.empty.filtered", "Ana"))
+                        .typeStyle(.displayM)
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                },
                 device: device,
                 typeSize: typeSize
             )
@@ -66,6 +70,8 @@ private struct RecordSnapshotContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.none) {
+            RecordPageHeading().padding(.bottom, Layout.screenInset)
+            RecordFilterLabel(name: Copy.string("record.filter.all"))
             ForEach(days) { day in
                 // The sticky night header the screen draws, background and rule included. It is
                 // `paper` now, with a bottom `edge` rule instead of a darker fill — see
