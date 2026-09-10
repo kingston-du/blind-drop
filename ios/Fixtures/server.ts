@@ -577,6 +577,10 @@ async function route(req: Request, url: URL): Promise<Response> {
     if (!member) return fail(404, "NOT_FOUND", "That's not available right now.");
     return ok({
       member,
+      // The ranked figure first, matching what the standings payload shows for this member:
+      // tapping a row must not land on a different number wearing the same word.
+      ear_reads: 42,
+      ear_window_rounds: 14,
       ear: { value: 0.71, samples: 14 },
       readability: { value: 0.43, samples: 14 },
       drop_count: 14,

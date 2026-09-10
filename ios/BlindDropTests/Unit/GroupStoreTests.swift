@@ -83,10 +83,13 @@ import Testing
 /// the threshold itself needs a value on the other side of it.
 extension StandingsDTO {
     static func payload(roundsPlayed: Int) -> Data {
+        // A circle this young has not reached the fourteen-round window, so `window_rounds` is
+        // its whole life rather than the constant — the case the standings header has to print
+        // honestly instead of claiming a fortnight.
         Data("""
-        {"rounds_played":\(roundsPlayed),
+        {"rounds_played":\(roundsPlayed),"window_rounds":\(min(14, roundsPlayed)),
          "best_ear":[
-           {"rank":1,"user_id":"u_ana","display_name":"Ana","ear_all_time":0.5,"ear_correct_total":1}],
+           {"rank":1,"user_id":"u_ana","display_name":"Ana","ear_reads":1,"ear_all_time":0.5,"ear_correct_total":1}],
          "readability":[]}
         """.utf8)
     }

@@ -482,10 +482,6 @@ struct GroupDetailView: View {
         let isOpen = (serverNow.map { $0 < next.editableUntil }) ?? false
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("settings.cue.next.label")
-            if let date {
-                Text(verbatim: Copy.format("settings.cue.next.date", date))
-                    .typeStyle(.caption).foregroundStyle(Palette.inkDim)
-            }
             if isOpen && !isSnapshot {
                 Button { editsNextCue = true } label: {
                     controlRow(chevron: true) { nextCueText(next) }
@@ -495,6 +491,13 @@ struct GroupDetailView: View {
             } else {
                 controlRow(chevron: isOpen) { nextCueText(next) }
             }
+            // **Under the cue, not over it.** The date is which night this line is for — a
+            // footnote on the row, the way `group.revealhour.effective` sits under the hour it
+            // qualifies, rather than a heading the cue hangs off.
+            if let date {
+                Text(verbatim: Copy.format("settings.cue.next.date", date))
+                    .typeStyle(.caption).foregroundStyle(Palette.inkDim)
+            }
             // Not a disabled button with no explanation: the round has opened, somebody may
             // already have sealed a song against the brief it carries, and that is the whole
             // reason the server refuses the write too.
@@ -502,6 +505,10 @@ struct GroupDetailView: View {
                 Text("settings.cue.next.locked").typeStyle(.caption).foregroundStyle(Palette.inkDim)
             }
         }
+        // The cadence picker above is a different question about the same subject, and at the
+        // section's own `Space.sm` the two read as one four-row control. This is the gap that
+        // separates them.
+        .padding(.top, Space.md)
     }
 
     /// The line itself, or the fact that there isn't one. A night the cadence skips is not an
@@ -543,14 +550,24 @@ private struct NextCueSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var field = ""
     @State private var hasSeeded = false
+    /// The sheet is exactly as tall as its own column, the same trick `CircleSwitcherSheet`
+    /// uses. Seeded at roughly the field plus the button so the first frame is not a flash of
+    /// nothing, and so the sheet does not visibly grow into place on open.
+    @State private var measuredHeight: CGFloat = Layout.fieldHeight + Layout.buttonHeight
+        + Layout.blockGap * 2
     @FocusState private var focused: Bool
 
     private var trimmed: String { field.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var remaining: Int { GroupStore.cueLimit - trimmed.count }
-    private var canSave: Bool { !trimmed.isEmpty && remaining >= 0 && !isSaving }
+    /// **Unchanged is not savable.** The sheet opens on the line that is already set, so an
+    /// enabled button there offers to write what is already written — a request that would
+    /// succeed, flip `is_custom` to true on a cue nobody edited, and teach the admin nothing.
+    private var canSave: Bool {
+        !trimmed.isEmpty && remaining >= 0 && !isSaving && trimmed != (cue?.text ?? "")
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Layout.blockGap) {
+        VStack(alignment: .leading, spacing: Space.lg) {
             SectionLabel("settings.cue.next.field")
             TextField("settings.cue.next.field", text: $field, axis: .vertical)
                 .typeStyle(.bodyL).foregroundStyle(Palette.ink)
@@ -566,11 +583,9 @@ private struct NextCueSheet: View {
             Text(verbatim: Copy.format("settings.cue.next.remaining", "\(remaining)"))
                 .typeStyle(.caption)
                 .foregroundStyle(remaining < 0 ? Palette.alert : Palette.inkDim)
-            Text("settings.cue.next.help").typeStyle(.caption).foregroundStyle(Palette.inkDim)
             if let errorKey {
                 Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
             }
-            Spacer(minLength: .zero)
             PrimaryButton("settings.cue.next.save", fill: .neutral, isEnabled: canSave) {
                 Task { if await onSave(trimmed) { dismiss() } }
             }
@@ -585,12 +600,29 @@ private struct NextCueSheet: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(Layout.screenInset)
+        .padding(.horizontal, Layout.screenInset)
+        .padding(.top, Layout.blockGap)
+        .padding(.bottom, Space.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Width fills the sheet; height is the column's own, so the sheet is the size of what
+        // is in it rather than a fraction of the screen somebody guessed.
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { measuredHeight = proxy.size.height }
+                    .onChange(of: proxy.size.height) { _, height in measuredHeight = height }
+            }
+        }
         .background(Palette.paper)
         .presentationBackground(Palette.paper)
-        .presentationDetents([.medium])
-        .onAppear {
+        .presentationDetents([.height(measuredHeight)])
+        .presentationCornerRadius(Radius.sheet)
+        .presentationDragIndicator(.visible)
+        // **Focus in `task`, not `onAppear`.** `onAppear` lands after the presentation
+        // animation has committed, so the sheet slid to its detent and *then* the keyboard
+        // pushed it further — two motions for one gesture. `task` runs early enough that the
+        // keyboard is part of the same transition.
+        .task {
             guard !hasSeeded else { return }
             hasSeeded = true
             field = cue?.text ?? ""
@@ -780,10 +812,13 @@ private struct GroupMemberRowContent: View {
             .overlay(Capsule().stroke(Palette.ultramarineEdge, lineWidth: Stroke.border))
     }
 
+    /// The ranked figure: correct guesses over the circle's last fourteen rounds, not a rate.
+    /// Unitless on purpose — the `%` on the readability line below is the only mark telling the
+    /// two apart, and How to play carries the definition.
     private var ear: some View {
         VStack(alignment: .trailing, spacing: Space.xxs) {
             SectionLabel("results.ear.label")
-            Text(verbatim: String(ScoringFormat.percentValue(standing.earAllTime)))
+            Text(verbatim: String(standing.earReads))
                 .typeStyle(.numberM)
                 .foregroundStyle(Palette.ultramarine)
         }

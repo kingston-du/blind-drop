@@ -222,13 +222,14 @@ The service name alone, for a card's corner (Sealed, Results' answer card) where
 | `howto.step4.body` | See your friends' real music taste, and how right or wrong you were. |
 | `howto.scoring.title` | Scoring |
 | `howto.ear.title` | Ear |
-| `howto.ear.body` | How well you know your friends (musically at least). The percentage of answers you get correct. (Ranked) |
+| `howto.ear.body` | How well you know your friends (musically at least). How many answers you get correct in the last 14 rounds, so playing more helps. (Ranked) |
 | `howto.read.title` | Readability |
 | `howto.read.body` | How "readable", or guessable your music taste is. There's no bad or good, it's a spectrum. High and low scores are equally intriguing. (Unranked) |
 | `howto.notes.title` | Good to know |
 | `howto.note.void` | Fewer than three drops means every song is returned with no reveal/record addition. Get your friends to participate next time. |
 | `howto.note.replace` | You can swap your song as many times as you want before the reveal. |
 | `howto.note.watch` | If you don't drop a song, you don't get to play. Maybe you should participate next time. |
+| `howto.note.ear` | Ear only counts the last 14 rounds. A bad week doesn't follow you around, and new players can catch up. |
 | `howto.note.record` | Again, every song dropped goes into "The Record" or a group playlist. It's exportable to Apple Music, or Spotify (bit iffy). |
 
 The `[?]` beside `[≡]` in every phase's header, and alone in the top-right corner of sign-in
@@ -405,8 +406,8 @@ reads as a decision rather than as an oversight, and so nobody adds it back as a
 | `results.spectrum.low` | Unreadable |
 | `results.spectrum.high` | Easy to read |
 | `results.tonight.title` | Tonight |
-| `results.standings.title` | All time |
-| `results.standings.rounds` | %lld rounds |
+| `results.standings.title` | Standings |
+| `results.standings.rounds` | Last %lld rounds |
 | `results.standings.ear.row` | Ear %lld |
 | `results.standings.read.row` | Read %@ |
 | `results.standings.ear` | Best ear |
@@ -581,7 +582,6 @@ The active count no longer needs to be prime; `docs/18-CUES.md` §3 explains why
 | `settings.cue.next.remaining` | %@ left |
 | `settings.cue.next.save` | Save it |
 | `settings.cue.next.reset` | Use the automatic cue |
-| `settings.cue.next.help` | Everyone sees the same line when the round opens. |
 
 The four cadence options map to `cue_cadence` `0/3/2/1` respectively (`docs/18-CUES.md` §4).
 `settings.cue.effective` renders the same "from tomorrow" pattern `group.revealhour.effective`
@@ -593,7 +593,14 @@ the word "tomorrow"** — between local midnight and the round's `opens_at` the 
 round is *today's*, so the date is the only label that is always true. `settings.cue.next.empty`
 is what the row says on a night the cadence gives no cue; writing one anyway is allowed, which
 is why it reads as a statement rather than a refusal. `settings.cue.next.save` keeps the app's
-button discipline (`CLAUDE.md` §6) — it names what happens, and it is never "Submit".
+button discipline (`CLAUDE.md` §6) — it names what happens, and it is never "Submit". It is
+disabled until the line actually differs from the one already set: the sheet opens on the
+current cue, so an enabled button there offers to write what is already written.
+
+A `settings.cue.next.help` line (*"Everyone sees the same line when the round opens."*) was
+written for the sheet and cut before it shipped — the sheet is one labelled field and one
+button, and a sentence explaining that a shared cue is shared was the only thing in it that
+had to be read rather than used.
 
 ---
 
@@ -632,6 +639,8 @@ button discipline (`CLAUDE.md` §6) — it names what happens, and it is never "
 | `group.admin` | Admin |
 | `profile.stats` | The numbers |
 | `profile.samples` | %lld rounds |
+| `profile.ear.window` | Last %lld rounds |
+| `profile.ear.window.rate` | Last %lld rounds, %@ all time |
 | `profile.drops` | Drops |
 | `profile.rounds.none` | No rounds |
 | `profile.pairwise` | You and them |

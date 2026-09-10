@@ -7,13 +7,15 @@
   "data": [
     "best_ear",
     "readability",
-    "rounds_played"
+    "rounds_played",
+    "window_rounds"
   ],
   "nested": {
     "best_ear[]": [
       "display_name",
       "ear_all_time",
       "ear_correct_total",
+      "ear_reads",
       "rank",
       "user_id"
     ],

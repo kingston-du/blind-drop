@@ -167,18 +167,56 @@ ear(u)         = correct_guesses_made_by_u  / (S − 1)
 ### 4.2 All-time (within the group)
 
 ```
-Ear (all-time)         = Σ correct_guesses / Σ possible_guesses     → percentage
-                         (rounds where the user made zero guesses are excluded
-                          from both sums)
-                         also display raw Σ correct_guesses
+Reads (the ranked figure) = Σ correct_guesses over the group's last 14 scored rounds
+                            (a night the user skipped counts as 0, not as absent)
+                            → a count, never a percentage
 
-Readability (all-time) = mean( readability(u, r) over rounds r )    → percentage
-                         (per-round mean, NOT total-correct / total-possible)
+Ear (all-time)            = Σ correct_guesses / Σ possible_guesses  → percentage
+                            (rounds where the user made zero guesses are excluded
+                             from both sums)
+
+Readability (all-time)    = mean( readability(u, r) over rounds r ) → percentage
+                            (per-round mean, NOT total-correct / total-possible)
 ```
 
-Ear is pooled; readability is a mean of per-round rates. That asymmetry is intentional:
-"Best Ear" is a leaderboard and should reward volume, while readability is a character trait
-and should not be dominated by whichever round had the most participants.
+**Best Ear ranks on reads, not on ear.** This is an owner amendment, and it replaces the
+sentence that used to sit here claiming ear was pooled "because Best Ear is a leaderboard and
+should reward volume". That reasoning never held: pooling reweights by *round size*, not by
+*number of rounds*, so it was still a rate and still said nothing about turning up. Two things
+were broken by it, both visible in a real circle:
+
+- **A thin record won.** One round guessed perfectly is 100%, and it topped a veteran's 62%.
+- **Absence was free.** §4.1 drops a zero-guess round from both sums, so a member was only ever
+  measured on the nights they chose to be measured. Five good nights a month beat thirty
+  honest ones.
+
+The window is **the group's** last 14 rounds, not the member's. That is the whole mechanism: a
+night you skipped sits inside everyone's window and you scored nothing for it. Scoped to the
+member, selective participation walks straight back in.
+
+Because it is a count, `0` is a real value, and that is what the window needs: a member who
+guessed at some point and has sat out the last fortnight is listed on **0 reads** rather than
+quietly dropping out of the comparison. That is the case the change was for.
+
+A member who has **never guessed at all**, in any round, is still absent from Best Ear — §4.1's
+line, unmoved. It is now also a compatibility guarantee: it is the only reason `ear_all_time` is
+never `null` on that list, and a build already in the field decodes that field into a
+non-optional, where one `null` fails the whole standings payload rather than one row. Listing
+those members is a breaking change and needs a coordinated app release, not a filter edit.
+
+Fourteen is a fortnight of nights, and it is chosen for how fast someone can arrive rather than
+for statistics. A full window is a **treadmill**: once a member has 14 rounds behind them, each
+new night pushes an old one off and their figure stops growing, so a veteran's lead is a plateau
+rather than a bank. Time to overtake is `their figure ÷ your nightly rate` — a strong newcomer
+passes a settled veteran in about eight nights, an equal one takes the full fourteen and then
+ties, and a worse one never does. Nobody is gated and the catch-up time falls out of the size of
+the gap.
+
+Readability stays **all-time and unwindowed**. It is a spectrum rather than a standing (§4.5),
+and a band flickering between *Legible* and *Elusive* with a fortnight's weather would read as a
+score moving up and down. Ear is pooled and readability is a mean of per-round rates for the
+reason that always applied: readability should not be dominated by whichever round had the most
+participants.
 
 Standings contain the **active roster only**. When a member leaves, their row disappears from
 current standings, but their submissions and guesses remain in historical rounds and continue

@@ -7,6 +7,8 @@
   "data": [
     "drop_count",
     "ear",
+    "ear_reads",
+    "ear_window_rounds",
     "member",
     "readability",
     "recent_tracks",

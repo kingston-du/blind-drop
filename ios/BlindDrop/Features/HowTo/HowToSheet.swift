@@ -249,6 +249,8 @@ struct HowToSheet: View {
                 Rule()
                 note("howto.note.watch")
                 Rule()
+                note("howto.note.ear")
+                Rule()
                 note("howto.note.record")
                 Rule()
                 // One neutral sentence on what a cue is. It does **not** adopt the four-phase

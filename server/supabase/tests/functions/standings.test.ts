@@ -76,7 +76,7 @@ async function scoredRound(name: string): Promise<Scored> {
       token: people[person].token,
       body: { apple_music_id: TRACKS[i] },
     });
-    assertEquals(res.status, 200, `${person} could not drop a song`);
+    assertEquals(res.status, 200, `${person} could not drop a song: ${JSON.stringify(res.body)}`);
     ownerOf.set(res.body.data.track.track_key as string, person);
   }
 
@@ -134,12 +134,18 @@ async function scoredRound(name: string): Promise<Scored> {
 Deno.test("standings has exactly the documented key set", async () => {
   const { standings } = await scoredRound("Standings Shape");
 
-  assertEquals(keysOf(standings), ["best_ear", "readability", "rounds_played"]);
+  assertEquals(keysOf(standings), ["best_ear", "readability", "rounds_played", "window_rounds"]);
   assertEquals(standings.rounds_played, 1, "one scored round, so one night played");
+  assertEquals(
+    standings.window_rounds,
+    1,
+    "and the window is that one night, not the fourteen it will grow into",
+  );
   assertEquals(keysOf(standings.best_ear[0]), [
     "display_name",
     "ear_all_time",
     "ear_correct_total",
+    "ear_reads",
     "rank",
     "user_id",
   ]);
@@ -153,16 +159,20 @@ Deno.test("standings has exactly the documented key set", async () => {
 
 // ─── Best Ear is ranked ──────────────────────────────────────────────────────
 
-Deno.test("best_ear is ranked, ties share a rank, and the next rank skips", async () => {
-  // 1, 2, 2, 4 — competition ranking. Ben and Cal both guessed two of four, so they share
-  // second and nobody is third. A dense ranking (1, 2, 2, 3) would quietly tell Dee she came
-  // third in a group where two people finished ahead of her.
+Deno.test("best_ear ranks on reads, ties share a rank, and the next rank skips", async () => {
+  // 1, 2, 2, 4 — competition ranking. Ben and Cal both read two of four, so they share second
+  // and nobody is third. A dense ranking (1, 2, 2, 3) would quietly tell Dee she came third in
+  // a group where two people finished ahead of her.
   const { standings } = await scoredRound("Standings Rank");
   const ear = standings.best_ear as Json[];
 
   assertEquals(ear.map((e) => e.display_name), ["Ana", "Ben", "Cal", "Dee"]);
   assertEquals(ear.map((e) => e.rank), [1, 2, 2, 4]);
-  assertEquals(ear.map((e) => e.ear_correct_total), [4, 2, 2, 0]);
+
+  // **The sort key.** One night in, it happens to equal `ear_correct_total`; the two diverge
+  // as soon as a round falls out of the window, and `standings_window.sql` is where that is
+  // proved. What matters here is that the rank came from this column.
+  assertEquals(ear.map((e) => e.ear_reads), [4, 2, 2, 0]);
 
   assertEquals(ear[0].ear_all_time, 1, "Ana named all four");
   assertEquals(ear[1].ear_all_time, 0.5);
@@ -172,14 +182,21 @@ Deno.test("best_ear is ranked, ties share a rank, and the next rank skips", asyn
 
 Deno.test("someone who never guessed is absent from best_ear, not last in it", async () => {
   // docs/02 §4.1 draws this line for a single round and it holds all the way up: never guessing
-  // is not guessing badly. Eli has no ear at all, and the leaderboard is the one surface where
-  // a dash in last place would read as a score.
+  // is not guessing badly. Windowing the rank did not move it.
+  //
+  // **It is now a compatibility guarantee too.** This filter is the only reason `ear_all_time`
+  // is never `null` on this list, and a build already on someone's phone decodes that field
+  // into a non-optional — one null fails the entire standings payload, not one row. Listing Eli
+  // here would be a breaking change dressed as a product improvement.
   const { people, standings } = await scoredRound("Standings Absent");
 
   assert(
     !(standings.best_ear as Json[]).some((e) => e.user_id === people.Eli.id),
     "Eli made no guesses and must not be ranked",
   );
+  for (const row of standings.best_ear as Json[]) {
+    assert(row.ear_all_time !== null, `${row.display_name} carried a null ear_all_time`);
+  }
   // She is on the readability list all the same: how much of the room read you does not depend
   // on whether you looked.
   assert(
@@ -231,7 +248,10 @@ Deno.test("a group with no scored rounds has empty lists, not an error", async (
   const res = await call("groups", "/current/standings", { token: user.token });
 
   assertEquals(res.status, 200);
-  assertEquals(res.body.data, { rounds_played: 0, best_ear: [], readability: [] });
+  assertEquals(
+    res.body.data,
+    { rounds_played: 0, window_rounds: 0, best_ear: [], readability: [] },
+  );
 });
 
 // ─── insights ───────────────────────────────────────────────────────────────
@@ -341,6 +361,8 @@ Deno.test("a member profile is circle-scoped, finished-only, and has the documen
   assertEquals(keysOf(profile), [
     "drop_count",
     "ear",
+    "ear_reads",
+    "ear_window_rounds",
     "member",
     "readability",
     "recent_tracks",
@@ -351,6 +373,10 @@ Deno.test("a member profile is circle-scoped, finished-only, and has the documen
   assertEquals(keysOf(profile.ear), ["samples", "value"]);
   assertEquals(keysOf(profile.readability), ["samples", "value"]);
   assertEquals(profile.member.display_name, "Ben");
+  // The same figure the board ranked him on. Tapping a row must not land on a different number
+  // wearing the same word — the rate below it is a sentence, not a second headline (docs/11).
+  assertEquals(profile.ear_reads, 2, "Ben read two cards, and the profile says the same 2");
+  assertEquals(profile.ear_window_rounds, 1, "over the one night this circle has played");
   assertEquals(profile.ear, { value: 0.5, samples: 1 });
   assertEquals(profile.readability, { value: 0.5, samples: 1 });
   assertEquals(profile.drop_count, 1);

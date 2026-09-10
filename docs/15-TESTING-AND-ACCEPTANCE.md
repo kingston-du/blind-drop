@@ -121,6 +121,15 @@ The fixture is `02-DOMAIN-RULES.md` §4.4, loaded by `server/supabase/seed.sql`.
 | Ivy (non-submitter) appears in neither | same |
 | Ben's 3 blanks count as wrong; denominator is still 7 | same |
 | All-time ear pools; all-time readability is a mean of rates (verified over 3 rounds of differing size) | `tests/db/standings.sql` |
+| Best Ear ranks on `ear_reads`: correct guesses over the group's last 14 scored rounds | `tests/db/standings_window.sql` |
+| A round that falls out of the window leaves `ear_reads` but stays in `ear_correct_total` | same |
+| A perfect rate earned entirely outside the window ranks on 0 | same |
+| The window is the **group's** rounds, so a skipped night scores 0 rather than vanishing | same |
+| One new scored round pushes one off the back — a full window does not grow | same |
+| A `revealed` round is not in the window; the board never moves before a round scores | same |
+| A member who has never guessed is omitted from `best_ear`, so `ear_all_time` is never `null` on the wire | `tests/functions/standings.test.ts` |
+| `window_rounds` is `min(14, rounds_played)`, so a young circle reports the smaller number | same |
+| The standings row and its VoiceOver announcement print the same `earReads` | `StandingsTests.swift` |
 | Current standings contain active members only; leaving does not alter anyone's historical scores | `tests/db/standings.sql` |
 | `null` ear renders as "—", never "0%" | `ScoringFormatTests.swift` |
 

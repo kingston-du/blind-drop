@@ -844,11 +844,22 @@ export type ReadabilityBand =
 /**
  * A row in the Best Ear leaderboard. **Ranked**, ties sharing a rank and the next rank
  * skipping — 1, 2, 2, 4 (docs/04 §4).
+ *
+ * **`ear_reads` is the ranked figure** — correct guesses over the group's last 14 scored
+ * rounds. `ear_all_time` rides along as the tie-break and as the profile's supporting line; it
+ * is no longer what the board sorts on, and a client that renders it as the headline number is
+ * showing a rate where the rank came from a count.
+ *
+ * `ear_reads` can be `0` — that is a member who turned up and read nothing lately. `ear_all_time`
+ * is **never null here**: a member who has never guessed at all is filtered out of the list
+ * upstream, and that guarantee is depended upon by shipped clients that decode this field into a
+ * non-optional. Do not widen it without a coordinated app release.
  */
 export interface EarStandingDTO {
   rank: number;
   user_id: string;
   display_name: string;
+  ear_reads: number;
   ear_all_time: number;
   ear_correct_total: number;
 }
@@ -856,12 +867,13 @@ export interface EarStandingDTO {
 export function earStandingDTO(
   rank: number,
   member: MemberDTO,
-  row: { ear_all_time: number; ear_correct_total: number },
+  row: { ear_reads: number; ear_all_time: number; ear_correct_total: number },
 ): EarStandingDTO {
   return {
     rank,
     user_id: member.user_id,
     display_name: member.display_name,
+    ear_reads: row.ear_reads,
     ear_all_time: row.ear_all_time,
     ear_correct_total: row.ear_correct_total,
   };
@@ -897,19 +909,27 @@ export function readabilityStandingDTO(
   };
 }
 
-/** `GET /groups/current/standings` — docs/04 §4. */
+/**
+ * `GET /groups/current/standings` — docs/04 §4.
+ *
+ * `window_rounds` is how many rounds the ranked figure actually covers: 14 once the circle has
+ * played that many, and the true, smaller number before it has. The client prints it, so a
+ * young circle says "last 5 rounds" rather than claiming a fortnight it has not lived through.
+ */
 export interface StandingsDTO {
   rounds_played: number;
+  window_rounds: number;
   best_ear: EarStandingDTO[];
   readability: ReadabilityStandingDTO[];
 }
 
 export function standingsDTO(
   roundsPlayed: number,
+  windowRounds: number,
   bestEar: EarStandingDTO[],
   readability: ReadabilityStandingDTO[],
 ): StandingsDTO {
-  return { rounds_played: roundsPlayed, best_ear: bestEar, readability };
+  return { rounds_played: roundsPlayed, window_rounds: windowRounds, best_ear: bestEar, readability };
 }
 
 export interface ProfileRateDTO {
@@ -930,6 +950,10 @@ export interface PairwiseReadDTO {
 /** `GET /groups/:group_id/members/:user_id/profile`, scoped entirely to scored rounds. */
 export interface MemberProfileDTO {
   member: MemberDTO;
+  /** The ranked figure, matching Best Ear exactly — see `EarStandingDTO.ear_reads`. */
+  ear_reads: number;
+  ear_window_rounds: number;
+  /** All-time rate, the supporting line under the count. Never the headline (docs/11). */
   ear: ProfileRateDTO;
   readability: ProfileRateDTO;
   drop_count: number;
@@ -941,6 +965,8 @@ export interface MemberProfileDTO {
 export function memberProfileDTO(parts: MemberProfileDTO): MemberProfileDTO {
   return {
     member: memberDTO(parts.member),
+    ear_reads: parts.ear_reads,
+    ear_window_rounds: parts.ear_window_rounds,
     ear: { ...parts.ear },
     readability: { ...parts.readability },
     drop_count: parts.drop_count,

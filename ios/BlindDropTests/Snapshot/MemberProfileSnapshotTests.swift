@@ -39,9 +39,14 @@ import Testing
     }
 
     private func profile(_ kind: String) throws -> MemberProfileDTO {
+        // `ear_reads` leads the ear row and the all-time rate is the sentence beneath it. The
+        // thin profile is the interesting one: two nights played, so the window is 2 rather
+        // than 14, and the label has to say the smaller number rather than claim a fortnight.
         let rates = kind == "thin"
-            ? "\"ear\":{\"value\":1,\"samples\":2},\"readability\":{\"value\":0,\"samples\":2}"
-            : "\"ear\":{\"value\":0.71,\"samples\":14},\"readability\":{\"value\":0.43,\"samples\":14}"
+            ? "\"ear_reads\":4,\"ear_window_rounds\":2,"
+              + "\"ear\":{\"value\":1,\"samples\":2},\"readability\":{\"value\":0,\"samples\":2}"
+            : "\"ear_reads\":42,\"ear_window_rounds\":14,"
+              + "\"ear\":{\"value\":0.71,\"samples\":14},\"readability\":{\"value\":0.43,\"samples\":14}"
         let comparisons = kind == "thin"
             ? "\"you_read_them\":null,\"they_read_you\":null"
             : "\"you_read_them\":{\"correct\":8,\"possible\":14},\"they_read_you\":{\"correct\":5,\"possible\":14}"

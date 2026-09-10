@@ -129,49 +129,56 @@ enum GroupFixture {
     // MARK: - Standings
 
     /// Three rounds — below `GroupStore.thinHistoryThreshold` — so the leaderboard shows the
-    /// honest state instead of a ranked percentage.
+    /// honest state instead of a ranked figure. `window_rounds` is 3 rather than 14: the
+    /// young-circle case, where the header reports the circle's whole life because it has not
+    /// yet lived a fortnight to claim.
     static let thin = decode(StandingsDTO.self, """
-    {"rounds_played":3,
+    {"rounds_played":3,"window_rounds":3,
      "best_ear":[
-       {"rank":1,"user_id":"u_ana","display_name":"Ana","ear_all_time":0.67,"ear_correct_total":2}],
+       {"rank":1,"user_id":"u_ana","display_name":"Ana","ear_reads":2,"ear_all_time":0.67,"ear_correct_total":2}],
      "readability":[]}
     """)
 
     static let threeRanked = decode(StandingsDTO.self, """
-    {"rounds_played":10,
+    {"rounds_played":10,"window_rounds":10,
      "best_ear":[
-       {"rank":1,"user_id":"u_cal","display_name":"Cal","ear_all_time":0.79,"ear_correct_total":19},
-       {"rank":2,"user_id":"u_ana","display_name":"Ana","ear_all_time":0.55,"ear_correct_total":13},
-       {"rank":3,"user_id":"u_ben","display_name":"Ben","ear_all_time":0.30,"ear_correct_total":7}],
+       {"rank":1,"user_id":"u_cal","display_name":"Cal","ear_reads":19,"ear_all_time":0.79,"ear_correct_total":19},
+       {"rank":2,"user_id":"u_ana","display_name":"Ana","ear_reads":13,"ear_all_time":0.55,"ear_correct_total":13},
+       {"rank":3,"user_id":"u_ben","display_name":"Ben","ear_reads":7,"ear_all_time":0.30,"ear_correct_total":7}],
      "readability":[
        {"user_id":"u_ana","display_name":"Ana","readability_all_time":0.83,"band":"open_book"},
        {"user_id":"u_ben","display_name":"Ben","readability_all_time":0.41,"band":"mixed_signals"},
        {"user_id":"u_cal","display_name":"Cal","readability_all_time":0.12,"band":"unreadable"}]}
     """)
 
-    /// Twelve members, fourteen rounds, and a tie at second place — the two people on `0.68`
-    /// share rank 2 and nobody is rank 3, the same shape `StandingsTests` pins at the DTO level.
-    /// Its deliberately empty readability list makes every rendered standing row exercise the
-    /// unavailable *"Read —"* form.
+    /// Twelve members, a fourteen-round window, and a tie at second place — the two people on
+    /// **55 reads** share rank 2 and nobody is rank 3, the same shape `StandingsTests` pins at
+    /// the DTO level. Its deliberately empty readability list makes every rendered standing row
+    /// exercise the unavailable *"Read —"* form.
+    ///
+    /// The rate is deliberately *not* the ranking order here: Hal reads level with Ana on a
+    /// lower percentage, which is the whole point of the windowed board and would be invisible
+    /// in a fixture where the two agreed.
     static let twelveRanked: StandingsDTO = {
-        // Sorted descending by rate before ranking — competition ranking (ties share a rank,
+        // Sorted descending by reads before ranking — competition ranking (ties share a rank,
         // the next rank skips) only means what it says when it is computed over an order that
         // is already the order the numbers describe.
         let bestEar = [
-            ("u_2", "Cal", 0.79, 77), ("u_0", "Ana", 0.68, 67), ("u_7", "Hal", 0.68, 67),
-            ("u_8", "Ivy", 0.61, 60), ("u_5", "Fay", 0.55, 54), ("u_9", "Jaz", 0.52, 51),
-            ("u_10", "Kit", 0.47, 46), ("u_1", "Ben", 0.44, 43), ("u_3", "Dee", 0.31, 30),
-            ("u_11", "Lux", 0.22, 21), ("u_6", "Gus", 0.18, 18),
+            ("u_2", "Cal", 62, 0.79, 77), ("u_0", "Ana", 55, 0.68, 67), ("u_7", "Hal", 55, 0.62, 61),
+            ("u_8", "Ivy", 49, 0.61, 60), ("u_5", "Fay", 41, 0.55, 54), ("u_9", "Jaz", 38, 0.52, 51),
+            ("u_10", "Kit", 34, 0.47, 46), ("u_1", "Ben", 30, 0.44, 43), ("u_3", "Dee", 22, 0.31, 30),
+            ("u_11", "Lux", 15, 0.22, 21), ("u_6", "Gus", 9, 0.18, 18),
         ]
         var rank = 0
-        var lastRate: Double?
+        var lastReads: Int?
         let rows = bestEar.enumerated().map { index, entry -> String in
-            let (id, name, rate, correct) = entry
-            if rate != lastRate { rank = index + 1 }
-            lastRate = rate
-            return #"{"rank":\#(rank),"user_id":"\#(id)","display_name":"\#(name)","ear_all_time":\#(rate),"ear_correct_total":\#(correct)}"#
+            let (id, name, reads, rate, correct) = entry
+            if reads != lastReads { rank = index + 1 }
+            lastReads = reads
+            return #"{"rank":\#(rank),"user_id":"\#(id)","display_name":"\#(name)","ear_reads":\#(reads),"ear_all_time":\#(rate),"ear_correct_total":\#(correct)}"#
         }.joined(separator: ",")
-        return decode(StandingsDTO.self, #"{"rounds_played":14,"best_ear":[\#(rows)],"readability":[]}"#)
+        // A circle far older than its window: 42 nights played, 14 of them ranked.
+        return decode(StandingsDTO.self, #"{"rounds_played":42,"window_rounds":14,"best_ear":[\#(rows)],"readability":[]}"#)
     }()
 
     private static func decode<T: Decodable>(_ type: T.Type, _ json: String) -> T {

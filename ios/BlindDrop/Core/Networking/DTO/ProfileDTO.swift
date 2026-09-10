@@ -33,6 +33,13 @@ struct ProfileTrackDTO: Decodable, Sendable, Equatable, Identifiable {
 /// The server has already excluded open, revealed and voided rounds from every field.
 struct MemberProfileDTO: Decodable, Sendable, Equatable {
     let member: MemberDTO
+    /// The ranked figure, identical to this member's `EarStandingDTO.earReads`. The profile
+    /// leads with it so tapping a standings row does not land on a different number wearing the
+    /// same word.
+    let earReads: Int
+    /// How many rounds `earReads` covers: 14 in a settled circle, fewer in a young one.
+    let earWindowRounds: Int
+    /// All-time rate. The supporting line *under* the count, never a second headline.
     let ear: ProfileRateDTO
     let readability: ProfileRateDTO
     let dropCount: Int
@@ -42,6 +49,8 @@ struct MemberProfileDTO: Decodable, Sendable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case member, ear, readability
+        case earReads = "ear_reads"
+        case earWindowRounds = "ear_window_rounds"
         case dropCount = "drop_count"
         case recentTracks = "recent_tracks"
         case youReadThem = "you_read_them"

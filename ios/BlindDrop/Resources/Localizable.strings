@@ -148,13 +148,14 @@
 "howto.step4.body" = "See your friends' real music taste, and how right or wrong you were.";
 "howto.scoring.title" = "Scoring";
 "howto.ear.title" = "Ear";
-"howto.ear.body" = "How well you know your friends (musically at least). The percentage of answers you get correct. (Ranked)";
+"howto.ear.body" = "How well you know your friends (musically at least). How many answers you get correct in the last 14 rounds, so playing more helps. (Ranked)";
 "howto.read.title" = "Readability";
 "howto.read.body" = "How \"readable\", or guessable your music taste is. There's no bad or good, it's a spectrum. High and low scores are equally intriguing. (Unranked)";
 "howto.notes.title" = "Good to know";
 "howto.note.void" = "Fewer than three drops means every song is returned with no reveal/record addition. Get your friends to participate next time.";
 "howto.note.replace" = "You can swap your song as many times as you want before the reveal.";
 "howto.note.watch" = "If you don't drop a song, you don't get to play. Maybe you should participate next time.";
+"howto.note.ear" = "Ear only counts the last 14 rounds. A bad week doesn't follow you around, and new players can catch up.";
 "howto.note.record" = "Again, every song dropped goes into \"The Record\" or a group playlist. It's exportable to Apple Music, or Spotify (bit iffy).";
 
 /* ── Cues (docs/11 §Cues, docs/18) ──────────────────────────────────────────── */
@@ -183,7 +184,6 @@
 "settings.cue.next.remaining" = "%@ left";
 "settings.cue.next.save" = "Save it";
 "settings.cue.next.reset" = "Use the automatic cue";
-"settings.cue.next.help" = "Everyone sees the same line when the round opens.";
 "group.title" = "Group";
 "group.members" = "Members";
 "group.loading" = "Loading the group.";
@@ -215,6 +215,8 @@
 "profile.stats" = "The numbers";
 "profile.samples" = "%lld rounds";
 "profile.rounds.none" = "No rounds";
+"profile.ear.window" = "Last %lld rounds";
+"profile.ear.window.rate" = "Last %lld rounds, %@ all time";
 "profile.drops" = "Drops";
 "profile.pairwise" = "You and them";
 "profile.youread" = "You read them";
@@ -395,8 +397,8 @@
 "results.spectrum.low" = "Unreadable";
 "results.spectrum.high" = "Easy to read";
 "results.tonight.title" = "Tonight";
-"results.standings.title" = "All time";
-"results.standings.rounds" = "%lld rounds";
+"results.standings.title" = "Standings";
+"results.standings.rounds" = "Last %lld rounds";
 "results.standings.ear.row" = "Ear %lld";
 "results.standings.read.row" = "Read %@";
 "results.standings.ear" = "Best ear";

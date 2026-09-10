@@ -504,8 +504,21 @@ async function myCirclesResponse(ctx: ProfileCtx): Promise<Response> {
 
 // ─── standings — docs/04 §4, docs/02 §4.2, §4.5 ──────────────────────────────
 
+/**
+ * How many of the group's most recent scored rounds Best Ear is computed over.
+ *
+ * **Must match the `recency <= 14` in the `standings` view** (20260909140000). The number lives
+ * in SQL because that is where the aggregate is; it lives here too because the client prints
+ * it, and a client that said "last 14 rounds" over a window of 30 would be lying in a way
+ * nothing would catch. Changing it means changing both, and `standings_window.sql` asserts the
+ * boundary from the database side.
+ */
+const EAR_WINDOW = 14;
+
 interface StandingRow {
   user_id: string;
+  /** The ranked figure: correct guesses over the group's last `EAR_WINDOW` scored rounds. */
+  ear_reads: number;
   ear_all_time: number | null;
   ear_correct_total: number | null;
   ear_rounds: number;
@@ -525,7 +538,7 @@ interface StandingRow {
 async function standingRows(db: Db, groupId: string): Promise<StandingRow[]> {
   const { data, error } = await db
     .from("standings")
-    .select("user_id, ear_all_time, ear_correct_total, ear_rounds, readability_all_time, band")
+    .select("user_id, ear_reads, ear_all_time, ear_correct_total, ear_rounds, readability_all_time, band")
     .eq("group_id", groupId);
   if (error) throw dbFailure("groups.standings", error);
   return data as StandingRow[];
@@ -546,17 +559,17 @@ async function roundsPlayed(db: Db, groupId: string): Promise<number> {
 /**
  * Competition ranking: ties share a rank and the next rank skips it — 1, 2, 2, 4 (docs/04 §4).
  *
- * The comparison is exact equality on the rate rather than a tolerance. Both numbers came out
- * of the same `numeric` division at the same scale, so two people who genuinely tie produce the
- * same value and two people who do not differ by far more than a rounding error. A tolerance
- * here would invent ties that the arithmetic does not have.
+ * Ranks on `ear_reads`, which is a count of guesses and therefore an integer: two people who
+ * tie hold the same whole number and there is no rounding for a tolerance to paper over. The
+ * *sort* below breaks those ties on the all-time rate so the order is stable, but a tie-break
+ * does not split a rank — two members on 41 reads are both rank 3, however they are ordered.
  */
-function ranked<T extends { ear_all_time: number }>(rows: T[]): { rank: number; row: T }[] {
+function ranked<T extends { ear_reads: number }>(rows: T[]): { rank: number; row: T }[] {
   let rank = 0;
   let previous: number | null = null;
   return rows.map((row, index) => {
-    if (previous === null || row.ear_all_time !== previous) rank = index + 1;
-    previous = row.ear_all_time;
+    if (previous === null || row.ear_reads !== previous) rank = index + 1;
+    previous = row.ear_reads;
     return { rank, row };
   });
 }
@@ -934,23 +947,32 @@ async function standingsForGroup(ctx: MemberCtx): Promise<Response> {
     .filter((entry): entry is { member: RosterMemberDTO; row: StandingRow } => entry.row !== undefined);
 
   // A member with no ear at all — every round they played, they assigned nothing — is absent
-  // from Best Ear rather than ranked last with a dash. docs/02 §4.1 draws that line for a
-  // single round and it holds all the way up: never guessing is not the same as guessing
-  // badly, and the leaderboard is the one surface where the difference would read as a score.
+  // from Best Ear rather than ranked last with a zero. docs/02 §4.1 draws that line for a
+  // single round and it holds all the way up: never guessing is not the same as guessing badly.
+  //
+  // **This filter is also what keeps `ear_all_time` non-nullable on the wire**, and that is now
+  // load-bearing rather than incidental. Shipped clients decode it into a non-optional `Double`;
+  // a single `null` fails the whole standings payload, not one row. Windowing the *rank* does
+  // not require widening this list — a member who guessed once and has sat out the last
+  // fortnight still appears here, on `ear_reads` of 0, which is the case the window was for.
   const earRows = present
     .filter((entry) => entry.row.ear_all_time !== null)
     .sort((a, b) =>
+      b.row.ear_reads - a.row.ear_reads ||
+      // The rate demoted to a tie-break: of two members level on reads, the one who converted
+      // more of the cards put in front of them is ahead.
       b.row.ear_all_time! - a.row.ear_all_time! ||
       a.member.display_name.localeCompare(b.member.display_name) ||
       a.member.user_id.localeCompare(b.member.user_id)
     );
 
   const bestEar = ranked(
-    earRows.map((entry) => ({ ...entry, ear_all_time: entry.row.ear_all_time! })),
+    earRows.map((entry) => ({ ...entry, ear_reads: entry.row.ear_reads })),
   )
     .map(({ rank, row }) =>
       earStandingDTO(rank, row.member, {
-        ear_all_time: row.ear_all_time,
+        ear_reads: row.row.ear_reads,
+        ear_all_time: row.row.ear_all_time!,
         ear_correct_total: row.row.ear_correct_total ?? 0,
       })
     );
@@ -969,7 +991,9 @@ async function standingsForGroup(ctx: MemberCtx): Promise<Response> {
       })
     );
 
-  return ok(standingsDTO(played, bestEar, readability));
+  // The true span, not the constant: a circle eight nights old ranks over eight rounds and
+  // must say so.
+  return ok(standingsDTO(played, Math.min(EAR_WINDOW, played), bestEar, readability));
 }
 
 // docs/04 §5. The archive: every night this group has finished, newest first, grouped by the
@@ -1085,9 +1109,11 @@ async function profileForMember(ctx: MemberCtx, userId: string): Promise<Respons
   const target = members.find((member) => member.user_id === userId);
   if (!target) throw new ApiError("NOT_FOUND");
 
-  const [scores, standings, rounds] = await Promise.all([
+  const [scores, standings, roundsInGroup, rounds] = await Promise.all([
     profileScores(ctx.db, ctx.groupId, userId),
     standingRows(ctx.db, ctx.groupId),
+    // Scored rounds in the circle, so the profile names the same window the board does.
+    roundsPlayed(ctx.db, ctx.groupId),
     // A member may have missed the most recent few nights. Read the scored archive first and
     // then take *their* five songs, rather than accidentally calling a shorter list "recent".
     archiveRounds(ctx.db, ctx.groupId, null),
@@ -1109,6 +1135,11 @@ async function profileForMember(ctx: MemberCtx, userId: string): Promise<Respons
     member: memberDTO(target),
     // The SQL view owns the pooled-ear / mean-readability asymmetry. Do not average the round
     // values here: it would look plausible while silently changing both product definitions.
+    // The same figure the board ranks on, so tapping a row does not land on a different
+    // number wearing the same word. `ear` stays the all-time rate underneath it, rendered as a
+    // sentence rather than a second headline (docs/11).
+    ear_reads: standing?.ear_reads ?? 0,
+    ear_window_rounds: Math.min(EAR_WINDOW, roundsInGroup),
     ear: { value: standing?.ear_all_time ?? null, samples: standing?.ear_rounds ?? 0 },
     readability: { value: standing?.readability_all_time ?? null, samples: scores.length },
     drop_count: scores.length,

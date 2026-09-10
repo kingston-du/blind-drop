@@ -523,10 +523,11 @@ round, which is how the Record links back into results.
 
 ```jsonc
 { "data": {
-  "rounds_played": 14,
+  "rounds_played": 42,
+  "window_rounds": 14,
   "best_ear": [
     { "rank": 1, "user_id": "u_cal", "display_name": "Cal",
-      "ear_all_time": 0.79, "ear_correct_total": 61 }
+      "ear_reads": 62, "ear_all_time": 0.79, "ear_correct_total": 61 }
   ],
   "readability": [
     { "user_id": "u_ana", "display_name": "Ana",
@@ -536,6 +537,18 @@ round, which is how the Record links back into results.
 ```
 
 - `best_ear` **is** ranked; ties share a rank and the next rank skips.
+- **`ear_reads` is the ranked figure** — correct guesses over the group's last `window_rounds`
+  scored rounds (`02-DOMAIN-RULES.md` §4.2). `ear_all_time` rides along as the sort's tie-break
+  and as the profile's supporting line; it is **not** what `rank` came from, and a client that
+  renders it as the headline is showing a rate beside a rank the rate did not produce.
+- `ear_reads` is a count and may be `0` — a member who guessed at some point and has read
+  nothing in the window. **`ear_all_time` is never `null` on this list**: a member who has never
+  guessed at all is omitted entirely (`02-DOMAIN-RULES.md` §4.1). That is a compatibility
+  guarantee, not just a product rule — shipped clients decode it into a non-optional, and one
+  `null` fails the whole payload. Do not widen it without a coordinated app release.
+- `rounds_played` is the circle's whole history; `window_rounds` is `min(14, rounds_played)`, so
+  a young circle reports the smaller number rather than claiming a fortnight it has not lived
+  through.
 - `readability` is **not** ranked and carries **no `rank` field**. It is sorted descending
   purely so the list is stable. `band` is one of `open_book | legible | mixed_signals |
   hard_to_place | unreadable` (`02-DOMAIN-RULES.md` §4.5). Do not add a rank to this array —
@@ -551,6 +564,8 @@ drawn from `scored` rounds only; an open, revealed, or voided round cannot chang
 ```jsonc
 { "data": {
   "member": { "user_id": "u_ben", "display_name": "Ben" },
+  "ear_reads": 42,
+  "ear_window_rounds": 14,
   "ear": { "value": 0.71, "samples": 14 },
   "readability": { "value": 0.43, "samples": 14 },
   "drop_count": 14,

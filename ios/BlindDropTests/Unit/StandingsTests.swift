@@ -50,17 +50,18 @@ import Testing
 
     /// **Ties share a rank and the next one skips** (`docs/04` §4).
     ///
-    /// The client prints `rank` and never an index. Two people on 0.68 are both second and
+    /// The client prints `rank` and never an index. Two people on 55 reads are both second and
     /// nobody is third; enumerating the array would renumber them 2 and 3, which is a different
-    /// claim about the same fortnight.
+    /// claim about the same fortnight. Note that Ana and Hal are ordered by the all-time rate,
+    /// which is the sort's tie-break — a tie-break orders rows, it does not split a rank.
     @Test func aTieSharesARankAndTheNextRankSkips() throws {
         let tied = Data("""
-        {"rounds_played":14,
+        {"rounds_played":42,"window_rounds":14,
          "best_ear":[
-           {"rank":1,"user_id":"u_cal","display_name":"Cal","ear_all_time":0.79,"ear_correct_total":77},
-           {"rank":2,"user_id":"u_ana","display_name":"Ana","ear_all_time":0.68,"ear_correct_total":67},
-           {"rank":2,"user_id":"u_hal","display_name":"Hal","ear_all_time":0.68,"ear_correct_total":67},
-           {"rank":4,"user_id":"u_fay","display_name":"Fay","ear_all_time":0.55,"ear_correct_total":54}],
+           {"rank":1,"user_id":"u_cal","display_name":"Cal","ear_reads":62,"ear_all_time":0.79,"ear_correct_total":77},
+           {"rank":2,"user_id":"u_ana","display_name":"Ana","ear_reads":55,"ear_all_time":0.68,"ear_correct_total":67},
+           {"rank":2,"user_id":"u_hal","display_name":"Hal","ear_reads":55,"ear_all_time":0.62,"ear_correct_total":61},
+           {"rank":4,"user_id":"u_fay","display_name":"Fay","ear_reads":41,"ear_all_time":0.55,"ear_correct_total":54}],
          "readability":[]}
         """.utf8)
 
@@ -71,13 +72,46 @@ import Testing
         #expect(standings.bestEar.enumerated().contains { $0.offset + 1 != $0.element.rank })
     }
 
-    @Test func theBestEarListCarriesTheRawCountBehindTheRate() throws {
+    /// **The ranked figure is the count, and the row prints that one.**
+    ///
+    /// The rate rides along for the profile and the tie-break, and the two are deliberately far
+    /// apart here — 62 reads against a 79% — so a regression that reached for `earAllTime` and
+    /// rendered `79` would fail rather than coincide.
+    @Test func theBestEarRowPrintsTheReadsTheRankCameFrom() throws {
         let standings = try StandingsFixture.standings()
         let leader = try #require(standings.bestEar.first)
 
         #expect(leader.rank == 1)
-        #expect(ScoringFormat.percent(leader.earAllTime) == "79%")
-        #expect(Copy.format("results.standings.ear.detail", leader.earCorrectTotal) == "77 correct")
+        #expect(leader.earReads == 62)
+        #expect(Copy.format("results.standings.ear.row", leader.earReads) == "Ear 62")
+        // What VoiceOver announces has to be the number on screen. It used to say the all-time
+        // total while the row rendered a percentage; both now come from `earReads`.
+        #expect(Copy.format("results.standings.ear.detail", leader.earReads) == "62 correct")
+    }
+
+    /// A member who has **never guessed at all** stays off Best Ear (`docs/02` §4.1): never
+    /// guessing is not guessing badly. Windowing the rank did not change this, and it is what
+    /// keeps `earAllTime` non-optional on the wire — a `null` here would fail the whole payload
+    /// on a build already in the field, not just this row.
+    ///
+    /// The window's own case is a *different* member: one who guessed at some point and has sat
+    /// out lately. They are still listed, on `earReads` of 0, which `theHeaderNames…` covers.
+    @Test func aMemberWhoHasNeverGuessedStaysOffTheBoard() throws {
+        let standings = try StandingsFixture.standings()
+
+        #expect(!standings.bestEar.contains { $0.displayName == "Eli" })
+        #expect(standings.readability.contains { $0.displayName == "Eli" },
+                "she still has a readability — being read does not depend on whether she looked")
+    }
+
+    /// The header names the window, not the circle's whole life. A circle 42 nights old still
+    /// ranks over 14 of them, and the label has to say the smaller number.
+    @Test func theHeaderNamesTheWindowAndNotEveryRoundEverPlayed() throws {
+        let standings = try StandingsFixture.standings()
+
+        #expect(standings.windowRounds == 14)
+        #expect(standings.roundsPlayed == 42)
+        #expect(Copy.format("results.standings.rounds", standings.windowRounds) == "Last 14 rounds")
     }
 
     // MARK: - The store

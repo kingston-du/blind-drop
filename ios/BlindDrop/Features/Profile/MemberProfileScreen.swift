@@ -101,11 +101,17 @@ struct MemberProfileContent: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("profile.stats")
             VStack(spacing: Space.none) {
+                // **The count leads, the rate is the line under it.** This figure is the one
+                // Best Ear ranked them on, so arriving here from a standings row lands on the
+                // same number rather than a different one wearing the same word. The all-time
+                // rate survives as prose in `detail` — carrying a `%` and the words "all time",
+                // which is what makes it unmistakable for the ranked figure. No `progress` bar:
+                // a count has no denominator to fill, and reusing the rate's bar would draw a
+                // proportion of something the number above it is not a proportion of.
                 statRow(StatFigure(
                     label: "results.ear.label",
-                    value: profile.ear.value != nil ? ScoringFormat.percent(profile.ear.value) : ScoringFormat.unavailable,
-                    detail: profile.ear.value != nil ? Copy.format("profile.samples", profile.ear.samples) : Copy.string("profile.rounds.none"),
-                    progress: profile.ear.value,
+                    value: "\(profile.earReads)",
+                    detail: earDetail,
                     isAccented: true
                 ))
                 Rule()
@@ -120,6 +126,16 @@ struct MemberProfileContent: View {
             }
             .cardSurface(radius: Radius.panel, inset: Layout.rowInset)
         }
+    }
+
+    /// *"Last 14 rounds"*, or *"Last 14 rounds, 62% all time"* once there is a rate to add.
+    /// Person-neutral on purpose: this screen is opened on other members as often as on
+    /// yourself, and "you've" would be wrong on four rows out of five.
+    private var earDetail: String {
+        guard let rate = profile.ear.value else {
+            return Copy.format("profile.ear.window", profile.earWindowRounds)
+        }
+        return Copy.format("profile.ear.window.rate", profile.earWindowRounds, ScoringFormat.percent(rate))
     }
 
     private func statRow(_ figure: StatFigure) -> some View {

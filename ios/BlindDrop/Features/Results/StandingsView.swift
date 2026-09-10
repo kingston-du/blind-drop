@@ -1,6 +1,12 @@
 import SwiftUI
 
-/// The group's all-time lists (`docs/08` §7.3), drawn as one table rather than two.
+/// The group's standings (`docs/08` §7.3), drawn as one table rather than two.
+///
+/// **The two columns no longer cover the same span of time, and that is deliberate.** Ear is a
+/// count over the circle's last `windowRounds` rounds — the header beside the title says which
+/// — because a leaderboard is about who has been reading the room lately and turning up has to
+/// count for something. Readability stays all-time, because it is a trait rather than a
+/// standing and a band that flickered with a fortnight's weather would read as a score moving.
 ///
 /// **The table is sorted on ear only.** Readability rides along in the same row as a trait, not
 /// as a second ranking — there is no better end of the readability scale, so a list ordered by
@@ -29,8 +35,11 @@ struct StandingsView: View {
                     .typeStyle(.displayM)
                     .foregroundStyle(Palette.ink)
                 Spacer(minLength: Space.sm)
+                // The window the ranked column is computed over, not the circle's whole life.
+                // This label is what makes an unadorned `Ear 45` legible: without it the figure
+                // reads as a percentage, which is exactly what it stopped being.
                 SectionLabel(
-                    verbatim: Copy.format("results.standings.rounds", standings.roundsPlayed)
+                    verbatim: Copy.format("results.standings.rounds", standings.windowRounds)
                 )
             }
             table
@@ -164,14 +173,19 @@ struct StandingRowContent: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// *"EAR 78"* over *"READ 62"* — the ear number and readability value (or an honest *"—"*
-    /// when it does not apply), stacked in the apparatus voice so neither reads as the score and
-    /// neither competes with the name for one line's width.
+    /// *"EAR 45"* over *"READ 62%"* — the ranked count and the readability rate, stacked in the
+    /// apparatus voice so neither reads as the score and neither competes with the name for one
+    /// line's width.
+    ///
+    /// **The `%` is load-bearing.** One of these is a count of cards and the other is a rate,
+    /// and the only mark separating them on the row is the percent sign readability carries and
+    /// ear does not. Print a `%` after the ear figure and the row silently claims the rank came
+    /// from a percentage.
     private var numbers: some View {
         VStack(alignment: .trailing, spacing: Space.xxs) {
             SectionLabel(verbatim: Copy.format(
                 "results.standings.ear.row",
-                ScoringFormat.percentValue(standing.earAllTime)
+                standing.earReads
             ))
             SectionLabel(verbatim: Copy.format(
                 "results.standings.read.row",
@@ -185,7 +199,10 @@ struct StandingRowContent: View {
     /// as the entire label (`StandingRow`) or as the shared half of one (`GroupScreen`'s row
     /// adds its own hint, not a second label).
     static func announcement(standing: EarStandingDTO, readability: ReadabilityStandingDTO?) -> String {
-        let ear = "\(standing.displayName). \(Copy.format("results.standings.ear.detail", standing.earCorrectTotal))"
+        // `earReads`, matching the figure on screen. It used to announce `earCorrectTotal`
+        // while the row rendered a percentage, so VoiceOver and the eye were told two different
+        // numbers under one word; ranking on the count is what lets them agree.
+        let ear = "\(standing.displayName). \(Copy.format("results.standings.ear.detail", standing.earReads))"
         guard let readability else { return ear }
         return "\(ear) \(Copy.A11y.readability(percent: ScoringFormat.percentValue(readability.readabilityAllTime), band: readability.band))"
     }

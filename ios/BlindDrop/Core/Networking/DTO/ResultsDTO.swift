@@ -189,6 +189,17 @@ struct EarStandingDTO: Decodable, Sendable, Equatable, Identifiable {
     let rank: Int
     let userID: String
     let displayName: String
+    /// **The ranked figure**: correct guesses over the circle's last `StandingsDTO.windowRounds`
+    /// scored rounds. `rank` came from this and from nothing else, so this is the number the row
+    /// has to show — rendering `earAllTime` as the headline would put a rate beside a rank the
+    /// rate did not produce.
+    let earReads: Int
+    /// All-time rate, kept for the profile's supporting line and as the sort's tie-break.
+    ///
+    /// **Non-optional, and the server guarantees it** by keeping members who have never guessed
+    /// at all off the list entirely (`docs/04` §4). Widening this to `Double?` would be safe
+    /// here and fatal in the field: a build already on someone's phone decodes it into a
+    /// `Double`, and one `null` fails the whole standings payload rather than one row.
     let earAllTime: Double
     let earCorrectTotal: Int
 
@@ -198,6 +209,7 @@ struct EarStandingDTO: Decodable, Sendable, Equatable, Identifiable {
         case rank
         case userID = "user_id"
         case displayName = "display_name"
+        case earReads = "ear_reads"
         case earAllTime = "ear_all_time"
         case earCorrectTotal = "ear_correct_total"
     }
@@ -228,11 +240,16 @@ struct ReadabilityStandingDTO: Decodable, Sendable, Equatable, Identifiable {
 /// `GET /groups/current/standings` — two lists that deliberately do not have the same shape.
 struct StandingsDTO: Decodable, Sendable, Equatable {
     let roundsPlayed: Int
+    /// How many rounds Best Ear covers. 14 once the circle has played that many, and the true
+    /// smaller number before it has, so a week-old circle says "last 5 rounds" rather than
+    /// claiming a fortnight it has not lived through.
+    let windowRounds: Int
     let bestEar: [EarStandingDTO]
     let readability: [ReadabilityStandingDTO]
 
     enum CodingKeys: String, CodingKey {
         case roundsPlayed = "rounds_played"
+        case windowRounds = "window_rounds"
         case bestEar = "best_ear"
         case readability
     }
