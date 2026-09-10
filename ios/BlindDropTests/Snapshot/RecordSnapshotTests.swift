@@ -102,7 +102,7 @@ private struct RecordSnapshotContent: View {
                         .font(Font(Typography.uiFont(.bodyLStrong)))
                         .foregroundStyle(Palette.inkSubtle)
                 }
-                .padding(.top, Space.xl)
+                .padding(.top, day.id == days.first?.id ? Space.sm : Space.xl)
                 .padding(.bottom, Space.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Palette.paper)

@@ -167,10 +167,8 @@ struct RecordScreen: View {
                     .foregroundStyle(Palette.inkSubtle)
             }
             .padding(.horizontal, Layout.screenInset)
-            // Asymmetric, and deliberately: a header wants more air above it, separating it from
-            // the night that ended, than below it, where it is binding to its own songs. Even
-            // padding on a 24pt date reads as a block floating between two lists.
-            .padding(.top, Space.xl)
+            // Bind the filter to the first night; later nights keep their section spacing.
+            .padding(.top, day.id == store.days.first?.id ? Space.sm : Space.xl)
             .padding(.bottom, Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
             // Extend only the opaque backing across the scroll/nav seam. The label and
@@ -370,6 +368,15 @@ struct RecordFilterLabel: View {
         }
         .typeStyle(.bodyM)
         .foregroundStyle(Palette.inkDim)
+        .padding(.horizontal, Space.lg)
+        .padding(.vertical, Space.sm)
         .minimumTouchTarget()
+        // Draw the stroke after the touch-target frame so the capsule's full bounds are
+        // identical on every edge; this avoids the bottom edge being visually clipped.
+        .background(Palette.paper, in: Capsule())
+        .overlay {
+            Capsule().stroke(Palette.edgeStrong, lineWidth: Stroke.border)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
