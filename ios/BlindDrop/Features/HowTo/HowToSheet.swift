@@ -205,18 +205,15 @@ struct HowToSheet: View {
 
     // MARK: - Scoring
 
-    /// **Neutral, and it stays neutral.** The legend exception above buys the steps an accent
-    /// because the steps are the phases; it buys this card nothing, because `Ear` and
-    /// `Readability` are not phases and are not ranked against each other. `docs/16` makes them
-    /// unranked by design — two different things a round can tell you about a person, neither of
-    /// which is the better score to have. Put ultramarine on one of them and the page starts
-    /// answering a question the game deliberately refuses to answer: *which one am I supposed to
-    /// be winning?*
+    /// The score definitions stay neutral. Ear is the recent ranked count, Accuracy is
+    /// a correct-answer rate, and Readability is a trait with no better end of its spectrum.
     var scoringCard: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("howto.scoring.title")
             VStack(alignment: .leading, spacing: Layout.itemGap) {
                 term("howto.ear.title", body: "howto.ear.body")
+                Rule()
+                term("howto.accuracy.title", body: "howto.accuracy.body")
                 Rule()
                 term("howto.read.title", body: "howto.read.body")
             }

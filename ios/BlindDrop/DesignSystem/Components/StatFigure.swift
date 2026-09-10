@@ -19,12 +19,16 @@ struct StatFigure: View {
     /// One line under the number — a sample count, a rounds count, or `nil` for a figure that
     /// carries no further detail (a drop count needs no unit spelled out under it).
     var detail: String?
-    /// The proportion bar's fill, `0...1`, or `nil` to omit the bar entirely — an unavailable
+    /// The meter's position, `0...1`, or `nil` to omit the meter entirely — an unavailable
     /// figure (`—`) has nothing to show a fraction of.
     var progress: Double?
+    /// Readability uses a spectrum and tick instead of a progress fill.
+    var readabilityBand: ReadabilityBand?
     /// Ultramarine on the number and its bar when this is the one figure being celebrated — the
     /// profile's Ear. Only one figure in a set ever takes it, so it never reads as a scoreboard.
     var isAccented = false
+    /// A revealed-data bar can stay blue while its number remains secondary to Ear.
+    var progressFill: Color?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
@@ -33,7 +37,13 @@ struct StatFigure: View {
                 .typeStyle(.numberL)
                 .foregroundStyle(isAccented ? Palette.ultramarine : Palette.ink)
             if let progress {
-                ProportionTrack(progress: progress, fill: isAccented ? Palette.ultramarine : Palette.inkDim)
+                if let readabilityBand {
+                    StatMeter(value: progress, band: readabilityBand)
+                        // The figure already announces the label and percentage.
+                        .accessibilityLabel(Text(verbatim: Copy.band(readabilityBand)))
+                } else {
+                    ProportionTrack(progress: progress, fill: progressFill ?? (isAccented ? Palette.ultramarine : Palette.inkDim))
+                }
             }
             if let detail {
                 Text(verbatim: detail)

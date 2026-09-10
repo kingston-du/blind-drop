@@ -26,7 +26,7 @@ struct PastResultsScreen: View {
     var body: some View {
         Group {
             if let store, store.state.value != nil {
-                ResultsScreen(state: store.viewState(resolve: nil), player: player)
+                ResultsScreen(state: store.viewState(resolve: nil), isPastRound: true, player: player)
             } else if let error = store?.state.error {
                 Text(LocalizedStringKey(error.copyKey))
                     .typeStyle(.bodyM)

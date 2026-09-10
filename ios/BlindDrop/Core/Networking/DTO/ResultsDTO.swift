@@ -119,6 +119,13 @@ struct TonightEarDTO: Decodable, Sendable, Equatable, Identifiable {
 
     var id: String { userID }
 
+    /// Every submitter has the same denominator, S − 1 (docs/02 §4.1). Recover the
+    /// integer from the unformatted rate, not its displayed percentage. Server ranks and
+    /// ties therefore also rank correct counts; the client never sorts the leaderboard.
+    func correctCount(submitterCount: Int) -> Int {
+        Int((ear * Double(max(0, submitterCount - 1))).rounded())
+    }
+
     enum CodingKeys: String, CodingKey {
         case rank
         case userID = "user_id"

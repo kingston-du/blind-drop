@@ -73,6 +73,20 @@ import Testing
 
         #expect(results.tonightTopEar.map(\.displayName) == ["Cal", "Ana", "Fay", "Hal"])
         #expect(results.tonightTopEar.map(\.rank) == [1, 2, 3, 3])
+        #expect(results.tonightTopEar.map { $0.correctCount(submitterCount: results.submitterCount) } == [7, 5, 4, 4])
+    }
+
+    /// All legal round sizes, including rates such as 1/7 that do not have a finite decimal.
+    /// Correct counts must never be reconstructed from a rounded display percentage.
+    @Test(arguments: 3...12)
+    func tonightDisplaysExactCorrectCounts(_ submitterCount: Int) {
+        for correct in 0..<submitterCount {
+            let row = TonightEarDTO(
+                rank: 1, userID: "member", displayName: "Maya",
+                ear: Double(correct) / Double(submitterCount - 1)
+            )
+            #expect(row.correctCount(submitterCount: submitterCount) == correct)
+        }
     }
 
     /// `tonight_top_ear` arrived in `E29-01`; a backend deployed a step behind this build may not

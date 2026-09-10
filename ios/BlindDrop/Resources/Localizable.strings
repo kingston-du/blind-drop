@@ -148,6 +148,8 @@
 "howto.step4.body" = "See your friends' real music taste, and how right or wrong you were.";
 "howto.scoring.title" = "Scoring";
 "howto.ear.title" = "Ear";
+"howto.accuracy.title" = "Accuracy";
+"howto.accuracy.body" = "The percentage of answers you get right. Results show this round; your profile shows all time. Rounds you sit out don't count toward accuracy.";
 "howto.ear.body" = "How well you know your friends (musically at least). How many answers you get correct in the last 14 rounds, so playing more helps. (Ranked)";
 "howto.read.title" = "Readability";
 "howto.read.body" = "How \"readable\", or guessable your music taste is. There's no bad or good, it's a spectrum. High and low scores are equally intriguing. (Unranked)";
@@ -216,7 +218,7 @@
 "profile.samples" = "%lld rounds";
 "profile.rounds.none" = "No rounds";
 "profile.ear.window" = "Last %lld rounds";
-"profile.ear.window.rate" = "Last %lld rounds, %@ all time";
+"profile.history" = "All time · %lld rounds";
 "profile.drops" = "Drops";
 "profile.pairwise" = "You and them";
 "profile.youread" = "You read them";
@@ -393,11 +395,16 @@
 "results.readability.detail" = "%lld of %lld read you";
 "results.readability.none" = "You didn't drop tonight.";
 "results.ear.label" = "Ear";
-"results.ear.detail" = "%lld of %lld correct";
-"results.ear.none" = "You sat this one out.";
+"results.accuracy.label" = "Accuracy";
+"results.accuracy.detail" = "%lld of %lld correct";
+"results.accuracy.none" = "You sat this one out.";
 "results.spectrum.low" = "Unreadable";
 "results.spectrum.high" = "Easy to read";
 "results.tonight.title" = "Tonight";
+"results.tonight.past.title" = "That night";
+"results.tonight.scope" = "This round";
+"results.tonight.correct" = "%lld correct";
+"results.tonight.a11y" = "Rank %lld. %@. %lld correct.";
 "results.standings.title" = "Standings";
 "results.standings.rounds" = "Last %lld rounds";
 "results.standings.ear.row" = "Ear %lld";
@@ -426,7 +433,7 @@
 "share.headline.fallback" = "%lld songs, %lld guesses";
 "share.overflow" = "+ %lld more";
 "share.kicker" = "Your night";
-"share.ear.label" = "Your ear";
+"share.accuracy.label" = "Your accuracy";
 "share.read.label" = "Readability";
 "share.read.fraction" = "%lld of %lld";
 "share.room.title" = "The room thought you were";

@@ -281,7 +281,7 @@ struct ShareCardStack: View {
 
     // MARK: - Your numbers
 
-    /// The caller's two scores use the same meter language as Results and Insights: Ear fills
+    /// The caller's two scores use the same meter language as Results and Insights: Accuracy fills
     /// from the left; Readability is a neutral spectrum with one ultramarine position marker.
     /// Each sits on its own `surface` panel — the same card treatment Results' two `StatTile`s
     /// wear — so the two numbers read as cards rather than as floating text (`docs/10` §3). The
@@ -291,7 +291,7 @@ struct ShareCardStack: View {
     private var personalStats: some View {
         HStack(alignment: .top, spacing: ShareCard.rowGap) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                SectionLabel("share.ear.label")
+                SectionLabel("share.accuracy.label")
                 Text(verbatim: ScoringFormat.percent(content.ear))
                     .typeStyle(.numberM)
                     .foregroundStyle(accent.text)

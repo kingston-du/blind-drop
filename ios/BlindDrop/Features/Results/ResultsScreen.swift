@@ -21,7 +21,7 @@ struct ResultsViewState: Equatable, Sendable {
     /// optionals that have to agree are safer as one value that already does.
     let me: PersonalScoreDTO?
 
-    /// The group's all-time lists, or `nil` while they are on their way — or if only that route
+    /// The group's recent standings and all-time readability, or `nil` while on their way — or if that route
     /// failed. The answers are the screen; the standings are a section of it, and a section that
     /// did not load is a section that is not drawn rather than a screen that is not.
     let standings: StandingsDTO?
@@ -86,6 +86,7 @@ struct ResultsViewState: Equatable, Sendable {
 /// in `content` so each lands as one addition to one list rather than as another screen.
 struct ResultsScreen: View {
     let state: ResultsViewState
+    var isPastRound = false
     /// The night, drawn as the eyebrow over *"The answers."* — the pinned second row that used to
     /// carry it is withheld on this phase (`RoundDTO.Phase.scrollsItsOwnDate`), because the badge
     /// that made a pinned row worth its height is `EmptyView` here: a scored round is counting to
@@ -187,7 +188,12 @@ struct ResultsScreen: View {
                 PersonalStats(me: me)
             }
             if !state.tonightTopEar.isEmpty {
-                TonightTopEarView(rows: state.tonightTopEar, select: { selectedMember = $0 })
+                TonightTopEarView(
+                    rows: state.tonightTopEar,
+                    submitterCount: state.cards.count,
+                    isPastRound: isPastRound,
+                    select: { selectedMember = $0 }
+                )
             }
             if let standings = state.standings {
                 StandingsView(standings: standings, select: { selectedMember = $0 })
@@ -420,10 +426,10 @@ extension ResultsScreen {
 
 /// The caller's own two numbers (`docs/08` §7.2).
 ///
-/// Two facts about the same night that are deliberately **not** the same kind of thing. Ear is a
+/// Two facts about the same night that are deliberately **not** the same kind of thing. Accuracy is a
 /// score: you guessed, and some of them were right. Readability is a trait: people either
 /// recognised you or they did not, and `docs/02` §4.5 makes low readability its own kind of win.
-/// So the ear gets a number and the readability gets a number **and a position on a spectrum**,
+/// So accuracy gets a number and the readability gets a number **and a position on a spectrum**,
 /// with no rank, no arrow and no comparison to yesterday anywhere near either of them.
 ///
 /// Internal rather than private only so `ResultsSnapshots` can point at the pair on its own —
@@ -446,7 +452,7 @@ struct PersonalStats: View {
             if isStacked {
                 VStack(alignment: .leading, spacing: Layout.itemGap) {
                     readability
-                    ear
+                    accuracy
                 }
             } else {
                 // Equal columns, aligned at the top. The two numbers are the same kind of thing
@@ -454,7 +460,7 @@ struct PersonalStats: View {
                 // read the room — and side by side is the only arrangement that says so.
                 HStack(alignment: .top, spacing: Layout.itemGap) {
                     readability
-                    ear
+                    accuracy
                 }
             }
             if let rate = me.readability {
@@ -477,13 +483,13 @@ struct PersonalStats: View {
         )
     }
 
-    private var ear: some View {
+    private var accuracy: some View {
         StatTile(
-            title: "results.ear.label",
+            title: "results.accuracy.label",
             rate: me.ear,
             detail: detail(
-                key: "results.ear.detail",
-                absent: "results.ear.none",
+                key: "results.accuracy.detail",
+                absent: "results.accuracy.none",
                 rate: me.ear,
                 correct: me.earCorrect,
                 possible: me.earPossible
