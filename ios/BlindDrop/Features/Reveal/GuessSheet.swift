@@ -646,7 +646,8 @@ struct GuessSheet: View {
                     state: store.chipState(for: member),
                     action: { store.tapName(member.userID) },
                     unavailableReason: store.blockedReason,
-                    allowsWrapping: true
+                    allowsWrapping: true,
+                    fillsWidth: true
                 )
                 .frame(maxWidth: .infinity)
             }
