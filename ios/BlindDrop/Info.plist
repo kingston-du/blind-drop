@@ -55,5 +55,12 @@
 	<!-- There is deliberately no UIBackgroundModes key. docs/13 §8: the app has nothing to do
 	     while backgrounded, notifications are alert-only, and adding a background mode is how
 	     an app starts feeling like it's watching you. -->
+
+	<!-- Encryption export compliance (docs/14 §10, App Store Connect → App Information).
+	     The app only uses HTTPS/ATS (exempt) — no proprietary crypto, no algorithm beyond
+	     what the OS provides. Declaring this here answers the question at every build
+	     upload instead of it being asked interactively each time. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
