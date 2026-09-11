@@ -138,7 +138,24 @@ struct SubmitScreen: View {
                 // below half of that and it starts binding in both states again, which is when
                 // moving it would start moving the keyboard-up block too.
                 blockSpacing: Space.xxl,
-                topGapCap: Space.x5
+                // **A cued night caps the top; an uncued night caps neither** (owner,
+                // 2026-09-11).
+                //
+                // A cued night caps the top because the column nearly fills the band between the
+                // chrome and the keyboard already, and the ceiling is what stops the little that
+                // is left over from drifting the block downward. Everything above about that
+                // number is the note the owner wrote for `x5`.
+                //
+                // An uncued night is shorter by the whole cue card, so there is a hundred points
+                // of slack rather than ten, and where that slack goes is the entire question.
+                // Capping the top put all of it *below* the block, holding the column against
+                // the chrome. Capping the bottom instead put all of it *above*, which rested the
+                // block on the keyboard — the opposite error, and the one that was on screen: a
+                // screen that was mostly empty at the top. Capping neither is what centres it,
+                // because the two flexible gaps are equal and split the leftover between them,
+                // which is what `SongSearch` means by *"SwiftUI resolves the field to the middle
+                // of an empty screen"*. Centred is what the screen was actually asked for.
+                topGapCap: cue == nil ? nil : Space.x5
             )
         }
     }
