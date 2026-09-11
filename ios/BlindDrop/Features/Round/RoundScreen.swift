@@ -864,7 +864,7 @@ private struct RevealHost: View {
         // the name grid needs to be (`E41-01`).
         .fullScreenCover(isPresented: $quickPassPresented) {
             if let store {
-                QuickPassScreen(store: store, timer: timer, player: player) {
+                QuickPassScreen(store: store, timer: timer, player: player, cue: cue) {
                     quickPassPresented = false
                 }
             }

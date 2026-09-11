@@ -21,6 +21,11 @@ struct QuickPassScreen: View {
     let store: RevealStore
     let timer: CountdownTimer
     var player: PreviewPlayer?
+    /// Tonight's cue, drawn once on the close button's row above every card and the recap alike
+    /// (`E41-04`). `nil` on an uncued night, and `CueBanner` draws nothing. One string for the
+    /// whole run: it does not change card to card, which is what lets `cueReserve(availableWidth:)`
+    /// settle the layout once instead of per card.
+    var cue: CueDTO? = nil
     /// Dismiss. Called when the run ends and when the caller closes out of it.
     let onFinish: () -> Void
 
@@ -55,12 +60,14 @@ struct QuickPassScreen: View {
         store: RevealStore,
         timer: CountdownTimer,
         player: PreviewPlayer? = nil,
+        cue: CueDTO? = nil,
         sequence: QuickPassSequence? = nil,
         onFinish: @escaping () -> Void
     ) {
         self.store = store
         self.timer = timer
         self.player = player
+        self.cue = cue
         self.onFinish = onFinish
         _sequence = State(
             initialValue: sequence ?? QuickPassSequence(
@@ -125,43 +132,52 @@ struct QuickPassScreen: View {
 
     @ViewBuilder
     private func content(availableHeight: CGFloat, availableWidth: CGFloat) -> some View {
-        if sequence.isComplete {
-            recap
-                .padding(.horizontal, Layout.screenInset)
-                .padding(.bottom, Layout.blockGap)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
-        } else if let number = sequence.current, let card = card(number) {
-            VStack(alignment: .leading, spacing: Space.none) {
-                chrome
-                numeral(number)
-                artwork(card, availableHeight: availableHeight, availableWidth: availableWidth)
-                lower(card, number: number, availableWidth: availableWidth)
+        VStack(alignment: .leading, spacing: Space.none) {
+            header
+            if sequence.isComplete {
+                recap
+                    .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
+            } else if let number = sequence.current, let card = card(number) {
+                VStack(alignment: .leading, spacing: Space.none) {
+                    numeral(number)
+                    artwork(card, availableHeight: availableHeight, availableWidth: availableWidth)
+                    lower(card, number: number, availableWidth: availableWidth)
+                }
+                // The whole card, including its number and its name pool, is replaced as one
+                // thing. Keyed on the card number so SwiftUI treats an advance as an arrival
+                // rather than as a title changing in place. `header` sits outside this stack on
+                // purpose (see its own doc comment) so neither the close button nor the cue ride
+                // this transition — they are the one thing on the run that does not change card
+                // to card.
+                .id(number)
+                .transition(advanceTransition)
+                // **And the gesture, because a glyph is not the only way anybody will try.** Swipe
+                // right is the most learned gesture on the platform and it means exactly one
+                // thing; `CloseButton`'s own doc comment carries the other half of the rule —
+                // *"no gesture is the only way to do anything"* (`docs/12` §5) — which is why the
+                // chevron exists and this is the shortcut rather than the mechanism.
+                //
+                // **Right only.** A left swipe would have to mean Skip, and an accidental one
+                // would then drop a card silently on a screen where that is the worst thing that
+                // can happen. Skip is a control you press on purpose.
+                .gesture(backSwipe)
             }
-            .padding(.horizontal, Layout.screenInset)
-            .padding(.bottom, Layout.blockGap)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // The whole card, including its number and its name pool, is replaced as one thing.
-            // Keyed on the card number so SwiftUI treats an advance as an arrival rather than as
-            // a title changing in place.
-            .id(number)
-            .transition(advanceTransition)
-            // **And the gesture, because a glyph is not the only way anybody will try.** Swipe
-            // right is the most learned gesture on the platform and it means exactly one thing;
-            // `CloseButton`'s own doc comment carries the other half of the rule — *"no gesture
-            // is the only way to do anything"* (`docs/12` §5) — which is why the chevron exists
-            // and this is the shortcut rather than the mechanism.
-            //
-            // **Right only.** A left swipe would have to mean Skip, and an accidental one would
-            // then drop a card silently on a screen where that is the worst thing that can
-            // happen. Skip is a control you press on purpose.
-            .gesture(backSwipe)
         }
+        .padding(.horizontal, Layout.screenInset)
+        .padding(.bottom, Layout.blockGap)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Chrome
 
-    /// A close button, and deliberately nothing else.
+    /// The close button and, when there is one, tonight's cue (`E41-04`).
+    ///
+    /// **Stationary above both branches of `content(…)`,** not drawn inside either. It used to sit
+    /// inside the card's own `VStack`, sliding off and back on every advance along with the
+    /// numeral and the artwork — wrong for the one element on this screen that does not change
+    /// card to card. A cue is the round's own standing condition, not something that arrives with
+    /// card `04` and leaves with it; hoisting it here, once, above the `if`, is what stops it
+    /// riding `advanceTransition` for no reason.
     ///
     /// **There is no countdown here.** One was drawn and taken out after looking at it: eight
     /// ultramarine monospaced digits in the top corner is a second focal point on a screen with
@@ -172,13 +188,60 @@ struct QuickPassScreen: View {
     /// The deadline is not lost. It is in the flight's own header, which is what this cover sits
     /// on top of, and `E41-02` puts it on the recap — the one screen in the run where *how long
     /// is left* is a thing somebody is actually deciding against.
-    private var chrome: some View {
-        HStack(alignment: .center) {
+    ///
+    /// **The cue shares this row, filling what the close button does not use.** The row is already
+    /// a full `Layout.minimumTouchTarget` with one 44pt glyph in it and an empty `Spacer` after —
+    /// paid-for height the artwork's reserve has already been charged for. A `prominent`
+    /// `CueBanner` takes that width, so a one-line cue costs the artwork nothing at all and the
+    /// catalog's longest — 45 characters — costs it one extra line.
+    ///
+    /// It reached here the long way, and both wrong turns are worth keeping. It was first a
+    /// `bodyS` capsule on this row, which is the same *position* and a different *thing*: fitting
+    /// the cue into a gap meant the app's most incidental type — *"the line under a control"*
+    /// (`Typography`) — and no label, so it read as a caption for a control that was not there,
+    /// in a shape that hugged its own text and therefore aligned with nothing. Then it was
+    /// `standard` on a full-width row of its own, which was legible and cost the artwork 64pt on
+    /// every cued night — 340pt down to 276pt, and an SE pinned to
+    /// `Layout.Artwork.quickPassRange`'s floor.
+    ///
+    /// What was wrong the first time was the type and the label, not the row. So the row comes
+    /// back with the type raised instead of lowered (`displayS`, the size `CueCard` already sets
+    /// the cue in) and the label dropped on purpose rather than to save space — `CueBanner`'s
+    /// `prominent` note argues that part. Filling the remaining width rather than hugging gives
+    /// it the column's trailing edge, which is the alignment the capsule never had.
+    ///
+    /// `.top` alignment, so a cue that wraps grows downward and leaves the close button where it
+    /// has been on all eight sheets in the app. Only that wrap costs the artwork anything, and
+    /// `cueReserve(availableWidth:)` works out whether it happens from the string itself — see its
+    /// note for why deriving beats both measuring it and assuming the worst.
+    ///
+    /// **`@ViewBuilder`, not a `VStack` of its own** — its two rows flatten into `content(…)`'s
+    /// outer `VStack` exactly as `chrome` used to sit there as a single child, rather than
+    /// nesting a second container around them. An extra layer here rendered a byte for byte
+    /// difference on an *uncued* golden (`QuickPass-recap`, 15ProMax at `accessibility5`, one
+    /// device pixel taller) with no cue anywhere in the tree to explain it — the nesting itself
+    /// was the whole cause, and the fix is not to add it.
+    @ViewBuilder
+    private var header: some View {
+        HStack(alignment: .top, spacing: Space.md) {
             CloseButton(action: onFinish)
                 .padding(.leading, -Space.xs)
-            Spacer(minLength: Space.md)
+            if let cue, !isStacked {
+                CueBanner(cue: cue, density: .prominent)
+            } else {
+                Spacer(minLength: Space.md)
+            }
         }
-        .frame(minHeight: Layout.minimumTouchTarget)
+        .frame(minHeight: Layout.minimumTouchTarget, alignment: .top)
+        // Above `.accessibility1` a `displayS` line beside a scaled touch target has no width
+        // left to wrap into, so the strip takes the full column beneath the button instead — the
+        // same boundary the recap already reflows its countdown at. The artwork is on
+        // `Artwork.quickPassRange`'s floor at these sizes and the page scrolls regardless, so the
+        // row it costs is not competing with anything.
+        if let cue, isStacked {
+            CueBanner(cue: cue, density: .prominent)
+                .padding(.top, Space.sm)
+        }
     }
 
     /// *"04 / 08"* — the flight position, in the display face (`docs/07` §3).
@@ -244,10 +307,11 @@ struct QuickPassScreen: View {
         let columns = poolColumns(count: poolCount, width: columnWidth)
         let rows = max(1, Int(ceil(Double(poolCount) / Double(columns))))
         let poolHeight = CGFloat(rows) * Layout.chipHeightLarge + CGFloat(rows - 1) * Space.sm
+        let cueReserve = cueReserve(availableWidth: availableWidth)
         let side = min(
             min(
                 max(
-                    availableHeight - Layout.quickPassFixedChrome - poolHeight,
+                    availableHeight - Layout.quickPassFixedChrome - cueReserve - poolHeight,
                     Layout.Artwork.quickPassRange.lowerBound
                 ),
                 Layout.Artwork.quickPassRange.upperBound
@@ -266,6 +330,52 @@ struct QuickPassScreen: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, Space.xl)
             .accessibilityHidden(true)
+    }
+
+    /// What the cue's strip takes from the artwork — **nought on most nights.**
+    ///
+    /// The strip shares the close button's row, and that row was already charged to
+    /// `Layout.quickPassFixedChrome`, so a cue that fits on one line beside the button is free and
+    /// the square is exactly the size it is on an uncued night. Only the overhang costs anything:
+    /// a cue long enough to wrap is a taller row, and the difference is what comes off the
+    /// artwork.
+    ///
+    /// **Derived from the string, not measured off the view.** The alternative — read the strip's
+    /// height back through a preference — is the mistake `quickPassFixedChrome`'s own note records:
+    /// a preference arrives after the first layout, so the artwork draws large and jumps smaller a
+    /// frame later. It is also unnecessary here in a way it is not for the pool, because the cue is
+    /// **one string for the whole run**. It does not change from card `01` to card `02`, so there
+    /// is exactly one answer per round and the type system already holds everything needed to work
+    /// it out: the resolved face at the current content size, the width the strip is given, and
+    /// `Typography.lineHeight`. `boundingRect` turns those into a line count in the same pass that
+    /// lays the card out, with nothing to observe and nothing to settle.
+    private func cueReserve(availableWidth: CGFloat) -> CGFloat {
+        guard let cue else { return 0 }
+        let column = max(availableWidth - Layout.screenInset * 2, 1)
+        let category = UIContentSizeCategory(effectiveTypeSize)
+        // Stacked, the strip has the whole column; beside the button it has what the 44pt target
+        // and the row's own spacing leave. `Space.md * 2` is the strip's horizontal inset.
+        let textWidth = isStacked
+            ? column - Space.md * 2
+            : column - Layout.minimumTouchTarget - Space.xs - Space.md * 3
+        let font = Typography.uiFont(.bodyLStrong, for: category)
+        let measured = (cue.text as NSString).boundingRect(
+            with: CGSize(width: max(textWidth, 1), height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        ).height
+        let lines = max(1, Int((measured / font.lineHeight).rounded()))
+        // `.frame(minHeight:)` in `CueBanner.strip` floors the inline strip at the touch target's
+        // height so it and the close button share a centre — so the reserve has to floor it too,
+        // or a one-line cue would look like it owed the artwork 8pt it does not.
+        let strip = max(
+            CGFloat(lines) * Typography.lineHeight(.bodyLStrong, for: category) + Space.sm * 2,
+            Layout.minimumTouchTarget
+        )
+        // Stacked it is a whole extra row, gap included. Inline it costs only what it adds to a
+        // row the reserve has already paid for — nothing at all, on a cue that does not wrap.
+        return isStacked ? strip + Space.sm : max(0, strip - Layout.minimumTouchTarget)
     }
 
     private func lower(_ card: CardDTO, number: Int, availableWidth: CGFloat) -> some View {
@@ -508,7 +618,6 @@ struct QuickPassScreen: View {
     /// actually deciding against — whether to lock in now or go back and change one.
     private var recap: some View {
         VStack(alignment: .leading, spacing: Space.none) {
-            chrome
             HStack(alignment: .firstTextBaseline) {
                 Text("reveal.callsheet")
                     .typeStyle(.displayM)

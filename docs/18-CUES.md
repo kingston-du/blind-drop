@@ -247,6 +247,39 @@ and a cue is a brief you read once before it.
   are the room's replies to it, and a night read three weeks later is unintelligible without it.
   Labelled *"The cue"*, not *"Tonight's"*: `PastResultsScreen` pushes this same screen for a night
   from weeks ago.
+- **The quick pass — a `CueBanner` at a new `prominent` density, sharing the close button's row.**
+  *(`E41-04`, owner 2026-09-11.)* `CueBanner`'s material, `CueCard`'s type, and no micro-label:
+  the strip filling whatever width the 44pt close button leaves, at `displayS`.
+
+  **The label is dropped because of where in a night this is read.** Anybody inside this run has
+  already met tonight's cue twice — on the drop screen as a `CueCard` under an amber *"Tonight's
+  cue"*, and again in the flight header as the standard strip. A label introduces; on third sight
+  it restates something the reader has been told twice. What is left has to hold the space alone,
+  which is why the line goes **up** to `displayS` — the size the drop screen already sets the cue
+  in, so it is recognised rather than re-read. VoiceOver keeps the label regardless: a person who
+  cannot see where the strip sits has none of the context the sighted reader is trusted with.
+
+  **Two wrong turns, kept because the second looked right.** It was first a `bodyS` capsule on
+  this same row — correct position, wrong thing: fitting the cue into a gap forced the app's most
+  incidental type and no label, so it read as a caption for an absent control, in a shape that
+  hugged its text and aligned with nothing. The fix looked like retreating to the standard strip
+  on a full-width row of its own, and that was legible and cost 64pt of artwork every cued night
+  — 340pt down to 276pt on a 15 Pro Max, and an SE pinned to `Artwork.quickPassRange`'s floor.
+  What had been wrong the first time was the type and the label, not the row. So the row came
+  back, with the type raised instead of lowered.
+
+  The close row is a full touch target with one glyph in it and an empty `Spacer` after —
+  height `quickPassFixedChrome` has already been charged for. A one-line cue therefore costs the
+  artwork nothing; the catalog's longest, at 45 characters, wraps to two and costs one line, and
+  `Layout.quickPassCueRow` spends that worst case on every cued night rather than measuring the
+  wrap. Above `.accessibility1` there is no width left to wrap into and the strip takes the full
+  column beneath the button instead.
+
+  Hoisted out of the run's per-card transition, because it is the one element on this screen that
+  is constant across all eight cards and the recap alike — the round's own standing condition, not
+  something that arrives with card `04` and leaves with it. This is also why the cue cannot sit
+  beside the numeral, which is the other candidate row: `01 / 06` is the card's identity and rides
+  that transition by design, so a cue next to it would slide off and back on every tap.
 
 On every one of them: absent entirely when `cue` is `null` — no "no cue tonight" line; absence is
 silent, matching how the rest of the open phase already treats "nothing to report."
