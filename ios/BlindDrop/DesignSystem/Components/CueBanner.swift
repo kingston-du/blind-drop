@@ -156,7 +156,7 @@ struct CueCard: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel(label, color: labelColor)
             Text(verbatim: cue.text)
-                .typeStyle(.bodyLStrong)
+                .typeStyle(.displayS)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
