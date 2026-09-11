@@ -16,12 +16,13 @@ runbook has been run.
 > reachable during a single review session. The account below is on a review schedule instead:
 > the round advances as soon as you act, at any hour of the day or night.
 >
-> 1. Sign in with the credentials above. You are "App Reviewer", in a group of four.
+> 1. Sign in with the credentials above. You are "App Reviewer", in a group of six.
 > 2. Tap **Drop a song**, search for anything, pick it, and tap **Seal it**.
 > 3. The seal screen shows a countdown of about **12 seconds**. On a normal account this
 >    counts down to 8:00 PM; here it is seconds. Wait for it.
-> 4. The reveal appears: four songs, no names. Tap each card and name who you think dropped
->    it, then tap **Lock in guesses**.
+> 4. The reveal appears: six songs, no names — yours among them. Tap each card and name who
+>    you think dropped it, then tap **Lock in guesses**. Your own song is marked and needs no
+>    guess, so there are five names to place.
 > 5. A second countdown of about **20 seconds** runs, then the answers and scores appear.
 > 6. Roughly two minutes later a fresh round opens and you can play again as many times as
 >    you like. Past nights are under **The Record**, reachable from the top of the screen.
@@ -29,8 +30,9 @@ runbook has been run.
 > The text on the seal screen still reads "Sealed until 8:00 PM" because that is the group's
 > real reveal hour — only the countdown is accelerated for review.
 >
-> The other three members of the group are fixtures with pre-filled songs so that the reveal
-> has something in it; no real user's data is visible to this account.
+> The other five members of the group — Kai, Mo, Nell, Rae and Sol — are fixtures with
+> pre-filled songs so that the reveal has something in it; no real user's data is visible to
+> this account.
 >
 > Sign in with Apple is the only sign-in method offered to the public. The email/password
 > field is present for this review account.
@@ -46,10 +48,10 @@ Project `blind-drop` (`ojzwgaffeegssfscoaiv`, `us-west-1`).
 
 | | |
 |---|---|
-| Migrations | `20260815090000_demo_groups`, `20260815090500_demo_lifecycle`, `20260815120000_backfill_demo_groups` — pushed 2026-08-15 |
+| Migrations | `20260815090000_demo_groups`, `20260815090500_demo_lifecycle`, `20260815120000_backfill_demo_groups` — pushed 2026-08-15; `20260910120000_demo_room_of_six` — pushed 2026-09-10 |
 | Edge Function | `rounds` redeployed 2026-08-15 (the two `demo_arm` calls and the `demo_tick` before the round read) |
 | Demo group | "App Review", `is_demo = true`. Members: **App Reviewer** (admin, `demo@blinddrop.dev`) plus fixtures Kai, Mo, Nell, Rae, Sol |
-| State | Three finished nights in The Record (6 songs and 30 guesses each) and one open round with the five fixtures already in it |
+| State | Verified 2026-09-11: six members, seven finished nights in The Record, and one open round already holding the five fixtures' drops and not the reviewer's. The night count grows as the account is played; `seed-app-review-demo.sql` resets it to three. |
 
 The real pilot group ("Family") is **not** a demo group and is untouched by any of this. The
 exclusion is enforced in both directions — `ensure_rounds()` and all three `tick_rounds()`
