@@ -639,7 +639,7 @@ struct RoundScreen: View {
                         // sheet closes onto an already-sealed card (`docs/08` §3.2). The animation
                         // is not replayed underneath, because `SealedCard` draws the landed state
                         // and never animates.
-                        store.adopt(submission)
+                        adoptSeal(submission, into: store)
                         isSearching = false
                         confirming = nil
                     },
@@ -671,7 +671,7 @@ struct RoundScreen: View {
             groupInitial: store.state.value?.groupInitial ?? "",
             revealTime: store.state.value?.revealTime ?? "",
             sealed: { submission in
-                store.adopt(submission)
+                adoptSeal(submission, into: store)
                 confirmingDirect = nil
             },
             back: { confirmingDirect = nil },
@@ -784,6 +784,37 @@ struct RoundScreen: View {
         }
     }
 
+    /// **Adopt what the server sealed, then go back for the round it sealed it into.**
+    ///
+    /// The adopt is the instant half and `RoundStore.adopt(_:)` documents why it exists: the
+    /// sheet has to dismiss onto an already-sealed card rather than onto a submit screen that
+    /// corrects itself a round trip later. What it cannot do is tell the truth about *time*.
+    /// `RoundDTO.adopting(mySubmission:)` copies every field it is not replacing, `reveals_at`
+    /// among them, so the round the screen holds afterwards carries the reveal instant the app
+    /// last **fetched** — which is only still correct if sealing did not move it.
+    ///
+    /// On a real group it does not, and this refetch is one idempotent GET returning the value
+    /// already on screen. On the App Review demo group it does: `demo_arm()` sets `reveals_at`
+    /// to twelve seconds out on the submit itself (`docs/APP-REVIEW-NOTES.md` §1), and the
+    /// response the client adopts is a `SubmissionDTO`, which has no round in it and no way to
+    /// carry the new instant. So the sealed screen counted to the group's 8:00 PM as if nothing
+    /// had happened, `CountdownTimer.hasElapsed` was hours from flipping, and the refetch that
+    /// would have revealed the round never fired — until the app was backgrounded and
+    /// `scenePhase` bumped the token out of band. A reviewer's read of that is "the timer is
+    /// wrong and the phase only changes if I leave the screen", and they would have been right.
+    ///
+    /// Bumping `loadToken` is deliberately the **same** mechanism the guess half already uses —
+    /// `RevealStore`'s `onLockInSaved` → `refreshRound` above, which is why locking in a sheet
+    /// picks up its twenty-second scoring arm and sealing did not. One way for the client to
+    /// say *"the server may have moved something under me"*, not two.
+    ///
+    /// It is not a phase decision and cannot become one (`CLAUDE.md` §2.2): it asks, and renders
+    /// whatever comes back.
+    private func adoptSeal(_ submission: SubmissionDTO, into store: RoundStore) {
+        store.adopt(submission)
+        loadToken += 1
+    }
+
     private func prepare() {
         guard store == nil else { return }
         store = RoundStore(
@@ -882,10 +913,41 @@ private struct RevealHost: View {
             offerQuickPassIfNeeded(conditions)
         }
         .onAppear { offerQuickPassIfNeeded(presentationConditions) }
+        // **The answers instant is a moving value, not a constructor argument.**
+        //
+        // It used to be written in exactly one place — `built.answersAt` in the task below —
+        // which is inside the branch that *builds* the store. A refetch takes the other branch
+        // and returns, and the task's own id is the card numbers, which do not change across a
+        // refetch, so on the common path it does not even re-run. The countdown on the reveal
+        // therefore counted to whatever `scores_at` was when the reveal first drew, for the whole
+        // life of the screen.
+        //
+        // On a real group that is invisible: `scores_at` is fixed two hours out and the value it
+        // was built with is still the right one. On the App Review demo group it is the whole
+        // bug. `demo_arm()` moves `scores_at` to twenty seconds out when the guess sheet lands
+        // complete (`docs/APP-REVIEW-NOTES.md` §1), `onLockInSaved` → `refreshRound` duly
+        // refetches the round, and `RoundScreen` duly passes the new instant down — and it landed
+        // nowhere, because nothing here was listening. The countdown went on reading the two-hour
+        // window, `CountdownTimer.hasElapsed` never flipped, and the refetch that would have
+        // brought the answers never fired. Only backgrounding the app moved it on, via
+        // `scenePhase`'s own token bump, which is the same out-of-band rescue the seal half was
+        // relying on before `adoptSeal(_:into:)`.
+        //
+        // `RevealStore.answersAt` is `@Observable` and `RevealScreen` hands it to `CountdownView`
+        // as its `deadline`, whose own `.onChange(of: deadline)` re-points the ticker — so writing
+        // it here is all that is needed for the countdown to pick the new instant up mid-screen.
+        // It touches nothing about the in-progress sheet, which is the one thing `RevealHost`
+        // exists to protect.
+        .onChange(of: answersAt) { _, instant in store?.answersAt = instant }
         .task(id: payload.cards.map(\.cardNumber)) {
             guard store == nil else {
                 // A refetch during the reveal: take the server's saved sheet, keep the taps.
+                // `answersAt` comes with it — this branch runs when the *cards* changed, which
+                // is a different round or a re-deal, and carrying the previous round's answers
+                // instant into it would be the same staleness the `.onChange` above fixes for
+                // the ordinary case.
                 store?.adopt(payload.myGuesses)
+                store?.answersAt = answersAt
                 return
             }
             let api = env.api
