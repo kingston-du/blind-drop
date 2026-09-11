@@ -13,6 +13,40 @@ import Testing
         return (SubmitStore(api: env.api, circles: env.circles), stub)
     }
 
+    /// **Waits for the machine to settle, rather than for a number of milliseconds.**
+    ///
+    /// Every positive assertion in this suite is about a state the store reaches *after* a
+    /// debounce and, on the failing paths, two retry backoffs — 250ms plus 200ms plus 600ms of
+    /// real, wall-clock waiting before the error key is even written (`docs/13` §3). Each test
+    /// used to sleep a fixed span chosen to be a little longer than that and then assert. That is
+    /// a race with the machine, and it lost: on a loaded box the backoffs finish late and the
+    /// assertion reads a `nil` that is about to become the right answer. `offlineSaysSoInItsOwnWords`
+    /// and `rapidTypingProducesOneRequest` both failed this way on a pristine tree, with nothing
+    /// but the runner's own load between passing and failing.
+    ///
+    /// Polling fixes it in the honest direction. **It weakens no assertion** — every `#expect`
+    /// after a call to this is exactly the one that was there before, checked against exactly the
+    /// same state. It only stops the test insisting that the work finish inside a span it has no
+    /// way to guarantee: the wait ends the instant the condition holds, which is faster than the
+    /// old fixed sleep on a quiet machine, and tolerant of a slow one.
+    ///
+    /// The timeout is deliberately far longer than the work should ever take. A test that trips it
+    /// has found a hang, not a slow machine, and the assertion after it then fails and says so.
+    ///
+    /// **This is for waiting on something to appear.** A test asserting that nothing happens —
+    /// `asingleCharacterDoesNotSearch` — has no condition to poll for and keeps its fixed wait,
+    /// because there the elapsed time *is* the substance of the check.
+    private func settle(
+        within timeout: Duration = .seconds(5),
+        until condition: () -> Bool
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition() { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
     // MARK: - Searching (`docs/08` §3.1)
 
     /// **Minimum two characters.** One character is a keystroke, not a query, and sending it would
@@ -35,7 +69,7 @@ import Testing
             store.query = prefix
             try await Task.sleep(for: .milliseconds(40))
         }
-        try await Task.sleep(for: .milliseconds(500))
+        try await settle { !(store.results.value ?? []).isEmpty }
 
         #expect(stub.count(matching: "/tracks/search") == 1)
         #expect((store.results.value ?? []).isEmpty == false)
@@ -48,7 +82,7 @@ import Testing
         let (store, _) = makeStore([try RoundFixture.envelope("tracks_search")])
 
         store.query = "ribs"
-        try await Task.sleep(for: .milliseconds(500))
+        try await settle { store.results.value != nil }
         #expect(store.results.value != nil)
 
         store.query = ""
@@ -66,7 +100,7 @@ import Testing
         let (store, _) = makeStore([RoundFixture.failure(502, "UPSTREAM_UNAVAILABLE")])
 
         store.query = "ribs"
-        try await Task.sleep(for: .milliseconds(500))
+        try await settle { store.searchErrorKey != nil }
 
         #expect(store.searchErrorKey == "search.error")
         #expect(!Copy.string("search.error").contains("Paste"))
@@ -78,11 +112,12 @@ import Testing
         let (store, _) = makeStore([RoundStub.Response(failure: URLError(.notConnectedToInternet))])
 
         store.query = "ribs"
-        // Longer than the others on purpose: a transport failure is the one error worth retrying,
-        // so a search spends its 200ms and 600ms backoffs before it gives up (`docs/13` §3). The
-        // wait is the debounce plus both of those plus a margin — and the fact that it *takes* that
-        // long is the retry policy working.
-        try await Task.sleep(for: .milliseconds(1_600))
+        // This one waits the longest of any test here, and the reason is the substance of the
+        // case: a transport failure is the one error worth retrying, so the search spends its
+        // debounce and then both the 200ms and 600ms backoffs before it gives up (`docs/13` §3).
+        // The fact that it *takes* that long is the retry policy working. What this no longer
+        // does is name a number and hope — see `settle(within:until:)`.
+        try await settle { store.searchErrorKey != nil }
 
         #expect(store.searchErrorKey == "search.error.offline")
     }
@@ -204,7 +239,7 @@ import Testing
         let (store, _) = makeStore([RoundFixture.envelope(twoReleasesOfRibs())])
 
         store.query = "ribs"
-        try await Task.sleep(for: .milliseconds(500))
+        try await settle { store.results.value != nil }
 
         let rows = try #require(store.results.value)
         #expect(rows.count == 1)
