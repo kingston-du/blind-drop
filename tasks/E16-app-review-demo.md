@@ -71,10 +71,27 @@ clock. It is a server change end to end: the client keeps rendering a countdown 
       threw, so nothing persisted: `open → +11s open → +13s revealed (4 cards) → +35s scored
       (4 people) → +4m a fresh open round, archive of 4`
 - [x] Review note written to `docs/APP-REVIEW-NOTES.md`, ready to paste
-- [ ] **Blocked, needs the owner:** walk the loop in the app on a device, signed in as
-      `demo@blinddrop.dev`. Requires the account password, which is not in this repo and
-      should not be. Everything below the app is verified.
-- [ ] **Needs the owner:** paste §1 of `docs/APP-REVIEW-NOTES.md` into App Store Connect
+- [x] Walked in the app on a booted iPhone 17, signed in as `demo@blinddrop.dev`
+      (owner supplied the password, 2026-09-11). **The loop completes with no backgrounding:**
+      drop → seal `00:00:04` → reveal → quick pass → lock in `01:58:05` → `00:00:11` → Answers.
+      It found two client bugs, both since fixed — see the open question below.
+- [ ] **Needs the owner:** paste §1 of `docs/APP-REVIEW-NOTES.md` into App Store Connect.
+      This is the only thing still holding `E16-02`. Until it is pasted the accelerated clock
+      is an **undisclosed** difference between the review account and a real one, which is the
+      one thing that could turn a legitimate demo into a Guideline 2.3.1 problem.
+
+> **What the app walk found, and why the demo had never actually worked end to end.** The
+> server side of `E16-01` was right; the client was holding two timestamps it had copied
+> before the server moved them, so neither accelerated deadline ever reached a countdown.
+> Sealing armed a twelve-second reveal the client never learned about, because the submit
+> response is a `SubmissionDTO` with no round in it; and `RevealStore.answersAt` was written
+> only when the store was built, so the reveal counted to the real two-hour window for ever.
+> Both only advanced when the app was backgrounded, via `scenePhase`'s own refetch.
+>
+> This is exactly the gap this task's own note predicted — *"Everything below the app is
+> verified"* — and it is why an end-to-end walk in the app is not an optional last step for a
+> demo environment. Fixed in `bfd8a42`; the note in §4 of `docs/APP-REVIEW-NOTES.md` about
+> shipping with no iOS diff at all is no longer true.
 
 > **Deployment found a gap the migrations alone did not cover.** `assign_pilot_cohort()`
 > carries `pilot_cohorts.is_demo` onto the group it *creates*, but the App Review group had
