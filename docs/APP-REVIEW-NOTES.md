@@ -101,4 +101,18 @@ account's first `PUT /me`. Sign in once in the app, then run the script.
 An in-app "review mode" banner reconciling "Sealed until 8:00 PM" with a twelve-second
 countdown. It would have cost a `GroupDTO` field, a `groups_current.json` golden, a copy-deck
 entry, a strings entry and new goldens across the snapshot matrix — for a fact that belongs in
-§1 above. The demo environment ships as a server-only change with no iOS diff at all.
+§1 above. That decision stands.
+
+**What no longer stands is "server-only".** This section used to end by saying the demo
+environment shipped with no iOS diff at all, and that turned out to be the reason it did not
+work. The accelerated clock is the server moving `reveals_at` and `scores_at` out from under a
+client that had already fetched them, and the client was keeping its copies: sealing armed a
+twelve-second reveal that never reached the sealed screen's countdown, and the reveal's
+countdown was pinned to the real two-hour window for the life of the screen. Only backgrounding
+the app advanced a phase. Both are fixed in `bfd8a42` — the client now refetches the round after
+a seal, and the reveal's answers instant follows the round across a refetch.
+
+Neither fix is demo-specific, and neither one lets the client decide a phase (`CLAUDE.md` §2.2):
+on a real circle they are one idempotent GET returning the value already on screen. But the demo
+is what made a latent "the client trusts a timestamp it copied" bug into a visible one, and it is
+why `E16-02`'s app walk is not an optional last step.
