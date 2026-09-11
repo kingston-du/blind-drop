@@ -455,20 +455,29 @@ struct GroupDetailView: View {
     /// inherits nothing from it.
     @ViewBuilder private func nextCueRow(_ next: NextCueDTO, isSnapshot: Bool) -> some View {
         let date = GroupCalendar(timezone: group.timezone).shareDate(localDate: next.localDate)
-        // `nil` clock → locked. The alternative is offering Save against an instant nobody has
-        // established yet, and the failure mode of guessing wrong here is an admin typing a
-        // brief for a round that already opened.
-        let isOpen = (serverNow.map { $0 < next.editableUntil }) ?? false
+        // **Three states, not two.** An unanchored clock is *unknown*, and it used to collapse
+        // into "locked": the store is cached across navigation, so returning to this screen after
+        // a background period drew the row from a group we already had while `ServerClock` was
+        // still `nil` — and the caption under it said *"That round has opened. The cue is set."*
+        // about a round that had not opened. It corrected itself the moment the refetch
+        // re-anchored the clock, which is why it read as a line that appears and then vanishes if
+        // you leave and come back (owner, 2026-09-10).
+        //
+        // Unknown still does not offer Save — that part of the old reasoning stands, since the
+        // failure mode of guessing wrong is an admin typing a brief for a round that already
+        // opened. It just does not assert the opposite either: the row is drawn plain and says
+        // nothing, for the second or so before the clock lands.
+        let isOpen: Bool? = serverNow.map { $0 < next.editableUntil }
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionLabel("settings.cue.next.label")
-            if isOpen && !isSnapshot {
+            if isOpen == true && !isSnapshot {
                 Button { sheet = .nextCue } label: {
                     controlRow(chevron: true) { nextCueText(next) }
                 }
                 .buttonStyle(.plain).disabled(isSaving)
                 .accessibilityLabel(Text("settings.cue.next.edit"))
             } else {
-                controlRow(chevron: isOpen) { nextCueText(next) }
+                controlRow(chevron: isOpen == true) { nextCueText(next) }
             }
             // **Under the cue, not over it.** The date is which night this line is for — a
             // footnote on the row, the way `group.revealhour.effective` sits under the hour it
@@ -480,7 +489,7 @@ struct GroupDetailView: View {
             // Not a disabled button with no explanation: the round has opened, somebody may
             // already have sealed a song against the brief it carries, and that is the whole
             // reason the server refuses the write too.
-            if !isOpen {
+            if isOpen == false {
                 Text("settings.cue.next.locked").typeStyle(.caption).foregroundStyle(Palette.inkDim)
             }
         }
@@ -573,10 +582,22 @@ private struct GroupNameSheet: View {
         .presentationDetents([.height(measuredHeight)])
         .presentationCornerRadius(Radius.sheet)
         .presentationDragIndicator(.visible)
-        .task {
+        // **`defaultFocus`, and the seed in `onAppear` rather than `task`.** This sheet was
+        // modelled on `NextCueSheet` before that sheet's keyboard was fixed, so it kept the
+        // version of the trick that does not work: a `focused = true` inside `.task` is requested
+        // *after* the presentation, and SwiftUI defers it until the presentation settles — the
+        // sheet arrives, and the keyboard follows it up a beat later. Two motions for one tap.
+        // `defaultFocus` is resolved as part of the presentation, so the keyboard is already on
+        // its way while the sheet is. See the long note on `NextCueSheet`, which argues it, and
+        // keep the two sheets on the same mechanism — they open next to each other.
+        .defaultFocus($focused, true)
+        .onAppear {
             field = name
             focused = true
         }
+        // The third ask, for the reason `NextCueSheet` sets out at length. The two sheets open
+        // next to each other and must not raise their keyboards differently.
+        .task { focused = true }
     }
 
     private func save() async {
@@ -619,14 +640,18 @@ private struct NextCueSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             SectionLabel("settings.cue.next.field")
-            TextField("settings.cue.next.field", text: $field, axis: .vertical)
-                .typeStyle(.bodyL).foregroundStyle(Palette.ink)
-                .textInputAutocapitalization(.sentences)
-                .lineLimit(1...3)
+            // **`InsetField`, not a vertical-axis `TextField`.** The field used to grow to three
+            // lines, and the price of that was the return key: a vertical-axis field inserts a
+            // newline on return and ignores `submitLabel` outright, so the one key a person
+            // reaches for after typing a cue did nothing but add whitespace the trim would strip
+            // again. A cue is 56 characters of one sentence — it is the circle's name with a
+            // different question attached, and it now uses the circle name's own field, down to
+            // the tick on the return key (owner, 2026-09-10).
+            InsetField("settings.cue.next.field", text: $field, isFocused: focused)
                 .focused($focused)
-                .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
-                .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(Palette.surface))
-                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).stroke(Palette.edge, lineWidth: Stroke.border))
+                .textInputAutocapitalization(.sentences)
+                .submitLabel(.done)
+                .onSubmit { Task { await save() } }
             // Counts down against the same 56 the catalog's own check constraint carries, and
             // the same trimmed string the server will be handed — a counter measuring something
             // other than what gets saved is worse than no counter.
@@ -637,7 +662,7 @@ private struct NextCueSheet: View {
                 Text(LocalizedStringKey(errorKey)).typeStyle(.bodyM).foregroundStyle(Palette.alert)
             }
             PrimaryButton("settings.cue.next.save", fill: .neutral, isEnabled: canSave) {
-                Task { if await onSave(trimmed) { dismiss() } }
+                Task { await save() }
             }
             // Only when there is something to revert *to*: a derived cue is already the
             // automatic one, and offering to restore it would be offering to do nothing.
@@ -681,7 +706,31 @@ private struct NextCueSheet: View {
         // stands and closes when it is done, so seeding every time is the contract — a
         // `hasSeeded` flag here survived SwiftUI reusing the sheet's identity between
         // presentations, and the second open came up with a stale field and no keyboard.
-        .onAppear { field = cue?.text ?? "" }
+        //
+        // The focus request rides along with the seed for the reason the keyboard note above
+        // gives: `defaultFocus` is what gets the keyboard moving with the sheet, and this is the
+        // fallback for the presentations where SwiftUI has already resolved default focus for a
+        // reused sheet identity and will not resolve it a second time. Setting a `FocusState`
+        // that is already true is a no-op, so on the common path this line does nothing.
+        .onAppear {
+            field = cue?.text ?? ""
+            focused = true
+        }
+        // **Three requests for one keyboard, and each one covers a case the others miss.**
+        // `defaultFocus` is the one that gets the keyboard moving *with* the sheet rather than
+        // after it, and when it lands the other two are no-ops — setting a `FocusState` that is
+        // already true does nothing. But it is not dependable on a re-presented sheet: measured
+        // on an iPhone 17, this sheet opened cold — settled, dimmed, no caret — while the circle
+        // name's sheet, carrying the identical chain, came up with its keyboard already in place.
+        // `onAppear` above is the second ask, and this is the third: a yielded turn of the run
+        // loop, which is late enough to survive whatever swallowed the first two and early enough
+        // to still be inside the presentation rather than a second beat after it.
+        .task { focused = true }
+    }
+
+    private func save() async {
+        guard canSave else { return }
+        if await onSave(trimmed) { dismiss() }
     }
 }
 
