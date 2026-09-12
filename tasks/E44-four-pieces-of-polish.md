@@ -27,7 +27,7 @@ code it ran before this epic.
 
 ### E44-01 — Sheets put the keyboard away when they close
 
-**Status:** todo
+**Status:** wip
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/12` §5, `ios/BlindDrop/Features/Circles/JoinCircleSheet.swift`,
