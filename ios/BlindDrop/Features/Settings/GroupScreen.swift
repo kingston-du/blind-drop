@@ -71,6 +71,7 @@ struct GroupScreen: View {
                 onClearNextCue: { await store.clearNextCue() },
                 onSetRole: { member, role in await store.setRole(role, for: member.userID) },
                 onRemove: { member in await store.remove(member.userID) },
+                onReport: { member, reason in await store.report(member.userID, reason: reason) },
                 onLeave: {
                     guard await store.leave() else { return false }
                     env.router.path = []
@@ -131,6 +132,9 @@ struct GroupDetailView: View {
     var onClearNextCue: () async -> Bool = { true }
     var onSetRole: (MemberDTO, String) async -> Bool = { _, _ in true }
     var onRemove: (MemberDTO) async -> Bool = { _ in true }
+    /// `E45-01`. Returns whether the report landed, which is what decides between the
+    /// acknowledgement and the screen's ordinary error line.
+    var onReport: (MemberDTO, MemberReportReason) async -> Bool = { _, _ in true }
     var onLeave: () async -> Bool = { true }
     /// The Record's entry point, moved here from the header menu (`E28-06`, amendment A3) — a
     /// list of songs sits with the leaderboard it complements rather than beside the three
@@ -154,6 +158,10 @@ struct GroupDetailView: View {
     /// mutually exclusive in the type, which is what they always were on screen.
     @State private var sheet: SheetRoute?
     @State private var memberToRemove: MemberDTO?
+    @State private var memberToReport: MemberDTO?
+    /// Shown once a report has actually landed. A report changes nothing visible, so without an
+    /// acknowledgement the only honest reading of the screen is that nothing happened.
+    @State private var reportAcknowledged = false
 
     var body: some View {
         Group {
@@ -201,6 +209,27 @@ struct GroupDetailView: View {
         } message: {
             Text(verbatim: Copy.format("group.member.remove.confirm.body", memberToRemove?.displayName ?? ""))
         }
+        // `E45-01`. A confirmation dialog rather than an alert, because the reasons *are* the
+        // choice — an alert would need a second screen to hold them, for an action that should
+        // cost one tap more than the menu item did.
+        .confirmationDialog(
+            Text(verbatim: Copy.format("group.member.report.title", memberToReport?.displayName ?? "")),
+            isPresented: reportConfirmation,
+            titleVisibility: .visible
+        ) {
+            ForEach(MemberReportReason.allCases) { reason in
+                Button(reason.titleKey) {
+                    guard let memberToReport else { return }
+                    Task { reportAcknowledged = await onReport(memberToReport, reason) }
+                }
+            }
+            Button("settings.cancel", role: .cancel) {}
+        } message: {
+            Text("group.member.report.body")
+        }
+        .alert("group.member.report.sent.title", isPresented: $reportAcknowledged) {
+            Button("group.member.report.sent.action") {}
+        } message: { Text("group.member.report.sent.body") }
     }
 
     /// `ImageRenderer` silently omits a `ScrollView`; snapshots render this same column bare.
@@ -320,7 +349,7 @@ struct GroupDetailView: View {
                         MemberStandingRow(member: member, standing: standing,
                                           readability: readabilityByUserID[standing.userID],
                                           isCurrentUser: member.userID == currentUserID,
-                                          reservesActionSlot: group.isAdmin,
+                                          reservesActionSlot: reservesActionSlot,
                                           actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
                                           managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                           manage: { manage($0, member: member) })
@@ -343,19 +372,36 @@ struct GroupDetailView: View {
         Binding(get: { memberToRemove != nil }, set: { if !$0 { memberToRemove = nil } })
     }
 
+    private var reportConfirmation: Binding<Bool> {
+        Binding(get: { memberToReport != nil }, set: { if !$0 { memberToReport = nil } })
+    }
+
+    /// The `⋯` slot is reserved whenever any row in this list can open a menu, so the ear figures
+    /// share one right edge. Since `E45-01` that is no longer the same question as "am I an
+    /// admin" — every member can report — so it is now simply "is there anyone here but me".
+    private var reservesActionSlot: Bool {
+        group.members.contains { $0.userID != currentUserID }
+    }
+
     private func memberActions(for member: MemberDTO) -> [MemberManagementAction] {
-        guard group.isAdmin else { return [] }
         let isCurrentUser = member.userID == currentUserID
-        let adminCount = group.members.filter(\.isAdmin).count
         var actions: [MemberManagementAction] = []
-        if member.isAdmin {
-            if adminCount > 1 { actions.append(.demote) }
-        } else {
-            actions.append(.promote)
+        if group.isAdmin {
+            let adminCount = group.members.filter(\.isAdmin).count
+            if member.isAdmin {
+                // Including on the caller's own row: stepping down is an admin's own business,
+                // and the last admin cannot, which is what the count guards.
+                if adminCount > 1 { actions.append(.demote) }
+            } else {
+                actions.append(.promote)
+            }
+            // Leaving is the caller's explicit, already-confirmed removal flow. Every other active
+            // member can be removed here; the server enforces the same rule against stale clients.
+            if !isCurrentUser { actions.append(.remove) }
         }
-        // Leaving is the caller's explicit, already-confirmed removal flow. Every other active
-        // member can be removed here; the server enforces the same rule against stale clients.
-        if !isCurrentUser { actions.append(.remove) }
+        // `E45-01`. The one action here that is not an admin power, and last so it never sits
+        // where a destructive admin action used to be under the same finger.
+        if !isCurrentUser { actions.append(.report) }
         return actions
     }
 
@@ -364,6 +410,7 @@ struct GroupDetailView: View {
         case .promote: Task { _ = await onSetRole(member, "admin") }
         case .demote: Task { _ = await onSetRole(member, "member") }
         case .remove: memberToRemove = member
+        case .report: memberToReport = member
         }
     }
 
@@ -662,7 +709,12 @@ private struct NextCueSheet: View {
             // the tick on the return key (owner, 2026-09-10).
             InsetField("settings.cue.next.field", text: $field, isFocused: focused)
                 .focused($focused)
-                .textInputAutocapitalization(.sentences)
+                // **`.never`, though a cue genuinely is a sentence** (owner, 2026-09-11). The
+                // note above says this field is the circle name's field with a different question
+                // attached, and the owner has now settled that all three name-ish fields behave
+                // the same way: the keyboard does not decide how what you typed is spelled. A cue
+                // that wants a capital still gets one from the shift key.
+                .textInputAutocapitalization(.never)
                 .submitLabel(.done)
                 .onSubmit { Task { await save() } }
             // Counts down against the same 56 the catalog's own check constraint carries, and
@@ -775,7 +827,7 @@ enum CueCadence {
 }
 
 enum MemberManagementAction: String, Identifiable {
-    case promote, demote, remove
+    case promote, demote, remove, report
 
     var id: String { rawValue }
     var titleKey: LocalizedStringKey {
@@ -783,6 +835,32 @@ enum MemberManagementAction: String, Identifiable {
         case .promote: "group.member.promote"
         case .demote: "group.member.demote"
         case .remove: "group.member.remove"
+        case .report: "group.member.report"
+        }
+    }
+
+    var isDestructive: Bool { self == .remove || self == .report }
+}
+
+/// `E45-01`. The closed set of reasons a report may carry, matching the server's own list.
+///
+/// A fixed list rather than a text field, and that is the design rather than a shortcut: a
+/// free-text reason would be a second piece of user-generated content, written about a named
+/// person, read by nobody until the owner looked — which is the problem reporting exists to
+/// answer rather than a solution to it.
+enum MemberReportReason: String, CaseIterable, Identifiable {
+    case displayName = "display_name"
+    case cue
+    case harassment
+    case other
+
+    var id: String { rawValue }
+    var titleKey: LocalizedStringKey {
+        switch self {
+        case .displayName: "group.member.report.reason.name"
+        case .cue: "group.member.report.reason.cue"
+        case .harassment: "group.member.report.reason.harassment"
+        case .other: "group.member.report.reason.other"
         }
     }
 }
@@ -933,7 +1011,7 @@ private struct GroupMemberRowContent: View {
             .padding(.horizontal, Space.sm)
             .padding(.vertical, Space.xxs)
             .background(Capsule().fill(Palette.surface))
-            .overlay(Capsule().stroke(Palette.ultramarineEdge, lineWidth: Stroke.border))
+            .overlay(Capsule().strokeBorder(Palette.ultramarineEdge, lineWidth: Stroke.border))
     }
 
     /// The ranked figure: correct guesses over the circle's last fourteen rounds, not a rate.
@@ -999,7 +1077,9 @@ struct MemberActionMenu: View {
             } else {
                 Menu {
                     ForEach(actions) { action in
-                        Button(action.titleKey, role: action == .remove ? .destructive : nil) { manage(action) }
+                        // Report is red alongside remove: both are serious, and the platform
+                        // has taught people to look for a report in exactly that colour.
+                        Button(action.titleKey, role: action.isDestructive ? .destructive : nil) { manage(action) }
                     }
                 } label: { glyph }
                 .accessibilityLabel(Text("group.member.actions"))

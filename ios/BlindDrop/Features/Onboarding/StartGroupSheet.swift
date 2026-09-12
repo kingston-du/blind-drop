@@ -147,7 +147,11 @@ struct StartGroupForm: View {
         VStack(alignment: .leading, spacing: Layout.itemGap) {
             InsetField("group.start.name.placeholder", text: $store.name, isFocused: nameFocused)
                 .focused($nameFocused)
-                .textInputAutocapitalization(.words)
+                // `.never`, matching the rename field in circle settings (owner, 2026-09-11).
+                // This is where a circle's name is typed for the first time, so it is the one
+                // that matters most: a name the keyboard capitalised on the way in is a name the
+                // owner has to go and fix afterwards.
+                .textInputAutocapitalization(.never)
                 .submitLabel(.done)
                 .onSubmit { nameFocused = false }
 
