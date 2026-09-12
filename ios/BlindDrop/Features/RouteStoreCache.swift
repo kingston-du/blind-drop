@@ -27,6 +27,7 @@ final class RouteStoreCache {
     private var insights: [String: InsightsStore] = [:]
     private var profiles: [ProfileKey: MemberProfileStore] = [:]
     private var records: [String: RecordStore] = [:]
+    private var results: [String: ResultsStore] = [:]
 
     private struct ProfileKey: Hashable {
         let circleID: String
@@ -67,6 +68,25 @@ final class RouteStoreCache {
         return built
     }
 
+    /// A past night's results (`E44-03`).
+    ///
+    /// **Keyed by round id, not circle id**, because a night is the thing being looked at: the
+    /// same circle has one of these per evening, and two nights are two stores. It is the only
+    /// entry here that is not circle-scoped, which is why it does not take the `nil` fallback the
+    /// others do — a round id is never unresolved at the point this is asked for. The screen has
+    /// one in its hand; that is how it got there.
+    ///
+    /// **Built by the caller rather than here.** `ResultsStore` needs the artwork loader, which
+    /// is a SwiftUI environment value and belongs to the view reading it, not to this cache — the
+    /// same reasoning `makeRecordStore` uses for the Spotify exporter, arranged as a parameter
+    /// instead of an init closure because this one varies per call site rather than per app.
+    func resultsStore(for roundID: String, build: () -> ResultsStore) -> ResultsStore {
+        if let existing = results[roundID] { return existing }
+        let built = build()
+        results[roundID] = built
+        return built
+    }
+
     func profileStore(member: MemberDTO, circleID: String?) -> MemberProfileStore {
         guard let circleID else {
             return MemberProfileStore(member: member, api: api, circles: circles)
@@ -83,5 +103,6 @@ final class RouteStoreCache {
         insights.removeAll()
         profiles.removeAll()
         records.removeAll()
+        results.removeAll()
     }
 }

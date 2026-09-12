@@ -102,7 +102,7 @@ A → B → A and watch for the skeleton.
 
 ### E44-03 — Past results keeps its store too
 
-**Status:** todo
+**Status:** done
 **Deps:** E44-02
 **Parallel:** no
 **Reads:** `ios/BlindDrop/Features/RouteStoreCache.swift`,
@@ -113,9 +113,9 @@ The remaining skeleton-flash the walk did not reach: `PastResultsScreen` builds 
 `ResultsStore` per push, so the same night opened twice loads twice. Keyed by round id, not
 circle id — a night is the thing being looked at.
 
-- [ ] `RouteStoreCache.resultsStore(for:)`, keyed by round id
-- [ ] `PastResultsScreen` takes it from the cache
-- [ ] `reset()` clears it
+- [x] `RouteStoreCache.resultsStore(for:)`, keyed by round id
+- [x] `PastResultsScreen` takes it from the cache
+- [x] `reset()` clears it
 
 **Verify:** `./ios/scripts/lint.sh`; unit suite; simulator — open a night from The Record, back,
 open it again.

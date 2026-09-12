@@ -38,10 +38,16 @@ struct PastResultsScreen: View {
         }
         .background(Palette.paper)
         .toolbar(.visible, for: .navigationBar)
+        // From the cache, so a night opened twice does not load twice (`E44-03`). Before this,
+        // the store was built fresh on every push and the skeleton was drawn over a payload the
+        // app had already fetched — the same defect `RouteStoreCache` was written for, on the one
+        // screen it did not reach. `load()` refreshes in place over what the cache returns.
         .task {
-            let built = store ?? ResultsStore(
-                api: env.api, roundID: roundID, circles: env.circles, artworkLoader: artworkLoader
-            )
+            let built = store ?? env.routeStores.resultsStore(for: roundID) {
+                ResultsStore(
+                    api: env.api, roundID: roundID, circles: env.circles, artworkLoader: artworkLoader
+                )
+            }
             store = built
             await built.load()
         }
