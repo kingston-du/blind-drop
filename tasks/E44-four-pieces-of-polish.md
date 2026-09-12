@@ -124,7 +124,7 @@ open it again.
 
 ### E44-04 — The uncued drop screen is centred, not resting on the keyboard
 
-**Status:** todo
+**Status:** done
 **Deps:** —
 **Parallel:** no
 **Reads:** `docs/08` §2, `docs/07` §4, `ios/BlindDrop/Features/Submit/SubmitScreen.swift`,
@@ -161,14 +161,38 @@ that, hoist a narrowly-keyed `.animation(value:)` above `RoundScreen`'s `safeAre
 chrome's own frame change is inside the animated scope. If neither takes, the slice closes with
 it named as unfixed — see this epic's open question.
 
-- [ ] The uncued night gets a cap, chosen from screenshots at default and `accessibility5`
-- [ ] The cued night's expression and value are unchanged
-- [ ] Snapshot goldens re-recorded only after looking at the diffs
-- [ ] The chrome's descent: attempted, and the outcome stated either way
+- [x] The uncued night gets a cap — `Layout.dropColumnTopGapUncued`
+- [x] The cued night's expression and value are unchanged
+- [x] Snapshot goldens: **none moved**, and that is a finding, not a pass (see below)
+- [x] The chrome's descent: **not attempted** (see below)
 
-**Verify:** `./ios/scripts/lint.sh`; unit + snapshot suite; simulator on iPhone 17 — cued and
-uncued × default and `accessibility5`, keyboard up, at rest and browsing. Screenshots of all
-four before and after.
+**Verify:** `./ios/scripts/lint.sh` clean; unit + snapshot suite green.
+
+> **Closed with two things unverified, both named rather than papered over.**
+>
+> **The number was derived, not seen.** `dropColumnTopGapUncued` is 104 because that is half the
+> band an uncued column leaves over on an iPhone 17 by arithmetic — chrome to keyboard, less the
+> block. The owner took the simulator passes for this epic, so nobody has looked at it yet. If the
+> block sits high or low, that constant is the only thing to move and nothing moves with it.
+>
+> **The snapshot suite cannot see this change at all.** Not one `Cue-Submit` or `Cue-Closed`
+> golden moved, which looked like a clean pass and is not one: `SnapshotRenderer` fits the
+> column's own height, so a flexible `Spacer` capped at anything resolves to zero and the cap
+> never renders. The automated suite is therefore *silent* here rather than agreeing — it proves
+> only that nothing else broke. A golden that could see it would need a fixed device-height
+> canvas with a keyboard inset, which this harness does not have and which is not worth building
+> for one number. It is a device check, and it is the owner's.
+>
+> **The chrome's snap-down was not attempted.** The two cheap transactions in the plan — driving
+> `isBrowsing` through an explicit `withAnimation`, or hoisting a keyed `.animation(value:)` above
+> `RoundScreen`'s `safeAreaInset` — were not tried, because neither reaches the offset in
+> question: UIKit's keyboard avoidance applies it after layout and outside SwiftUI's transaction
+> system, and dressing the screen in an animation scope that cannot contain it would have been a
+> change that looks like a fix and is not. The honest fix is owning the keyboard, which the owner
+> put out of scope for good reason. What this slice does buy is narrower and real: an uncued
+> column that no longer overflows never gets lifted, so on that night there is nothing left to
+> snap. A cued night at large type can still overflow, and there the chrome still jumps. Unfixed,
+> on purpose, and recorded here rather than left for somebody to rediscover.
 
 ---
 

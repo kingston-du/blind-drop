@@ -106,6 +106,29 @@ enum Layout {
     /// A name chip's drawn height; its hit region is `minimumTouchTarget`.
     static let chipHeight: CGFloat = 38
 
+    /// Where the drop screen's column rests under the round's chrome on a night with **no cue**
+    /// (`E44-04`).
+    ///
+    /// A ceiling on `SongSearch`'s top gap, and on this screen a ceiling is a position: the
+    /// column is laid out at the full height of the device, keyboard included, so the leftover
+    /// the two flexible gaps split is always larger than any cap worth setting and the top one
+    /// therefore takes its whole ceiling. A cued night uses `Space.x5` for the same job.
+    ///
+    /// **Uncapped was the bug.** With no ceiling the two gaps split that full-height leftover
+    /// evenly, which aims the block at the middle of the *device* rather than the middle of the
+    /// band between the chrome and the keyboard — a point that is behind the keyboard. UIKit's
+    /// avoidance then lifted the whole screen to keep the field visible and parked the column on
+    /// top of the keyboard, which is what the owner saw and reported as *"the content is at the
+    /// very bottom of the screen"*.
+    ///
+    /// **Why 104 and not a token.** It is half the band an uncued column leaves over on an
+    /// iPhone 17 — roughly 440 points between the chrome and the keyboard, less the ~215 the
+    /// headline, subhead, field and footer occupy. The ramp has nothing between `x6` (72) and
+    /// double `x5` (112), and this is not a rhythm, it is a measured resting point, so it is
+    /// written as the measurement. It wants an eye on a device rather than arithmetic: if the
+    /// block sits high or low, this is the one number to move, and nothing else changes with it.
+    static let dropColumnTopGapUncued: CGFloat = 104
+
     /// One row of the circle switcher (`E42-01`).
     ///
     /// Not `minimumTouchTarget`, which is what it was and which is a *floor* rather than a
