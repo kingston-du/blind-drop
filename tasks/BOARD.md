@@ -641,6 +641,19 @@ that would have fixed the chrome's snap-down outright is explicitly out of scope
 
 ---
 
+## E45 — Report a member · [file](E45-report-a-member.md)
+
+App Review's UGC rule (1.2) wants a filter, a report, a block, and contact information. Three of
+the four Blind Drop already answers — the catalog is Apple's, leaving a circle *is* the block
+(per-user hiding would leak the blind window), and the support page is published. This epic is
+the fourth: one action in the group page's existing `⋯` menu, open to every member.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E45-01 A member can report a member | wip | — | no | AC-11 |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -695,4 +708,5 @@ that would have fixed the chrome's snap-down outright is explicitly out of scope
 | E40 reads maths | 1 / 1 |
 | E41 quick pass | 3 / 3 |
 | E44 five pieces of polish | 5 / 5 |
-| **Next-progression total** | **27 / 27** |
+| E45 report a member | 0 / 1 |
+| **Next-progression total** | **27 / 28** |
