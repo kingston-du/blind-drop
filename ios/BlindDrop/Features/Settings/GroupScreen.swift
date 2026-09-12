@@ -554,7 +554,12 @@ private struct GroupNameSheet: View {
             SectionLabel("group.name.label")
             InsetField("group.name.label", text: $field, isFocused: focused)
                 .focused($focused)
-                .textInputAutocapitalization(.words)
+                // **`.never`, not `.words`** (owner, 2026-09-11). A circle's name is a name
+                // somebody chose, not prose to be tidied: `.words` re-capitalised what was typed
+                // and made deliberately lowercase names — the common case for a group of friends
+                // — something you had to fight the keyboard to keep. The field still has a shift
+                // key; it just stops pressing it for you.
+                .textInputAutocapitalization(.never)
                 .submitLabel(.done)
                 .onSubmit { Task { await save() } }
             // The screen's own error line is behind this sheet, so a refused rename would
