@@ -624,6 +624,22 @@ Free text only, and a custom line is never promoted into the catalog.
 
 ---
 
+## E44 — Four pieces of polish · [file](E44-four-pieces-of-polish.md)
+
+Four owner-reported defects from an app walk, 2026-09-11, all client-only. The first three are
+small and certain; the fourth touches the drop screen's keyboard arrangement and is bounded by an
+owner constraint — the cued night's layout does not change, and the keyboard-ownership rewrite
+that would have fixed the chrome's snap-down outright is explicitly out of scope.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E44-01 Sheets put the keyboard away when they close | todo | — | yes | — |
+| E44-02 A circle you have already seen does not show a skeleton | todo | — | yes | — |
+| E44-03 Past results keeps its store too | todo | E44-02 | no | — |
+| E44-04 The uncued drop screen is centred, not resting on the keyboard | todo | — | no | — |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -677,4 +693,5 @@ Free text only, and a custom line is never promoted into the catalog.
 | E38 circles end to end | 4 / 4 |
 | E40 reads maths | 1 / 1 |
 | E41 quick pass | 3 / 3 |
-| **Next-progression total** | **22 / 22** |
+| E44 four pieces of polish | 0 / 4 |
+| **Next-progression total** | **22 / 26** |
