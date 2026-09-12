@@ -36,14 +36,6 @@ struct NameChip: View {
     /// strike, the selected fill, the accessibility value `docs/12` §3 requires — is identical
     /// across both, which is the whole reason this is a size and not a second component.
     var size: Size = .regular
-    /// Whether the pill fills the width it is offered rather than stopping at its own name.
-    ///
-    /// The narrowed call-sheet row (`GuessSheet.equalWidthRow`) lays its four chips as equal
-    /// shares of one width, and a pill that stops at its own word leaves the row looking like
-    /// four small ovals scattered across a shared target band. Filling the slot is what makes
-    /// the four read as one set of choices — the same reason `Size.large` fills its column, and
-    /// the reason a regular chip does not by default (the scrolled pool is ragged on purpose).
-    var fillsWidth = false
 
     /// The two scales a name is offered at.
     enum Size: Equatable {
@@ -121,7 +113,7 @@ struct NameChip: View {
                 // into each other rather than sitting side by side.
                 .frame(
                     minWidth: allowsWrapping ? nil : minimumWidth,
-                    maxWidth: size.fillsColumn || fillsWidth ? .infinity : nil,
+                    maxWidth: size.fillsColumn ? .infinity : nil,
                     minHeight: size.height
                 )
                 .background(

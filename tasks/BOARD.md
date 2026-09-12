@@ -637,7 +637,7 @@ that would have fixed the chrome's snap-down outright is explicitly out of scope
 | E44-02 A circle you have already seen does not show a skeleton | done | — | yes | — |
 | E44-03 Past results keeps its store too | done | E44-02 | no | — |
 | E44-04 The uncued drop screen is centred, not resting on the keyboard | done | — | no | — |
-| E44-05 The shortlist draws like the pool it came from | todo | — | vs E44-02, E44-03 | — |
+| E44-05 The shortlist draws like the pool it came from | done | — | vs E44-02, E44-03 | — |
 
 ---
 
@@ -694,5 +694,5 @@ that would have fixed the chrome's snap-down outright is explicitly out of scope
 | E38 circles end to end | 4 / 4 |
 | E40 reads maths | 1 / 1 |
 | E41 quick pass | 3 / 3 |
-| E44 five pieces of polish | 0 / 5 |
-| **Next-progression total** | **22 / 27** |
+| E44 five pieces of polish | 5 / 5 |
+| **Next-progression total** | **27 / 27** |

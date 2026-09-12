@@ -523,12 +523,20 @@ struct GuessSheet: View {
                 .scrollIndicators(.visible)
                 .frame(maxHeight: availableHeight.map { $0 * Layout.namePoolMaximumHeightFraction }
                     ?? Layout.namePoolSnapshotMaximumHeight)
-            } else if isNarrowed {
-                // No scroll container at all. Four equal shares always fit, so a scroll view here
-                // would be a gesture with nowhere to go — and the trailing fade below would be a
-                // fade over nothing, telling the player there are more names when there are not.
-                equalWidthRow.padding(.horizontal, Layout.screenInset)
             } else {
+                // **The narrowed row draws exactly like this one** (`E44-05`, owner). It had its
+                // own branch for a while — no scroll container, four chips at `.infinity` sharing
+                // the width equally, wrapping on so a long name could fit a quarter of a sheet.
+                // The wrapping is what sank it: a pill that has gone to two lines is visibly a
+                // different object from the pool's pills, so focusing a card changed what the
+                // names *were* and not merely which ones were on offer. Narrowing is a filter,
+                // and a filter does not get its own typography.
+                //
+                // What comes back with the pool's rendering is the pool's affordances — ragged
+                // widths with `nameChipMinimumWidth` as the floor, one line each, and the scroll
+                // and fade for when four long names do not fit. The fade over a row that may not
+                // overflow is accepted: it is what this container already does at every other
+                // length, and one rule drawn consistently beats two rules each locally right.
                 ScrollView(.horizontal) {
                     chips.padding(.horizontal, Layout.screenInset)
                 }
@@ -558,10 +566,6 @@ struct GuessSheet: View {
     @ViewBuilder private func snapshotPool(layout: NamePoolLayout) -> some View {
         if layout == .verticalGrid {
             gridChips.padding(.horizontal, Layout.screenInset)
-        } else if isNarrowed {
-            // Nothing to stand in for: the narrowed row has no scroll container and no overflow,
-            // so the golden renders the production view itself.
-            equalWidthRow.padding(.horizontal, Layout.screenInset)
         } else if let sizer = store.pool.first {
             // The flat row stands in for the scroll container; it must not also stand in for its
             // width. `chips` is `.fixedSize()`, and placed straight into the sheet's stack the
@@ -615,45 +619,6 @@ struct GuessSheet: View {
     /// card-first path gets, not a mode the sheet enters.
     private var poolMembers: [MemberDTO] {
         store.focusedCard.map(store.shortlist(for:)) ?? store.pool
-    }
-
-    /// Whether the pool is currently showing a card's four rather than everybody.
-    ///
-    /// A focused card in a circle small enough that its shortlist *is* the pool is **not**
-    /// narrowed: nothing was taken away, so nothing should look different. This is the flag
-    /// that keeps a five-person round rendering exactly as it did before any of this existed.
-    private var isNarrowed: Bool {
-        poolMembers.count < store.pool.count
-    }
-
-    /// The narrowed row: four chips, equal width, filling the sheet, no scroll.
-    ///
-    /// **Equal shares rather than natural widths.** A row of four is a set of choices, and a set
-    /// of choices should look like one — *Ana* getting a third of the width of *Christopher*
-    /// makes the short name look like the lesser option and the long one like the answer. It is
-    /// also the shape that fits: four equal chips fill any width down to an SE's, so the four
-    /// names the card offers are all on screen, which is the entire promise of narrowing them.
-    ///
-    /// Wrapping is on for the same reason. At a quarter of the width a long name would truncate,
-    /// and a truncated name is not a candidate — it is a riddle. Two lines is fine; guessing at
-    /// *Christoph…* is not.
-    private var equalWidthRow: some View {
-        HStack(spacing: Space.sm) {
-            ForEach(poolMembers) { member in
-                NameChip(
-                    member: member,
-                    displayName: store.displayNames[member.userID],
-                    state: store.chipState(for: member),
-                    action: { store.tapName(member.userID) },
-                    unavailableReason: store.blockedReason,
-                    allowsWrapping: true,
-                    fillsWidth: true
-                )
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .disabled(!store.canGuess || store.isLocked)
-        .opacity(store.canGuess && !store.isLocked ? 1 : 0.5)
     }
 
     private var chipRow: some View {

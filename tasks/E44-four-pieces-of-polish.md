@@ -198,7 +198,7 @@ it named as unfixed — see this epic's open question.
 
 ### E44-05 — The shortlist draws like the pool it came from
 
-**Status:** todo
+**Status:** done
 **Deps:** —
 **Parallel:** vs E44-02, E44-03
 **Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §3,
@@ -222,11 +222,19 @@ pool's way is what makes narrowing a filter rather than a mode.
 The fade returning over a row that may not overflow is accepted: it is what the full pool already
 does at every length, and one rule drawn consistently beats two rules each locally optimal.
 
-- [ ] The narrowed row uses the pool's `ScrollView` + `chipRow` path
-- [ ] `equalWidthRow` is gone, not left unused
-- [ ] `NameChip.fillsWidth` removed if `Size.large` is its only remaining caller
-- [ ] The narrowed golden re-recorded after looking at the diff
-- [ ] `.accessibility5` still gets `gridChips`, untouched
+- [x] The narrowed row uses the pool's `ScrollView` + `chipRow` path
+- [x] `equalWidthRow` is gone, not left unused
+- [x] `NameChip.fillsWidth` removed if `Size.large` is its only remaining caller
+- [x] The narrowed golden re-recorded after looking at the diff
+- [x] `.accessibility5` still gets `gridChips`, untouched
 
 **Verify:** `./ios/scripts/lint.sh`; unit + snapshot suite; simulator — focus a card in a circle
 with a long name and a short one, default and `accessibility5`.
+
+> **The goldens, looked at before they were re-recorded.** Two moved — `GuessSheet-shortlist` at
+> `.large` on both devices — and nothing else in `RevealSnapshots` did. The before showed four
+> equal quarters of the sheet; the after shows four minimum-width pills, ragged, which on an SE
+> overflow and clip the fourth behind the fade. That clipped fourth chip is not a regression: it
+> is exactly what `GuessSheet-SE-large`, the *full* pool's golden, has always shown on that
+> device, which is the one-sentence proof that the narrowed row is now drawn by the same rules as
+> the row it narrowed from. `.accessibility5` did not move, because it was always the grid.
