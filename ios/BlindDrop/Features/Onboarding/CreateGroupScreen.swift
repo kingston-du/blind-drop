@@ -42,7 +42,10 @@ struct CreateGroupScreen: View {
                 isFocused: isNameFocused
             )
                 .focused($isNameFocused)
-                .textInputAutocapitalization(.words)
+                // `.never`, matching `StartGroupSheet` — the same field behind a different door,
+                // and it would be strange for onboarding to capitalise what the switcher's sheet
+                // leaves alone.
+                .textInputAutocapitalization(.never)
                 .submitLabel(.done)
                 .onSubmit { isNameFocused = false }
                 .accessibilityLabel(Text("onboarding.create.name.placeholder"))

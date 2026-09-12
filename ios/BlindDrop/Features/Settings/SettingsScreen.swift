@@ -51,7 +51,10 @@ struct SettingsScreen: View {
                         .foregroundStyle(Palette.inkDim)
                     InsetField("settings.name.placeholder", text: $store.name, isFocused: nameFocused)
                         .focused($nameFocused)
-                        .textInputAutocapitalization(.words)
+                        // `.never`, with every other field in the app (owner, 2026-09-11). A
+                        // display name is the case a `.words` default gets wrong most often —
+                        // people who write their own name lowercase mean it.
+                        .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .submitLabel(.done)
                         .onSubmit { Task { await store.saveName() } }

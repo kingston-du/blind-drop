@@ -56,7 +56,10 @@ struct DisplayNameScreen: View {
                 )
                     .focused($isFieldFocused)
                     .textContentType(.givenName)
-                    .textInputAutocapitalization(.words)
+                    // `.never`, matching the same field in settings. `.givenName` above still
+                    // offers the right autofill; it is the keyboard's shift key that stops
+                    // deciding how somebody's name is spelled.
+                    .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .submitLabel(.continue)
                     .onSubmit(save)
