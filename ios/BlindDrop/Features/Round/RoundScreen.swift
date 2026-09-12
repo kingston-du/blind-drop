@@ -141,7 +141,20 @@ struct RoundScreen: View {
                 // leaving the active circle — happens against a `.loaded` round, so it is
                 // unaffected.
                 guard store?.state.isLoading == false else { return }
-                store?.invalidate()
+                // **And the same guard again, for the switch that no longer clears to
+                // `.loading`** (`E44-02`). `switchCircle` now serves a remembered round for a
+                // circle already seen this session, which leaves the store `.loaded` rather than
+                // `.loading` — so the `isLoading` test above stops catching its own tap and this
+                // fires a second, redundant load that cancels the first one mid-flight. That is
+                // the `E38-04` bug exactly, reached through the door `E44-02` opened.
+                //
+                // Asking whether the round on screen is *already the circle that was switched to*
+                // catches both spellings and needs no new flag. The case this whole `onChange`
+                // exists for — `E21-01`, leaving the active circle — is unaffected: there the
+                // round on screen belongs to the circle just left, which is by definition not
+                // `new`.
+                guard store?.state.value?.group.id != new else { return }
+                store?.invalidate(switchingTo: new)
                 loadToken += 1
             }
     }
@@ -725,7 +738,11 @@ struct RoundScreen: View {
     }
 
     /// A row was picked in the switcher (`E19-02`). Persists the choice, clears the round
-    /// **before** the refetch rather than after — see `RoundStore.invalidate()` — and reloads.
+    /// **before** the refetch rather than after — see `RoundStore.invalidate(switchingTo:)` —
+    /// and reloads. A circle seen earlier this session is put back on screen from that store's
+    /// memo instead of being cleared at all (`E44-02`), and the reload then refreshes it in
+    /// place; the ordering is unchanged either way, because what must not happen is the
+    /// *previous* circle's round surviving the switch.
     /// Every group-scoped store resolves its own `groupID` fresh at the top of its own call, so
     /// nothing here needs rebuilding: `store.load()` picking up the new circle is the entire
     /// re-scope.
@@ -744,7 +761,7 @@ struct RoundScreen: View {
         guard id != store.state.value?.group.id else { return }
         env.circles.select(id)
         env.router.clearPending()
-        store.invalidate()
+        store.invalidate(switchingTo: id)
         loadToken += 1
     }
 

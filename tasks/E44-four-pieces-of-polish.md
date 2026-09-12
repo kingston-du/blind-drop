@@ -58,7 +58,7 @@ ways (button, drag, save).
 
 ### E44-02 — A circle you have already seen does not show a skeleton
 
-**Status:** todo
+**Status:** done
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/13` §5 rule 3/§7, `ios/BlindDrop/Features/Round/RoundStore.swift`,
@@ -89,11 +89,11 @@ No `CLAUDE.md` §2.1 exposure. The memo holds a payload this caller was already 
 circle they hold; nothing about anybody else is in `RoundContext`, and there is no field on it
 where a count could be put.
 
-- [ ] `RoundStore` memoises the last loaded `RoundContext` per circle id
-- [ ] `invalidate(switchingTo:)` serves a live memo, `.loading` otherwise
-- [ ] The memo is refused when `deadline` has passed, and when the clock has no anchor
-- [ ] `reset()` on sign-out clears it — the one case keys cannot see
-- [ ] Tests: a revisit renders without `.loading`; an expired memo does not
+- [x] `RoundStore` memoises the last loaded `RoundContext` per circle id
+- [x] `invalidate(switchingTo:)` serves a live memo, `.loading` otherwise
+- [x] The memo is refused when `deadline` has passed, and when the clock has no anchor
+- [x] `reset()` on sign-out clears it — the one case keys cannot see
+- [x] Tests: a revisit renders without `.loading`; an expired memo does not
 
 **Verify:** `./ios/scripts/lint.sh`; `-only-testing:BlindDropUnitTests`; simulator — switch
 A → B → A and watch for the skeleton.

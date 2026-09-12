@@ -157,6 +157,99 @@ import Testing
         #expect(store.state.isLoading)
     }
 
+    // MARK: - A circle you have already seen (`E44-02`)
+
+    /// Switching back to a circle this store loaded earlier puts that round straight back on
+    /// screen, and the refetch that follows refreshes it in place.
+    ///
+    /// The skeleton was never wrong, exactly — it was just uninformed. `RouteStoreCache` gives
+    /// Group, Insights, Record and Profile a store per circle for precisely this reason; the
+    /// round has one store and cleared it on every switch, so a second visit spent a round trip
+    /// redrawing what the app was already holding.
+    @Test func switchingBackToACircleAlreadySeenServesItWithoutASkeleton() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let (first, second) = (try RoundFixture.groupID(), "c0000000-0000-4000-8000-000000000042")
+        stub.armExact("/groups", RoundFixture.envelope(try JSONSerialization.data(withJSONObject: [
+            "circles": [
+                ["id": first, "name": "The Cove", "my_state": "sealed", "needs_action": false],
+                ["id": second, "name": "Third Circle", "my_state": "sealed", "needs_action": false],
+            ],
+        ])))
+        stub.arm(routes: [
+            "/rounds/\(first)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(first)": try RoundFixture.envelope("group_current"),
+            "/rounds/\(second)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(second)": RoundFixture.envelope(try JSONSerialization.data(withJSONObject: [
+                "id": second, "name": "Third Circle", "timezone": "America/New_York",
+                "reveal_hour": 21, "invite_code": "Q7MQ2X", "is_admin": false, "members": [Any](),
+            ])),
+        ])
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value?.group.name == "The Cove")
+
+        // Away, exactly as `RoundScreen.switchCircle` goes.
+        env.circles.select(second)
+        store.invalidate(switchingTo: second)
+        #expect(store.state.isLoading, "never seen before — the skeleton is still right here")
+        await store.load()
+        #expect(store.state.value?.group.name == "Third Circle")
+
+        // And back.
+        env.circles.select(first)
+        store.invalidate(switchingTo: first)
+
+        #expect(!store.state.isLoading, "seen this session — no skeleton")
+        #expect(store.state.value?.group.name == "The Cove", "and it is the right circle's round")
+    }
+
+    /// The memo is refused once the round it holds has been overtaken by its own clock.
+    ///
+    /// This is the whole of the risk in remembering anything: a payload from earlier in the
+    /// evening is a phase that may have ended, and a search field with a raised keyboard over a
+    /// round that revealed twenty minutes ago is worse than the skeleton it replaced.
+    @Test func arememberedRoundThatHasPassedItsDeadlineIsNotServed() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        // `round_open` reveals at 2026-08-11T00:00:00Z; the clock anchors an hour past it.
+        let late = "2026-08-11T01:00:00Z"
+        stub.arm(routes: [
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open", serverNow: late),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current", serverNow: late),
+        ])
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+        #expect(store.state.value != nil, "it loaded — being stale is a fact about later")
+
+        store.invalidate(switchingTo: groupID)
+
+        #expect(store.state.isLoading, "the reveal has been and gone; ask the server rather than guess")
+        #expect(store.state.value == nil)
+    }
+
+    /// No circle named, no memo consulted — the original behaviour, which every other caller of
+    /// this method still gets.
+    @Test func invalidateWithoutACircleStillClears() async throws {
+        let (env, stub) = RoundFixture.environment()
+        let groupID = try RoundFixture.groupID()
+        stub.arm(routes: [
+            "/rounds/\(groupID)/current": try RoundFixture.envelope("round_open"),
+            "/groups/\(groupID)": try RoundFixture.envelope("group_current"),
+        ])
+        let store = RoundStore(
+            api: env.api, session: env.session, clock: env.clock, router: env.router, circles: env.circles
+        )
+        await store.load()
+
+        store.invalidate()
+
+        #expect(store.state.isLoading)
+    }
+
     /// `E19-03`: a pending deep link naming a **different, held** circle is switched to and
     /// loaded in the same call — no second reload, and the switch is answered by this request
     /// rather than by a follow-up nobody would have triggered.

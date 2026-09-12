@@ -634,7 +634,7 @@ that would have fixed the chrome's snap-down outright is explicitly out of scope
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E44-01 Sheets put the keyboard away when they close | done | — | yes | — |
-| E44-02 A circle you have already seen does not show a skeleton | todo | — | yes | — |
+| E44-02 A circle you have already seen does not show a skeleton | done | — | yes | — |
 | E44-03 Past results keeps its store too | todo | E44-02 | no | — |
 | E44-04 The uncued drop screen is centred, not resting on the keyboard | todo | — | no | — |
 | E44-05 The shortlist draws like the pool it came from | todo | — | vs E44-02, E44-03 | — |

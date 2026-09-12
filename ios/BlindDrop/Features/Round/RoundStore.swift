@@ -137,6 +137,39 @@ final class RoundStore {
 
     private(set) var state: LoadState<RoundContext> = .idle
 
+    /// The last payload each circle answered with, keyed by circle id.
+    ///
+    /// **The round is the one screen `RouteStoreCache` does not cover, and this is why it needs
+    /// covering** (owner, 2026-09-11). Group, Insights, Record and Profile each get a store per
+    /// circle from that cache, so returning to a circle refreshes in place; the round has a
+    /// single store, and switching circles cleared it to `.loading`. Every switch back to a
+    /// circle you were looking at a minute ago was therefore a skeleton and a round trip to
+    /// redraw what the app already had.
+    ///
+    /// **In memory only.** `docs/13` §7 rules out a local cache of game state on disk, and this
+    /// is not one: it is the same thing a screen already holding a value is, which is what
+    /// `LoadState.stale` exists for. It dies with the process.
+    ///
+    /// **It holds nothing about anybody else.** `RoundContext` is a round and a group, and there
+    /// is no field on either where a count or a roster could be put (`CLAUDE.md` §2.1, and the
+    /// second rule in this type's own documentation). Remembering one is not a new disclosure —
+    /// it is a payload this caller was already served, for a circle they hold.
+    ///
+    /// **Stamped with the account that loaded it**, which is what makes a `reset()` on sign-out
+    /// unnecessary rather than merely unwritten. `RouteStoreCache` needs one because it keys on
+    /// circle id alone, and `RootView` spells out the hazard: circle ids are the same shape
+    /// across accounts and only the holder differs, which a circle id cannot see. This object's
+    /// own lifetime is no defence — it is a `@State` on a screen, and a screen's state surviving
+    /// a branch change is SwiftUI's business, not ours.
+    ///
+    /// So the whole memo belongs to one account at a time and is dropped the moment the account
+    /// is not that one, which is the invariant stated rather than a cleanup call somebody has to
+    /// remember to make from a view that cannot reach this object anyway. `nil` matches `nil`
+    /// only before anybody has signed in, and nothing has loaded a round by then.
+    private var remembered: [String: RoundContext] = [:]
+    /// Who `remembered` belongs to. See above.
+    private var rememberedOwner: String?
+
     /// The caller's `user_id`, for `RevealStore` to remove itself from the name pool.
     var me: String? { session.user?.userID }
 
@@ -189,7 +222,7 @@ final class RoundStore {
         let previousActiveID = circles.activeGroupID
         router.resolvePendingCircle(against: circles)
         if circles.activeGroupID != previousActiveID {
-            invalidate()
+            invalidate(switchingTo: circles.activeGroupID)
         }
 
         guard let groupID = circles.activeGroupID else {
@@ -237,6 +270,7 @@ final class RoundStore {
         guard !Task.isCancelled else { return }
 
         state.apply(outcome)
+        if case let .success(context) = outcome { remember(context, for: groupID) }
 
         // `docs/05` §5: a deep link is applied only **after** the round has loaded, so it can
         // never land on a phase that is not current. This is the "roundIsLoaded" half of that.
@@ -253,8 +287,55 @@ final class RoundStore {
     /// from, and `SubmitStore`/`RevealStore` resolve `circles.resolveActiveID()` fresh at the
     /// moment of the tap, so an action taken against the old round would silently land on the
     /// new circle. Clearing first removes the window rather than racing it.
-    func invalidate() {
+    /// - Parameter groupID: the circle being switched **to**, when the caller knows it. Given
+    ///   one this store has a live memo for, that round is put on screen immediately and the
+    ///   refetch that follows refreshes it in place — no skeleton for a circle you were looking
+    ///   at a minute ago (owner, 2026-09-11). `nil`, or a circle with no usable memo, is the
+    ///   original behaviour exactly.
+    ///
+    /// **Serving the memo does not re-open what this method exists for.** The hazard above is
+    /// the *previous* circle's round on screen while `SubmitStore` and `SealStore` resolve
+    /// `circles.resolveActiveID()` fresh at the moment of a tap — card and action naming
+    /// different circles. A memo for the circle being switched **to** inverts that: the card on
+    /// screen and the circle an action would land on are the same one. What it must not do is
+    /// arrive late, which is why this is called synchronously with `CircleStore.select(_:)`
+    /// rather than when the refetch returns.
+    func invalidate(switchingTo groupID: String? = nil) {
+        if let groupID, let memo = liveMemo(for: groupID) {
+            state = .loaded(memo)
+            return
+        }
         state = .loading
+    }
+
+    /// A remembered round for `groupID`, if there is one and it has not been overtaken by its own
+    /// clock.
+    ///
+    /// **The staleness guard is the whole of the risk, so it is a guard and not an argument.** A
+    /// memo is a payload the server sent at some earlier point in the evening, and the one thing
+    /// that genuinely goes wrong is showing a phase that has since ended — a search field and a
+    /// raised keyboard over a round that revealed twenty minutes ago. `deadline(now:)` is the
+    /// same table `deadlineHasPassed()` reads, so a memo is served only while the thing it is
+    /// counting to is still ahead of it.
+    ///
+    /// An unanchored clock refuses too (`docs/13` §5 rule 3). *"The round is probably still
+    /// open"* is exactly the guess this codebase already paid for once — see `OpenState`, which
+    /// exists because a `Bool` had nowhere to put "the app does not know".
+    private func liveMemo(for groupID: String) -> RoundContext? {
+        guard rememberedOwner == me, let memo = remembered[groupID] else { return nil }
+        guard let now = clock.now, let deadline = memo.deadline(now: now), now < deadline
+        else { return nil }
+        return memo
+    }
+
+    /// Records a freshly loaded round, dropping the whole memo first if the account has changed
+    /// underneath it.
+    private func remember(_ context: RoundContext, for groupID: String) {
+        if rememberedOwner != me {
+            remembered.removeAll()
+            rememberedOwner = me
+        }
+        remembered[groupID] = context
     }
 
     /// The caller has just sealed a song, and the server said so.
