@@ -1,6 +1,6 @@
-# E44 — Four pieces of polish
+# E44 — Five pieces of polish
 
-Four owner-reported defects from an app walk, 2026-09-11. All client-only: no migration, no
+Five owner-reported defects from an app walk, 2026-09-11. All client-only: no migration, no
 endpoint, no DTO, no push-worker change. Ordered cheapest-and-most-certain first, deliberately —
 the last one touches the arrangement `E37`/`E43` fought for and is the only one carrying real
 risk.
@@ -169,3 +169,40 @@ it named as unfixed — see this epic's open question.
 **Verify:** `./ios/scripts/lint.sh`; unit + snapshot suite; simulator on iPhone 17 — cued and
 uncued × default and `accessibility5`, keyboard up, at rest and browsing. Screenshots of all
 four before and after.
+
+---
+
+### E44-05 — The shortlist draws like the pool it came from
+
+**Status:** todo
+**Deps:** —
+**Parallel:** vs E44-02, E44-03
+**Reads:** `docs/07` §5, `docs/08` §6, `docs/12` §3,
+`ios/BlindDrop/Features/Reveal/GuessSheet.swift` (`pool`, `equalWidthRow`, `chipRow`,
+`snapshotPool`), `ios/BlindDrop/DesignSystem/Components/NameChip.swift`
+**Touches:** `Features/Reveal/GuessSheet.swift`, `DesignSystem/Components/NameChip.swift`
+
+**Owner call, 2026-09-11.** The four-name shortlist stays. How it is *drawn* is reverted: the
+narrowed row goes back to the full pool's rendering exactly — each pill hugging its own name with
+`Layout.nameChipMinimumWidth` as the floor, one line and no wrapping, inside the same horizontal
+`ScrollView` with the same trailing fade. Asked which of "ragged like the pool" or "equal widths
+sized to the longest name" was meant, the owner said *"just like the full pool"*: ragged.
+
+**What this reverses, and the argument it overrides.** `equalWidthRow` exists on the reasoning
+that four equal shares read as one set of choices and always fit down to an SE. The cost, which
+is what the owner is reporting, is that a quarter of the sheet is narrow enough to force long
+names onto two lines — and a wrapped pill is visibly a different object from the pool's pills, so
+focusing a card changed what the names *were*, not just which ones were offered. Drawing them the
+pool's way is what makes narrowing a filter rather than a mode.
+
+The fade returning over a row that may not overflow is accepted: it is what the full pool already
+does at every length, and one rule drawn consistently beats two rules each locally optimal.
+
+- [ ] The narrowed row uses the pool's `ScrollView` + `chipRow` path
+- [ ] `equalWidthRow` is gone, not left unused
+- [ ] `NameChip.fillsWidth` removed if `Size.large` is its only remaining caller
+- [ ] The narrowed golden re-recorded after looking at the diff
+- [ ] `.accessibility5` still gets `gridChips`, untouched
+
+**Verify:** `./ios/scripts/lint.sh`; unit + snapshot suite; simulator — focus a card in a circle
+with a long name and a short one, default and `accessibility5`.
