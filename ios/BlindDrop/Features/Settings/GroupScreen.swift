@@ -591,6 +591,10 @@ private struct GroupNameSheet: View {
         // its way while the sheet is. See the long note on `NextCueSheet`, which argues it, and
         // keep the two sheets on the same mechanism — they open next to each other.
         .defaultFocus($focused, true)
+        // The way down. Three requests raise this keyboard and, until now, nothing lowered it:
+        // saving or dragging the sheet away left the field first responder and the keyboard over
+        // circle settings behind. See `resigningFocus(_:)`.
+        .resigningFocus($focused)
         .onAppear {
             field = name
             focused = true
@@ -602,6 +606,10 @@ private struct GroupNameSheet: View {
 
     private func save() async {
         guard canSave else { return }
+        // Resigned before the request, not after the dismissal: the field is finished with the
+        // moment the save is committed to, and putting the keyboard down here means it leaves
+        // with the sheet rather than a beat behind it.
+        focused = false
         if await onSave(trimmed) { dismiss() }
     }
 }
@@ -668,6 +676,7 @@ private struct NextCueSheet: View {
             // automatic one, and offering to restore it would be offering to do nothing.
             if cue?.isCustom == true {
                 Button("settings.cue.next.reset") {
+                    focused = false
                     Task { if await onReset() { dismiss() } }
                 }
                 .buttonStyle(.plain).typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
@@ -700,6 +709,9 @@ private struct NextCueSheet: View {
         // exactly what this sheet was reported for. `defaultFocus` is resolved as part of the
         // presentation itself, so the keyboard is already on its way up while the sheet is.
         .defaultFocus($focused, true)
+        // The way down, for the reason the circle name's sheet gives. The two sheets open next to
+        // each other and must not put their keyboards away differently either.
+        .resigningFocus($focused)
         // Seeded on every appearance, unlike the circle name's one-shot seed on the screen
         // behind: that guards against `onAppear` firing again when a pushed destination is
         // popped and stomping an edit in progress. This is a modal that opens on the cue as it
@@ -730,6 +742,10 @@ private struct NextCueSheet: View {
 
     private func save() async {
         guard canSave else { return }
+        // Resigned before the request, not after the dismissal: the field is finished with the
+        // moment the save is committed to, and putting the keyboard down here means it leaves
+        // with the sheet rather than a beat behind it.
+        focused = false
         if await onSave(trimmed) { dismiss() }
     }
 }

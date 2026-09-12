@@ -56,10 +56,13 @@ struct SearchSheet: View {
         .presentationDetents([.large])
         .onAppear { isFieldFocused = true }
         // A preview that kept playing after the sheet closed would be a sound with no visible
-        // way to stop it (`docs/06` §4 — one at a time, and this one is over).
+        // way to stop it (`docs/06` §4 — one at a time, and this one is over). The keyboard is
+        // the same argument: this fires both on the way out and on the push to `ConfirmScreen`,
+        // and neither of those is a screen anybody is still typing into.
         .onDisappear {
             player.stop()
             store.cancel()
+            isFieldFocused = false
         }
     }
 
@@ -69,7 +72,12 @@ struct SearchSheet: View {
                 .typeStyle(.displayM)
                 .foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
-            CloseButton(action: close)
+            // Resigns before asking to be dismissed, so the keyboard leaves with the sheet
+            // rather than a beat behind it. `onDisappear` above is the backstop for the drag.
+            CloseButton {
+                isFieldFocused = false
+                close()
+            }
         }
     }
 }

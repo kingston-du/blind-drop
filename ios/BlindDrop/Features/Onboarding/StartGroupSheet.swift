@@ -110,6 +110,9 @@ struct StartGroupForm: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .onAppear { nameFocused = true }
+        // The way down, which a dragged-away sheet has no other hook for. See
+        // `resigningFocus(_:)`.
+        .resigningFocus($nameFocused)
     }
 
     /// The form without its screen inset or scroll container, for the snapshot suite.
@@ -128,7 +131,11 @@ struct StartGroupForm: View {
         HStack {
             Text("group.start.title").typeStyle(.displayM).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
-            CloseButton(action: close)
+            // Resigned before the dismissal, so the keyboard travels with the sheet.
+            CloseButton {
+                nameFocused = false
+                close()
+            }
         }
         .padding(.horizontal, Layout.screenInset)
         .padding(.top, Layout.blockGap)

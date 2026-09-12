@@ -144,6 +144,9 @@ struct JoinCircleSheet: View {
             store = store ?? JoinCircleStore(api: env.api, circles: env.circles, code: prefilledCode)
             takeFocus()
         }
+        // The way down, which this sheet never had: a drag has no other hook, and without it the
+        // keyboard was left standing over the round screen behind. See `resigningFocus(_:)`.
+        .resigningFocus($isCodeFocused)
     }
 
     private func content(_ store: JoinCircleStore) -> some View {
@@ -154,7 +157,7 @@ struct JoinCircleSheet: View {
                     .foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Space.sm)
-                CloseButton(action: close)
+                CloseButton(action: dismiss)
             }
 
             VStack(alignment: .leading, spacing: Space.sm) {
@@ -221,6 +224,14 @@ struct JoinCircleSheet: View {
         } else {
             isCodeFocused = true
         }
+    }
+
+    /// Closing by the button. Resigns **before** asking to be dismissed, so the keyboard goes
+    /// down with the sheet rather than a beat behind it — `resigningFocus(_:)` on the body is the
+    /// backstop for the drag, which cannot be intercepted this way.
+    private func dismiss() {
+        isCodeFocused = false
+        close()
     }
 
     private func attempt(_ store: JoinCircleStore) {

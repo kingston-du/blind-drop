@@ -27,7 +27,7 @@ code it ran before this epic.
 
 ### E44-01 — Sheets put the keyboard away when they close
 
-**Status:** wip
+**Status:** done
 **Deps:** —
 **Parallel:** yes
 **Reads:** `docs/12` §5, `ios/BlindDrop/Features/Circles/JoinCircleSheet.swift`,
@@ -45,11 +45,11 @@ One shared modifier, the mirror of the `defaultFocus` chain: resign focus as the
 and resign it explicitly before any programmatic dismissal so the keyboard travels with the sheet
 rather than after it.
 
-- [ ] `resigningFocus(_:)` in `DesignSystem`, documented as the counterpart to `defaultFocus`
-- [ ] `JoinCircleSheet` resigns before `close()` and on the way out
-- [ ] `GroupNameSheet` and `NextCueSheet` resign before `dismiss()` and on the way out
-- [ ] `SearchSheet` and `StartGroupForm` likewise
-- [ ] `./ios/scripts/lint.sh` clean
+- [x] `resigningFocus(_:)` in `DesignSystem`, documented as the counterpart to `defaultFocus`
+- [x] `JoinCircleSheet` resigns before `close()` and on the way out
+- [x] `GroupNameSheet` and `NextCueSheet` resign before `dismiss()` and on the way out
+- [x] `SearchSheet` and `StartGroupForm` likewise
+- [x] `./ios/scripts/lint.sh` clean
 
 **Verify:** `./ios/scripts/lint.sh`; unit + snapshot suite; simulator — each sheet closed three
 ways (button, drag, save).
