@@ -650,7 +650,7 @@ the fourth: one action in the group page's existing `⋯` menu, open to every me
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E45-01 A member can report a member | wip | — | no | AC-11 |
+| E45-01 A member can report a member | done | — | no | AC-11 |
 
 ---
 
@@ -708,5 +708,5 @@ the fourth: one action in the group page's existing `⋯` menu, open to every me
 | E40 reads maths | 1 / 1 |
 | E41 quick pass | 3 / 3 |
 | E44 five pieces of polish | 5 / 5 |
-| E45 report a member | 0 / 1 |
-| **Next-progression total** | **27 / 28** |
+| E45 report a member | 1 / 1 |
+| **Next-progression total** | **28 / 28** |

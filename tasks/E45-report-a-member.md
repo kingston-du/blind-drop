@@ -32,7 +32,7 @@ already exists.
 
 ### E45-01 — A member can report a member
 
-**Status:** wip · **Deps:** — · **Parallel:** no
+**Status:** done · **Deps:** — · **Parallel:** no
 **Reads:** `docs/02` §2, `docs/04` §3, `CLAUDE.md` §2, this file
 **Touches:** `server/supabase/migrations/`, `server/supabase/functions/groups/`,
 `server/supabase/tests/`, `ios/BlindDrop/Core/Networking/Endpoint.swift`,
