@@ -86,12 +86,16 @@ field, not in the note.
 
 App Review asks for this explicitly. Name real devices and real OS versions; "latest iOS" is
 not an answer, and an unanswered one is what triggered the 2.1 information request on the
-owner's previous app.
+owner's previous app. The two physical devices are where the walkthrough recording was made
+and where the game loop was played end to end; the simulator and snapshot rows are automated
+coverage, named separately so the physical testing is not overstated.
 
 | Device | iOS |
 |---|---|
-| iPhone 15 Pro (physical) | *fill in* |
+| iPhone 17 (physical) | 26.x |
+| iPhone 13 (physical) | 26.x |
 | iPhone 17 (simulator) | 26.x |
+| iPhone SE 3rd gen, iPhone 15 Pro Max (snapshot matrix) | 26.x |
 
 ### The screen recording
 
