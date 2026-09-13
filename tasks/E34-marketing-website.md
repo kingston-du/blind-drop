@@ -97,3 +97,24 @@ exactly as it is; it exists only to hold `apple-app-site-association`.
 > ```
 >
 > That is this slice's **Verify** line satisfied against the real deployment. Closing `done`.
+
+> **Update (2026-09-13) — the real domain landed.** Owner registered `blinddrop.app` and set it
+> as the primary domain in Vercel, so the apex serves the site and the association file directly
+> rather than redirecting to `www`. The temporary substitution recorded above is reverted: all
+> four spots — the `applinks`/`webcredentials` entries in `BlindDrop.entitlements`,
+> `DeepLink.inviteHost`, and `SpotifyAuth.redirectURI`/`callbackHost` — now name `blinddrop.app`,
+> and the `TEMPORARY` comments that pointed at `web/README.md` are gone with the condition that
+> created them. The three test files carrying literal hosts (`DeepLinkTests.swift`,
+> `OnboardingTests.swift`, `JoinCircleTests.swift`) were updated to match, plus a new
+> `theWebHostAgreesAcrossTheConstantsThatDeclareIt` in `DeepLinkTests` pinning
+> `SpotifyAuth.callbackHost`/`redirectURI` to `DeepLink.inviteHost` — the entitlement is not
+> reachable from a test and stays a checklist item.
+>
+> Two things the apex is load-bearing for, both recorded in `web/README.md`: Apple's CDN does not
+> follow redirects when fetching `apple-app-site-association`, so demoting the apex back to a
+> `308` would silently break every universal link; and `https://blinddrop.app/spotify-auth` has
+> to be registered in the Spotify dashboard before Spotify export works against this build.
+>
+> `/spotify-auth` returns 404 on the site itself, as it did on the Vercel host — that path is
+> never rendered, because `ASWebAuthenticationSession` intercepts the redirect at navigation
+> time. Not a regression, but it is why the 404 is not worth fixing.

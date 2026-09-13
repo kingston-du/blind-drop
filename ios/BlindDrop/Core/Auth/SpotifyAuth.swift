@@ -84,11 +84,10 @@ protocol SpotifyAuthorizing: AnyObject {
 
 @MainActor
 final class SpotifyAuth: SpotifyAuthorizing {
-    // TEMPORARY (2026-08-31): blinddrop.app is not registered, so this points at the site's
-    // Vercel host instead — see web/README.md "Temporary host". Must also be re-registered as
-    // the redirect URI in the Spotify dashboard before Spotify export works against it.
-    static let redirectURI = "https://blinddrop-site.vercel.app/spotify-auth"
-    static let callbackHost = "blinddrop-site.vercel.app"
+    // This exact string must also be registered as a redirect URI in the Spotify dashboard;
+    // Spotify rejects the authorize call outright if it is not an exact match.
+    static let redirectURI = "https://blinddrop.app/spotify-auth"
+    static let callbackHost = "blinddrop.app"
     static let callbackPath = "/spotify-auth"
     static let scopes = "playlist-modify-private playlist-modify-public"
 
