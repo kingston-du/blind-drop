@@ -9,7 +9,7 @@ import Foundation
 /// `aps`), so `PushRouter` (E12) parses through this same type rather than inventing a second
 /// grammar.
 ///
-/// The invite universal link `https://blinddrop-site.vercel.app/j/<CODE>` (`docs/05` §5) arrives through
+/// The invite universal link `https://blinddrop.app/j/<CODE>` (`docs/05` §5) arrives through
 /// `.onContinueUserActivity` rather than `.onOpenURL`, and is parsed here too (E09-04) — it is
 /// the same destination reached by a different door, and two parsers would be two chances to
 /// disagree about what a code is.
@@ -58,7 +58,7 @@ enum DeepLink: Equatable, Sendable {
             parts += url.pathComponents.filter { $0 != "/" }
 
         case "https":
-            // The one web surface (`docs/16` §3): `https://blinddrop-site.vercel.app/j/<CODE>`. **Only**
+            // The one web surface (`docs/16` §3): `https://blinddrop.app/j/<CODE>`. **Only**
             // that host and only that path — an `applinks` entitlement hands the app every URL
             // on the domain, and a link this type does not recognise must open in Safari rather
             // than be guessed at. It is rewritten into the `join` shape so there is exactly one
@@ -122,11 +122,10 @@ enum DeepLink: Equatable, Sendable {
     /// `apple-app-site-association` file in `kingston-du/blinddrop-site` (mirrored at
     /// `web/.well-known/` here).
     ///
-    /// TEMPORARY (2026-08-31): `blinddrop.app` is not registered yet, so this points at the
-    /// site's Vercel host instead — see `web/README.md` "Temporary host". The day the real
-    /// domain is bought, this one line is the fix, alongside the two matching strings in
-    /// `BlindDrop.entitlements` and `SpotifyAuth.redirectURI`/`callbackHost`.
-    static let inviteHost = "blinddrop-site.vercel.app"
+    /// The web host the invite links live on. Changing it means changing the two matching
+    /// strings in `BlindDrop.entitlements` and `SpotifyAuth.redirectURI`/`callbackHost` in the
+    /// same commit, and re-signing — the associated-domains claim is baked into the binary.
+    static let inviteHost = "blinddrop.app"
 
     /// The single path segment the invite link uses: `/j/<CODE>`.
     static let invitePath = "j"

@@ -13,19 +13,15 @@
 		<string>Default</string>
 	</array>
 
-	<!-- Invite links: https://blinddrop-site.vercel.app/j/<CODE> (docs/05 §5, docs/16 §3). The
+	<!-- Invite links: https://blinddrop.app/j/<CODE> (docs/05 §5, docs/16 §3). The
 	     claim is the whole domain — Apple's `applinks:` syntax has no path component; the paths
 	     live in the apple-app-site-association file (kingston-du/blinddrop-site), and DeepLink
 	     refuses every URL on the domain that is not /j/<CODE>.
-
-	     TEMPORARY (2026-08-31): pointed at the Vercel preview host, not blinddrop.app, because
-	     the real domain is not yet registered — see web/README.md "Temporary host". Swap both
-	     strings below back to blinddrop.app the day it is, in the same commit as DeepLink.swift's
-	     `inviteHost` and SpotifyAuth.swift's `redirectURI`/`callbackHost`. -->
+ -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:blinddrop-site.vercel.app</string>
-		<string>webcredentials:blinddrop-site.vercel.app</string>
+		<string>applinks:blinddrop.app</string>
+		<string>webcredentials:blinddrop.app</string>
 	</array>
 
 </dict>

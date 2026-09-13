@@ -130,7 +130,7 @@ final class OnboardingStore {
         self.session = session
     }
 
-    /// A code from a `blinddrop://join/<CODE>` or `https://blinddrop-site.vercel.app/j/<CODE>` link
+    /// A code from a `blinddrop://join/<CODE>` or `https://blinddrop.app/j/<CODE>` link
     /// (`docs/05` §5). Prefills the field and nothing else — **the link does not join.** It is a
     /// navigation hint, not an authorization, and a link that joined on open would let a
     /// forwarded message put somebody in a group they never chose.

@@ -70,7 +70,7 @@ final class JoinCircleStub: RecordingStub, @unchecked Sendable {
         #expect(store.code == "K7MQ2X")
 
         // The commonest way an invite arrives is the whole link, pasted.
-        store.setCode("https://blinddrop-site.vercel.app/j/K7MQ2X")
+        store.setCode("https://blinddrop.app/j/K7MQ2X")
         #expect(store.code == "K7MQ2X")
 
         // Over-length, plus `o` — one of the five characters `docs/03` §2 excludes.

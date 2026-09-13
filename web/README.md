@@ -43,17 +43,23 @@ production provisioning profile and the `applinks:blinddrop.app` entitlement, an
 to match this file. `verify.sh` in the site repo diffs the deployed file against its copy,
 which is the check that catches drift.
 
-## Temporary host (2026-08-31)
+## Host history (2026-09-13)
 
-`blinddrop.app` is still not registered. Every place in the app that names the web host — the
-`applinks`/`webcredentials` entries in `BlindDrop.entitlements`, `DeepLink.inviteHost`, and
-`SpotifyAuth.redirectURI`/`callbackHost` — currently points at
-**`blinddrop-site.vercel.app`** instead, so invite links and universal links actually work
-during the beta rather than dead-ending on an unregistered domain. Each of those spots is
-marked `TEMPORARY` in its own comment.
+`blinddrop.app` is registered and serving. Until then the app pointed at the preview host
+`blinddrop-site.vercel.app`, and this file described the intended domain instead — that
+mismatch is gone; code and file now agree.
 
-This file above still describes `blinddrop.app` because that's the intended domain once it's
-bought — this note exists so the mismatch you'll see between this file and the current code
-isn't a bug. When the domain is registered: buy it, point it at the `blinddrop-site` deploy,
-then flip the four call sites back (`grep -rl blinddrop-site.vercel.app ios/BlindDrop` finds
-them) in one commit, and re-register the Spotify redirect URI in Spotify's dashboard to match.
+Two things about the apex are load-bearing and easy to undo by accident in Vercel's dashboard:
+
+- **The apex must serve the association file directly, not redirect to `www`.** Apple's CDN
+  does not follow redirects when it fetches `apple-app-site-association`. A `308` from
+  `blinddrop.app` to `www.blinddrop.app` makes every universal link open Safari instead of the
+  app, with no error anywhere. `blinddrop.app` is the primary domain in Vercel for this reason.
+- **`SpotifyAuth.redirectURI` must stay registered, byte for byte, in the Spotify dashboard.**
+  Spotify matches it exactly and rejects the authorize call otherwise.
+
+Changing the host again means all four spots in one commit — the `applinks`/`webcredentials`
+entries in `BlindDrop.entitlements`, `DeepLink.inviteHost`, and
+`SpotifyAuth.redirectURI`/`callbackHost` — plus a new signed build, because the
+associated-domains claim is baked into the binary. `DeepLinkTests` pins the last three to each
+other; the entitlement it cannot see.
