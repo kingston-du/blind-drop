@@ -39,6 +39,12 @@
 	<key>NSAppleMusicUsageDescription</key>
 	<string>Blind Drop uses Apple Music access only when you export The Record.</string>
 
+	<!-- Add-only: write access for a single save, not read access to the library. Without
+	     this key iOS silently drops "Save Image" from the share sheet's activity list on
+	     Results' share card rather than asking or erring — this is what makes it appear. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Blind Drop saves the tonight card to your library when you choose Save Image.</string>
+
 	<!-- Public by design — PKCE exists so the client secret never has to ship (docs/06 §8).
 	     Injected at build time; never a literal in this file. -->
 	<key>SPOTIFY_CLIENT_ID</key>

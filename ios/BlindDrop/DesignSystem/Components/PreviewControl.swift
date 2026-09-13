@@ -20,8 +20,11 @@ struct PreviewControl: View {
                 .font(.system(size: Layout.previewControl * 0.5))
                 .foregroundStyle(accent.mark)
                 .frame(width: Layout.previewControl, height: Layout.previewControl)
+                // `strokeBorder`, so the ring is drawn *inside* the 28pt frame rather than
+                // spilling to 29 — which matters here more than elsewhere, because the rows below
+                // do arithmetic against this control's drawn size.
                 .background(
-                    Circle().stroke(accent.mark, lineWidth: Stroke.border)
+                    Circle().strokeBorder(accent.mark, lineWidth: Stroke.border)
                 )
                 // Drawn at 28pt, tapped at 44 (`docs/07` §5, `docs/12` §5).
                 .minimumTouchTarget()

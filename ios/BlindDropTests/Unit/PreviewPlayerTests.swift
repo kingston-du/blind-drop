@@ -15,7 +15,17 @@ import Testing
         let session = FakeAudioSession()
         // No notification observers under test: there is no app here to background, and a
         // live subscription would be a second thing running alongside the assertions.
-        return (PreviewPlayer(player: AVPlayer(), session: session, observesInterruptions: false), session)
+        // `.zero` grace: the handback is still a task the test awaits, but it does not spend the
+        // real two seconds `PreviewPlayer.handBackSession()` holds the session for in the app.
+        return (
+            PreviewPlayer(
+                player: AVPlayer(),
+                session: session,
+                observesInterruptions: false,
+                sessionGrace: .zero
+            ),
+            session
+        )
     }
 
     /// **Nothing autoplays, ever, under any setting** (`docs/12` §7). A freshly built player is
@@ -61,27 +71,54 @@ import Testing
         #expect(session.configureCount == 1, "the category is set once, not per play")
     }
 
-    /// **And deactivated at the end, so the user's music resumes.**
-    @Test func stoppingHandsTheSessionBack() {
+    /// **And deactivated at the end, so the user's music resumes** — after the grace period, not
+    /// on the frame the sound stopped. `handBackSession()` argues the delay at length.
+    @Test func stoppingHandsTheSessionBack() async {
         let (player, session) = makePlayer()
 
         player.toggle(.ribs)
         #expect(session.isActive)
 
         player.stop()
+        #expect(session.isActive, "still ours until the handback runs — the sound has already gone")
+
+        await player.handback?.value
         #expect(!session.isActive, "the user's music can start again")
     }
 
     /// Stopping twice is not two deactivations. `stop()` is called from a tap *and* from the
     /// sheet's `onDisappear`, and an unbalanced session is how the user's music stays paused.
-    @Test func stoppingIsIdempotent() {
+    @Test func stoppingIsIdempotent() async {
         let (player, session) = makePlayer()
         player.toggle(.ribs)
 
         player.stop()
         player.stop()
+        await player.handback?.value
 
         #expect(session.deactivateCount == 1)
+    }
+
+    /// **A run of previews holds the session once.**
+    ///
+    /// The quick pass plays a card, moves on, plays the next — and before the handback was
+    /// deferred that was one deactivation and one activation per card, each of them a
+    /// main-thread stall on the frame a card was sliding away, and each one telling the user's
+    /// music to resume for the instant before it was silenced again.
+    @Test func aPreviewStartedInsideTheGraceKeepsTheSession() async {
+        let (player, session) = makePlayer()
+
+        player.toggle(.ribs)
+        #expect(session.activateCount == 1)
+
+        // The card slides away and the next one's preview starts before the handback lands.
+        player.stop()
+        player.toggle(.motionSickness)
+        await player.handback?.value
+
+        #expect(player.playing == TrackDTO.motionSickness.trackKey)
+        #expect(session.deactivateCount == 0, "the session was never handed back mid-run")
+        #expect(session.activateCount == 1, "nor taken a second time")
     }
 
     /// **A track with no preview has no control**, so there is no tap to handle — and if one
@@ -100,13 +137,17 @@ import Testing
 @MainActor
 final class FakeAudioSession: AudioSession {
     private(set) var configureCount = 0
+    private(set) var activateCount = 0
     private(set) var deactivateCount = 0
     private(set) var isActive = false
 
     var didConfigure: Bool { configureCount > 0 }
 
     func configure() { configureCount += 1 }
-    func activate() { isActive = true }
+    func activate() {
+        activateCount += 1
+        isActive = true
+    }
     func deactivate() {
         deactivateCount += 1
         isActive = false

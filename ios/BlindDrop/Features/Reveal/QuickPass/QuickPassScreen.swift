@@ -113,6 +113,28 @@ struct QuickPassScreen: View {
             // says they are shown what they missed, in full.
             if sequence.isEmpty { onFinish() }
         }
+        // **A preview belongs to the card it is playing from, and the card is leaving.**
+        //
+        // `PreviewPlayer.stop()`'s own note states the rule this applies — *"a preview that kept
+        // playing after its sheet was dismissed would be a sound with no visible way to stop
+        // it"* — and every other screen honours it with an `onDisappear`. This screen is the one
+        // place the rule bites a level down: the sheet stays up while the **card** slides away,
+        // taking its stop control with it, so a name tapped mid-clip left the song playing under
+        // the next card with nothing on screen to stop it but the card it came from, which is
+        // gone.
+        //
+        // Keyed on the cursor rather than written into `advance()`, `goBack()` and `jump(to:)`,
+        // which is every way the card can change **today**. A fourth route added later would have
+        // to remember to stop the sound; this cannot be forgotten, because it is watching the
+        // thing that actually changed. It covers the recap too — completing the run moves the
+        // cursor to `nil` — and that matters for the same reason: the recap has no play control
+        // on it at all.
+        .onChange(of: sequence.current) { _, _ in player?.stop() }
+        // And the cover itself, since nothing behind it will: `RevealScreen` stops the player on
+        // its own `onDisappear`, but it is still mounted underneath a `fullScreenCover` and that
+        // never fires while this is up. Closing mid-clip used to carry the sound back to the
+        // flight.
+        .onDisappear { player?.stop() }
     }
 
     /// The screen without its scroll container.
@@ -195,7 +217,7 @@ struct QuickPassScreen: View {
     /// `CueBanner` takes that width, so a one-line cue costs the artwork nothing at all and the
     /// catalog's longest — 45 characters — costs it one extra line.
     ///
-    /// It reached here the long way, and both wrong turns are worth keeping. It was first a
+    /// It reached here the long way, and every wrong turn is worth keeping. It was first a
     /// `bodyS` capsule on this row, which is the same *position* and a different *thing*: fitting
     /// the cue into a gap meant the app's most incidental type — *"the line under a control"*
     /// (`Typography`) — and no label, so it read as a caption for a control that was not there,
@@ -204,11 +226,16 @@ struct QuickPassScreen: View {
     /// every cued night — 340pt down to 276pt, and an SE pinned to
     /// `Layout.Artwork.quickPassRange`'s floor.
     ///
-    /// What was wrong the first time was the type and the label, not the row. So the row comes
-    /// back with the type raised instead of lowered (`displayS`, the size `CueCard` already sets
-    /// the cue in) and the label dropped on purpose rather than to save space — `CueBanner`'s
-    /// `prominent` note argues that part. Filling the remaining width rather than hugging gives
-    /// it the column's trailing edge, which is the alignment the capsule never had.
+    /// What was wrong the first time was the type and the label, not the row. So the row came
+    /// back at `bodyLStrong` — raised from `bodyS`, and deliberately *not* `CueCard`'s 24pt
+    /// `displayS`, which makes the cue compete with a 300pt cover; `CueBanner.prominent`'s note
+    /// argues that size at length. Filling the remaining width rather than hugging gives it the
+    /// column's trailing edge, which is the alignment the capsule never had.
+    ///
+    /// The label came back too, inline and shortened to *"Cue"*, once the unlabelled strip turned
+    /// out to read as a search field — `prominent`'s note has that argument. It sits on the cue's
+    /// own line, so it costs this row no height; it costs `cueReserve(availableWidth:)` a little
+    /// width, which is measured there.
     ///
     /// `.top` alignment, so a cue that wraps grows downward and leaves the close button where it
     /// has been on all eight sheets in the app. Only that wrap costs the artwork anything, and
@@ -233,7 +260,7 @@ struct QuickPassScreen: View {
             }
         }
         .frame(minHeight: Layout.minimumTouchTarget, alignment: .top)
-        // Above `.accessibility1` a `displayS` line beside a scaled touch target has no width
+        // Above `.accessibility1` a `bodyLStrong` line beside a scaled touch target has no width
         // left to wrap into, so the strip takes the full column beneath the button instead — the
         // same boundary the recap already reflows its countdown at. The artwork is on
         // `Artwork.quickPassRange`'s floor at these sizes and the page scrolls regardless, so the
@@ -355,9 +382,18 @@ struct QuickPassScreen: View {
         let category = UIContentSizeCategory(effectiveTypeSize)
         // Stacked, the strip has the whole column; beside the button it has what the 44pt target
         // and the row's own spacing leave. `Space.md * 2` is the strip's horizontal inset.
-        let textWidth = isStacked
+        //
+        // Then the *"Cue"* label's cost comes off, and the component decides which cost that is:
+        // beside the cue it takes width, above the cue it takes a line, never both. Asking for
+        // the pair rather than working out which applies is what stops this from disagreeing with
+        // the strip about where the boundary sits. Measured rather than guessed at, too — the
+        // label is short, but it is monospaced, tracked and scaled, so a reserve that under-reads
+        // it is a cue that wraps one line further than the artwork was sized for.
+        let label = CueBanner.prominentLabelCost(for: effectiveTypeSize)
+        let textWidth = (isStacked
             ? column - Space.md * 2
-            : column - Layout.minimumTouchTarget - Space.xs - Space.md * 3
+            : column - Layout.minimumTouchTarget - Space.xs - Space.md * 3)
+            - label.width
         let font = Typography.uiFont(.bodyLStrong, for: category)
         let measured = (cue.text as NSString).boundingRect(
             with: CGSize(width: max(textWidth, 1), height: .greatestFiniteMagnitude),
@@ -370,7 +406,9 @@ struct QuickPassScreen: View {
         // height so it and the close button share a centre — so the reserve has to floor it too,
         // or a one-line cue would look like it owed the artwork 8pt it does not.
         let strip = max(
-            CGFloat(lines) * Typography.lineHeight(.bodyLStrong, for: category) + Space.sm * 2,
+            CGFloat(lines) * Typography.lineHeight(.bodyLStrong, for: category)
+                + Space.sm * 2
+                + label.height,
             Layout.minimumTouchTarget
         )
         // Stacked it is a whole extra row, gap included. Inline it costs only what it adds to a

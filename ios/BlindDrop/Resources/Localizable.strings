@@ -168,6 +168,9 @@
 /* (docs/18 §7); `howto.cue.body` is the one neutral sentence on How to play. */
 
 "round.cue.label" = "Tonight's cue:";
+/* `round.cue.label.short` is the CueBanner's `prominent` label — the quick pass, where the */
+/* reader has already met tonight's cue twice and needs it named, not introduced. */
+"round.cue.label.short" = "Cue";
 "round.cue.card.label" = "Tonight's cue";
 "round.cue.card.last.label" = "Last night's cue";
 "howto.cue.body" = "Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring.";

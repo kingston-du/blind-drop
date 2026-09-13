@@ -91,7 +91,11 @@ private struct PillButtonStyle: ButtonStyle {
         return configuration.label
             .foregroundStyle(label)
             .background(shape.fill(background(isPressed: isPressed)))
-            .overlay(border.map { shape.stroke($0, lineWidth: Stroke.border) })
+            // `strokeBorder`, not `stroke`. A straddling outline on a pill puts half a point
+            // outside the bounds at the two apexes, and this style also scales on press — so the
+            // layer re-rasterizes at a new subpixel offset and the outline visibly changes weight
+            // as the finger lands. Inside the bounds, it does not.
+            .overlay(border.map { shape.strokeBorder($0, lineWidth: Stroke.border) })
             .scaleEffect(isPressed ? 0.985 : 1)
             .animation(.easeOut(duration: 0.12), value: isPressed)
             .contentShape(shape)

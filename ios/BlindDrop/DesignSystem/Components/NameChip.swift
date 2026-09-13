@@ -119,9 +119,12 @@ struct NameChip: View {
                 .background(
                     RoundedRectangle(cornerRadius: Radius.pill, style: .continuous).fill(fill)
                 )
+                // `strokeBorder` so the outline sits exactly on the fill's edge instead of
+                // straddling it — at `Radius.pill` the chip's ends are apexes, where a half-point
+                // of line outside the bounds antialiases unevenly against the paper.
                 .overlay(
                     RoundedRectangle(cornerRadius: Radius.pill, style: .continuous)
-                        .stroke(border, lineWidth: Stroke.border)
+                        .strokeBorder(border, lineWidth: Stroke.border)
                 )
                 .opacity(state == .unused || state == .selected ? 1 : 0.6)
                 // 36pt drawn, 44pt tapped — the chip's spacing is part of its hit region

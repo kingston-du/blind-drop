@@ -247,17 +247,32 @@ and a cue is a brief you read once before it.
   are the room's replies to it, and a night read three weeks later is unintelligible without it.
   Labelled *"The cue"*, not *"Tonight's"*: `PastResultsScreen` pushes this same screen for a night
   from weeks ago.
-- **The quick pass — a `CueBanner` at a new `prominent` density, sharing the close button's row.**
-  *(`E41-04`, owner 2026-09-11.)* `CueBanner`'s material, `CueCard`'s type, and no micro-label:
-  the strip filling whatever width the 44pt close button leaves, at `displayS`.
+- **The quick pass — a `CueBanner` at a `prominent` density, sharing the close button's row.**
+  *(`E41-04`, owner 2026-09-11; label and type amended 2026-09-12.)* `CueBanner`'s material and
+  `CueBanner`'s type, with a short micro-label **on the cue's own line**: the strip fills whatever
+  width the 44pt close button leaves, reading *"CUE — a song you hate"*.
 
-  **The label is dropped because of where in a night this is read.** Anybody inside this run has
-  already met tonight's cue twice — on the drop screen as a `CueCard` under an amber *"Tonight's
-  cue"*, and again in the flight header as the standard strip. A label introduces; on third sight
-  it restates something the reader has been told twice. What is left has to hold the space alone,
-  which is why the line goes **up** to `displayS` — the size the drop screen already sets the cue
-  in, so it is recognised rather than re-read. VoiceOver keeps the label regardless: a person who
-  cannot see where the strip sits has none of the context the sighted reader is trusted with.
+  **The label is short rather than absent, and that is the amendment.** The density shipped for a
+  day with no label at all, on the argument that anybody inside this run has already met tonight's
+  cue twice — on the drop screen as a `CueCard` under an amber *"Tonight's cue"*, and again in the
+  flight header as the standard strip, so a third introduction is chrome. That argument is right
+  about *introducing* and wrong about *naming*. Unlabelled, the strip is a recessed rounded
+  rectangle holding one left-aligned line with the row's spare width trailing it, sitting beside a
+  close button where a sheet puts its title — which is the shape iOS uses for a search field. It
+  asked whether it was an input, and whether the line was the song's name, before it said "cue".
+  One word settles both, and `round.cue.label.short` is that word.
+
+  Inline, because the row is already a full touch target and a label on that line costs the
+  artwork nothing, where a stacked one costs a whole row — the 64pt this density exists to avoid.
+  Above `.accessibility1` it stacks anyway: a three-character label must not wrap, so inline it
+  takes ninety points off a three-hundred-point column and the cue it clarifies frays into one-
+  and two-word lines. That boundary is `CueBanner.prominentStacksLabel(at:)`, and it is the same
+  size at which the strip stops sharing its row with the close button.
+
+  **The type is `bodyLStrong`, not `CueCard`'s `displayS`.** Raised from the `bodyS` it started at,
+  and deliberately not raised to 24pt: this screen's subject is a 300pt album cover, and a
+  Bricolage line that size competes with it and with the ultramarine numeral. The cue is the
+  condition the cards are read against; it is not the card.
 
   **Two wrong turns, kept because the second looked right.** It was first a `bodyS` capsule on
   this same row — correct position, wrong thing: fitting the cue into a gap forced the app's most
@@ -266,14 +281,20 @@ and a cue is a brief you read once before it.
   on a full-width row of its own, and that was legible and cost 64pt of artwork every cued night
   — 340pt down to 276pt on a 15 Pro Max, and an SE pinned to `Artwork.quickPassRange`'s floor.
   What had been wrong the first time was the type and the label, not the row. So the row came
-  back, with the type raised instead of lowered.
+  back, with the type raised one step and the label shortened rather than dropped.
+
+  VoiceOver keeps the long form regardless — `round.cue.label`'s *"Tonight's cue:"* ahead of the
+  text, not the visible *"Cue"*: a person who cannot see where the strip sits has none of the
+  context the abbreviation is defensible against.
 
   The close row is a full touch target with one glyph in it and an empty `Spacer` after —
   height `quickPassFixedChrome` has already been charged for. A one-line cue therefore costs the
-  artwork nothing; the catalog's longest, at 45 characters, wraps to two and costs one line, and
-  `Layout.quickPassCueRow` spends that worst case on every cued night rather than measuring the
-  wrap. Above `.accessibility1` there is no width left to wrap into and the strip takes the full
-  column beneath the button instead.
+  artwork nothing; the catalog's longest, at 45 characters, wraps to two and costs one line.
+  `QuickPassScreen.cueReserve(availableWidth:)` derives which of those it is from the string
+  itself rather than spending the worst case on every cued night, and it subtracts the label's own
+  cost first — `CueBanner.prominentLabelCost(for:)`, which is a width inline and a line's height
+  stacked, never both. Above `.accessibility1` there is no width left to wrap into and the strip
+  takes the full column beneath the button instead.
 
   Hoisted out of the run's per-card transition, because it is the one element on this screen that
   is constant across all eight cards and the recap alike — the round's own standing condition, not

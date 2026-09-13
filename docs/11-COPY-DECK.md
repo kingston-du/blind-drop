@@ -421,6 +421,7 @@ reads as a decision rather than as an oversight, and so nobody adds it back as a
 | `results.standings.ear.detail` | %lld correct |
 | `results.standings.readability` | How readable |
 | `results.share` | Share tonight |
+| `NSPhotoLibraryAddUsageDescription` | Blind Drop saves the tonight card to your library when you choose Save Image. |
 | `results.share.caption` | Your results |
 
 ### Readability bands
@@ -514,6 +515,7 @@ migration and `tests/db/cues.sql` both diff against it, so a cue must be edited 
 | Key | String |
 |---|---|
 | `round.cue.label` | Tonight's cue: |
+| `round.cue.label.short` | Cue |
 | `round.cue.card.label` | Tonight's cue |
 | `round.cue.card.last.label` | Last night's cue |
 | `howto.cue.body` | Some nights carry a cue — one line that steers what everyone drops. It changes the song, never the scoring. |

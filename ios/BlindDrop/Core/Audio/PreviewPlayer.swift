@@ -48,6 +48,14 @@ final class PreviewPlayer {
     /// silence a preview without a tap. See `observeInterruptions()`.
     private var interruptions: Task<Void, Never>?
     private var interrupted: Task<Void, Never>?
+    /// The pending session handback. `private(set)` so a test can await it instead of sleeping.
+    private(set) var handback: Task<Void, Never>?
+    /// Whether the session is currently ours. Tracked so a preview started inside the handback
+    /// window reuses the session it already holds rather than activating a second time.
+    private var isSessionActive = false
+    /// How long the session is held after the sound stops. Injectable, and `.zero` in the unit
+    /// suite, where a two-second wait would be two seconds of nothing.
+    private let sessionGrace: Duration
 
     /// - Parameters:
     ///   - player: injectable so a test can drive the state machine without a decoder.
@@ -59,10 +67,12 @@ final class PreviewPlayer {
     init(
         player: AVPlayer = AVPlayer(),
         session: any AudioSession = SystemAudioSession(),
-        observesInterruptions: Bool = true
+        observesInterruptions: Bool = true,
+        sessionGrace: Duration = .seconds(2)
     ) {
         self.player = player
         self.session = session
+        self.sessionGrace = sessionGrace
         player.actionAtItemEnd = .pause
         if observesInterruptions { observeInterruptions() }
     }
@@ -122,7 +132,15 @@ final class PreviewPlayer {
             session.configure()
             isConfigured = true
         }
-        session.activate()
+        // The session may still be ours from the preview before this one — see
+        // `handBackSession()`. Cancel the handback first, or it fires mid-clip and silences a
+        // preview that started perfectly well.
+        handback?.cancel()
+        handback = nil
+        if !isSessionActive {
+            session.activate()
+            isSessionActive = true
+        }
 
         player.replaceCurrentItem(with: AVPlayerItem(url: url))
         player.seek(to: .zero)
@@ -150,11 +168,47 @@ final class PreviewPlayer {
         completion?.cancel()
         completion = nil
         guard playing != nil else { return }
+        // Everything the eye and the ear notice, synchronously: the sound ends on this line and
+        // `playing` drives every play/stop glyph in the app, so deferring either would show a
+        // control lying about its own state for a frame.
         player.pause()
         player.replaceCurrentItem(with: nil)
         playing = nil
-        // The user's music resumes here, and only if the deactivation says so.
-        session.deactivate()
+        // The session is not part of that. See `handBackSession()`.
+        handBackSession()
+    }
+
+    /// Returns the audio session to whatever was playing before — **after a grace period, and
+    /// never on the frame the sound stopped.**
+    ///
+    /// `setActive(false, .notifyOthersOnDeactivation)` is the one genuinely slow call in this
+    /// type. It is synchronous, it runs on the main actor, and the `notifyOthers` half is why:
+    /// it does not merely release a handle, it wakes every other audio client on the device so
+    /// the user's music can resume. On a device that is tens of milliseconds, and it used to be
+    /// spent inside the same main-thread update that started an animation — the quick pass taps
+    /// a name, the card begins to slide, and the slide's first frames were dropped waiting for
+    /// Music to be told it could have the speaker back. The simulator cannot show this: its
+    /// audio session is a stub and the whole of `stop()` measures about 4ms there.
+    ///
+    /// So the handback is deferred, and **cancelled outright if another preview starts inside the
+    /// window**. That second half is not a nicety. A run through eight cards, played one after
+    /// another, used to deactivate and reactivate the session eight times — each one a stall and
+    /// each one a moment where the user's music was told to resume and then immediately silenced
+    /// again. Now a run of previews holds the session once, and hands it back when the previews
+    /// actually stop.
+    ///
+    /// The cost is that the user's music restarts `sessionGrace` after the last preview rather
+    /// than instantly. That is the right trade: nobody stops a preview in order to hear silence,
+    /// and two seconds is shorter than the gap between deciding to stop and reaching for
+    /// anything else.
+    private func handBackSession() {
+        handback?.cancel()
+        handback = Task { [weak self, sessionGrace] in
+            try? await Task.sleep(for: sessionGrace)
+            guard !Task.isCancelled, let self, self.playing == nil else { return }
+            self.session.deactivate()
+            self.isSessionActive = false
+        }
     }
 
     /// Whether the current item has run out. `nil` duration (still loading) is not finished.

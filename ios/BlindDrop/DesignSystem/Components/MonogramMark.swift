@@ -18,8 +18,11 @@ struct MonogramMark: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(Palette.inkQuiet, lineWidth: Stroke.mark)
-            Circle().stroke(Palette.inkQuiet, lineWidth: Stroke.border).padding(Space.xs)
+            // Both rings `strokeBorder`: `stroke` would hang half of the outer ring's 2pt
+            // outside the mark's own diameter, so a 40pt monogram drew 41 and the gap to the
+            // inner ring was half a point tighter than `Space.xs` says it is.
+            Circle().strokeBorder(Palette.inkQuiet, lineWidth: Stroke.mark)
+            Circle().strokeBorder(Palette.inkQuiet, lineWidth: Stroke.border).padding(Space.xs)
             Text(verbatim: initial)
                 .font(Font(Typography.fixed(.display, size: diameter * 0.46, weight: .bold)))
                 .foregroundStyle(Palette.inkDim)

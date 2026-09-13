@@ -22,19 +22,24 @@ import SwiftUI
 /// condition, paper is the screen's own copy, a white card is an item. The recession is also what
 /// lets it keep sitting *above* the headline — apparatus can, a runt sentence cannot.
 ///
-/// Stacking the label unconditionally retires the old `isStacked` reflow: the two `Text`s never
-/// share a row now, so the accessibility-size failure it existed to dodge cannot occur.
+/// `standard` stacks its label unconditionally, which retires the old `isStacked` reflow: its two
+/// `Text`s never share a row, so the accessibility-size failure that reflow existed to dodge
+/// cannot occur. `prominent` does share a row, and answers the same hazard differently — see its
+/// note.
 struct CueBanner: View {
     /// Which of the strip's two readings a call site wants (`E41-04`, owner 2026-09-11).
     enum Density {
         /// Label over text. The cue **introduced** — the first surface in a night that names it.
         case standard
-        /// The text alone, at the same size. The cue **recognised**. See `prominent(_:)`'s note.
+        /// A short label on the cue's own line, at the same size. The cue **recognised** rather
+        /// than introduced. See `prominent(_:)`'s note.
         case prominent
     }
 
     let cue: CueDTO?
     var density: Density = .standard
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @ViewBuilder var body: some View {
         if let cue {
@@ -60,39 +65,123 @@ struct CueBanner: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// The strip with its micro-label taken off, and nothing else changed.
+    /// The strip with its micro-label moved onto the line rather than above it.
     ///
-    /// **The label is dropped because of where in a night this is read, not to save a line.** It
-    /// exists for the quick pass, and by the time anybody is inside that run they have met
-    /// tonight's cue at least twice already — on the drop screen as a `CueCard` under an amber
-    /// *"Tonight's cue"*, and again in the flight's own header as `standard` above. A label
-    /// introduces; on third sight it is chrome restating something the reader has already been
-    /// told.
+    /// **It ran without a label at all for a day, and that was wrong** — not because the reader
+    /// needs the cue introduced a third time (they do not; they have met it on the drop screen
+    /// under an amber *"Tonight's cue"* and again in the flight's own header), but because of
+    /// what an unlabelled strip *is*. A recessed rounded rectangle holding one left-aligned line
+    /// with the row's spare width trailing it is the shape iOS uses for a search field. Sitting
+    /// beside a close button, where a sheet puts its title, it asked two questions before it
+    /// answered either: is that an input, and is that the song's name? The label is what settles
+    /// them, and one word settles them as well as three.
     ///
-    /// **The line itself does not change — `bodyLStrong`, the same as `standard` above.** This
-    /// density is the strip with its label taken off, and nothing else. Two other sizes were tried
+    /// So the label is **inline and short**: `round.cue.label.short` — *"Cue"*, set as the same
+    /// `.label` micro-type `standard` stacks, on the cue's own line. Inline because the row is
+    /// already `Layout.minimumTouchTarget` tall for the close button beside it, so a label on
+    /// that line costs the artwork nothing, where a stacked one costs it a whole row — which is
+    /// the 64pt `standard` was rejected for here in the first place. Short because *"Tonight's
+    /// cue"* at third sight is the chrome the no-label experiment was right to object to; the
+    /// job left is naming the box, not introducing its contents.
+    ///
+    /// `.firstTextBaseline`, so an 11pt mono label and a 17pt body line sit on one baseline
+    /// rather than on one centre, and `fixedSize` on the label so a three-character word can
+    /// never be the thing that wraps — the cue absorbs the width, which is what it is for.
+    ///
+    /// **The line itself does not change — `bodyLStrong`, the same as `standard` above.** Two
+    /// other sizes were tried
     /// and both were wrong in the same direction, which is why the type is worth pinning down
     /// here: `bodyS` made it a caption for a control that was not there, and `displayS` — the
     /// drop screen's size for the cue — made a 24pt Bricolage line the loudest thing on a screen
     /// whose subject is a 300pt album cover, competing with the ultramarine numeral for the eye.
     /// The cue is a condition the cards are read against; it is not the card.
     ///
-    /// So this is not a third rendering of the cue. It is `standard` minus the micro-label, at
-    /// `standard`'s type, in `standard`'s material. `docs/18-CUES.md` §7 holds the placement.
+    /// So this is not a third rendering of the cue. It is `standard` with its micro-label moved
+    /// onto the line and shortened, at `standard`'s type, in `standard`'s material.
+    /// `docs/18-CUES.md` §7 holds the placement.
     ///
-    /// VoiceOver keeps what the eye gives up. The element speaks `round.cue.label`'s *"Tonight's
-    /// cue:"* ahead of the text, because a person who cannot see where the strip sits on the
-    /// screen has none of the context the sighted reader is being trusted with.
+    /// VoiceOver still hears the long form. The element speaks `round.cue.label`'s *"Tonight's
+    /// cue:"* ahead of the text rather than the visible *"Cue"*, because a person who cannot see
+    /// where the strip sits on the screen has none of the context the sighted reader is being
+    /// trusted with — and the abbreviation is only defensible against that context.
     private func prominent(_ cue: CueDTO) -> some View {
-        strip(minHeight: Layout.minimumTouchTarget) {
-            Text(verbatim: cue.text)
-                .typeStyle(.bodyLStrong)
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
+        let label = SectionLabel(LocalizedStringKey(Self.prominentLabelKey))
+        let text = Text(verbatim: cue.text)
+            .typeStyle(.bodyLStrong)
+            .foregroundStyle(Palette.ink)
+            .fixedSize(horizontal: false, vertical: true)
+
+        return strip(minHeight: Layout.minimumTouchTarget) {
+            if Self.prominentStacksLabel(at: dynamicTypeSize) {
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    label
+                    text
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                    label.fixedSize()
+                    text
+                }
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("round.cue.label") + Text(verbatim: " ") + Text(verbatim: cue.text))
     }
+
+    /// **Above `.accessibility1` the label stops sharing the line.**
+    ///
+    /// Inline is right at reading sizes and wrong at accessibility ones, and the SE golden at
+    /// `.accessibility5` is the proof: a label that cannot wrap — and it must not, a
+    /// three-character word broken across lines is worse than anything it could save — takes
+    /// ninety points off a three-hundred-point column, and the cue it was meant to clarify wraps
+    /// into a ragged stack of one and two words hanging off its right. The label costs less than
+    /// it destroys only while there is width to share.
+    ///
+    /// So above that boundary it goes back over the cue, the way `standard` always sets it. That
+    /// is the same threshold `QuickPassScreen.isStacked` uses to move the whole strip under the
+    /// close button, and deliberately so: at exactly the size the strip stops sharing its row
+    /// with a button, the label stops sharing its line with the cue.
+    static func prominentStacksLabel(at size: DynamicTypeSize) -> Bool {
+        size.isAccessibilitySize
+    }
+
+    /// What `prominent`'s label costs the cue beside it — width when inline, height when stacked,
+    /// never both.
+    ///
+    /// **The component owns this, not the screen that reserves space for it.** `QuickPassScreen`
+    /// sizes its artwork from what the cue has left to wrap into, so it needs these numbers — and
+    /// if it derived them itself, changing the label here would silently mis-size an album cover
+    /// over there. Returning both costs from one call is what keeps the screen from having to
+    /// know *which* of the two applies at a given size, which is the fact most likely to drift.
+    /// `CueBannerTests` pins the pair to what is actually drawn.
+    ///
+    /// `.label` is `isUppercase` and tracked `+1.3` at its base size, and `TypeStyleModifier`
+    /// scales that tracking with the font — so the string is measured uppercased, with the kern
+    /// attribute the modifier will actually apply, at the category the strip renders at. Dropping
+    /// the kern under-reads a three-character word by about four points, which is the margin that
+    /// decides whether the last word of a 45-character cue wraps.
+    static func prominentLabelCost(
+        for size: DynamicTypeSize
+    ) -> (width: CGFloat, height: CGFloat) {
+        let category = UIContentSizeCategory(size)
+        guard !prominentStacksLabel(at: size) else {
+            return (0, Typography.lineHeight(.label, for: category) + Space.xxs)
+        }
+        return (prominentLabelWidth(for: category) + Space.sm, 0)
+    }
+
+    /// The drawn width of the inline label alone, tracking included. `prominentLabelCost` is what
+    /// a layout should ask for; this is exposed for the test that checks the measurement itself.
+    static func prominentLabelWidth(for category: UIContentSizeCategory = .unspecified) -> CGFloat {
+        let style = TypeStyle.label
+        let font = Typography.uiFont(style, for: category)
+        let kern = style.spec.tracking * (font.pointSize / style.spec.size)
+        let text = Copy.string(prominentLabelKey).uppercased()
+        return ceil((text as NSString).size(withAttributes: [.font: font, .kern: kern]).width)
+    }
+
+    /// The one spelling of the key, so the rendered label and the measured one cannot diverge.
+    private static let prominentLabelKey = "round.cue.label.short"
 
     /// The material both densities share, in one place so they cannot drift apart.
     ///
@@ -117,7 +206,7 @@ struct CueBanner: View {
             .frame(minHeight: minHeight, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Radius.artwork, style: .continuous)
-                    .fill(Palette.hairline)
+                    .fill(Palette.paperSunk)
             )
     }
 }

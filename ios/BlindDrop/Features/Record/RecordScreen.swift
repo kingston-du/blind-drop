@@ -370,13 +370,28 @@ struct RecordFilterLabel: View {
         .typeStyle(.bodyM)
         .foregroundStyle(Palette.inkDim)
         .padding(.horizontal, Space.lg)
+        // Kept, and load-bearing only above `.accessibility1`: below that the 44pt floor is
+        // taller than the padded text anyway, and above it this is the whole reason the label
+        // does not sit against the capsule's ends.
         .padding(.vertical, Space.sm)
-        .minimumTouchTarget()
-        // Draw the stroke after the touch-target frame so the capsule's full bounds are
-        // identical on every edge; this avoids the bottom edge being visually clipped.
+        // `minimumTouchTarget()` open-coded, for the shape rather than the size: the hit region
+        // is the capsule the eye sees, not the rectangle around it. The 44pt floor is unchanged,
+        // and it is also what keeps the box an integral height at every non-accessibility size —
+        // a capsule's corner radius is half its height, so its top and bottom are apexes tangent
+        // to the pixel grid, and a fractional height lands them on different halves of a pixel.
+        // That is a second-order effect; `strokeBorder` below is what actually makes the two
+        // edges agree, at any height, including the fractional ones above `.accessibility1`.
+        .frame(minWidth: Layout.minimumTouchTarget, minHeight: Layout.minimumTouchTarget)
+        .contentShape(Capsule())
         .background(Palette.paper, in: Capsule())
+        // `strokeBorder`, never `stroke`: `stroke` straddles the path, so half a point of the
+        // line falls outside the view's own bounds — which is what made the bottom of this
+        // capsule read heavier than its top, and what made it flicker a pixel thinner as the
+        // `Menu`'s press highlight re-rasterized the layer at a different subpixel offset.
+        // `CircleSwitcherSheet`'s pip note argues the same fix on a ring. The comment this
+        // replaces ("draw the stroke after the touch-target frame") treated the symptom.
         .overlay {
-            Capsule().stroke(Palette.edgeStrong, lineWidth: Stroke.border)
+            Capsule().strokeBorder(Palette.edgeStrong, lineWidth: Stroke.border)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
