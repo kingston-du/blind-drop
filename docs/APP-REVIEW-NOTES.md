@@ -36,9 +36,80 @@ runbook has been run.
 >
 > Sign in with Apple is the only sign-in method offered to the public. The email/password
 > field is present for this review account.
+>
+> **What the app does, and for whom.** Blind Drop is a daily guessing game for one private
+> group of friends who already know each other. It is not a music player, a playlist app or a
+> social network: there is no feed, no discovery, no public profile, and no way to reach anyone
+> you were not invited alongside. The problem it solves is that sending songs to friends is a
+> firehose nobody reads; one song a day, hidden until a fixed hour, turns it into something the
+> whole group actually shows up for.
+>
+> **User-generated content, reporting and blocking.** The content members create is a display
+> name and, for admins, a one-line "cue" for the night. Songs themselves come from Apple's
+> catalog and are never uploaded. **To report a member:** open the circle from the header menu
+> (Group), tap the ⋯ on any member's row, choose *Report member*, and pick one of four reasons.
+> Reports are available to every member, not only admins, and go to us rather than to the
+> circle. **Blocking** works by leaving: a member can leave a circle at any time from the foot
+> of the same screen, and an admin can remove any member from that same ⋯ menu. There is
+> deliberately no per-user content hiding, because concealing one member's card while a round is
+> still hidden would reveal to the viewer which card belongs to that person and break the
+> blindness the game depends on.
+>
+> **Third-party material.** Blind Drop hosts no audio. Song metadata, artwork and the
+> thirty-second previews are served by the Apple Music API under the Apple Developer Program
+> License Agreement; Spotify links and playlist export use the Spotify Web API under Spotify's
+> Developer Terms of Service, authorised by the member with PKCE. A member's "drop" is a
+> reference to a catalog track (an ISRC), never an upload.
+>
+> **External services.** Supabase (hosted Postgres, authentication and Edge Functions), the
+> Apple Music API (catalog search, artwork, previews), the Spotify Web API (track matching and
+> playlist export), and Apple Push Notification service. There is no analytics SDK, no
+> advertising SDK, no crash reporter, no AI service, and no third-party tracking of any kind.
+>
+> **Regions.** The app behaves identically in every country it is available in. There are no
+> regional features, no regional content and no regional pricing; it is free everywhere. It is
+> not offered in Vietnam.
+>
+> **Permission prompts you will see.** Notifications are requested only after you have played a
+> round, never at launch. Apple Music access is requested only if you choose to export The
+> Record to an Apple Music playlist. Photo library "add" access is requested only if you choose
+> Save Image on a share card.
+>
+> **Account deletion** is in the app: the header menu → Settings → Delete account. It removes
+> the account and its notification tokens; past songs and guesses remain in the circle's history
+> as "Former member" so other members' scores stay correct.
 
 **Demo account:** `demo@blinddrop.dev` — put the password in the App Store Connect password
 field, not in the note.
+
+### Devices and systems tested — fill this in before each submission
+
+App Review asks for this explicitly. Name real devices and real OS versions; "latest iOS" is
+not an answer, and an unanswered one is what triggered the 2.1 information request on the
+owner's previous app.
+
+| Device | iOS |
+|---|---|
+| iPhone 15 Pro (physical) | *fill in* |
+| iPhone 17 (simulator) | 26.x |
+
+### The screen recording
+
+The same 2.1 letter asks for a recording made on a **physical device**, starting with launch.
+One continuous take covers every item it lists:
+
+1. **Delete the app and reinstall first.** Both the notification permission and Apple Music
+   access are one-shot; without a fresh install neither prompt can be filmed again.
+2. Launch → Sign in with Apple → the notification pre-prompt, then the system dialog.
+3. Drop a song → Seal it → the reveal → guesses → answers. On the demo account the countdowns
+   are seconds, so this takes about a minute.
+4. The Record → export to Apple Music → the Apple Music permission prompt.
+5. The circle → a member's ⋯ → **Report member** → a reason → the confirmation. This is the
+   UGC reporting mechanism the letter asks to see.
+6. Settings → **Delete account**.
+
+Film step 6 on a throwaway account, or re-run `seed-app-review-demo.sql` afterwards — deleting
+the review account is what the reviewer signs in with.
 
 ---
 
