@@ -767,6 +767,11 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "groups DELETE /:group_id/cue": "groups_current",
     "groups PATCH /:group_id/members/:user_id": "groups_current",
     "groups DELETE /:group_id/members/:user_id": null,
+    // E45-01. A bodiless 204, like removal above, so there is no payload to widen. It is also
+    // the only write on this function that reads no round state whatsoever — it never loads a
+    // round, a submission or a guess — so the response cannot vary with anybody's participation
+    // and is byte-identical whether the target has sealed tonight or not.
+    "groups POST /:group_id/members/:user_id/report": null,
     // E20-01. Pending invitations, distinct from membership — see the two captures above.
     "groups POST /current/invitations": "invitation",
     "groups POST /:group_id/invitations": "invitation",

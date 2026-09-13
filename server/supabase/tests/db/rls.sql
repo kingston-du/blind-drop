@@ -10,7 +10,7 @@ set search_path = public, extensions, tests;
 -- assertions per table: one more row apiece in the two `pg_class`-driven RLS-enabled/forced
 -- checks (automatic, no array to edit) and one more row apiece in the two hand-enumerated
 -- read-denial checks below.
-select plan(69);
+select plan(71);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -26,8 +26,8 @@ order by c.relname;
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'),
-  14,
-  'exactly fourteen tables in public — nothing has been added without a doc change');
+  15,
+  'exactly fifteen tables in public — nothing has been added without a doc change');
 
 -- ─── zero policies. Not "the right policies". Zero. ──────────────────────────
 select is_empty($$
@@ -99,7 +99,11 @@ select set_eq(
        ('round_scores', 'SELECT'), ('standings', 'SELECT'),
        -- E20-01 (20260819100000). No DELETE: an invitation only ever moves forward to a
        -- terminal status; nothing removes the row.
-       ('invitations', 'SELECT'), ('invitations', 'INSERT'), ('invitations', 'UPDATE') $$,
+       ('invitations', 'SELECT'), ('invitations', 'INSERT'), ('invitations', 'UPDATE'),
+       -- E45-01 (20260912120000). No UPDATE: a report is a fact about a moment and is never
+       -- edited afterwards — it is read by the owner and eventually deleted, nothing else.
+       ('member_reports', 'SELECT'), ('member_reports', 'INSERT'),
+       ('member_reports', 'DELETE') $$,
   'service_role has exactly the table and view verbs used by Edge Functions');
 
 select set_eq(

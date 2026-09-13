@@ -1495,6 +1495,51 @@ async function setMemberRole(req: Request, ctx: MemberCtx, userId: string): Prom
   return ok(await currentGroupDTO({ ...ctx, role: userId === ctx.userId ? role : ctx.role }));
 }
 
+/** The closed set of reasons a report may carry (`E45-01`). A fixed list, never free text: a
+ *  free-text field would be new user-generated content moderated by nobody, which is the problem
+ *  the report exists to answer rather than a solution to it. */
+const REPORT_REASONS = ["display_name", "cue", "harassment", "other"] as const;
+
+/**
+ * `POST /groups/:id/members/:user_id/report` — one member raises another (`E45-01`).
+ *
+ * **Not admin-gated, deliberately.** Every other write on this route pair is an admin power;
+ * this one is the opposite. The people without a remove button are exactly the people who need
+ * a way to raise an abusive name, so membership of the circle is the whole authorization.
+ *
+ * Reads no round state and writes none, so nothing here can participate in a §2.1 leak — the
+ * response is the same `204` whatever phase the circle is in, and whatever the target has or
+ * has not submitted.
+ */
+async function reportMember(req: Request, ctx: MemberCtx, userId: string): Promise<Response> {
+  // Refused before the target is even looked up: reporting yourself is meaningless, and saying
+  // so plainly beats letting the table's own check constraint surface as an INTERNAL later.
+  if (userId === ctx.userId) throw new ApiError("INVALID_INPUT", { field: "user_id" });
+
+  // Membership of *this* circle, not merely that the profile exists. A report is about somebody
+  // you actually play with; `activeMember` raising NOT_FOUND is the right answer for anyone else,
+  // and leaks nothing a member could not already see on the group screen.
+  await activeMember(ctx.db, ctx.groupId, userId);
+
+  const body = await parseBody(req, { reason: str({ min: 1, max: 32 }) });
+  const reason = body.reason as (typeof REPORT_REASONS)[number];
+  if (!REPORT_REASONS.includes(reason)) {
+    throw new ApiError("INVALID_INPUT", { field: "reason" });
+  }
+
+  const { error } = await ctx.db.from("member_reports").insert({
+    group_id: ctx.groupId,
+    reporter_id: ctx.userId,
+    reported_id: userId,
+    reason,
+  });
+
+  // The one-per-day unique index. A second tap is the same report, so it is success: telling the
+  // reporter their report "failed" would only teach them to file it again tomorrow.
+  if (error && !isUniqueViolation(error)) throw dbFailure("groups.member.report", error);
+  return noContent();
+}
+
 async function removeMember(ctx: MemberCtx, userId: string): Promise<Response> {
   const member = await activeMember(ctx.db, ctx.groupId, userId);
   if (member.role === "admin" && await activeAdminCount(ctx.db, ctx.groupId) <= 1) {
@@ -2076,6 +2121,14 @@ serveFunction("groups", {
       await requireMembership(await requireProfile(await requireUser(req, route)), params.group_id),
     );
     return removeMember(ctx, params.user_id);
+  },
+  // Membership only — reporting is the one member action that is not an admin power (`E45-01`).
+  "POST /:group_id/members/:user_id/report": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return reportMember(req, ctx, params.user_id);
   },
 
   // ─── invitations — E20-01 ────────────────────────────────────────────────────

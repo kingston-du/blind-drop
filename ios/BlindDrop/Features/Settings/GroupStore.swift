@@ -204,4 +204,21 @@ final class GroupStore {
             return false
         }
     }
+
+    /// `E45-01`. Raises a member with the owner. Deliberately **does not reload**: a report
+    /// changes nothing a member can see — not the roster, not a score, not a phase — and a
+    /// refetch here would only make an invisible action look like it moved something.
+    func report(_ userID: String, reason: MemberReportReason) async -> Bool {
+        guard let groupID = group?.id, !isManagingMember else { return false }
+        isManagingMember = true
+        errorKey = nil
+        defer { isManagingMember = false }
+        do {
+            _ = try await api.send(.reportMember(userID, in: groupID, reason: reason.rawValue))
+            return true
+        } catch {
+            errorKey = error.copyKey
+            return false
+        }
+    }
 }

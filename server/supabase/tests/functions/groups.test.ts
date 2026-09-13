@@ -754,3 +754,67 @@ Deno.test("every group route is 401 for an anonymous caller", async () => {
     assertEquals(res.body.error.code, "UNAUTHENTICATED");
   }
 });
+
+// ─── reports — E45-01 ───────────────────────────────────────────────────────
+
+Deno.test("any member can report any other member, and repeats are idempotent — E45-01", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  const ben = await newMember(String(group.invite_code), "Ben");
+
+  // The point of the slice: Ben is not an admin, and does not need to be.
+  const reported = await groups(`/${group.id}/members/${ana.id}/report`, {
+    method: "POST",
+    token: ben.token,
+    body: { reason: "display_name" },
+  });
+  assertEquals(reported.status, 204);
+
+  // A second tap within the day is the same report, and is success rather than a failure the
+  // reporter cannot act on.
+  const again = await groups(`/${group.id}/members/${ana.id}/report`, {
+    method: "POST",
+    token: ben.token,
+    body: { reason: "harassment" },
+  });
+  assertEquals(again.status, 204);
+});
+
+Deno.test("a report refuses itself, a stranger, an outsider and a reason off the list — E45-01", async () => {
+  const { user: ana, group } = await newGroupOwner("Ana");
+  const ben = await newMember(String(group.invite_code), "Ben");
+  const cara = await newNamedUser("Cara");
+
+  const itself = await groups(`/${group.id}/members/${ana.id}/report`, {
+    method: "POST",
+    token: ana.token,
+    body: { reason: "other" },
+  });
+  assertEquals(itself.status, 400);
+  assertEquals(itself.body.error.details, { field: "user_id" });
+
+  const outsider = await groups(`/${group.id}/members/${cara.id}/report`, {
+    method: "POST",
+    token: ana.token,
+    body: { reason: "other" },
+  });
+  assertEquals(outsider.status, 404);
+  assertEquals(outsider.body.error.code, "NOT_FOUND");
+
+  // Cara is not in this circle, so she cannot raise anybody in it — and the refusal is 404
+  // rather than 403, which is the right one: a circle she does not hold should not be confirmed
+  // to exist by the shape of its own rejection.
+  const byOutsider = await groups(`/${group.id}/members/${ben.id}/report`, {
+    method: "POST",
+    token: cara.token,
+    body: { reason: "other" },
+  });
+  assertEquals(byOutsider.status, 404);
+
+  const badReason = await groups(`/${group.id}/members/${ben.id}/report`, {
+    method: "POST",
+    token: ana.token,
+    body: { reason: "vibes" },
+  });
+  assertEquals(badReason.status, 400);
+  assertEquals(badReason.body.error.details, { field: "reason" });
+});

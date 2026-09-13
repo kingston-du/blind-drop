@@ -249,6 +249,39 @@ seconds to wait, which the handler returns as `Retry-After`.
 
 ---
 
+### `20260912120000_member_reports.sql` — E45-01
+
+The fifteenth table, and the second to hold no game data. App Review's guideline 1.2 asks an
+app carrying user-generated content for a way to report it; Blind Drop's user-generated content
+is a display name and a hand-written cue, so what gets reported is a **person in a circle**.
+
+```sql
+create table public.member_reports (
+  id           uuid primary key default gen_random_uuid(),
+  group_id     uuid not null references public.groups(id) on delete cascade,
+  reporter_id  uuid not null references public.profiles(id) on delete cascade,
+  reported_id  uuid not null references public.profiles(id) on delete cascade,
+  reason       text not null check (reason in ('display_name', 'cue', 'harassment', 'other')),
+  created_at   timestamptz not null default now(),
+  constraint member_reports_not_self check (reporter_id <> reported_id)
+);
+create unique index member_reports_daily_unique
+  on public.member_reports (reporter_id, reported_id, ((created_at at time zone 'UTC')::date));
+create index member_reports_group_recent on public.member_reports (group_id, created_at desc);
+```
+
+- **No reference to `rounds` or `submissions`, deliberately.** A report is about a person, never
+  about a night, which is what keeps this table and its route entirely outside
+  `CLAUDE.md` §2.1. The route answers the same `204` in every phase.
+- **The day in the unique index is pinned to UTC.** A bare `created_at::date` reads the session's
+  `TimeZone`, is therefore not immutable, and is refused at index creation.
+- **`reason` is a closed set, and there is no free-text column.** A free-text reason would be a
+  second piece of user-generated content, about a named person, moderated by nobody.
+- Reads are the owner's, through the service role. No client role holds a grant, so a report
+  can never be enumerated by the person it is about.
+
+---
+
 ## 3. RLS — `0003_rls.sql`
 
 ```sql

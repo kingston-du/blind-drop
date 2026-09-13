@@ -210,6 +210,16 @@
 "group.member.remove.confirm.title" = "Remove %@?";
 "group.member.remove.confirm.body" = "Their songs and guesses stay in this circle's history.";
 "group.member.remove.confirm.action" = "Remove";
+"group.member.report" = "Report member";
+"group.member.report.title" = "Report %@?";
+"group.member.report.body" = "This goes to Blind Drop, not to the circle.";
+"group.member.report.reason.name" = "Their display name";
+"group.member.report.reason.cue" = "A cue they wrote";
+"group.member.report.reason.harassment" = "Harassment";
+"group.member.report.reason.other" = "Something else";
+"group.member.report.sent.title" = "Report sent";
+"group.member.report.sent.body" = "We'll look at it. Nothing changes in the circle for now.";
+"group.member.report.sent.action" = "Done";
 "group.standings.thin" = "Not enough rounds yet to rank anyone.";
 "group.meta.members" = "%lld members";
 "group.meta.rounds" = "%lld rounds";

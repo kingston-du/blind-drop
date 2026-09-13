@@ -541,6 +541,18 @@ async function route(req: Request, url: URL): Promise<Response> {
     if (groupOnly[1] === PRIMARY_GROUP_ID) return ok(await patchPrimary(body));
     return ok({ ...group, ...body, reveal_effective_from: revealEffectiveFrom(group, body) });
   }
+  // E45-01. A member reports a member. Bodiless 204, like the real route, and deliberately
+  // unconditional on phase: a report is about a person, never about a round, so the fixture
+  // answering it the same way in every PHASE is the contract rather than a shortcut.
+  const memberReport = p.match(/^\/groups\/([^/]+)\/members\/([^/]+)\/report$/);
+  if (m === "POST" && memberReport) {
+    const body = await req.json().catch(() => ({}));
+    const reasons = ["display_name", "cue", "harassment", "other"];
+    if (!reasons.includes(String(body.reason ?? ""))) {
+      return fail(400, "INVALID_INPUT", "Check that and try again.");
+    }
+    return noContent();
+  }
   // E43-02. The client addresses the circle by id, so this sibling is the one it actually
   // reaches; the `/current` pair above is kept for the same compatibility reason as the rest.
   const groupCue = p.match(/^\/groups\/([^/]+)\/cue$/);

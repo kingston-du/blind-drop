@@ -339,7 +339,8 @@ struct GroupDetailView: View {
             } else if isThinHistory {
                 Text("group.standings.thin").typeStyle(.bodyM).foregroundStyle(Palette.inkDim)
                 ForEach(group.members) { member in
-                    MemberRosterRow(member: member, actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
+                    MemberRosterRow(member: member, actions: memberActions(for: member),
+                                    reservesActionSlot: reservesActionSlot, rendersForSnapshot: isSnapshot,
                                     managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                     manage: { manage($0, member: member) })
                 }
@@ -356,7 +357,8 @@ struct GroupDetailView: View {
                     }
                 }
                 ForEach(rosterMembers) { member in
-                    MemberRosterRow(member: member, actions: memberActions(for: member), rendersForSnapshot: isSnapshot,
+                    MemberRosterRow(member: member, actions: memberActions(for: member),
+                                    reservesActionSlot: reservesActionSlot, rendersForSnapshot: isSnapshot,
                                     managementDisabled: isManagingMember || isSaving, select: { select(member) },
                                     manage: { manage($0, member: member) })
                 }
@@ -1031,6 +1033,12 @@ private struct GroupMemberRowContent: View {
 struct MemberRosterRow: View {
     let member: MemberDTO
     var actions: [MemberManagementAction] = []
+    /// The same right edge `MemberStandingRow` keeps, for the same reason. It did not used to
+    /// matter here: before `E45-01` a member either saw a `⋯` on every row that could carry one
+    /// or on none at all, so the roles below always lined up. Now the caller's own row is the
+    /// only one in the list without a menu, and without this the roster reads as ragged — one
+    /// role label flush to the edge and the rest inset by a control the caller cannot use.
+    var reservesActionSlot = false
     var rendersForSnapshot = false
     var managementDisabled = false
     let select: () -> Void
@@ -1058,6 +1066,8 @@ struct MemberRosterRow: View {
             if !actions.isEmpty {
                 MemberActionMenu(actions: actions, disabled: managementDisabled,
                                  rendersForSnapshot: rendersForSnapshot, manage: manage)
+            } else if reservesActionSlot {
+                Color.clear.frame(width: Layout.minimumTouchTarget)
             }
         }
         .rowSurface()

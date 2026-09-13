@@ -88,6 +88,7 @@ private struct PatchGroupBody: Encodable, Sendable {
 }
 private struct SetCueBody: Encodable, Sendable { let text: String }
 private struct MemberRoleBody: Encodable, Sendable { let role: String }
+private struct MemberReportBody: Encodable, Sendable { let reason: String }
 private struct InvitePersonBody: Encodable, Sendable { let user_id: String }
 private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignment] }
 
@@ -199,6 +200,16 @@ extension Endpoint {
 
     static func removeMember(_ userID: String, from groupID: String) -> Endpoint<NoContent> {
         .init(.delete, scoped("/groups", groupID, "/members/\(userID)"))
+    }
+
+    /// `E45-01`. Not an admin route: any member of the circle may raise any other member, which
+    /// is the whole point of it. `reason` is one of the closed set the server also enforces.
+    static func reportMember(_ userID: String, in groupID: String, reason: String) -> Endpoint<NoContent> {
+        .init(
+            .post,
+            scoped("/groups", groupID, "/members/\(userID)/report"),
+            body: json(MemberReportBody(reason: reason))
+        )
     }
 
     static func standings(_ groupID: String) -> Endpoint<StandingsDTO> {
