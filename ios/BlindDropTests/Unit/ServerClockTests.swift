@@ -370,10 +370,19 @@ import Testing
         // The badge disappears — one of the two observers leaves.
         timer.stop()
 
-        // The uptime the ticker's next tick will read already reflects a second having passed;
-        // the real sleep just gives that tick room to actually fire.
+        // The uptime the ticker's next tick will read already reflects a second having passed.
+        // **What follows waits for that tick, rather than for a number of milliseconds** — the
+        // same correction `SubmitStoreTests.settle(within:until:)` made for the same reason. A
+        // fixed 1.3s sleep here was a race with the machine and lost it: run alone this test
+        // passed every time, but inside the full suite the ticker fired late often enough to
+        // fail the run and take the snapshot half down with it. The assertion below is the one
+        // that was always here, against the same state; only the waiting changed.
         uptime.advance(1)
-        try await Task.sleep(for: .seconds(1.3))
+        let deadline = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < deadline,
+              timer.display != .precise(hours: 5, minutes: 59, seconds: 59) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
         #expect(timer.display == .precise(hours: 5, minutes: 59, seconds: 59),
                 "the sealed card's countdown must still be ticking after the badge alone left")
 
