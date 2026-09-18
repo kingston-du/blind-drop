@@ -62,7 +62,9 @@ const CARD_KEYS = [
   "eligible_guesser_count",
   "guesses",
   "my_guess",
+  "my_reaction",
   "owner",
+  "reactions",
   "track",
 ].sort();
 const GUESS_KEYS = [

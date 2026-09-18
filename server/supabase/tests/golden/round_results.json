@@ -20,7 +20,9 @@
       "eligible_guesser_count",
       "guesses",
       "my_guess",
+      "my_reaction",
       "owner",
+      "reactions",
       "track"
     ],
     "cards[].track": [
@@ -46,6 +48,11 @@
       "display_name",
       "guessed_user_id",
       "is_correct"
+    ],
+    "cards[].reactions": [
+      "interesting",
+      "loved",
+      "not_for_me"
     ],
     "me": [
       "ear",

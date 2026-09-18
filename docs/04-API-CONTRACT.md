@@ -367,7 +367,8 @@ eight. The copy is `"Not enough drops tonight. Nothing revealed."` and that is a
     { "user_id": "u_…", "display_name": "Ana" },
     { "user_id": "u_…", "display_name": "Ben" }
   ],
-  "my_guesses": [ { "card_no": 1, "guessed_user_id": "u_…" } ]
+  "my_guesses": [ { "card_no": 1, "guessed_user_id": "u_…" } ],
+  "my_reactions": [ { "card_no": 3, "kind": "loved" } ]
 }}
 ```
 
@@ -380,6 +381,9 @@ eight. The copy is `"Not enough drops tonight. Nothing revealed."` and that is a
 - `my_guesses` is the caller's own saved sheet. Nobody else's guesses are obtainable at any
   URL in this phase. There is no endpoint that returns another user's guesses before
   `scored`.
+- `my_reactions` is the same thing for reactions (`E46-01`, `docs/19` §3): the caller's own
+  marks and **no count of anybody's**. Absent — not `null` — in every other phase. A reaction
+  behaves exactly like a guess, so the tally exists only on the results payload.
 - Card ordering in `cards` is ascending `card_no` and identical for every member.
 
 **Phase `scored`:** returns `{…, "state": "scored"}` with the same base keys plus nothing
@@ -449,6 +453,40 @@ Server-side validation, each failing with `INVALID_INPUT` unless noted:
 Guesses may be changed freely until `scores_at`. Partial sheets are valid; unassigned cards
 score as wrong (`02-DOMAIN-RULES.md` §4.1).
 
+### `PUT /rounds/current/reactions`
+
+One mark on one card. `docs/19-REACTIONS.md` §7, and read that file before changing anything
+here — the seal it describes is the reason this route looks the way it does.
+
+```jsonc
+// request
+{ "card_no": 3, "kind": "loved" }     // "interesting" | "not_for_me" | null to clear
+```
+
+```jsonc
+// response — the caller's own marks, in every phase, and nothing else
+{ "data": { "my_reactions": [ { "card_no": 3, "kind": "loved" } ] } }
+```
+
+Server-side validation, each failing with `INVALID_INPUT` unless noted:
+
+1. `state` must be `revealed` or `scored` → else `WRONG_PHASE`.
+2. The round must be the circle's current round. Not a clock comparison: the handler resolves
+   the round the same way `GET /rounds/current` does, so the window closes when tonight stops
+   being tonight, and a night reached through The Record has no write path here.
+3. Caller's membership `joined_at` must be `< reveals_at` → else `JOINED_LATE` (403).
+4. `card_no` must be in `1..N`. **The caller's own card is in range**, unlike on the guess sheet.
+5. `kind` must be one of the three, or `null`. An omitted key is a clear.
+
+**There is no submitter check.** `docs/02` §3.3 restricts guessing because guessing is scored; a
+mark is scored by nothing, and a member who did not drop tonight may still mark
+(`docs/19` §4). Idempotent — the same body twice is one row and the same response. Rate limit
+60/minute, matching guesses. Also available as `PUT /rounds/{group_id}/current/reactions`.
+
+**The response never widens.** No count, no total, no second field. `docs/19` §3: no aggregate
+of reactions exists in any response before the round is `scored`, and this route does not
+produce one even after. The tally lives on the results payload below and nowhere else.
+
 ### `GET /rounds/{round_id}/results`
 
 Requires `state = 'scored'` → else `WRONG_PHASE`. Requires membership. Available for any past
@@ -468,7 +506,9 @@ round, which is how the Record links back into results.
       "eligible_guesser_count": 7,
       "my_guess": { "guessed_user_id": "u_cal", "display_name": "Cal",
                     "is_correct": false },     // null if you didn't guess / couldn't
-      "guesses": null                          // populated only on the card you own — see below
+      "guesses": null,                         // populated only on the card you own — see below
+      "reactions": { "loved": 4, "interesting": 1, "not_for_me": 0 },
+      "my_reaction": "loved"                   // null if you didn't mark this card
     },
     {
       "card_no": 4,
@@ -480,7 +520,9 @@ round, which is how the Record links back into results.
       "guesses": [                             // E29-01 — every guess made against *this* card
         { "guesser_id": "u_ben", "guesser_name": "Ben",
           "guessed_user_id": "u_ana", "guessed_name": "Ana", "is_correct": true }
-      ]
+      ],
+      "reactions": { "loved": 0, "interesting": 2, "not_for_me": 1 },
+      "my_reaction": null                      // you can mark your own card, here; this one isn't
     }
   ],
   "me": {
@@ -508,6 +550,13 @@ round, which is how the Record links back into results.
   each entry names who guessed and what they picked, both by id and by name, and whether it
   landed — the same neutral correct/incorrect the rest of the screen already carries, never
   green/red (`docs/16` §5).
+- `reactions` (`E46-01`) carries **all three keys on every card, zeros included** — not a sparse
+  map and never `null`. A card nobody marked and a night from before reactions shipped are the
+  same three zeros, and the client draws no row for either (`docs/19` §8.3). **No reactor is
+  named on any card, including the caller's own** — the one card that does name guessers. There
+  is no array here and no route that returns one. `my_reaction` is the caller's own mark or
+  `null`; the caller's own card can carry one, because this screen is the only place it can be
+  marked (`docs/19` §4).
 - `tonight_top_ear` is **ranked** — ties share a rank and the next rank skips, the same rule as
   `best_ear` below — computed for this round alone, top 3 by rank (a tie at the boundary can
   make this more than 3 rows; it never splits a tie). A member who made no guesses this round
@@ -737,6 +786,8 @@ There is no endpoint for any of these, and adding one is a spec violation:
 
 - Submission counts, per-member submission status, or "who's still out" — in any phase.
 - Another user's guesses before `scored`.
+- Any count of reactions, or another member's reaction, before `scored` — and a reactor's
+  identity in any phase, including on the caller's own card (`docs/19-REACTIONS.md` §3, §7).
 - Another user's submission before `revealed`.
 - Round history for a group you are not a member of.
 - Anything keyed by a `group_id` supplied by the client (ADR-005 — the group comes from the
@@ -760,6 +811,7 @@ Per user, sliding window, returned as `429 RATE_LIMITED` with `Retry-After`:
 | `GET /tracks/search` | 30 / minute |
 | `PUT /rounds/current/submission` | 20 / minute |
 | `PUT /rounds/current/guesses` | 60 / minute |
+| `PUT /rounds/current/reactions` | 60 / minute |
 | `POST /groups/join` | 10 / hour (invite-code brute force) |
 | everything else | 120 / minute |
 

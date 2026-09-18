@@ -7,6 +7,8 @@
 //   PUT /{group_id}/current/submission    the same, for a named circle
 //   PUT /current/guesses                  the guess sheet, whole-sheet upsert, oldest circle
 //   PUT /{group_id}/current/guesses       the same, for a named circle
+//   PUT /current/reactions                one mark on one card, oldest circle
+//   PUT /{group_id}/current/reactions     the same, for a named circle
 //   GET /{round_id}/results               the answers, for any scored round the caller
 //                                          belongs to — resolves the round's own group first
 //
@@ -67,12 +69,17 @@ import {
   cueDTO,
   type GuessDTO,
   guessSheetDTO,
+  isReactionKind,
   type MemberDTO,
   memberDTO,
   type MyGuessDTO,
+  type MyReactionDTO,
+  myReactionsDTO,
   personalScoreDTO,
   personScoreDTO,
   type PreviousRoundDTO,
+  reactionCountsDTO,
+  type ReactionKind,
   type ResultCardDTO,
   resultCardDTO,
   resultsDTO,
@@ -97,6 +104,10 @@ const ONE_MINUTE_IN_SECONDS = 60;
 // be edited freely while people think, and the limit is there for a stuck retry loop, not for
 // a player.
 const GUESS_LIMIT_PER_MINUTE = 60;
+
+// docs/19 §7. The same sixty, for the same reason: a mark is one tap and the limit is here for
+// a stuck retry loop, not for a person changing their mind about a song.
+const REACTION_LIMIT_PER_MINUTE = 60;
 
 /** Comfortably above the twelve-member ceiling in docs/08, and bounded, which is the point —
  *  an unbounded array in a request body is a way to make the server do arbitrary work. */
@@ -146,6 +157,38 @@ function assignmentList(): Validator<Assignment[]> {
         }
         return { card_no: row.card_no, guessed_user_id: guessed as string | null };
       });
+    },
+  };
+}
+
+/** `card_no` on the reaction route. An integer, and that is all this step can know — the range
+ *  needs the round, which the parse step does not have (docs/19 §7). */
+function cardNumber(): Validator<number> {
+  return {
+    optional: false,
+    parse(value, field) {
+      if (typeof value !== "number" || !Number.isInteger(value)) {
+        throw new ApiError("INVALID_INPUT", { field });
+      }
+      return value;
+    },
+  };
+}
+
+/** `kind` on the reaction route: one of the closed three, or `null` to clear.
+ *
+ *  `null` is a value here and not an omission, the same way `guessed_user_id` is on the sheet —
+ *  a request that leaves the key out is clearing the card, because it has said nothing else it
+ *  could mean. A fourth string lands as `INVALID_INPUT` here and would be refused by the enum
+ *  in the database behind it. */
+function reactionKind(): Validator<ReactionKind | null> {
+  return {
+    optional: false,
+    parse(value, field) {
+      const kind = value ?? null;
+      if (kind === null) return null;
+      if (!isReactionKind(kind)) throw new ApiError("INVALID_INPUT", { field });
+      return kind;
     },
   };
 }
@@ -409,6 +452,36 @@ async function myGuesses(ctx: MemberCtx, round: RoundRow, order: string[]): Prom
 }
 
 /**
+ * The caller's own marks, translated from submission ids to card numbers. Keyed by
+ * `reactor_id`, so — exactly like `myGuesses` above — it can only ever return the caller's rows.
+ *
+ * This is the whole of what the `revealed` phase knows about reactions. There is no sibling
+ * function that counts them, because `docs/19` §3 says no such count may exist before `scored`,
+ * and the way to make that true is to have nowhere in this half of the file that could produce
+ * one.
+ */
+async function myReactions(
+  ctx: MemberCtx,
+  round: RoundRow,
+  order: string[],
+): Promise<MyReactionDTO[]> {
+  const { data, error } = await ctx.db
+    .from("reactions")
+    .select("submission_id, kind")
+    .eq("round_id", round.id)
+    .eq("reactor_id", ctx.userId);
+  if (error) throw dbFailure("rounds.myReactions", error);
+
+  return data
+    .map((r) => ({
+      card_no: order.indexOf(r.submission_id) + 1,
+      kind: r.kind as ReactionKind,
+    }))
+    .filter((r) => r.card_no > 0)
+    .sort((a, b) => a.card_no - b.card_no);
+}
+
+/**
  * The round immediately before this one — its id, its state and its cue — or `null`.
  *
  * Only ever called for a round that has not opened yet — see `currentRoundResponse`. One row,
@@ -478,6 +551,7 @@ async function currentRoundResponse(ctx: MemberCtx): Promise<Response> {
       cards,
       namePool: await namePool(ctx, submitterIds),
       myGuesses: await myGuesses(ctx, round, order),
+      myReactions: await myReactions(ctx, round, order),
     }),
   );
 }
@@ -562,6 +636,34 @@ async function guessResults(ctx: MemberCtx, roundId: string): Promise<GuessResul
     .eq("round_id", roundId);
   if (error) throw dbFailure("rounds.guessResults", error);
   return data as GuessResultRow[];
+}
+
+interface ReactionRow {
+  submission_id: string;
+  reactor_id: string;
+  kind: ReactionKind;
+}
+
+/**
+ * Every reaction in the round. `docs/19` §3, and the one aggregate this feature has.
+ *
+ * It is the same trade `guessResults` makes one function up: reading the whole round is fine
+ * *here* and would be the leak two hours earlier, and what makes the difference is
+ * `requirePhase(round, ["scored"])` above the call site — not a filter, not a flag, the phase.
+ * The `revealed` path has no route to this function at all.
+ *
+ * Counted in TypeScript rather than in SQL because there is no view to keep honest: a reaction
+ * is not scored, does not participate in `guess_results`' duplicate rule, and nothing in the
+ * standings can disagree with it. What `CLAUDE.md` §2.8 asks for is that the number is derived
+ * rather than stored, and it is — there is no tally column for this query to contradict.
+ */
+async function roundReactions(ctx: MemberCtx, roundId: string): Promise<ReactionRow[]> {
+  const { data, error } = await ctx.db
+    .from("reactions")
+    .select("submission_id, reactor_id, kind")
+    .eq("round_id", roundId);
+  if (error) throw dbFailure("rounds.roundReactions", error);
+  return data as ReactionRow[];
 }
 
 interface ScoreRow extends RoundScoreRow {
@@ -819,6 +921,87 @@ async function saveGuesses(req: Request, ctx: MemberCtx): Promise<Response> {
   return ok(guessSheetDTO(saved, assignableCount));
 }
 
+/**
+ * One mark, on one card. `docs/19` §7.
+ *
+ * Not a whole-sheet upsert like `saveGuesses`, and the difference is what the two acts are. A
+ * sheet is filled in over ten minutes and reconciled; a mark is one tap, and a body that carried
+ * the caller's other marks would invite a client to send a set it had inferred rather than the
+ * one thing the person just did.
+ *
+ * **Both writable phases, and only the current round.** `revealed` and `scored` — a mark is
+ * placed while people are listening and stays available on the answers, which is the only place
+ * the caller's own card can be marked at all (`docs/19` §4). "Current" is not a clock comparison:
+ * `currentRound` returns the circle's round for today's *local* date, so the window closes when
+ * that stops being today's round, and a night from three weeks ago reached through The Record has
+ * no write path to here (`docs/19` §3).
+ *
+ * **What is deliberately not checked.** Not a submitter — `docs/02` §3.3 restricts guessing
+ * because guessing is scored, and a mark is scored by nothing; a member who did not drop is the
+ * one this is most worth giving something to do. Not the caller's own card — `docs/19` §4, and
+ * there is no `reactions_not_self` constraint behind it either.
+ *
+ * **What this returns is the caller's own marks and nothing else**, in both phases. There is no
+ * branch here that reads another row, which is the property that makes the `revealed` half of
+ * this route structurally incapable of carrying a count (`docs/19` §3, consequence 2).
+ */
+async function saveReaction(req: Request, ctx: MemberCtx): Promise<Response> {
+  await enforceRateLimit(
+    ctx.db,
+    `react:u:${ctx.userId}`,
+    REACTION_LIMIT_PER_MINUTE,
+    ONE_MINUTE_IN_SECONDS,
+  );
+
+  const body = await parseBody(req, { card_no: cardNumber(), kind: reactionKind() });
+  const { round } = await currentRound(ctx);
+
+  // 1. Phase. `revealed` or `scored`; `open` and `voided` get `WRONG_PHASE` carrying the state
+  //    and — by construction in `fail()` — nothing else. During `open` there are no cards, so
+  //    there is nothing this could address even if it were allowed.
+  requirePhase(round, ["revealed", "scored"]);
+
+  // 2. Joined before the reveal. The same clause `cannotGuessReason` checks first, for the same
+  //    reason: a member who arrived after the cards were dealt was not in the room. Checked
+  //    directly rather than through that helper, because its other arm — "you did not drop" —
+  //    is exactly the restriction this route does not have.
+  if (new Date(ctx.joinedAt).getTime() >= new Date(round.reveals_at).getTime()) {
+    throw new ApiError("JOINED_LATE");
+  }
+
+  const order = round.card_order ?? [];
+  // 3. `card_no` in 1..N, resolved against the round's own `card_order` — arithmetic, not a
+  //    lookup that could succeed against some other round's row (ADR-003). The caller's own
+  //    card is in range, unlike on the guess sheet.
+  if (body.card_no < 1 || body.card_no > order.length) {
+    throw new ApiError("INVALID_INPUT", { field: "card_no" });
+  }
+  const submissionId = order[body.card_no - 1];
+
+  if (body.kind === null) {
+    const { error } = await ctx.db
+      .from("reactions")
+      .delete()
+      .eq("round_id", round.id)
+      .eq("reactor_id", ctx.userId)
+      .eq("submission_id", submissionId);
+    if (error) throw dbFailure("rounds.reactions.clear", error);
+  } else {
+    const { error } = await ctx.db.from("reactions").upsert({
+      round_id: round.id,
+      reactor_id: ctx.userId,
+      submission_id: submissionId,
+      kind: body.kind,
+      updated_at: serverNow().toISOString(),
+    }, { onConflict: "round_id,reactor_id,submission_id" });
+    if (error) throw dbFailure("rounds.reactions.upsert", error);
+  }
+
+  // Read back rather than reconstructed from the request, the same as the guess sheet: the
+  // request said one thing and the answer is the whole of what the caller now holds.
+  return ok(myReactionsDTO(await myReactions(ctx, round, order)));
+}
+
 serveFunction("rounds", {
   // ─── the workhorse ─────────────────────────────────────────────────────────
   // The client calls this on launch, on foreground, and when a countdown reaches zero.
@@ -865,10 +1048,11 @@ serveFunction("rounds", {
       .map((id) => rows.get(id)?.user_id)
       .filter((id): id is string => id !== undefined);
 
-    const [results, scores, profiles] = await Promise.all([
+    const [results, scores, profiles, reactions] = await Promise.all([
       guessResults(ctx, round.id),
       roundScores(ctx, round.id),
       profilesByIds(ctx, submitterIds),
+      roundReactions(ctx, round.id),
     ]);
 
     // Every card carries the same denominator: S − 1, every *other* submitter, whether or not
@@ -892,6 +1076,21 @@ serveFunction("rounds", {
       if (result.guesser_id === ctx.userId) mineBySubmission.set(result.submission_id, result);
       if (mySubmissionId !== null && result.submission_id === mySubmissionId) {
         guessesOnMine.push(result);
+      }
+    }
+
+    // Reactions, counted per card. `docs/19` §7: all three keys on every card, zeros included,
+    // and no reactor named on any of them — including the caller's own card, which is the one
+    // place `guesses` above does name people. The asymmetry is deliberate: a guess on your card
+    // was always going to be attributed at the answers, and a mark never was.
+    const reactionsBySubmission = new Map<string, Partial<Record<ReactionKind, number>>>();
+    const myReactionBySubmission = new Map<string, ReactionKind>();
+    for (const reaction of reactions) {
+      const counts = reactionsBySubmission.get(reaction.submission_id) ?? {};
+      counts[reaction.kind] = (counts[reaction.kind] ?? 0) + 1;
+      reactionsBySubmission.set(reaction.submission_id, counts);
+      if (reaction.reactor_id === ctx.userId) {
+        myReactionBySubmission.set(reaction.submission_id, reaction.kind);
       }
     }
 
@@ -930,6 +1129,8 @@ serveFunction("rounds", {
         eligibleGuesserCount,
         myGuess,
         guesses: submissionId === mySubmissionId ? guesses : null,
+        reactions: reactionCountsDTO(reactionsBySubmission.get(submissionId) ?? {}),
+        myReaction: myReactionBySubmission.get(submissionId) ?? null,
       });
     });
 
@@ -1007,5 +1208,25 @@ serveFunction("rounds", {
       params.group_id,
     );
     return saveGuesses(req, ctx);
+  },
+
+  // ─── one mark on one card ──────────────────────────────────────────────────
+  // `docs/19` §7. Writable while the round is `revealed` or `scored` and only while it is the
+  // circle's current round, open to every member who was there before the reveal — including
+  // one who did not drop — and answering with the caller's own marks and nothing else.
+  //
+  // The reason this route can exist at all during the blind window's successor phase is that it
+  // never reads a second person's row. `docs/19` §3 is the contract; `saveReaction` is the
+  // enforcement, and the golden file is the check on both.
+  "PUT /current/reactions": async (req, route) => {
+    const ctx = await requireDefaultMembership(await requireProfile(await requireUser(req, route)));
+    return saveReaction(req, ctx);
+  },
+  "PUT /:group_id/current/reactions": async (req, route, params) => {
+    const ctx = await requireMembership(
+      await requireProfile(await requireUser(req, route)),
+      params.group_id,
+    );
+    return saveReaction(req, ctx);
   },
 });

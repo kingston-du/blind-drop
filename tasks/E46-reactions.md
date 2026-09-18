@@ -36,7 +36,7 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 
 ### E46-01 — The reaction model and the route
 
-**Status:** wip · **Deps:** — · **Parallel:** no
+**Status:** done · **Deps:** — · **Parallel:** no
 **Reads:** `docs/19` §3, §4, §6, §7, §10, `docs/03` §2 (`guesses`), `docs/04` §4, §7, §8,
 `server/supabase/migrations/0002_core_tables.sql:104`,
 `server/supabase/functions/rounds/index.ts`, `server/supabase/functions/_shared/`
@@ -45,24 +45,32 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 **Verify:** `cd server && npm test`; `npm run audit:leak`; `node server/scripts/lint.mjs`
 **Proves:** AC-12, and AC-1 by not moving
 
-- [ ] `reaction_kind` enum and `reactions` table per `docs/19` §6 — shaped like `guesses`,
+- [x] `reaction_kind` enum and `reactions` table per `docs/19` §6 — shaped like `guesses`,
       `profiles` reference without cascade, unique index on `(round_id, reactor_id, submission_id)`,
       **no** not-self constraint.
-- [ ] RLS enabled and deny-by-default; `revoke all` from `public`/`anon`/`authenticated`.
-- [ ] `PUT /rounds/{group_id}/current/reactions` and the oldest-circle alias, with all six guards
+- [x] RLS enabled and deny-by-default; `revoke all` from `public`/`anon`/`authenticated`.
+- [x] `PUT /rounds/{group_id}/current/reactions` and the oldest-circle alias, with all six guards
       from `docs/19` §7 and the 60/minute limit.
-- [ ] The route returns the caller's own marks **and nothing else**, in `revealed` and in
+- [x] The route returns the caller's own marks **and nothing else**, in `revealed` and in
       `scored`. It performs no aggregate read and no scan of the round's reactions.
-- [ ] A past round refuses the write with `WRONG_PHASE` and still serves its counts.
-- [ ] `GET /rounds/{group_id}/current` carries `my_reactions` in `revealed` and the key is
+- [x] A past round refuses the write with `WRONG_PHASE` and still serves its counts.
+- [x] `GET /rounds/{group_id}/current` carries `my_reactions` in `revealed` and the key is
       **absent** — not null — in every other phase.
-- [ ] `GET /rounds/{round_id}/results` carries `cards[].reactions` (all three keys, zeros
-      included) and `cards[].my_reaction`; `reactions` is `null` whole for a round that scored
-      before this shipped.
-- [ ] Counts are computed `group by kind` on read. No counter column anywhere.
-- [ ] New reviewed goldens for the route and for the `revealed` payload; the `open` and `voided`
+- [x] `GET /rounds/{round_id}/results` carries `cards[].reactions` — all three keys, zeros
+      included, never `null` — and `cards[].my_reaction`.
+- [x] Counts are computed `group by kind` on read. No counter column anywhere.
+- [x] New reviewed goldens for the route and for the `revealed` payload; the `open` and `voided`
       goldens are **unchanged** and that is asserted, not assumed.
-- [ ] `docs/03`, `docs/04` §4/§7 and `docs/15` (AC-12) updated in the same commit.
+- [x] `docs/03`, `docs/04` §4/§7/§8 and `docs/15` (AC-12) updated in the same commit.
+
+> **Reviewer finding, fixed before closing.** The past-round guard was claimed by AC-12 and by
+> the checklist above and was asserted nowhere: every scenario in `reactions.test.ts` used a
+> round that was still the circle's current one. `tick_rounds_at` cannot produce a stale round
+> — the handlers read the real clock, so a test cannot move a circle past local midnight — so
+> the test that closes it uses `seed.sql`'s §4.4 night (2026-08-08, `scored`, nobody's current
+> round) and asserts both halves of the property: the write resolves *tonight* and is refused
+> against tonight's phase, and the past night still serves its counts. The route taking no round
+> id at all is the structural half of the same guarantee, and the test says so.
 
 ---
 
@@ -125,8 +133,8 @@ simulator pass on iPhone 17
       round reached through The Record.
 - [ ] **Your own card carries the reaction row too** — this screen is the only place the marks
       reach it (`docs/19` §4), and the row is not styled or labelled differently for it.
-- [ ] A round whose `reactions` is `null` (scored before this shipped) renders exactly as it did
-      before — no row, no empty state, no explanation.
+- [ ] A round from before this shipped renders exactly as it did before — three zeros draw no
+      row, no empty state, no explanation.
 - [ ] The counts arrive inside the existing progressive resolve, not as a second animation.
 - [ ] Nothing about reactions reaches the share card, standings, the profile or insights —
       asserted by a test, not by inspection.

@@ -36,6 +36,7 @@ const TABLES = [
   "rate_limit_events",
   "invitations",
   "cue_catalog",
+  "reactions",
 ] as const;
 
 async function restGet(table: string, token: string, query = "select=*"): Promise<Response> {
