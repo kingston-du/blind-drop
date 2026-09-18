@@ -76,7 +76,7 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 
 ### E46-02 — Placing a mark at the reveal
 
-**Status:** todo · **Deps:** E46-01 · **Parallel:** no
+**Status:** wip · **Deps:** E46-01 · **Parallel:** no
 **Reads:** `docs/19` §5, §8.1, §8.2, `docs/07` §2/§4/§5, `docs/08` §6/§6.1, `docs/09` §1,
 `docs/11` (reveal and quick pass blocks), `docs/12` §1/§2,
 `ios/BlindDrop/Features/Reveal/QuickPass/`, `ios/BlindDrop/Features/Reveal/RevealStore.swift`,
