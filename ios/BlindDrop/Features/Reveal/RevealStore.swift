@@ -18,6 +18,10 @@ import Foundation
 final class RevealStore {
 
     typealias GuessSaver = @Sendable ([GuessAssignment]) async throws -> GuessSheetDTO
+    /// One mark on one card (`docs/19-REACTIONS.md` §7). Deliberately not the sheet's shape: a
+    /// reaction is one tap, and a saver that took the caller's whole set would be sending state
+    /// the client inferred rather than the one thing the person just did.
+    typealias ReactionSaver = @Sendable (Int, ReactionKind?) async throws -> MyReactionsDTO
     static let saveDebounce = Duration.milliseconds(600)
 
     // MARK: - The round
@@ -68,9 +72,22 @@ final class RevealStore {
     /// Card number → the guessed member's `user_id`. The caller's own answer, and nobody else's.
     private(set) var assignments: [Int: String] = [:]
 
+    /// Card number → the caller's own mark (`docs/19` §3). **Their own, and nobody else's**:
+    /// while the round is `revealed` the server returns no count of anybody's marks, so there is
+    /// nothing else here to hold. The room's totals arrive at `scored`, on the results screen.
+    private(set) var reactions: [Int: ReactionKind] = [:]
+
+    /// What the server last confirmed, so a failed write has something true to fall back to
+    /// rather than leaving an optimistic mark on screen that nobody recorded.
+    private var confirmedReactions: [Int: ReactionKind] = [:]
+
     /// `nil` is quiet; a key is rendered inline under the apparatus. A failed save never locks
     /// the sheet and never discards the local assignments.
     private(set) var saveErrorKey: String?
+
+    /// A failed *mark* write, separately from a failed sheet write. Two independent
+    /// requests — one failing must not draw an error about the other.
+    private(set) var reactionErrorKey: String?
     private(set) var isSaving = false
     private(set) var isLocked = false
 
@@ -88,6 +105,7 @@ final class RevealStore {
     private(set) var announcement: String?
 
     private let saveGuesses: GuessSaver?
+    private let saveReaction: ReactionSaver?
     private let haptics: HapticEngine?
     private let onLockInSaved: (() -> Void)?
     private var saveTask: Task<Void, Never>?
@@ -95,6 +113,12 @@ final class RevealStore {
     /// `cancelPendingSave()` is the only reader, and the reason it exists.
     private var isDebouncing = false
     private var editRevision = 0
+    /// One chained task per card, so two taps on one card cannot land out of order.
+    private var reactionWrites: [Int: Task<Void, Never>] = [:]
+    /// Which write is the current one for a card. Incremented per tap and captured by the task,
+    /// so a finishing write can tell whether it is still the one that owns the card — see
+    /// `finishReaction(_:on:generation:)`.
+    private var reactionGeneration: [Int: Int] = [:]
 
     var hasPendingSave: Bool { saveTask != nil }
 
@@ -106,6 +130,7 @@ final class RevealStore {
         cannotGuessReason: CannotGuessReason? = nil,
         me: String?,
         saveGuesses: GuessSaver? = nil,
+        saveReaction: ReactionSaver? = nil,
         haptics: HapticEngine? = nil,
         onLockInSaved: (() -> Void)? = nil
     ) {
@@ -115,6 +140,7 @@ final class RevealStore {
         self.canGuess = canGuess
         self.cannotGuessReason = cannotGuessReason
         self.saveGuesses = saveGuesses
+        self.saveReaction = saveReaction
         self.haptics = haptics
         self.onLockInSaved = onLockInSaved
     }
@@ -128,6 +154,29 @@ final class RevealStore {
             guesses.map { ($0.cardNumber, $0.guessedUserID) },
             uniquingKeysWith: { _, latest in latest }
         )
+    }
+
+    /// Adopts the caller's own marks — what `GET /rounds/current` returned in `my_reactions`
+    /// (`docs/19` §3).
+    ///
+    /// **Skipped while a write is in flight.** A refetch landing between a tap and its response
+    /// carries the server's older set, and adopting it would flip the mark the person is looking
+    /// at back to what it was a moment ago — the same class of bug `cancelPendingSave()`'s note
+    /// records for the guess sheet, seen from the read side. There is no such hazard for guesses
+    /// because `adopt(_:)` above reconciles a whole sheet the caller is mid-edit of either way;
+    /// a single-card write has an unambiguous winner, and it is the tap.
+    func adopt(reactions incoming: [ReactionDTO]) {
+        let server = Dictionary(
+            incoming.map { ($0.cardNumber, $0.kind) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+        confirmedReactions = server
+        // **Per card, not all-or-nothing.** A write outstanding on card 3 says nothing about
+        // card 7, and skipping the whole adopt on one in-flight tap left every other card
+        // stale for no reason.
+        for card in Set(server.keys).union(reactions.keys) where reactionWrites[card] == nil {
+            reactions[card] = server[card]
+        }
     }
 
     // MARK: - Deriving the view
@@ -402,6 +451,101 @@ final class RevealStore {
             focusedCard = nextUnassignedCard(after: cardNumber)
         }
         didEdit()
+    }
+
+    // MARK: - Marking
+
+    /// Place, change or clear the caller's own mark on one card (`docs/19` §5, §8.1).
+    ///
+    /// `kind: nil` clears. The bar passes `nil` when the chosen mark is tapped again, so a second
+    /// tap is the undo and there is no separate control for it.
+    ///
+    /// **Optimistic, and serialised per card.** The mark changes on screen immediately — a tap
+    /// that waited on a round trip would feel broken on a train — and the write goes out behind
+    /// it. Writes for one card are chained rather than raced: a person changing their mind twice
+    /// in a second produces two requests whose order decides what is stored, and "whichever
+    /// landed last" is not the same thing as "whichever they tapped last".
+    ///
+    /// **Nothing here consults `canGuess`.** `docs/02` §3.3 restricts guessing because guessing is
+    /// scored; a mark is scored by nothing, and a member who did not drop tonight may still place
+    /// one (`docs/19` §4). The server agrees — there is no submitter check on that route — and a
+    /// client guard here would be the client being stricter than the rule.
+    func mark(_ kind: ReactionKind?, on cardNumber: Int) {
+        guard cards.contains(where: { $0.cardNumber == cardNumber }) else { return }
+        guard reactions[cardNumber] != kind else { return }
+
+        if let kind {
+            reactions[cardNumber] = kind
+        } else {
+            reactions.removeValue(forKey: cardNumber)
+        }
+        haptics?.fire(.nameLands)
+        reactionErrorKey = nil
+        announcement = Copy.A11y.reactionPlaced(cardNumber: cardNumber, kind: kind)
+        sendReaction(kind, on: cardNumber)
+    }
+
+    /// The caller's own mark on a card, or `nil`. The flight row and the bar both read this.
+    func reaction(on cardNumber: Int) -> ReactionKind? {
+        reactions[cardNumber]
+    }
+
+    private func sendReaction(_ kind: ReactionKind?, on cardNumber: Int) {
+        guard let saveReaction else { return }
+        let previous = reactionWrites[cardNumber]
+        let generation = (reactionGeneration[cardNumber] ?? 0) + 1
+        reactionGeneration[cardNumber] = generation
+        reactionWrites[cardNumber] = Task { [weak self] in
+            // Chained, not cancelled: the earlier request may already have reached the server, so
+            // letting it finish and then overwriting it is the only ordering that ends with what
+            // the person last tapped.
+            _ = await previous?.value
+            do {
+                _ = try await saveReaction(cardNumber, kind)
+                self?.finishReaction(kind, on: cardNumber, generation: generation)
+            } catch {
+                self?.failReaction(on: cardNumber, generation: generation, error: error)
+            }
+        }
+    }
+
+    /// A write landed. **It only releases the card if it is still the write that owns it.**
+    ///
+    /// Two taps on one card make two tasks, the second chained behind the first. The first's
+    /// completion used to clear `reactionWrites[card]` unconditionally — but by then the entry
+    /// holds the *second* task, which has not sent its request yet. That left the card looking
+    /// idle while a write was in flight, and `adopt(reactions:)` landing in that window would
+    /// put the server's older mark back over the one the person is looking at, permanently:
+    /// the second write updates `confirmedReactions` and never touches `reactions` again.
+    /// The generation is what makes "am I still the current write" answerable.
+    private func finishReaction(_ kind: ReactionKind?, on cardNumber: Int, generation: Int) {
+        if let kind {
+            confirmedReactions[cardNumber] = kind
+        } else {
+            confirmedReactions.removeValue(forKey: cardNumber)
+        }
+        guard reactionGeneration[cardNumber] == generation else { return }
+        reactionWrites.removeValue(forKey: cardNumber)
+    }
+
+    /// A failed write puts the mark back to what the server last confirmed.
+    ///
+    /// Unlike the guess sheet, which keeps a failed assignment on screen and retries on the next
+    /// edit, a mark that stayed lit after a failure would be a claim the person made and nobody
+    /// recorded — and there is no later write to carry it, because the next tap sends only its
+    /// own card. So it reverts, and says so.
+    private func failReaction(on cardNumber: Int, generation: Int, error: any Error) {
+        reactionErrorKey = (error as? APIError)?.copyKey ?? APIError.unreadable.copyKey
+        // A superseded write's failure says nothing about the mark on screen — a later tap has
+        // already replaced what it was trying to store, and reverting to `confirmedReactions`
+        // here would undo a tap the person made after it. Only the current write reverts.
+        guard reactionGeneration[cardNumber] == generation else { return }
+        if let confirmed = confirmedReactions[cardNumber] {
+            reactions[cardNumber] = confirmed
+        } else {
+            reactions.removeValue(forKey: cardNumber)
+        }
+        reactionWrites.removeValue(forKey: cardNumber)
     }
 
     /// The next card without a name, searching forward from `number` and wrapping once.

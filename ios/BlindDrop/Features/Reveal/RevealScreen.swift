@@ -498,6 +498,10 @@ struct RevealScreen: View {
                 clearGuess: store.isLocked || state.guesses[card.cardNumber] == nil
                     ? nil
                     : { store.clearGuess(on: card.cardNumber) },
+                // Read-only (`docs/19` §8.2). The flight reflects what the caller marked in the
+                // quick pass; it is not a second place to mark, and the caller's own card carries
+                // nothing here because nothing in this phase can mark it.
+                myReaction: store.reaction(on: card.cardNumber),
                 unseal: unseal.map {
                     UnsealPresentation(
                         phase: $0.phase(for: card.cardNumber),

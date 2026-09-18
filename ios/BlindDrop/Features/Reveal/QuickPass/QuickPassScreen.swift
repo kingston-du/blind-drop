@@ -338,7 +338,8 @@ struct QuickPassScreen: View {
         let side = min(
             min(
                 max(
-                    availableHeight - Layout.quickPassFixedChrome - cueReserve - poolHeight,
+                    availableHeight - Layout.quickPassFixedChrome - cueReserve - poolHeight
+                        - reactionReserve,
                     Layout.Artwork.quickPassRange.lowerBound
                 ),
                 Layout.Artwork.quickPassRange.upperBound
@@ -416,12 +417,53 @@ struct QuickPassScreen: View {
         return isStacked ? strip + Space.sm : max(0, strip - Layout.minimumTouchTarget)
     }
 
+    /// What the reaction bar takes from the artwork (`E46-02`).
+    ///
+    /// **Derived, not measured**, for the reason `quickPassFixedChrome` and
+    /// `cueReserve(availableWidth:)` both record: a preference arrives after the first layout, so
+    /// the artwork would draw large and jump smaller a frame later — on every card of every run.
+    ///
+    /// **Asked of the component rather than restated here.** `ReactionBar.height(for:)` is the
+    /// same arithmetic the bar lays out with, so the two cannot drift — which the first version
+    /// of this did, reserving a flat `minimumTouchTarget` per row when `.frame(minHeight:)` is a
+    /// floor and not a cap. Around `.xxxLarge` a scaled mark over a scaled `bodyS` word is taller
+    /// than 44pt while the bar is still in three columns, and the artwork was sized as if it
+    /// were not.
+    ///
+    /// At accessibility sizes the square is on `Artwork.quickPassRange`'s floor and the page
+    /// scrolls regardless, so the reserve's job up there is only to stop it claiming height the
+    /// bar has already taken.
+    private var reactionReserve: CGFloat {
+        ReactionBar.height(for: effectiveTypeSize) + Layout.itemGap
+    }
+
     private func lower(_ card: CardDTO, number: Int, availableWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: Space.none) {
             track(card)
             pool(on: number, availableWidth: availableWidth)
+            reactions(on: number)
             navigation
         }
+    }
+
+    /// The three marks, under the names and above Skip (`E46-02`, `docs/19` §8.1).
+    ///
+    /// **Under the pool, deliberately.** Naming is this screen's job and the marks are optional,
+    /// so the optional thing goes below the one the screen exists for — and a bar above the names
+    /// would put a row of glyphs between the song and the question about it.
+    ///
+    /// **It never advances the card.** Tapping a name still moves on immediately; a mark is a
+    /// thing you do on the way past, not a second question you have to answer. That is also why
+    /// there is no confirm beat here: `confirming` exists to hold a chip lit for the 100ms before
+    /// the card leaves, and nothing is leaving.
+    ///
+    /// **No count, because there is none yet.** `docs/19` §3 — the room's totals arrive at the
+    /// answers, and a bar that showed a zero here would be implying one exists.
+    private func reactions(on number: Int) -> some View {
+        ReactionBar(selected: store.reaction(on: number), accent: accent) { kind in
+            store.mark(kind, on: number)
+        }
+        .padding(.top, Layout.itemGap)
     }
 
     private func track(_ card: CardDTO) -> some View {

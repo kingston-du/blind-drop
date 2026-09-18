@@ -61,6 +61,14 @@ struct FlightCard: View {
     /// Clears an assigned guess — the `✕` on the inline chip (`docs/08` §6). `nil` leaves the
     /// chip without one, which is what a locked-in sheet renders.
     var clearGuess: (() -> Void)?
+    /// The caller's own mark on this card, if they placed one (`E46-02`, `docs/19` §8.2).
+    ///
+    /// **Read-only, and there is no count beside it.** The row already carries a number,
+    /// artwork, two lines of text, a preview control and a name chip; the mark is here so the
+    /// flight agrees with what the caller did in the quick pass, not as a second place to do
+    /// it. During `revealed` the caller's own card carries none, because the quick pass skips it
+    /// and nothing else can place one (`docs/19` §4).
+    var myReaction: ReactionKind? = nil
     /// Present only while the reveal's once-per-round unseal is being coordinated.
     var unseal: UnsealPresentation? = nil
     /// Present only while the results' once-per-round name-resolve is being coordinated
@@ -107,7 +115,12 @@ struct FlightCard: View {
                     number: number,
                     title: track.title,
                     artist: track.artist,
-                    guess: assignment.accessibilityGuess
+                    guess: assignment.accessibilityGuess,
+                    // The mark goes into the label rather than becoming a fifth element, because
+                    // `docs/12` §2 makes a card one element announcing its facts — and the glyph
+                    // is drawn `accessibilityHidden` for the same reason. A VoiceOver user gets
+                    // the fact the sighted user gets from the mark: which mark is on this card.
+                    reaction: myReaction
                 )
             )
             // `docs/12` §2's table: a reveal card is a `.button`, a results card is
@@ -219,6 +232,7 @@ struct FlightCard: View {
                 HStack(alignment: .center, spacing: Space.md) {
                     cardNumber
                     artwork
+                    reactionMark
                     Spacer(minLength: Space.sm)
                     linksMenu
                 }
@@ -230,6 +244,7 @@ struct FlightCard: View {
                 // 44pt to a menu crowded in beside the chip.
                 HStack(alignment: .center, spacing: Space.sm) {
                     cardNumber
+                    reactionMark
                     Spacer(minLength: Space.sm)
                     linksMenu
                 }
@@ -326,6 +341,27 @@ struct FlightCard: View {
 
     /// The number, in the accent, capped at 1.6× by `Typography` so it stays the largest thing
     /// on the card without eating it (`docs/12` §1).
+    /// The caller's own mark, in `inkDim`, on the **leading** side of the number's row.
+    ///
+    /// `inkDim` and not the accent: the accent on this screen belongs to the guessing apparatus,
+    /// and a second ultramarine thing on every row would make a mark look like part of the
+    /// answer. It is one glyph and it is not a control — `accessibilityHidden` on the mark
+    /// itself, with the fact carried into the card's combined label instead, because the card is
+    /// one accessibility element (`docs/12` §2).
+    ///
+    /// **Leading, beside the number, and not beside the corner menu** — which is where it was
+    /// first put, and a screenshot is what settled it. `interesting`'s mark is an enclosed
+    /// ellipsis (`docs/19` §5, which explains why it has to be); the corner menu is a bare one;
+    /// and the two of them 8pt apart on every row read as one control that had been drawn twice.
+    /// With the `Spacer` between them the pair is unmistakable, and the mark sits where it
+    /// belongs anyway — against the number, which is the card's identity.
+    @ViewBuilder private var reactionMark: some View {
+        if let myReaction {
+            ReactionMark(myReaction, isFilled: true, scale: .mark)
+                .foregroundStyle(Palette.inkDim)
+        }
+    }
+
     private var cardNumber: some View {
         // Zero-padded to two digits, so *01* and *11* are the same width and the column of
         // numbers down the flight is a column. It is a number format rather than copy, which

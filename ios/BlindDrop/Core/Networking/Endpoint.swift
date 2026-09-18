@@ -91,6 +91,32 @@ private struct MemberRoleBody: Encodable, Sendable { let role: String }
 private struct MemberReportBody: Encodable, Sendable { let reason: String }
 private struct InvitePersonBody: Encodable, Sendable { let user_id: String }
 private struct GuessesBody: Encodable, Sendable { let assignments: [GuessAssignment] }
+/// One mark on one card (`docs/19-REACTIONS.md` §7).
+///
+/// **The only body in this file with a hand-written encoder, and it needs one.** Swift's
+/// synthesized `Encodable` *omits* a `nil` optional rather than writing `null`, and on this
+/// route the two mean opposite things: an omitted `kind` is a malformed request, an explicit
+/// `null` is *clear this card*. `GuessAssignment` carries the same encoder for the same reason
+/// (`docs/04` §4 rule 7); the property-names-are-the-wire convention the other bodies follow
+/// cannot express it, so this one spells its keys out.
+///
+/// Caught by `NetworkingTests.requestBodiesAreTheShapeTheContractDescribes` — the first version
+/// shipped the synthesized encoder and cleared nothing.
+private struct ReactionBody: Encodable, Sendable {
+    let cardNumber: Int
+    let kind: String?
+
+    enum CodingKeys: String, CodingKey {
+        case cardNumber = "card_no"
+        case kind
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(cardNumber, forKey: .cardNumber)
+        try container.encode(kind, forKey: .kind)
+    }
+}
 
 /// Endpoints that answer `204` and have no payload to decode.
 struct NoContent: Decodable, Sendable, Equatable {}
@@ -275,6 +301,27 @@ extension Endpoint {
         .init(
             .put, scoped("/rounds", groupID, "/current/guesses"),
             body: json(GuessesBody(assignments: assignments)),
+            retry: .once
+        )
+    }
+
+    /// `PUT /rounds/{group_id}/current/reactions` — one mark on one card (`docs/19` §7).
+    ///
+    /// **Not a whole-sheet upsert**, unlike the guesses above, and the difference is what the two
+    /// acts are: a sheet is filled in over ten minutes and reconciled, a mark is one tap. Sending
+    /// the caller's other marks alongside it would be sending a set the client inferred rather
+    /// than the one thing the person just did.
+    ///
+    /// `kind: nil` clears the card. Idempotent either way — the same body twice is one row and
+    /// the same response — so `.once` is safe, the same as the two PUTs above.
+    static func saveReaction(
+        _ groupID: String,
+        cardNumber: Int,
+        kind: ReactionKind?
+    ) -> Endpoint<MyReactionsDTO> {
+        .init(
+            .put, scoped("/rounds", groupID, "/current/reactions"),
+            body: json(ReactionBody(cardNumber: cardNumber, kind: kind?.rawValue)),
             retry: .once
         )
     }

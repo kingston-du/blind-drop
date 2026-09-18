@@ -79,6 +79,46 @@ struct GuessDTO: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// One of the three marks a card can carry (`docs/19-REACTIONS.md` §5).
+///
+/// **The set is closed.** A fourth kind is a product change, not a client change, and the enum
+/// in `20260917120000_reactions.sql` is the other half of that friction — a string the server
+/// has never heard of cannot be stored, and a kind the client has never heard of fails to
+/// decode here rather than rendering as a blank mark.
+///
+/// `CaseIterable` in wire order, which is also the order the bar draws them in: the warm one,
+/// the thinking one, the cold one. That order is a design decision (`docs/19` §8.1) and living
+/// on the enum is what keeps every surface agreeing about it.
+enum ReactionKind: String, Decodable, Sendable, Equatable, CaseIterable, Identifiable {
+    /// Heart. The one everybody reaches for first.
+    case loved
+    /// A thinking ellipsis — *hold on, let me sit with that* (`docs/19` §5). Deliberately not a
+    /// star: *notable* is a different thing to say, and a four-point sparkle reads as "AI".
+    case interesting
+    /// Thumbs down, and the copy names the speaker rather than the song: **Not for me**.
+    case notForMe = "not_for_me"
+
+    var id: String { rawValue }
+}
+
+/// One mark the **caller** placed, by card number (`docs/19` §3).
+///
+/// There is no sibling type for anybody else's mark, and that absence is the feature: while a
+/// round is `revealed` the server returns the caller's marks and no count of anybody's, so
+/// there is nothing else for the client to hold. The counts arrive at `scored`, on the results
+/// payload, and land on a different type entirely.
+struct ReactionDTO: Decodable, Sendable, Equatable, Identifiable {
+    let cardNumber: Int
+    let kind: ReactionKind
+
+    var id: Int { cardNumber }
+
+    enum CodingKeys: String, CodingKey {
+        case cardNumber = "card_no"
+        case kind
+    }
+}
+
 /// Why a member is looking at a revealed round they cannot play (`docs/04` §4).
 enum CannotGuessReason: String, Decodable, Sendable, Equatable {
     /// They did not drop a song tonight. `docs/02` §3: only submitters guess.
@@ -109,6 +149,10 @@ struct RevealPayload: Sendable, Equatable {
     /// The caller's own sheet, and nobody else's. There is no URL in this phase that returns
     /// another member's guesses.
     let myGuesses: [GuessDTO]
+    /// The caller's own marks, and **no count of anybody's** (`docs/19` §3). Empty until they
+    /// place one; a reaction behaves exactly like a guess, so the room's totals do not exist
+    /// until the round is `scored`.
+    let myReactions: [ReactionDTO]
 }
 
 /// One cue attached to some rounds (`docs/18-CUES.md` §8): a short, neutral line identical for
@@ -276,6 +320,7 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
         case cards
         case namePool = "name_pool"
         case myGuesses = "my_guesses"
+        case myReactions = "my_reactions"
     }
 
     init(from decoder: any Decoder) throws {
@@ -319,7 +364,15 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
                         CannotGuessReason.self, forKey: .cannotGuessReason),
                     cards: try container.decode([CardDTO].self, forKey: .cards),
                     namePool: try container.decode([MemberDTO].self, forKey: .namePool),
-                    myGuesses: try container.decode([GuessDTO].self, forKey: .myGuesses)
+                    myGuesses: try container.decode([GuessDTO].self, forKey: .myGuesses),
+                    // `decodeIfPresent ?? []`, deliberately, for the reason `CueDTO.key`'s own
+                    // note records at length: a field the screen can do without must never be
+                    // able to fail the whole round payload. A build that shipped before the
+                    // server's reactions release — or one that ran against a server rolled back
+                    // — reads an absent key as "no marks yet" and draws a reveal that works,
+                    // rather than taking the screen down over an empty array.
+                    myReactions: try container.decodeIfPresent(
+                        [ReactionDTO].self, forKey: .myReactions) ?? []
                 )
             )
         }
@@ -331,6 +384,20 @@ struct RoundDTO: Decodable, Sendable, Equatable, Identifiable {
 ///
 /// `assignableCount` is `S − 1`: every card except their own. Neither number says anything
 /// about whether anybody else has opened their sheet, and there is no field here that could.
+/// The response to `PUT /rounds/{group}/current/reactions` — the caller's marks as they now
+/// stand (`docs/19` §7).
+///
+/// **One field, and there is deliberately no second.** `GuessSheetDTO` below can afford two
+/// counts because both are about the caller's own sheet; a mark has no such pair, and inventing
+/// one would be the first number in this feature to exist before `scored`.
+struct MyReactionsDTO: Decodable, Sendable, Equatable {
+    let myReactions: [ReactionDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case myReactions = "my_reactions"
+    }
+}
+
 struct GuessSheetDTO: Decodable, Sendable, Equatable {
     let assignments: [GuessDTO]
     let assignedCount: Int

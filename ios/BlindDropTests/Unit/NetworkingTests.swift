@@ -436,6 +436,14 @@ import Testing
         }
         #expect(Stub.requestCount == 2, "PUT /rounds/current/guesses retries once")
 
+        // Idempotent for the same reason the two above are — the same body twice is one row and
+        // the same response (`docs/19` §7) — so one automatic retry is safe.
+        Stub.arm([.init(failure: URLError(.timedOut))])
+        await #expect(throws: APIError.offline) {
+            try await client.send(.saveReaction("g1", cardNumber: 1, kind: .loved))
+        }
+        #expect(Stub.requestCount == 2, "PUT /rounds/current/reactions retries once")
+
         // Joining is rate-limited at ten an hour because it is the brute-force surface
         // (`docs/04` §8). An automatic second attempt would spend somebody's quota for them.
         Stub.arm([.init(failure: URLError(.timedOut))])
@@ -538,6 +546,19 @@ import Testing
         ]).body)
         #expect(sheet.contains(#""guessed_user_id":null"#), "clearing a card is explicit")
         #expect(sheet.contains(#""card_no":2"#))
+
+        // One mark on one card (`docs/19` §7), and `nil` has to reach the wire as `null` for the
+        // same reason a cleared guess does: an omitted key means *leave it alone*, and the caller
+        // asked for the opposite.
+        let mark = try encoded(
+            Endpoint<MyReactionsDTO>.saveReaction("g1", cardNumber: 3, kind: .notForMe).body
+        )
+        #expect(mark.contains(#""card_no":3"#))
+        #expect(mark.contains(#""kind":"not_for_me""#), "the wire name, not the Swift case name")
+        let cleared = try encoded(
+            Endpoint<MyReactionsDTO>.saveReaction("g1", cardNumber: 3, kind: nil).body
+        )
+        #expect(cleared.contains(#""kind":null"#), "clearing a mark is explicit")
 
         #expect(try encoded(Endpoint<NoContent>.unregisterDevice(token: "a1b2").body)
             == #"{"apns_token":"a1b2"}"#)

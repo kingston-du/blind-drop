@@ -378,6 +378,12 @@
 "quickpass.of" = "/ %02lld";
 "quickpass.skip" = "Skip";
 "quickpass.recap.blank" = "—";
+
+/* Reactions — docs/11 (Reactions), docs/19 §5. The set is closed: a fourth word here is a
+   product change. */
+"reaction.loved" = "Loved it";
+"reaction.interesting" = "Interesting";
+"reaction.not_for_me" = "Not for me";
 "reveal.callsheet.naming" = "Naming No. %lld";
 "reveal.callsheet.expand" = "Expand call sheet";
 "reveal.callsheet.collapse" = "Collapse call sheet";
@@ -477,6 +483,12 @@
 "a11y.quickpass.position" = "Card %lld of %lld";
 "a11y.quickpass.row.hint" = "Double-tap to change this guess";
 "a11y.quickpass.back" = "Previous card";
+"a11y.reaction.unset" = "%@. Double-tap to mark";
+"a11y.reaction.set" = "%@. Marked. Double-tap to clear";
+"a11y.reaction.count" = "%@, %lld";
+"a11y.reaction.placed" = "No. %lld marked %@";
+"a11y.reaction.cleared" = "No. %lld mark cleared";
+"a11y.reaction.card" = "You marked it %@.";
 "a11y.card.result" = "No. %lld. %@ by %@. Dropped by %@. %lld of %lld got it.";
 "a11y.card.result.mine" = "Your guess was %@. %@.";
 "a11y.sealed" = "Your song is sealed. %@ by %@. Reveal in %@.";
