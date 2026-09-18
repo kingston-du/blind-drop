@@ -128,7 +128,7 @@ BlindDropUnitTests/FixtureRoundTests "Round"`; simulator pass per `CLAUDE.md` §
 
 ### E46-03 — Counts at the answers
 
-**Status:** todo · **Deps:** E46-02 · **Parallel:** no
+**Status:** wip · **Deps:** E46-02 · **Parallel:** no
 **Reads:** `docs/19` §7, §8.3, §8.4, `docs/08` §7.1, `docs/11` (results block),
 `ios/BlindDrop/Features/Results/{ResultsScreen,ResultsStore,PastResultsScreen}.swift`,
 `ios/BlindDrop/Core/Networking/DTO/ResultsDTO.swift`, `ios/fixtures/`

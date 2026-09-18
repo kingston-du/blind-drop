@@ -666,7 +666,7 @@ guess.** Three closed kinds, anonymous counts, no push, no score. Read `docs/19`
 |---|---|---|---|---|
 | E46-01 The reaction model and the route | done | — | no | AC-12 |
 | E46-02 Placing a mark at the reveal | done | E46-01 | no | AC-12 |
-| E46-03 Counts at the answers | todo | E46-02 | no | AC-12 |
+| E46-03 Counts at the answers | wip | E46-02 | no | AC-12 |
 
 ---
 
