@@ -28,6 +28,7 @@ const REVEALED_KEYS = [
   "local_date",
   "my_card_no",
   "my_guesses",
+  "my_reactions",
   "my_submission",
   "name_pool",
   "opens_at",

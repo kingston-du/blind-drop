@@ -580,6 +580,24 @@ export interface GuessDTO {
   guessed_user_id: string;
 }
 
+/**
+ * The three marks, and the set is closed (`docs/19` §5). A fourth is a product change, and the
+ * enum in `20260917120000_reactions.sql` is the other half of the friction that makes it one.
+ */
+export type ReactionKind = "loved" | "interesting" | "not_for_me";
+
+export function isReactionKind(value: unknown): value is ReactionKind {
+  return value === "loved" || value === "interesting" || value === "not_for_me";
+}
+
+/** One mark the **caller** placed. `card_no`, never a submission id (ADR-003), and never
+ *  anybody else's — `docs/19` §3 is that there is no shape in this file for somebody else's
+ *  mark before the round is `scored`, and there is not. */
+export interface MyReactionDTO {
+  card_no: number;
+  kind: ReactionKind;
+}
+
 export type CannotGuessReason = "not_a_submitter" | "joined_late";
 
 /**
@@ -599,6 +617,11 @@ export type CannotGuessReason = "not_a_submitter" | "joined_late";
  *
  * `my_guesses` is the caller's own sheet and nothing else. There is no endpoint at any URL
  * that returns another user's guesses before `scored`.
+ *
+ * `my_reactions` is the third field of the same kind and the newest (`E46-01`): the caller's own
+ * marks, and no count of anybody's. `docs/19` §3 makes reactions behave exactly like guesses —
+ * placed blind, resolved at 22:00 — so the shape that would carry a tally does not exist here,
+ * only on `ResultCardDTO`, which is `scored`-phase only.
  */
 export interface RevealedRoundDTO extends RoundDTO {
   my_card_no: number | null;
@@ -607,6 +630,7 @@ export interface RevealedRoundDTO extends RoundDTO {
   cards: CardDTO[];
   name_pool: MemberDTO[];
   my_guesses: GuessDTO[];
+  my_reactions: MyReactionDTO[];
 }
 
 export function revealedRoundDTO(
@@ -617,6 +641,7 @@ export function revealedRoundDTO(
     cards: CardDTO[];
     namePool: MemberDTO[];
     myGuesses: GuessDTO[];
+    myReactions: MyReactionDTO[];
   },
 ): RevealedRoundDTO {
   return {
@@ -637,7 +662,23 @@ export function revealedRoundDTO(
     cards: parts.cards,
     name_pool: parts.namePool,
     my_guesses: parts.myGuesses,
+    my_reactions: parts.myReactions,
   };
+}
+
+/** `PUT /rounds/current/reactions` — `docs/19` §7.
+ *
+ *  The caller's own marks, read back after the write, and there is deliberately no second field:
+ *  no count, no `assigned_count` equivalent, nothing derived from anybody else's row. The guess
+ *  sheet can afford two counts because both are about the caller's own sheet; a reaction has no
+ *  such pair, and inventing one would be the first number in this feature to exist before
+ *  `scored`. */
+export interface MyReactionsDTO {
+  my_reactions: MyReactionDTO[];
+}
+
+export function myReactionsDTO(reactions: MyReactionDTO[]): MyReactionsDTO {
+  return { my_reactions: reactions };
 }
 
 /** `PUT /rounds/current/guesses` — docs/04 §4.
@@ -693,6 +734,35 @@ export interface CardGuessDTO {
 }
 
 /**
+ * How the room marked one card. `scored`-phase only — this is the shape `docs/19` §3 says must
+ * not exist an hour earlier, and the only place in the API where a reaction is counted.
+ *
+ * **All three keys, always, zeros included.** Not a sparse map and not nullable: a client that
+ * had to decide whether an absent key meant nought would eventually decide wrong. A night
+ * nobody marked — including every night from before this shipped — is three zeros, and the
+ * client draws no row for it (`docs/19` §8.3), so the two are the same picture without the
+ * server having to know which it is looking at.
+ *
+ * **No reactor is named, on any card, including the caller's own.** There is no array here and
+ * no route that would return one. A named *Not for me* on somebody's song is the thing this
+ * feature is most likely to hurt a real person with, and `docs/19` §7 closes it by having
+ * nowhere to put the name.
+ */
+export interface ReactionCountsDTO {
+  loved: number;
+  interesting: number;
+  not_for_me: number;
+}
+
+export function reactionCountsDTO(counts: Partial<Record<ReactionKind, number>>): ReactionCountsDTO {
+  return {
+    loved: counts.loved ?? 0,
+    interesting: counts.interesting ?? 0,
+    not_for_me: counts.not_for_me ?? 0,
+  };
+}
+
+/**
  * One card, resolved: the song, whose it was, and how the room did on it.
  *
  * `eligible_guesser_count` is `S − 1` on every card in the round, not the number of people who
@@ -700,6 +770,13 @@ export interface CardGuessDTO {
  * or not they opened the sheet, "because a room that didn't look is a room that didn't read
  * you". A denominator that shrank to the people who tried would quietly make readability
  * measure enthusiasm instead.
+ *
+ * `reactions` and `my_reaction` (`E46-01`) are the one pair here that does *not* follow the
+ * null-means-not-applicable rule this section opens with, and `ReactionCountsDTO` above says
+ * why: an unmarked card and a card from before the feature existed are the same picture, so
+ * three zeros is the honest answer to both. `my_reaction` is still nullable in the ordinary
+ * way — `null` is *you did not mark this one*, which includes the caller's own card, since the
+ * reveal gives it no control (`docs/19` §4).
  *
  * `guesses` is **only** populated on the card `owner.user_id === caller`; every other card
  * carries `null` (`E29-01`). This is the same never-guessing-vs-never-shown split every other
@@ -714,6 +791,8 @@ export interface ResultCardDTO {
   eligible_guesser_count: number;
   my_guess: MyGuessDTO | null;
   guesses: CardGuessDTO[] | null;
+  reactions: ReactionCountsDTO;
+  my_reaction: ReactionKind | null;
 }
 
 export function resultCardDTO(parts: {
@@ -724,6 +803,8 @@ export function resultCardDTO(parts: {
   eligibleGuesserCount: number;
   myGuess: MyGuessDTO | null;
   guesses: CardGuessDTO[] | null;
+  reactions: ReactionCountsDTO;
+  myReaction: ReactionKind | null;
 }): ResultCardDTO {
   return {
     card_no: parts.cardNo,
@@ -733,6 +814,8 @@ export function resultCardDTO(parts: {
     eligible_guesser_count: parts.eligibleGuesserCount,
     my_guess: parts.myGuess,
     guesses: parts.guesses,
+    reactions: parts.reactions,
+    my_reaction: parts.myReaction,
   };
 }
 

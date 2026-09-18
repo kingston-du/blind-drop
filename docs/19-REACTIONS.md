@@ -182,7 +182,10 @@ exists to reconcile a whole sheet a person filled in over ten minutes.
 Guards, each `INVALID_INPUT` unless noted:
 
 1. `state` must be `revealed` or `scored` → else `WRONG_PHASE`.
-2. The round must be the circle's current round → else `WRONG_PHASE`. Past rounds are read-only.
+2. The round must be the circle's current round → else `WRONG_PHASE`. Not a clock comparison:
+   the handler resolves the round exactly as `GET /rounds/current` does, keyed by the circle's
+   *local* date, so the window closes when tonight stops being tonight and a night reached
+   through The Record has no write path at all.
 3. Membership of `{group_id}` → else `FORBIDDEN`.
 4. `joined_at < reveals_at` → else `JOINED_LATE` (403).
 5. `card_no` in `1..N`. Your own card **is** in range (§4).
@@ -219,9 +222,11 @@ Each card gains two keys:
 }
 ```
 
-`reactions` always carries all three keys, zeros included, so the client never has to decide
-whether an absent key means nought or means the feature was off that night. It is `null` — the
-whole object — for a round that scored before this shipped. **No `reactors` array, in any form.**
+`reactions` always carries all three keys, zeros included, and is never `null`. A first draft had
+it null for a round that scored before this shipped; that distinction turned out to be one
+nothing can use — an unmarked card and a pre-feature card render identically (§8.3, the row is
+absent for both), so the server would have been carrying a flag to tell apart two things that
+look the same. Three zeros is the honest answer to both. **No `reactors` array, in any form.**
 Counts are anonymous, on every card, including your own; there is no disclosure, no list, and no
 route that names who marked what. *(Owner, 2026-09-17.)* The reason is the same one `docs/16` §5
 gives for never naming a guesser: a named **Not for me** on somebody's song is the single most

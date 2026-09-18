@@ -1,0 +1,16 @@
+{
+  "about": "PUT /rounds/current/reactions — one key, `my_reactions`, and it is the caller's own marks. Captured against a card somebody else has already marked: there is no count here, no total, and no field that could carry one. docs/19 §3 — a reaction behaves exactly like a guess, so the tally exists only on the `scored` results payload and nowhere earlier.",
+  "envelope": [
+    "data",
+    "server_now"
+  ],
+  "data": [
+    "my_reactions"
+  ],
+  "nested": {
+    "my_reactions[]": [
+      "card_no",
+      "kind"
+    ]
+  }
+}

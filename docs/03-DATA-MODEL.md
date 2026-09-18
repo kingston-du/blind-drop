@@ -280,6 +280,43 @@ create index member_reports_group_recent on public.member_reports (group_id, cre
 - Reads are the owner's, through the service role. No client role holds a grant, so a report
   can never be enumerated by the person it is about.
 
+### `20260917120000_reactions.sql` — E46-01
+
+The sixteenth table. One mark per member per card, from the reveal onward, and **no stored
+tally anywhere** — `docs/19-REACTIONS.md` §6 and `CLAUDE.md` §2.8.
+
+```sql
+create type public.reaction_kind as enum ('loved', 'interesting', 'not_for_me');
+
+create table public.reactions (
+  id             uuid primary key default gen_random_uuid(),
+  round_id       uuid not null references public.rounds(id) on delete cascade,
+  reactor_id     uuid not null references public.profiles(id),
+  submission_id  uuid not null references public.submissions(id) on delete cascade,
+  kind           public.reaction_kind not null,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create unique index reactions_one_per_card
+  on public.reactions (round_id, reactor_id, submission_id);
+create index reactions_round on public.reactions (round_id);
+create index reactions_reactor on public.reactions (reactor_id);
+```
+
+- **This is the shape of `guesses`, on purpose.** `docs/19` §3's whole design is that a reaction
+  behaves exactly like a guess: placed while the round is `revealed`, the reactor's own until it
+  is `scored`, counted only after. A counter column on `submissions` would be a number that
+  exists during the blind window, and something would eventually read it.
+- **No `reactions_not_self`.** `guesses_not_self` exists because guessing your own card is
+  cheating; marking your own drop is not, and `docs/19` §4 permits it. The reveal gives it no
+  control — the quick pass skips your own card — so in practice it lands from the results screen.
+- **`kind` is an enum**, not text with a check. The three are closed (`docs/19` §5) and a fourth
+  should be a migration somebody writes on purpose.
+- **`reactor_id` references `profiles` without a cascade**, like `guesses.guesser_id`: leaving a
+  circle keeps the night's history intact, and only `delete_account` removes it (§6).
+- Counts are a `group by kind` at read time, in the `scored` path of
+  `functions/rounds/index.ts` and nowhere else.
+
 ---
 
 ## 3. RLS — `0003_rls.sql`

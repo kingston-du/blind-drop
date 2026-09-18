@@ -191,7 +191,7 @@ regression guard on tap count and animation length, which are the things that ac
 | One row per member per card; change replaces, clear deletes; reacting to your own card is permitted | `tests/db/reactions.sql` |
 | Counts are computed `group by kind`; no stored tally column exists | same |
 | A member's own token cannot read `reactions` through PostgREST | `tests/functions/postgrest_locked.test.ts` |
-| `cards[].reactions` carries all three keys including zeros, and is `null` whole for a pre-feature round | `tests/functions/reactions.test.ts` |
+| `cards[].reactions` carries all three keys including zeros on every card, and is never `null` | `tests/functions/reactions.test.ts` |
 | No route, in any phase, returns a reactor's identity | `tests/functions/leak.test.ts` |
 | The three marks read as one family at `large` and `accessibility5`, SE and 15 Pro Max | `ScreenSnapshotTests` |
 | VoiceOver reads mark, word and count, and announces the caller's own as selected | `A11yLabelTests.swift` |

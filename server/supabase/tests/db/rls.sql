@@ -6,11 +6,12 @@
 begin;
 set search_path = public, extensions, tests;
 -- Table count and every `unnest(array[...])` table list below grows by one whenever a table
--- lands: `invitations` (E20-01), `cue_catalog` (E35-02, `20260827120000_cues.sql`) — four new
+-- lands: `invitations` (E20-01), `cue_catalog` (E35-02, `20260827120000_cues.sql`), `reactions`
+-- (E46-01, `20260917120000_reactions.sql`) — four new
 -- assertions per table: one more row apiece in the two `pg_class`-driven RLS-enabled/forced
 -- checks (automatic, no array to edit) and one more row apiece in the two hand-enumerated
 -- read-denial checks below.
-select plan(71);
+select plan(75);
 
 -- ─── RLS is on, and forced, everywhere ───────────────────────────────────────
 select ok(c.relrowsecurity, format('%I has row level security enabled', c.relname))
@@ -26,8 +27,8 @@ order by c.relname;
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'),
-  15,
-  'exactly fifteen tables in public — nothing has been added without a doc change');
+  16,
+  'exactly sixteen tables in public — nothing has been added without a doc change');
 
 -- ─── zero policies. Not "the right policies". Zero. ──────────────────────────
 select is_empty($$
@@ -103,7 +104,12 @@ select set_eq(
        -- E45-01 (20260912120000). No UPDATE: a report is a fact about a moment and is never
        -- edited afterwards — it is read by the owner and eventually deleted, nothing else.
        ('member_reports', 'SELECT'), ('member_reports', 'INSERT'),
-       ('member_reports', 'DELETE') $$,
+       ('member_reports', 'DELETE'),
+       -- E46-01 (20260917120000). All four verbs: a mark is placed, changed and cleared by the
+       -- member who owns it and read back to them, and counted — at `scored` only — by the one
+       -- aggregate this feature has (docs/19 §6).
+       ('reactions', 'SELECT'), ('reactions', 'INSERT'), ('reactions', 'UPDATE'),
+       ('reactions', 'DELETE') $$,
   'service_role has exactly the table and view verbs used by Edge Functions');
 
 select set_eq(
@@ -197,7 +203,8 @@ select throws_ok(
          format('authenticated cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts','demo_companions','invitations','cue_catalog']) as t,
+                  'pilot_cohorts','demo_companions','invitations','cue_catalog',
+                  'reactions']) as t,
      lateral (select set_config('role', 'authenticated', true)) as _;
 reset role;
 
@@ -208,7 +215,8 @@ select throws_ok(
          format('anon cannot read %I', t))
 from unnest(array['profiles','groups','memberships','rounds','submissions','guesses',
                   'devices','notification_outbox','track_links','rate_limit_events',
-                  'pilot_cohorts','demo_companions','invitations','cue_catalog']) as t,
+                  'pilot_cohorts','demo_companions','invitations','cue_catalog',
+                  'reactions']) as t,
      lateral (select set_config('role', 'anon', true)) as _;
 reset role;
 

@@ -522,6 +522,28 @@ Deno.test("golden: GET /rounds/current, revealed", async () => {
       "the caller. Neither says whether anybody else has guessed, and there is no field here " +
       "that could.",
   );
+
+  // E46-01. Ben marks the same card first, so this capture is taken against a card that another
+  // member has already reacted to — the shape below is what Ana gets anyway.
+  await call("rounds", "/current/reactions", {
+    method: "PUT",
+    token: others[0].token,
+    body: { card_no: target.card_no, kind: "loved" },
+  });
+  const mark = await call("rounds", "/current/reactions", {
+    method: "PUT",
+    token: user.token,
+    body: { card_no: target.card_no, kind: "interesting" },
+  });
+  assertEquals(mark.status, 200);
+  await assertGolden(
+    "reaction",
+    mark.body,
+    "PUT /rounds/current/reactions — one key, `my_reactions`, and it is the caller's own marks. " +
+      "Captured against a card somebody else has already marked: there is no count here, no " +
+      "total, and no field that could carry one. docs/19 §3 — a reaction behaves exactly like a " +
+      "guess, so the tally exists only on the `scored` results payload and nowhere earlier.",
+  );
 });
 
 Deno.test("golden: GET /groups/current/standings", async () => {
@@ -791,6 +813,12 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     // is over — but it is captured all the same, because "this route cannot be called during
     // `open`" is a claim that needs a golden file behind it as much as any other.
     "rounds PUT /current/guesses": "guess_sheet",
+    // E46-01. Reachable in `revealed` and `scored` only, and captured on the same principle as
+    // the guess sheet above. Its whole golden is one key — `my_reactions`, the caller's own —
+    // because `docs/19` §3 gives it nothing else it is allowed to know: no count of anybody's
+    // marks exists in any response before the round is `scored`, and this route never produces
+    // one even then.
+    "rounds PUT /current/reactions": "reaction",
     // Refuses anything but `scored` (`requirePhase`), so it is not reachable during `open` at
     // all — and captured anyway, on the same principle as the guess sheet above: "this cannot
     // be called during `open`" is a claim that needs a golden file behind it.
@@ -799,6 +827,7 @@ Deno.test("every route reachable during `open` has a golden file", async () => {
     "rounds GET /:group_id/current": "round_open",
     "rounds PUT /:group_id/current/submission": "submission",
     "rounds PUT /:group_id/current/guesses": "guess_sheet",
+    "rounds PUT /:group_id/current/reactions": "reaction",
     // The scheduler's, not a client's: `requireServiceRole` and nothing else, so there is no
     // phase in which a device can reach it (tasks/E07-05). Its body is four integers about the
     // worker's own pass — no group, no round, no member — and `examined` is capped at the batch
