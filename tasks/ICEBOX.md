@@ -23,10 +23,15 @@ Now `E18`–`E21`, under ADR-011. The warning that stood here was right and surv
 ADR: every "which group?" parameter is a new authorization surface, so every group-scoped
 route proves membership of that group explicitly.
 
-### Reactions or comments on songs
-The group already has a group chat. Do not compete with it. **Blind window cost:** high if
-reactions were ever visible before 10:00 PM — a reaction count during the guess window is a
-signal about who is looking at what.
+### ~~Reactions~~ — promoted 2026-09-17 · comments still iced
+Reactions are now `docs/19-REACTIONS.md`, built under `E46`. The warning that stood here was the
+right one and it was answered rather than dropped: **a reaction count during the guess window is
+a signal about who is looking at what**, so there is no count during the guess window. A mark is
+placed blind at the reveal and the room resolves at 22:00, exactly like a guess. Counts are
+anonymous, there is no push, and nothing reaches a score.
+
+**Comments are not promoted.** Free text on a song is still out — that half of the original
+entry, and `docs/16` §1's row, stand unchanged. The group already has a group chat.
 
 ### Head-to-head or cross-group play
 **Blind window cost:** unclear, which is itself a reason to defer it.

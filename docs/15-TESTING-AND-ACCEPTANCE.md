@@ -5,7 +5,9 @@ a manual check. Each AC names the test that proves it.
 
 ---
 
-## 1. The eleven acceptance criteria
+## 1. The acceptance criteria
+
+Eleven at v1; AC-12 was added with reactions (`docs/19-REACTIONS.md`, 2026-09-17).
 
 ### AC-1 — No leak during `open`
 
@@ -170,6 +172,30 @@ regression guard on tap count and animation length, which are the things that ac
 | Haptic counts: seal 2, unseal 1, reduced-motion seal 1 | `MotionTokenTests.swift` |
 | `stagger(6) == 80`, `stagger(12) == 80`, `stagger(30) == 31` | same |
 | Unseal runs once per round across relaunch | `LocalFlagsTests.swift` |
+
+
+### AC-12 — Reactions are sealed until the answers
+
+> A member can mark a card **Loved it**, **Interesting** or **Not for me** from the reveal
+> onward, and no count of reactions — and no other member's reaction — is obtainable from the
+> API until the round is `scored`. Counts are anonymous in every phase.
+
+| Test | Location |
+|---|---|
+| `GET /rounds/{group}/current` during `revealed` carries `my_reactions` and no aggregate; golden captured | `tests/golden/round_revealed_reactions.json`, `tests/functions/leak.test.ts` |
+| `my_reactions` is **absent**, not null, in `open`, `voided` and `scored` | `tests/functions/reactions.test.ts` |
+| The `open` and `voided` goldens are byte-identical to before reactions shipped | existing AC-1 goldens |
+| `PUT …/reactions` returns the caller's own marks only, in both writable phases, and performs no aggregate read | `tests/functions/reactions.test.ts` |
+| Phase, membership, `joined_late`, card range, enum validity, idempotency, rate limit | same |
+| A past round refuses the write and still serves its counts | same |
+| One row per member per card; change replaces, clear deletes; reacting to your own card is permitted | `tests/db/reactions.sql` |
+| Counts are computed `group by kind`; no stored tally column exists | same |
+| A member's own token cannot read `reactions` through PostgREST | `tests/functions/postgrest_locked.test.ts` |
+| `cards[].reactions` carries all three keys including zeros, and is `null` whole for a pre-feature round | `tests/functions/reactions.test.ts` |
+| No route, in any phase, returns a reactor's identity | `tests/functions/leak.test.ts` |
+| The three marks read as one family at `large` and `accessibility5`, SE and 15 Pro Max | `ScreenSnapshotTests` |
+| VoiceOver reads mark, word and count, and announces the caller's own as selected | `A11yLabelTests.swift` |
+| Nothing about reactions reaches the share card, standings, profiles or insights | `ResultsStoreTests`, `ShareCardTests` |
 
 ---
 

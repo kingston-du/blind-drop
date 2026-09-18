@@ -380,6 +380,27 @@ reads as a decision rather than as an oversight, and so nobody adds it back as a
 
 ---
 
+### Reactions (`E46`)
+
+Three words and their spoken forms. The whole vocabulary of the feature, and it is closed —
+`docs/19-REACTIONS.md` §5. A fourth word here is a product change, not a copy change.
+
+| Key | String | Notes |
+|---|---|---|
+| `reaction.loved` | Loved it | Past tense, because you are saying it about a song you have now heard, not rating one you might. *"Love"* as a bare verb is a button label for a feature that files things; this is a person reporting. |
+| `reaction.interesting` | Interesting | The one that makes the set worth three instead of two. It is the true thing most often — *I would not have found this and I am glad it exists* — and it is sayable about a song you did not enjoy, which neither of the other two is. Dry rather than warm, on purpose: the app does not cheer. The mark under it is a thinking ellipsis, not a star (`docs/19` §5) — the register is *hold on, let me sit with that*, not *notable*. **Hmm** was the alternative and is still available if the word should carry as much of that as the mark does; it was left as *Interesting* because the results row reads the word aloud beside a count, and *"Hmm, 4"* is a sound, not a sentence. |
+| `reaction.not_for_me` | Not for me | Names the speaker, not the song. *"Dislike"* and *"Bad"* are verdicts on somebody's taste delivered to their face two hours later; this is the same information with the ownership in the right place. Never red, never a cross (`docs/16` §5). |
+| `a11y.reaction.unset` | %@. Double-tap to mark | The pill before you pick it, where `%@` is one of the three above. |
+| `a11y.reaction.set` | %@. Marked. Double-tap to clear | The pill you picked. The `.isSelected` trait carries it too; the word is there because the trait alone is not read in every rotor. |
+| `a11y.reaction.count` | %@, %lld | The results row — *"Loved it, 4"*. A count and nothing else: no *"people"*, no *"of eight"*, because a denominator is a thing this feature deliberately does not publish (`docs/19` §7). |
+
+**There is no string for the reaction row's heading, and none for an empty one.** The three marks
+are the label, and a card nobody marked draws no row at all rather than a line explaining that
+nobody marked it. Recorded here so nobody adds *"Reactions"* over a row of three glyphs as a
+courtesy.
+
+---
+
 ## Results
 
 | Key | String |

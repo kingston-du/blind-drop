@@ -654,6 +654,22 @@ the fourth: one action in the group page's existing `⋯` menu, open to every me
 
 ---
 
+## E46 — Reactions · [file](E46-reactions.md)
+
+An owner request — *"a heart, a dislike, at either the reveal or the answers"* — and a rule
+change to go with it: `docs/16` §1 and `tasks/ICEBOX.md` banned reactions outright, and both are
+amended by `docs/19-REACTIONS.md` (2026-09-17). The ICEBOX's objection is answered, not waived:
+**a reaction is placed blind at the reveal and the counts resolve at 22:00, exactly like a
+guess.** Three closed kinds, anonymous counts, no push, no score. Read `docs/19` first.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E46-01 The reaction model and the route | todo | — | no | AC-12 |
+| E46-02 Placing a mark at the reveal | todo | E46-01 | no | AC-12 |
+| E46-03 Counts at the answers | todo | E46-02 | no | AC-12 |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -709,4 +725,5 @@ the fourth: one action in the group page's existing `⋯` menu, open to every me
 | E41 quick pass | 3 / 3 |
 | E44 five pieces of polish | 5 / 5 |
 | E45 report a member | 1 / 1 |
-| **Next-progression total** | **28 / 28** |
+| E46 reactions | 0 / 3 |
+| **Next-progression total** | **28 / 31** |

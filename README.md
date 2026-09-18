@@ -89,6 +89,9 @@ Full detail: [`docs/01-ARCHITECTURE.md`](docs/01-ARCHITECTURE.md).
 | `docs/14-SECURITY-AND-THREAT-MODEL.md` | Leak rules, auth, token handling | Backend + auth tasks |
 | `docs/15-TESTING-AND-ACCEPTANCE.md` | Acceptance criteria mapped to tests | Before calling anything done |
 | `docs/16-OUT-OF-SCOPE.md` | What not to build | When you feel like adding something |
+| `docs/17-NEXT-FEATURES.md` | The post-v1 feature specs, `E29`–`E34` | Those epics |
+| `docs/18-CUES.md` | Cues: catalog, selection, cadence | Anything touching a round's cue |
+| `docs/19-REACTIONS.md` | Reactions: the seal, the three kinds, the API | `E46` |
 
 ---
 

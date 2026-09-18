@@ -12,7 +12,7 @@ invite the next agent to fill them in.
 |---|---|---|
 | ~~**Themed prompts**~~ | **Promoted to scope 2026-08-27 by the owner** — `docs/18-CUES.md` supersedes this row and `E27-04`'s "defer" recommendation, the same footing as ADR-011. Built under `E35`. | The ban is lifted for the shape `docs/18-CUES.md` describes: a fixed, seeded catalog, deterministic assignment, no admin authoring. Anything outside that shape (custom cues, per-member cues) is still out of scope. |
 | ~~**Multiple groups per user**~~ | **Promoted to scope 2026-08-17 by the owner — ADR-011 supersedes ADR-005.** Built in `E18`–`E21`, capped per ADR-011. | The ban is lifted. What replaces it: every group-scoped route proves membership of *that* group explicitly, and nothing aggregates across circles. |
-| **Reactions or comments on songs** | The group already has a group chat. Do not compete with it. | No reaction model, no comment table, no "hold to react" |
+| ~~**Reactions on songs**~~ · **comments still out** | **Reactions promoted to scope 2026-09-17 by the owner** — `docs/19-REACTIONS.md` supersedes this row for reactions and for nothing else. The comment half of the row stands unchanged: the group already has a group chat. | The ban is lifted for the shape `docs/19` describes: three closed kinds, one per person per card, **no count visible before `scored`**, anonymous, no push, no score. Anything outside that shape is still out of scope, and **comments — any free text on a song — remain banned outright**. |
 | **Head-to-head or cross-group play** | No | No cross-group anything |
 | **Web presence** | Still deferred; `E27-03` is a spike that decides whether the beta needs more than the landing page, and where it would live | Nothing beyond the invite-link landing page (§3) until that spike reports |
 
@@ -101,6 +101,10 @@ request — it is a break, and it needs the owner:
 - Ranking readability
 - Green/red for correct/incorrect
 - Anything layered on top of album artwork
+- A reaction count, or another member's reaction, visible before a round is `scored`
+  (`docs/19-REACTIONS.md` §3) — the promotion of reactions bought the mark, not the tally
+- Naming a reactor, anywhere, in any phase (`docs/19` §7)
+- Free text on a song — a comment, a note, a caption. The reactions promotion did not touch this
 - Naming a guesser anywhere the guess wasn't already theirs to see — the share card's room
   tally names who was *guessed*, never who *guessed* (`E36-01`)
 
