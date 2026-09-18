@@ -26,11 +26,20 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 
 > **Open question — may a non-submitter react?**
 > Interpretation taken: **yes**, for any member with `joined_at < reveals_at`. `docs/02` §3.3
-> restricts *guessing* because guessing is scored; a reaction is scored by nothing, and the
-> reveal screen currently tells a non-submitter, accurately and coldly, that they have nothing
-> to do. This is the most protective reading available: it leaks nothing (counts are sealed
-> either way, and published counts carry no denominator), and it is the reading that gives the
-> disengaged member a reason to open the app at 20:00.
+> restricts *guessing* because guessing is scored; a reaction is scored by nothing. It leaks
+> nothing either way — counts are sealed, and published counts carry no denominator.
+>
+> **Answered by `E46-02`, and not the way this was written.** The server permits it and the
+> store has no submitter guard, but the reveal's only placement surface is the quick pass, and
+> `QuickPassPresentation` refuses the cover outright when `can_guess` is false (`E41`). So the
+> clause about *"a reason to open the app at 20:00"* does not ship: a non-submitter's reveal is
+> unchanged, and their marks land at the answers instead, which they do reach.
+>
+> **This is left for the owner rather than patched.** A marking-only cover is a different screen
+> from the one `E41` built — no name grid, different copy, a different reason to exist — and
+> bolting a bar onto the blocked flight would make the one row `docs/19` §8.2 calls read-only into
+> a control for one class of member. `docs/19` §4 carries the correction. If the owner wants the
+> reveal-phase surface, it is its own slice.
 
 ---
 
@@ -76,7 +85,7 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 
 ### E46-02 — Placing a mark at the reveal
 
-**Status:** todo · **Deps:** E46-01 · **Parallel:** no
+**Status:** done · **Deps:** E46-01 · **Parallel:** no
 **Reads:** `docs/19` §5, §8.1, §8.2, `docs/07` §2/§4/§5, `docs/08` §6/§6.1, `docs/09` §1,
 `docs/11` (reveal and quick pass blocks), `docs/12` §1/§2,
 `ios/BlindDrop/Features/Reveal/QuickPass/`, `ios/BlindDrop/Features/Reveal/RevealStore.swift`,
@@ -88,28 +97,30 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 BlindDropUnitTests/FixtureRoundTests "Round"`; simulator pass per `CLAUDE.md` §8 F on iPhone 17
 **Proves:** AC-12
 
-- [ ] `ReactionKind` and the `my_reactions` decode land here, once, for both client slices.
-- [ ] `ReactionBar` in `DesignSystem/Components/` — three marks with a per-symbol optical size
+- [x] `ReactionKind` and the `my_reactions` decode land here, once, for both client slices.
+- [x] `ReactionBar` in `DesignSystem/Components/` — three marks with a per-symbol optical size
       table, outlined by default, the selected one filled with the screen's accent. No hardcoded
       colour, size or spacing; `PhaseAccent` is passed in, never read.
-- [ ] `interesting` draws `ellipsis.circle.fill` and is checked against the ⋯ overflow glyph the
+- [x] `interesting` draws `ellipsis.circle.fill` and is checked against the ⋯ overflow glyph the
       app already uses, on a screenshot. The custom ascending-dots fallback (`docs/19` §5) is
       taken if it reads as a menu.
-- [ ] The bar sits under the name grid in the quick pass. Tapping fires `.impact(.light)`,
+- [x] The bar sits under the name grid in the quick pass. Tapping fires `.impact(.light)`,
       never advances the card, and tapping your own mark clears it.
-- [ ] `QuickPassSequence` is **unchanged** — your own card is still skipped, numeral and all.
+- [x] `QuickPassSequence` is **unchanged** — your own card is still skipped, numeral and all.
       Asserted by the existing `E41` tests still passing untouched.
-- [ ] Each `FlightCard` row shows your own mark in `inkDim`, read-only, with no count. Your own
+- [x] Each `FlightCard` row shows your own mark in `inkDim`, read-only, with no count. Your own
       row carries none, because nothing in this phase can place one there.
-- [ ] `RevealStore` writes optimistically and reconciles; a failed write reverts the mark rather
+- [x] `RevealStore` writes optimistically and reconciles; a failed write reverts the mark rather
       than leaving a lie on screen.
-- [ ] No count is rendered, computed or decoded anywhere in this phase.
-- [ ] Copy added to `docs/11` and `Localizable.strings` in the same commit: the three words plus
+- [x] No count is rendered, computed or decoded anywhere in this phase.
+- [x] Copy added to `docs/11` and `Localizable.strings` in the same commit: the three words plus
       the VoiceOver labels.
-- [ ] Snapshots at SE and 15 Pro Max × `large`/`accessibility5`, marked and unmarked, submitter
-      and non-submitter.
-- [ ] Simulator: place, change, clear, background and foreground, non-submitter, and your own
-      card arriving unmarked and unstopped. Look
+- [x] Snapshots at SE and 15 Pro Max × `large`/`accessibility5`, marked and unmarked — plus
+      `.xxxLarge`, which the standard matrix steps over and which is where the artwork's reserve
+      for the bar goes wrong if anybody simplifies it. **No non-submitter golden**, because the
+      screen carrying the bar is one a non-submitter cannot reach — see the open question above.
+- [x] Simulator: place, change, clear, background and foreground, and your own card arriving
+      unmarked and unstopped. Look
       at the screenshots — the three marks either read as a family or they get the custom
       `Shape` fallback `docs/19` §5 names.
 

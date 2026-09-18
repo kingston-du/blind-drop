@@ -393,6 +393,9 @@ Three words and their spoken forms. The whole vocabulary of the feature, and it 
 | `a11y.reaction.unset` | %@. Double-tap to mark | The pill before you pick it, where `%@` is one of the three above. |
 | `a11y.reaction.set` | %@. Marked. Double-tap to clear | The pill you picked. The `.isSelected` trait carries it too; the word is there because the trait alone is not read in every rotor. |
 | `a11y.reaction.count` | %@, %lld | The results row — *"Loved it, 4"*. A count and nothing else: no *"people"*, no *"of eight"*, because a denominator is a thing this feature deliberately does not publish (`docs/19` §7). |
+| `a11y.reaction.placed` | No. %lld marked %@ | The announcement, because a mark is placed by a tap on a control that does not move and `docs/12` §2 wants nothing changing state in silence. Names the card, since the quick pass's own numeral is the only other thing saying which one. |
+| `a11y.reaction.cleared` | No. %lld mark cleared | Its pair. Two strings rather than one with an optional clause: *"cleared"* is not a kind, and a format taking `%@` for the mark would have to be handed a word meaning no word. |
+| `a11y.reaction.card` | You marked it %@. | Appended to a flight card's combined label (`docs/12` §2 — a card is one element). Its own sentence rather than five more variants of `a11y.card.*` saying the same clause five times. Absent when there is no mark: *"No mark"* is a thing to say about a card nobody needed to say anything about. |
 
 **There is no string for the reaction row's heading, and none for an empty one.** The three marks
 are the label, and a card nobody marked draws no row at all rather than a line explaining that

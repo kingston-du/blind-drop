@@ -227,6 +227,39 @@ struct FixtureRoundTests {
         #expect(sheet.assignableCount == 7)
     }
 
+    /// `E46-02` through the real `APIClient`: a mark reaches the revealed fixture, comes back as
+    /// the caller's own set, survives a refetch, and clears.
+    ///
+    /// The fixture holds the marks in memory rather than echoing the request, which is the whole
+    /// point: the property worth testing is that a tap **survives** the next `GET /rounds/current`
+    /// — a stub that replied with whatever it was sent would pass without ever checking it.
+    @Test func reactionsSaveAgainstTheRevealedFixture() async throws {
+        guard try await servedFixturePhase() == "revealed" else { return }
+        let env = try environment()
+        let groupID = try #require(await env.circles.resolveActiveID())
+
+        let marked = try await env.api.send(
+            .saveReaction(groupID, cardNumber: 4, kind: .interesting)
+        )
+        #expect(marked.myReactions.contains(ReactionDTO(cardNumber: 4, kind: .interesting)))
+
+        // The round payload carries it back — `my_reactions` on the `revealed` phase and nowhere
+        // else, decoded into the same array production adopts (`docs/19` §3).
+        let round = try await env.api.send(.round(groupID))
+        guard case let .revealed(_, payload) = round.phase else {
+            Issue.record("the revealed fixture did not decode as revealed")
+            return
+        }
+        #expect(payload.myReactions.contains(ReactionDTO(cardNumber: 4, kind: .interesting)))
+        // The other half of `docs/19` §3 is structural rather than assertable here:
+        // `RevealPayload` has no field a count could arrive in, so a server that sent one would
+        // have it dropped by the decoder. The route's own leak goldens are where that is proved
+        // (`server/supabase/tests/functions/leak.test.ts`).
+
+        let cleared = try await env.api.send(.saveReaction(groupID, cardNumber: 4, kind: nil))
+        #expect(!cleared.myReactions.contains { $0.cardNumber == 4 }, "null cleared the mark")
+    }
+
     /// **`E12-01`'s `PHASE=scored` fixture run.**
     ///
     /// The two halves of `docs/04` §4's split, in the order the app performs them: the round

@@ -149,7 +149,7 @@ async function roundPayloadFor(groupId: string): Promise<Record<string, unknown>
   }
   if (groupId === PRIMARY_GROUP_ID) {
     const round = await payload(PHASES[activePhase]) as Record<string, unknown>;
-    return reTime(round, new Date());
+    return withReactions(reTime(round, new Date()));
   }
   if (groupId === SECONDARY_GROUP_ID) {
     const round = await payload("round_open") as Record<string, unknown>;
@@ -291,6 +291,72 @@ async function authRoute(req: Request, url: URL, p: string): Promise<Response | 
 }
 
 // ─── routes ──────────────────────────────────────────────────────────────────
+/// One mark on one card, shared by the `current`-shaped and group-scoped routes (docs/19 §7).
+///
+/// The fixture keeps the marks in memory for the life of the process, because the whole point of
+/// the route on the client side is that a tap survives a refetch — a stub that echoed the request
+/// back would pass a test that never checked the thing worth checking. Keyed by card number, one
+/// mark per card, `null` clears: the server's own contract, minus the parts that need a database.
+const REACTIONS = new Map<number, string>();
+const REACTION_KINDS = ["loved", "interesting", "not_for_me"];
+
+/// The caller's marks, as this process currently holds them.
+///
+/// **Merged into the round payload rather than left in the file**, so a mark placed through the
+/// route survives the next `GET /rounds/current` — which is the one property of this feature the
+/// client half is actually about (`docs/19` §3). A fixture whose round never moved would let a
+/// client that dropped every write pass its own round-trip test.
+///
+/// Seeded from the payload file the first time it is read, so `round_revealed.json`'s own mark is
+/// still the starting state and the goldens that depend on it do not move.
+function currentReactions(fileMarks: unknown): { card_no: number; kind: string }[] {
+  if (!reactionsSeeded) {
+    reactionsSeeded = true;
+    for (const mark of (fileMarks ?? []) as { card_no: number; kind: string }[]) {
+      REACTIONS.set(mark.card_no, mark.kind);
+    }
+  }
+  return [...REACTIONS.entries()]
+    .map(([card_no, kind]) => ({ card_no, kind }))
+    .sort((a, b) => a.card_no - b.card_no);
+}
+
+/// Merges the live marks onto a `revealed` payload. A no-op on every other phase, where
+/// `my_reactions` is absent by contract (`docs/04` §4).
+function withReactions(round: Record<string, unknown>): Record<string, unknown> {
+  if (round.state !== "revealed") return round;
+  return { ...round, my_reactions: currentReactions(round.my_reactions) };
+}
+
+let reactionsSeeded = false;
+
+async function reactionResponse(req: Request): Promise<Response> {
+  if (!activePhase.startsWith("revealed") && activePhase !== "scored") {
+    return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
+  }
+  if (activePhase === "revealed_joinedlate") {
+    return fail(403, "JOINED_LATE", "You joined after the reveal. You're in from tomorrow.");
+  }
+  // Seed from the payload file before the first write, so clearing the mark the fixture ships
+  // with actually clears it rather than writing into an empty map beside it.
+  currentReactions(((await payload(PHASES[activePhase])) as Record<string, unknown>).my_reactions);
+  const body = await req.json().catch(() => ({}));
+  const cardNo = body.card_no;
+  if (typeof cardNo !== "number" || !Number.isInteger(cardNo) || cardNo < 1) {
+    return fail(400, "INVALID_INPUT", "Check that and try again.");
+  }
+  const kind = body.kind ?? null;
+  if (kind !== null && !REACTION_KINDS.includes(kind)) {
+    return fail(400, "INVALID_INPUT", "Check that and try again.");
+  }
+  if (kind === null) {
+    REACTIONS.delete(cardNo);
+  } else {
+    REACTIONS.set(cardNo, kind);
+  }
+  return ok({ my_reactions: currentReactions([]) });
+}
+
 async function route(req: Request, url: URL): Promise<Response> {
   // /auth/v1 is matched before the functions prefix is stripped — it is a sibling of
   // /functions/v1, not a route inside it.
@@ -478,7 +544,7 @@ async function route(req: Request, url: URL): Promise<Response> {
 
   if (m === "GET" && p === "/rounds/current") {
     const round = await payload(PHASES[activePhase]) as Record<string, unknown>;
-    return ok(reTime(round, new Date()));
+    return ok(withReactions(reTime(round, new Date())));
   }
   if (m === "PUT" && p === "/rounds/current/submission") {
     if (activePhase !== "open" && activePhase !== "open_nosub") {
@@ -491,6 +557,13 @@ async function route(req: Request, url: URL): Promise<Response> {
     }
     const t = await payload("track_resolved");
     return ok({ track: t, sealed_at: rfc3339(new Date()) });
+  }
+  // One mark on one card (docs/19 §7). Deliberately *not* gated on being a submitter: a
+  // reaction is scored by nothing, so a member who did not drop tonight may still place one
+  // (docs/19 §4) — which is why this route's guards are a strict subset of the guess sheet's
+  // directly below, and why the `revealed_nosub` fixture can exercise it.
+  if (m === "PUT" && p === "/rounds/current/reactions") {
+    return await reactionResponse(req);
   }
   if (m === "PUT" && p === "/rounds/current/guesses") {
     if (!activePhase.startsWith("revealed")) {
@@ -650,6 +723,15 @@ async function route(req: Request, url: URL): Promise<Response> {
     }
     const t = await payload("track_resolved");
     return ok({ track: t, sealed_at: rfc3339(new Date()) });
+  }
+  const roundReactions = p.match(/^\/rounds\/([^/]+)\/current\/reactions$/);
+  if (m === "PUT" && roundReactions && roundReactions[1] !== "current") {
+    const groupId = roundReactions[1];
+    if (!(await groupPayloadFor(groupId))) return fail(404, "NOT_FOUND", "That's not available right now.");
+    if (groupId !== PRIMARY_GROUP_ID) {
+      return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
+    }
+    return await reactionResponse(req);
   }
   const roundGuesses = p.match(/^\/rounds\/([^/]+)\/current\/guesses$/);
   if (m === "PUT" && roundGuesses && roundGuesses[1] !== "current") {

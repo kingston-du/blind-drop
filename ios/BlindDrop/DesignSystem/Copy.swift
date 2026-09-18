@@ -131,7 +131,25 @@ enum Copy {
 
         /// A reveal card: its number, its title, its artist, and its current guess — the four
         /// facts `docs/12` §2 requires, literally.
-        static func card(number: Int, title: String, artist: String, guess: Guess) -> String {
+        static func card(
+            number: Int,
+            title: String,
+            artist: String,
+            guess: Guess,
+            reaction: ReactionKind? = nil
+        ) -> String {
+            let facts = cardFacts(number: number, title: title, artist: artist, guess: guess)
+            // Appended as its own sentence rather than folded into the four formats above, which
+            // would have meant five more strings in the deck saying the same clause five times
+            // (`E46-02`). Absent entirely when there is no mark — *"No mark"* is a thing to say
+            // about a card nobody needed to say anything about.
+            guard let reaction else { return facts }
+            return "\(facts) \(format("a11y.reaction.card", string(reaction.copyKey)))"
+        }
+
+        private static func cardFacts(
+            number: Int, title: String, artist: String, guess: Guess
+        ) -> String {
             switch guess {
             case .none:
                 format("a11y.card.unguessed", number, title, artist)
@@ -146,6 +164,17 @@ enum Copy {
             case let .resolved(resolution):
                 result(number: number, title: title, artist: artist, resolution: resolution)
             }
+        }
+
+        /// A mark just placed or cleared, for the announcement `docs/12` §2 requires of a state
+        /// change nobody moved to see (`E46-02`).
+        ///
+        /// Two strings rather than one with an optional clause, for the same reason
+        /// `result(number:…)` below is two sentences: *"cleared"* is not a kind, and a format
+        /// taking `%@` for the mark would have to be handed a word meaning no word.
+        static func reactionPlaced(cardNumber: Int, kind: ReactionKind?) -> String {
+            guard let kind else { return format("a11y.reaction.cleared", cardNumber) }
+            return format("a11y.reaction.placed", cardNumber, string(kind.copyKey))
         }
 
         /// A results card: the three facts, then the answer, then — only if the caller guessed

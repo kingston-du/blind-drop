@@ -372,6 +372,17 @@ independently. At `.accessibility3` and above, the pool switches to a 2-row wrap
 capped at 40% of screen height with its own vertical scroll. Test at iPhone SE with 12
 members at `.accessibility5`; nothing may be unreachable.
 
+### Your own marks, on the flight
+Each card shows the mark you placed in the quick pass — one glyph in `inkDim`, beside the number,
+read-only (`E46-02`, `docs/19` §8.2). No count, no control: the row already carries a number,
+artwork, two lines, a preview control and a name chip, and this is here so the flight agrees with
+what you did in the cover rather than being a second place to do it.
+
+`inkDim` and **not** the accent, which on this screen belongs to the guessing apparatus. It sits on
+the **leading** side, against the number, and not beside the corner `⋯` — *Interesting*'s mark is
+an enclosed ellipsis and the menu is a bare one, and 8pt apart they read as one control drawn
+twice. Your own card carries no mark during `revealed`, because the run skips it.
+
 ### The unseal
 On arriving at this screen for the first time in the round, cards unseal in a staggered
 sequence, amber giving way to ultramarine (`09-MOTION-SPEC.md` §3). Runs once per round,
@@ -454,6 +465,23 @@ Nothing on the server carries this: those pushes already deep-link to the round 
 
 **Non-submitters never reach it.** No entry control, and the cover cannot present. They keep the
 flight with the guess apparatus disabled but whole, per §6 — they must see exactly what they missed.
+
+**The reaction bar** (`E46-02`, `docs/19-REACTIONS.md` §8.1). Under the name grid, above `‹ Skip`:
+one `paperSunk` strip divided into three — **Loved it**, **Interesting**, **Not for me**, each a
+mark over its word. Not three pills: `navigation` above rejects a bordered pill for Skip because
+*"a bordered pill beside a grid of bordered pills reads as one more name"*, and three of them under
+four `NameChip`s would read as three more candidates, of which three are not people. One sunk
+object cannot be mistaken for a chip.
+
+The chosen segment switches from its outline symbol to its filled one and takes the screen's
+ultramarine, the word with it — shape as well as colour, per `docs/12` §3. Tapping it again clears
+it. A tap fires `.impact(.light)` and **never advances the card**: naming still moves on
+immediately, and a mark is a thing you do on the way past, not a second question you must answer.
+Above `.accessibility1` the three segments become three rows, mark leading.
+
+**No count is drawn here, because there is none yet.** `docs/19` §3 — the room's totals arrive at
+the answers. Your own card is skipped by the run as it always was, so the only place your own drop
+can be marked is §7.1.
 
 ## 7. Results — `scored`
 

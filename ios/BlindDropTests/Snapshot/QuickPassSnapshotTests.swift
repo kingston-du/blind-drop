@@ -156,6 +156,61 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// **A mark already placed** (`E46-02`, `docs/19` §8.1).
+    ///
+    /// The one state the bar has that nothing else in this suite draws: the chosen segment's
+    /// symbol switched from its outline to its filled form and picked up the screen's accent, the
+    /// word beside it gone from `inkDim` to `ink`. `docs/12` §3 wants state carried by shape as
+    /// well as by colour, and this is the picture that proves the shape half — the same job
+    /// `NameChip`'s consumed strike has a golden for.
+    ///
+    /// Across the matrix, because the bar reflows at `.accessibility1` from three columns to
+    /// three rows, and the selected row is where a stacked segment's mark and word have to stay
+    /// level with each other.
+    @Test(arguments: devices, sizes)
+    func markPlaced(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "QuickPass-marked", device, size) {
+            screen(
+                RevealFixture.store(
+                    cardCount: 6,
+                    myCardNumber: 3,
+                    poolSize: 5,
+                    shortlists: Self.shortlists(cards: 6, poolSize: 5),
+                    // Card 1 is where the run opens, so this is the mark the golden is of.
+                    reactions: [1: .interesting]
+                ),
+                size: size,
+                device: device
+            )
+        }
+    }
+
+    /// **`.xxxLarge`, and it is the size the reserve gets wrong if anybody simplifies it.**
+    ///
+    /// The standard matrix is `large` / `accessibility1` / `accessibility5`, which steps straight
+    /// over the band this golden covers: the bar is still in its three-column arrangement here,
+    /// and a scaled mark over a scaled `bodyS` word is already taller than the 44pt touch target.
+    /// `QuickPassScreen.reactionReserve` asks `ReactionBar.height(for:)` rather than restating the
+    /// arithmetic precisely so the two cannot disagree — a flat `minimumTouchTarget` per row was
+    /// the first version and was wrong exactly here, with the artwork sized as if the bar were
+    /// shorter than it draws.
+    @Test(arguments: devices)
+    func markPlacedAtAnIntermediateSize(_ device: SnapshotRenderer.Device) {
+        verify(named: "QuickPass-marked-xxl", device, .xxxLarge) {
+            screen(
+                RevealFixture.store(
+                    cardCount: 6,
+                    myCardNumber: 3,
+                    poolSize: 5,
+                    shortlists: Self.shortlists(cards: 6, poolSize: 5),
+                    reactions: [1: .interesting]
+                ),
+                size: .xxxLarge,
+                device: device
+            )
+        }
+    }
+
     /// The recap: the run finished, one card left blank, the caller's own card in place. The
     /// beat that makes the run finishable without touching the call sheet, and the one screen in
     /// the run that carries the countdown. Across the matrix because the row reflows at

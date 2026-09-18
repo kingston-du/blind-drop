@@ -38,7 +38,7 @@
         "isrc": "USQX91601480",
         "title": "Redbone",
         "artist": "Childish Gambino",
-        "album": "“Awaken, My Love!”",
+        "album": "\u201cAwaken, My Love!\u201d",
         "artwork_url": "https://is1-ssl.mzstatic.com/image/thumb/fixture/1452874255/{w}x{h}bb.jpg",
         "artwork_bg_color": "6b3a1f",
         "duration_ms": 326000,
@@ -270,6 +270,12 @@
     {
       "card_no": 6,
       "guessed_user_id": "a0000000-0000-4000-8000-000000000003"
+    }
+  ],
+  "my_reactions": [
+    {
+      "card_no": 2,
+      "kind": "loved"
     }
   ]
 }

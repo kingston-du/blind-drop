@@ -665,7 +665,7 @@ guess.** Three closed kinds, anonymous counts, no push, no score. Read `docs/19`
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
 | E46-01 The reaction model and the route | done | — | no | AC-12 |
-| E46-02 Placing a mark at the reveal | todo | E46-01 | no | AC-12 |
+| E46-02 Placing a mark at the reveal | done | E46-01 | no | AC-12 |
 | E46-03 Counts at the answers | todo | E46-02 | no | AC-12 |
 
 ---
@@ -725,5 +725,5 @@ guess.** Three closed kinds, anonymous counts, no push, no score. Read `docs/19`
 | E41 quick pass | 3 / 3 |
 | E44 five pieces of polish | 5 / 5 |
 | E45 report a member | 1 / 1 |
-| E46 reactions | 1 / 3 |
-| **Next-progression total** | **29 / 31** |
+| E46 reactions | 2 / 3 |
+| **Next-progression total** | **30 / 31** |

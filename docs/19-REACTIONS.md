@@ -71,9 +71,25 @@ member who did not drop a song.
 
 This deliberately does not follow `docs/02` §3.3. That rule protects the *game*: guessing is
 scored, so a non-submitter guessing would be scoring without staking anything. A reaction is
-scored by nothing. And the reveal screen currently tells a non-submitter, correctly and rather
-coldly, that they are sitting this one out; one honest thing to do with the songs is an
-improvement on nothing to do at all.
+scored by nothing.
+
+> **Correction, 2026-09-18 (`E46-02`).** The paragraph that stood here said the point of this was
+> that *"the reveal screen currently tells a non-submitter, coldly, that they are sitting this one
+> out; one honest thing to do with the songs is an improvement on nothing to do at all."* That was
+> written before §8.1 chose the quick pass as the reveal's only placement surface, and the two do
+> not fit: `QuickPassPresentation` refuses the cover outright when `can_guess` is false (`E41`),
+> and the control that opens it is replaced by the blocked line on the same condition. So a
+> non-submitter's reveal is **unchanged by this feature** — the promise above was one the code
+> never kept, and a reviewer found it rather than a user.
+>
+> What is true, and what ships: **the server permits it in both writable phases, and a
+> non-submitter's marks land at the answers** (§8.3), which every member reaches. The permission
+> in this section is real; only its timing was overstated.
+>
+> Giving them a reveal-phase surface is a design question, not a bug fix — a marking-only cover
+> is a different screen from the one `E41` built, with no name grid, different copy and a
+> different reason to exist. It needs the owner. Until then this section describes what the
+> server allows, and §8.1 describes who can actually reach it.
 
 **You may react to your own card — at the answers.** *(Owner, 2026-09-17.)* The symmetry with
 guessing breaks here on purpose: a guess on your own card is cheating, and a mark on your own drop
@@ -251,6 +267,11 @@ a second question you must answer.
 you have work on, and it passes over yours silently, numeral and all. A stop that exists only to
 offer an optional mark is a tap charged to every member every night, which is exactly the cost
 that question weighed and refused. Your own drop is markable at the answers (§4, §8.3).
+
+**And a non-submitter never reaches this cover**, so the reveal gives them no placement surface
+either — `QuickPassPresentation` refuses it when `can_guess` is false, and the control that opens
+it is replaced by the blocked line. §4 carries the correction and the reason it is a design
+question rather than a bug. Their marks land at the answers, like everyone's own card.
 
 ### 8.2 The flight — your own mark, read-only
 

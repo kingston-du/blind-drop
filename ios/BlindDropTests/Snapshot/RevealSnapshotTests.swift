@@ -72,6 +72,32 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// **Marks on the flight** (`E46-02`, `docs/19` §8.2).
+    ///
+    /// The same night as `sixCards`, with three cards marked, so the read-only mark on the
+    /// number's row is a picture rather than a doc comment. Two things this golden is here to
+    /// hold: the mark is `inkDim` and **not** the accent — a second ultramarine thing on every
+    /// row would make it look like part of the answer — and the caller's own card (No. 4)
+    /// carries none, because nothing in this phase can mark it (`docs/19` §4).
+    ///
+    /// `.large` and `.accessibility5`: the mark shares its row with the corner menu below
+    /// `.accessibility1` and with the artwork above it, and *"does the glyph survive the reflow"*
+    /// is the only question about it that a picture answers.
+    @Test(arguments: devices, [DynamicTypeSize.large, .accessibility5])
+    func marksOnTheFlight(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Reveal-marked", device, size) {
+            screen(
+                RevealFixture.store(
+                    cardCount: 6,
+                    myCardNumber: 4,
+                    guesses: [1: "Cal", 3: "Ana"],
+                    reactions: [1: .loved, 2: .interesting, 5: .notForMe]
+                ),
+                size: size
+            )
+        }
+    }
+
     /// `docs/08` §6's twelve-member case, and the one that sizes `FlightCard`'s number column:
     /// if the column is wrong, No. 10 through No. 12 are where the flight's left edge goes
     /// ragged.
@@ -284,6 +310,9 @@ enum RevealFixture {
         poolSize: Int = members.count,
         guesses: [Int: String] = [:],
         shortlists: [Int: [String]] = [:],
+        /// The caller's own marks, by card number (`E46-02`). Adopted the way a refetch does,
+        /// not set — a golden of a state the app cannot reach is not a golden of anything.
+        reactions: [Int: ReactionKind] = [:],
         focus: Int? = nil
     ) -> RevealStore {
         let store = RevealStore(
@@ -307,6 +336,7 @@ enum RevealFixture {
         store.adopt(guesses.compactMap { card, name in
             byName[name].map { GuessDTO(cardNumber: card, guessedUserID: $0) }
         })
+        store.adopt(reactions: reactions.map { ReactionDTO(cardNumber: $0.key, kind: $0.value) })
         // A golden of a *focused* sheet has to be focused, and `tapCard` is the only way in —
         // setting `focusedCard` from a test would be a picture of a state the app cannot reach.
         if let focus { store.tapCard(focus) }

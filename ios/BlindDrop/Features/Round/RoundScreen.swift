@@ -964,6 +964,7 @@ private struct RevealHost: View {
                 // instant into it would be the same staleness the `.onChange` above fixes for
                 // the ordinary case.
                 store?.adopt(payload.myGuesses)
+                store?.adopt(reactions: payload.myReactions)
                 store?.answersAt = answersAt
                 return
             }
@@ -984,10 +985,19 @@ private struct RevealHost: View {
                     guard let groupID else { throw APIError.offline }
                     return try await api.send(.saveGuesses(groupID, assignments))
                 },
+                // One card at a time, unlike the sheet above (`docs/19` §7). Same resolved
+                // `groupID` value and the same `@Sendable` constraint, for the same reason.
+                saveReaction: { cardNumber, kind in
+                    guard let groupID else { throw APIError.offline }
+                    return try await api.send(
+                        .saveReaction(groupID, cardNumber: cardNumber, kind: kind)
+                    )
+                },
                 haptics: env.haptics,
                 onLockInSaved: refreshRound
             )
             built.adopt(payload.myGuesses)
+            built.adopt(reactions: payload.myReactions)
             built.answersAt = answersAt
             unseal = UnsealAnimation(
                 roundID: roundID,
