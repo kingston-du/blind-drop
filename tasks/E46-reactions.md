@@ -36,7 +36,7 @@ the `open`-phase payload, which is the assertion AC-1's untouched goldens make f
 
 ### E46-01 — The reaction model and the route
 
-**Status:** todo · **Deps:** — · **Parallel:** no
+**Status:** wip · **Deps:** — · **Parallel:** no
 **Reads:** `docs/19` §3, §4, §6, §7, §10, `docs/03` §2 (`guesses`), `docs/04` §4, §7, §8,
 `server/supabase/migrations/0002_core_tables.sql:104`,
 `server/supabase/functions/rounds/index.ts`, `server/supabase/functions/_shared/`
