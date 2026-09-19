@@ -49,6 +49,12 @@ struct ResultsViewState: Equatable, Sendable {
     /// the live round already had, instead of a second, divergent copy of the same guard.
     let share: ShareEntry?
 
+    /// Card number → how the room marked it, and the caller's own mark (`E46-03`, `docs/19`
+    /// §8.3). Built by `ResultsStore`, which is the one place that knows about a tap that has
+    /// not landed yet; defaulted here from the cards themselves, which is what a golden and any
+    /// caller without a store gets.
+    let reactions: [Int: ReactionCountsRow.Model]
+
     init(
         cards: [ResultCardDTO],
         me: PersonalScoreDTO? = nil,
@@ -58,7 +64,8 @@ struct ResultsViewState: Equatable, Sendable {
         namedCards: Set<Int>? = nil,
         markedCards: Set<Int>? = nil,
         barredCards: Set<Int>? = nil,
-        share: ShareEntry? = nil
+        share: ShareEntry? = nil,
+        reactions: [Int: ReactionCountsRow.Model]? = nil
     ) {
         self.cards = cards
         self.me = me
@@ -72,6 +79,9 @@ struct ResultsViewState: Equatable, Sendable {
         self.markedCards = markedCards ?? all
         self.barredCards = barredCards ?? all
         self.share = share
+        self.reactions = reactions ?? cards.reduce(into: [:]) {
+            $0[$1.cardNumber] = ReactionCountsRow.Model(counts: $1.reactions, mine: $1.myReaction)
+        }
     }
 }
 
@@ -87,6 +97,12 @@ struct ResultsViewState: Equatable, Sendable {
 struct ResultsScreen: View {
     let state: ResultsViewState
     var isPastRound = false
+    /// Places, changes or clears the caller's mark on one card (`docs/19` §8.3). `nil` leaves
+    /// every reaction row read-only, which is what a night reached through The Record gets and
+    /// what every golden passes — the server has no write path for a round that is no longer the
+    /// circle's current one (`docs/19` §7, guard 2), so a control there could not do its one
+    /// thing.
+    var place: ((Int, ReactionKind?) -> Void)?
     /// The night, drawn as the eyebrow over *"The answers."* — the pinned second row that used to
     /// carry it is withheld on this phase (`RoundDTO.Phase.scrollsItsOwnDate`), because the badge
     /// that made a pinned row worth its height is `EmptyView` here: a scored round is counting to
@@ -268,6 +284,15 @@ struct ResultsScreen: View {
                         // means no control at all, same as everywhere else `preview(for:)` is
                         // built.
                         preview: preview(for: card.track),
+                        reactions: state.reactions[card.cardNumber],
+                        // **Your own card carries the row too, and is not styled differently for
+                        // it** (`docs/19` §4, §8.3) — this screen is the only place the marks
+                        // reach it, because the quick pass skips it at the reveal. So there is
+                        // no `card.guesses != nil` check here: it is simply a card with a
+                        // reaction row like the rest.
+                        placeReaction: place.map { place in
+                            { place(card.cardNumber, $0) }
+                        },
                         resolve: ResolvePresentation(
                             hasName: state.namedCards.contains(card.cardNumber),
                             hasMark: state.markedCards.contains(card.cardNumber),

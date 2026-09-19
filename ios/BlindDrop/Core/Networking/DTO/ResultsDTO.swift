@@ -34,6 +34,82 @@ struct CardGuessDTO: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
+
+/// How the room marked one card, once the answers are out (`docs/19` §7, §8.3).
+///
+/// **Three counts and nothing else.** There is no `reactors` array, in any form, and no
+/// denominator — `docs/19` §7 rules both out for the same reason `docs/16` §5 never names a
+/// guesser: a named **Not for me** on somebody's song is the single most likely thing in this
+/// feature to hurt a real person in a real group of friends. A count is anonymous; a list is not,
+/// and a count over a total is halfway to one.
+///
+/// **Three zeros is the honest answer to two different questions** — a card nobody marked, and a
+/// night that scored before this feature shipped. The server sends all three keys, zeros
+/// included and never `null`, precisely because those two render identically (§8.3: no row at
+/// all), so a flag telling them apart would be a flag nothing could use. The tolerant decode
+/// below extends that to a *backend* a step behind this build, the same allowance
+/// `ResultsDTO.tonightTopEar` already makes: a missing key must not turn a past night's answers
+/// into "That didn't work."
+struct ReactionCounts: Decodable, Sendable, Equatable {
+    let loved: Int
+    let interesting: Int
+    let notForMe: Int
+
+    /// The all-zero tally — a pre-feature night, and a card nobody marked.
+    static let none = ReactionCounts(loved: 0, interesting: 0, notForMe: 0)
+
+    init(loved: Int, interesting: Int, notForMe: Int) {
+        self.loved = loved
+        self.interesting = interesting
+        self.notForMe = notForMe
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case loved, interesting
+        case notForMe = "not_for_me"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        loved = try container.decodeIfPresent(Int.self, forKey: .loved) ?? 0
+        interesting = try container.decodeIfPresent(Int.self, forKey: .interesting) ?? 0
+        notForMe = try container.decodeIfPresent(Int.self, forKey: .notForMe) ?? 0
+    }
+
+    func count(of kind: ReactionKind) -> Int {
+        switch kind {
+        case .loved: loved
+        case .interesting: interesting
+        case .notForMe: notForMe
+        }
+    }
+
+    /// Nothing at all was marked here. **The card then draws no row** (`docs/19` §8.3) — three
+    /// zeros under every card of a quiet night is a row explaining that there is nothing to say.
+    var isEmpty: Bool { loved == 0 && interesting == 0 && notForMe == 0 }
+
+    /// The same tally with the caller's own mark moved from `from` to `to`.
+    ///
+    /// The server's counts **include the caller's own mark**, so a tap that changed the mark on
+    /// screen without moving the number beside it would leave a visible lie on the card: your
+    /// heart filled, and *Loved it 3* still saying 3. The write is optimistic (`ResultsStore`),
+    /// and this is the arithmetic that keeps the count optimistic with it — applied against what
+    /// the server last confirmed, never accumulated, so a sequence of taps cannot drift.
+    ///
+    /// Clamped at zero. It should never need to be: `from` is only ever a mark the server counted.
+    func adjusted(from: ReactionKind?, to: ReactionKind?) -> ReactionCounts {
+        guard from != to else { return self }
+        var counts = [ReactionKind.loved: loved, .interesting: interesting, .notForMe: notForMe]
+        if let from { counts[from] = max(0, (counts[from] ?? 0) - 1) }
+        if let to { counts[to] = (counts[to] ?? 0) + 1 }
+        return ReactionCounts(
+            loved: counts[.loved] ?? 0,
+            interesting: counts[.interesting] ?? 0,
+            notForMe: counts[.notForMe] ?? 0
+        )
+    }
+}
+
 /// One card, resolved: the song, whose it was, and how the room did on it (`docs/04` §4).
 ///
 /// `eligibleGuesserCount` is `S − 1` on **every** card — every other submitter, whether or not
@@ -51,6 +127,13 @@ struct ResultCardDTO: Decodable, Sendable, Equatable, Identifiable {
     /// caller owns (`E29-01`). An empty array still means "your card, nobody's guessed it yet",
     /// which `nil` on someone else's card does not claim to know.
     let guesses: [CardGuessDTO]?
+    /// How the room marked this card (`docs/19` §8.3). All three counts, zeros included — and
+    /// `.none` on a night that scored before reactions shipped, which renders exactly as a card
+    /// nobody marked does.
+    let reactions: ReactionCounts
+    /// The caller's own mark on this card, or `nil`. Their own, and the only per-person fact
+    /// about a reaction that any route returns.
+    let myReaction: ReactionKind?
 
     var id: Int { cardNumber }
 
@@ -60,7 +143,24 @@ struct ResultCardDTO: Decodable, Sendable, Equatable, Identifiable {
         case correctGuessCount = "correct_guess_count"
         case eligibleGuesserCount = "eligible_guesser_count"
         case myGuess = "my_guess"
-        case guesses
+        case guesses, reactions
+        case myReaction = "my_reaction"
+    }
+
+    /// Written out rather than synthesised for one key: `reactions` is non-optional here, and a
+    /// synthesised decoder would fail the whole payload when a backend a step behind this build
+    /// omits it. Same allowance, same reason, as `ResultsDTO.tonightTopEar`.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cardNumber = try container.decode(Int.self, forKey: .cardNumber)
+        track = try container.decode(TrackDTO.self, forKey: .track)
+        owner = try container.decode(MemberDTO.self, forKey: .owner)
+        correctGuessCount = try container.decode(Int.self, forKey: .correctGuessCount)
+        eligibleGuesserCount = try container.decode(Int.self, forKey: .eligibleGuesserCount)
+        myGuess = try container.decodeIfPresent(MyGuessDTO.self, forKey: .myGuess)
+        guesses = try container.decodeIfPresent([CardGuessDTO].self, forKey: .guesses)
+        reactions = try container.decodeIfPresent(ReactionCounts.self, forKey: .reactions) ?? .none
+        myReaction = try container.decodeIfPresent(ReactionKind.self, forKey: .myReaction)
     }
 }
 

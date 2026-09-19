@@ -193,9 +193,13 @@ regression guard on tap count and animation length, which are the things that ac
 | A member's own token cannot read `reactions` through PostgREST | `tests/functions/postgrest_locked.test.ts` |
 | `cards[].reactions` carries all three keys including zeros on every card, and is never `null` | `tests/functions/reactions.test.ts` |
 | No route, in any phase, returns a reactor's identity | `tests/functions/leak.test.ts` |
-| The three marks read as one family at `large` and `accessibility5`, SE and 15 Pro Max | `ScreenSnapshotTests` |
-| VoiceOver reads mark, word and count, and announces the caller's own as selected | `A11yLabelTests.swift` |
-| Nothing about reactions reaches the share card, standings, profiles or insights | `ResultsStoreTests`, `ShareCardTests` |
+| The three marks read as one family at `large` and `accessibility5`, SE and 15 Pro Max | `QuickPassSnapshotTests.swift`, `ResultsSnapshotTests.swift` (`Results-reactions`) |
+| VoiceOver reads mark, word and count, and announces the caller's own as selected | `ReactionTests.swift`, `ReactionCountTests.swift` |
+| Nothing about reactions reaches the share card, standings, profiles or insights | `ReactionCountTests.swift`, plus the **share-card goldens not moving** — `ShareCardSnapshotTests.swift` |
+| `cards[].reactions` absent (a night from before reactions) decodes to three zeros, and that card draws no row at all | `ReactionCountTests.swift`, `ResultsSnapshotTests.swift` (`Results-reactions-none`) |
+| A mark placed at the answers moves the count with it, reverts with it on a failed write, and survives a refetch that lands mid-write | `ReactionCountTests.swift` |
+| The counts round-trip against the fixture server, and the write carries no round id | `FixtureRoundTests.swift`, `ReactionCountTests.swift` |
+| A past round's row is read-only — no control at all, rather than a disabled one | `PastResultsScreen` passes no `place`; `ResultsSnapshotTests.swift` goldens render that state |
 
 ---
 

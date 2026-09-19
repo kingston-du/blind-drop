@@ -126,9 +126,28 @@ BlindDropUnitTests/FixtureRoundTests "Round"`; simulator pass per `CLAUDE.md` §
 
 ---
 
+> **Open question — a card nobody marked has no control on it either.**
+> `docs/19` §8.3 and this slice's checklist both say, in plain words, that a card nobody marked
+> draws **no row at all** rather than three zeros, and that is what `E46-03` ships. The
+> consequence, which neither says: the row **is** the control, so a card with an all-zero tally
+> offers no way to place the first mark on it. §4's *"you may react to your own card — at the
+> answers"* therefore reads, in the built app, as *"…once anyone has marked it."*
+>
+> Interpretation taken: **the literal one**. The checklist item is unambiguous, it is what keeps
+> the empty card and the pre-feature night provably identical — one golden covers both — and a
+> row that appeared only on a writable round would put three zeros under every card of a quiet
+> night at 22:00, which is the thing §8.3 names and refuses.
+>
+> In practice the gap is small: by the answers most cards carry marks from the quick pass, and
+> your own card carries whatever the room put on it. It bites on a genuinely quiet night, and it
+> bites hardest on a non-submitter, whose reveal already gives them no placement surface at all
+> (the open question above). If the owner wants a first mark to be placeable on a bare card, the
+> fix is a visual state this slice deliberately did not invent — an empty control, outlines and
+> no numbers, on the current round only — and it is a design decision, not a bug fix.
+
 ### E46-03 — Counts at the answers
 
-**Status:** wip · **Deps:** E46-02 · **Parallel:** no
+**Status:** done · **Deps:** E46-02 · **Parallel:** no
 **Reads:** `docs/19` §7, §8.3, §8.4, `docs/08` §7.1, `docs/11` (results block),
 `ios/BlindDrop/Features/Results/{ResultsScreen,ResultsStore,PastResultsScreen}.swift`,
 `ios/BlindDrop/Core/Networking/DTO/ResultsDTO.swift`, `ios/fixtures/`
@@ -137,17 +156,37 @@ BlindDropUnitTests/FixtureRoundTests "Round"`; simulator pass per `CLAUDE.md` §
 simulator pass on iPhone 17
 **Proves:** AC-12
 
-- [ ] Each results card carries mark-and-count for all three kinds, in `monoS`, under the
+- [x] Each results card carries mark-and-count for all three kinds, in `monoS`, under the
       *"4 of 7 got it"* line; zeros dimmed to `inkFaint`.
-- [ ] A card with no reactions draws no row, not three zeros.
-- [ ] Your own mark is filled and tappable while this is tonight's round; read-only on any past
+- [x] A card with no reactions draws no row, not three zeros.
+- [x] Your own mark is filled and tappable while this is tonight's round; read-only on any past
       round reached through The Record.
-- [ ] **Your own card carries the reaction row too** — this screen is the only place the marks
+- [x] **Your own card carries the reaction row too** — this screen is the only place the marks
       reach it (`docs/19` §4), and the row is not styled or labelled differently for it.
-- [ ] A round from before this shipped renders exactly as it did before — three zeros draw no
+- [x] A round from before this shipped renders exactly as it did before — three zeros draw no
       row, no empty state, no explanation.
-- [ ] The counts arrive inside the existing progressive resolve, not as a second animation.
-- [ ] Nothing about reactions reaches the share card, standings, the profile or insights —
+- [x] The counts arrive inside the existing progressive resolve, not as a second animation.
+- [x] Nothing about reactions reaches the share card, standings, the profile or insights —
       asserted by a test, not by inspection.
-- [ ] Snapshots at SE and 15 Pro Max × `large`/`accessibility5`, including a pre-feature round.
-- [ ] Simulator: tonight's answers, a Record night from before the feature, a Record night after.
+- [x] Snapshots at SE and 15 Pro Max × `large`/`accessibility5`, including a pre-feature round.
+- [x] Simulator: tonight's answers, a Record night from before the feature, a Record night after.
+
+> **No new copy.** `E46-02` landed every key this slice needed, `a11y.reaction.count` included,
+> and `docs/11` already records that the row has **no heading and no empty state**. The deck is
+> unchanged here, which is the right outcome rather than a gap: the marks are the label.
+
+> **Found by running it, not by a test.** The first cut moved `serverMarks` on a landed write —
+> *the server now holds this mark, so make it the baseline*, which reads as obviously correct and
+> is wrong. `serverMarks` is the mark **the loaded payload's counts were computed with**, and a
+> write does not reload the payload, so a moment after each tap `adjusted(from:to:)` became a
+> no-op and the count snapped back beside a mark that had stayed put: *Interesting* filled, and
+> still saying 1. Every unit test was green — they all asserted at the tap. A screenshot two
+> seconds later is what caught it, and `aLandedWriteLeavesTheCountWhereTheTapPutIt` now holds it.
+
+> **Reviewer finding, fixed before closing.** The counts row was drawn as a plain sibling in
+> `answerCard` with no tie to `ResolvePresentation`, so it sat at full opacity from the first
+> frame — counts floating over a card whose owner and bar had not arrived yet. `docs/19` §8.3
+> asks for the opposite in as many words (*"one reveal per card, not two"*), and the mid-sequence
+> golden was a picture of the defect that I re-recorded without looking at that particular frame.
+> It now takes `ResolvedAnswer.room`'s treatment exactly — `hasName`, the name's timing, opacity
+> only — and `Results-3-resolving` is the assertion.

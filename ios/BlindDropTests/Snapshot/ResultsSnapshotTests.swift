@@ -99,6 +99,48 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    // MARK: - §8.3 The counts (E46-03)
+
+    /// The reaction rows, at the three cards that make the case (`docs/19` §8.3).
+    ///
+    /// Nos. 1, 3 and 4 — a card the caller **loved**, a card **nobody marked at all**, and the
+    /// caller's **own** card. The three claims of the slice are all in one image: the chosen mark
+    /// is filled and in the screen's ultramarine while the other two sit `inkDim` beside their
+    /// numbers; a zero is dimmed to `inkFaint` rather than removed, because the row it is in has
+    /// other marks on it; and No. 3 draws **no row at all** rather than three zeros — which is
+    /// also exactly what a night from before this feature renders, since it decodes to the same
+    /// tally.
+    ///
+    /// **No. 4 is the one that has to look like the others.** It is the caller's own song, the
+    /// only screen that offers them the marks for it (`docs/19` §4), and nothing about the row
+    /// says so — no label, no different styling. A golden is the right place to hold that,
+    /// because "it is not styled differently" is a claim about pixels.
+    ///
+    /// Both type sizes: at `.accessibility5` the three mark-and-count pairs come off the row and
+    /// stack, which is where a regression to a single `HStack` would run the counts off a 375pt
+    /// card.
+    @Test(arguments: devices, sizes)
+    func reactionCounts(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "Results-reactions", device, size, maximumPixelCount: 8_000_000) {
+            ResultsSnapshotFixture.screen(cards: ResultsSnapshotFixture.cards([1, 3, 4]))
+        }
+    }
+
+    /// The same three cards on a night from **before this feature shipped** — every tally
+    /// stripped to zero and every mark to `nil`, which is what the server sends for such a night
+    /// and what a backend a step behind this build sends for any night.
+    ///
+    /// **It has to be the picture the answers were before `E46` existed**: no rows, no empty
+    /// state, no line explaining that nobody marked anything. The golden exists so that a
+    /// regression to three zeros under every card of the archive is something a person can look
+    /// at rather than a sentence in a review.
+    @Test(arguments: devices)
+    func aNightFromBeforeReactions(_ device: SnapshotRenderer.Device) {
+        verify(named: "Results-reactions-none", device, .large) {
+            ResultsSnapshotFixture.screen(cards: ResultsSnapshotFixture.unmarkedCards([1, 3, 4]))
+        }
+    }
+
     // MARK: - §7.2 You (E12-02)
 
     /// The pair, at the three type sizes `E12-02` asks for. `.accessibility1` is where
@@ -271,6 +313,24 @@ enum ResultsSnapshotFixture {
 
     /// The whole night, in the order the server sent it.
     static var allCards: [ResultCardDTO] { results.cards }
+
+    /// The same cards as a night from before reactions shipped sends them: no `reactions` key
+    /// and no `my_reaction`, which decode to three zeros and no mark (`ResultCardDTO`'s
+    /// tolerant initialiser). Built by **editing the payload and decoding it again** — the DTO's
+    /// initialiser is the decoder on purpose (`docs/13` §2), so a fixture is JSON.
+    static func unmarkedCards(_ numbers: [Int]) -> [ResultCardDTO] {
+        var json = payload("results")
+        json["cards"] = (json["cards"] as? [[String: Any]] ?? []).map { card in
+            var card = card
+            card.removeValue(forKey: "reactions")
+            card.removeValue(forKey: "my_reaction")
+            return card
+        }
+        let stripped = try! JSONDecoder.api.decode(
+            ResultsDTO.self, from: try! JSONSerialization.data(withJSONObject: json)
+        )
+        return numbers.compactMap { number in stripped.cards.first { $0.cardNumber == number } }
+    }
 
     /// Every guess against card No. 4 — Ana's own — the six-entry list `E29-01`'s "who guessed
     /// you" disclosure draws.

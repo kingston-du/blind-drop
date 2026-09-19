@@ -1152,6 +1152,10 @@ private struct ResultsHost: View {
             if let store {
                 ResultsScreen(
                     state: store.viewState(resolve: resolve),
+                    // Tonight's round is the circle's current one, so the marks are placeable
+                    // here (`docs/19` §8.3) — including on the caller's own card, which the
+                    // quick pass skipped two hours ago. `PastResultsScreen` passes nothing.
+                    place: { store.mark($1, on: $0) },
                     // The night, over the headline — the pinned row that used to carry it is
                     // withheld on this phase (`Phase.scrollsItsOwnDate`).
                     dateHeadline: context.dateHeadline,
@@ -1165,6 +1169,14 @@ private struct ResultsHost: View {
                 // and no spinner; `RoundScreen` has already drawn one for the round itself.
                 Color.clear
             }
+        }
+        // `docs/12` §2: nothing changes state in silence, and a mark is placed by a tap on a
+        // control that does not move. Posted here rather than from the store, and cleared
+        // immediately — the same arrangement `RevealScreen` makes for the quick pass's marks.
+        .onChange(of: store?.announcement) {
+            guard let store, let announcement = store.announcement else { return }
+            AccessibilityNotification.Announcement(announcement).post()
+            store.consumeAnnouncement()
         }
         .task(id: "\(roundID)#\(loadToken)") {
             let built = store ?? ResultsStore(

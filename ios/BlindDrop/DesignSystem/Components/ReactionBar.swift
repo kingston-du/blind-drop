@@ -255,3 +255,130 @@ extension ReactionKind {
         }
     }
 }
+
+/// How the room marked one card, on the results screen (`E46-03`, `docs/19` §8.3).
+///
+/// **Mark and count, three times, and no word.** The words are the bar's, two hours earlier,
+/// where a person is choosing between three things and needs to read what they are choosing. By
+/// the answers the marks are learned, and three words beside three numbers under every card of a
+/// twelve-card night is a paragraph where a glance will do. VoiceOver still hears the word —
+/// `a11y.reaction.count`, *"Loved it, 4"* — because a glyph is not a thing to hear.
+///
+/// **No heading and no empty state** (`docs/11`, the Reactions block): the marks are the label,
+/// and a card nobody marked draws no row at all rather than a line saying nobody marked it. The
+/// caller of this view makes that check — `ReactionCounts.isEmpty` — because the view that would
+/// have to draw nothing is the wrong place to decide it.
+///
+/// **No denominator, ever.** *"Loved it, 4"*, never *"4 of 8"*. `docs/19` §7 withholds the total
+/// on purpose: a count is anonymous, and a count over a total tells a small circle exactly how
+/// many people did not say it.
+struct ReactionCountsRow: View {
+
+    /// The counts and the caller's own mark, as one value — they move together, because placing
+    /// a mark changes both (`ReactionCounts.adjusted(from:to:)`).
+    struct Model: Equatable, Sendable {
+        let counts: ReactionCounts
+        /// The caller's own mark on this card, or `nil`.
+        let mine: ReactionKind?
+
+        init(counts: ReactionCounts, mine: ReactionKind?) {
+            self.counts = counts
+            self.mine = mine
+        }
+    }
+
+    let model: Model
+    /// The screen's accent, passed in and never read from `Palette` (`CLAUDE.md` §2.5).
+    let accent: PhaseAccent
+    /// Places, changes or clears the caller's mark — `nil` on a **past** round, where the row is
+    /// read-only (`docs/19` §8.4). Not a disabled control: the server has no write path for a
+    /// night that is no longer the circle's current one (`docs/19` §7, guard 2), so a control
+    /// there would be a control that cannot do its one thing.
+    var action: ((ReactionKind?) -> Void)?
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var typeSizeOverride: DynamicTypeSize?
+    private var effectiveTypeSize: DynamicTypeSize { typeSizeOverride ?? dynamicTypeSize }
+
+    /// The same `.accessibility1` boundary every other reflow in the app turns at (`docs/12` §1).
+    /// A mark and a `monoS` count is a narrow pair, so three of them share a row comfortably at
+    /// the reading sizes; at `.accessibility5` the numbers alone are wider than a third of an SE.
+    private var isStacked: Bool { effectiveTypeSize >= .accessibility1 }
+
+    init(model: Model, accent: PhaseAccent, action: ((ReactionKind?) -> Void)? = nil) {
+        self.model = model
+        self.accent = accent
+        self.action = action
+    }
+
+    /// Snapshot-only, like `ReactionBar.typeSize(_:)`.
+    func typeSize(_ typeSize: DynamicTypeSize) -> Self {
+        var copy = self
+        copy.typeSizeOverride = typeSize
+        return copy
+    }
+
+    var body: some View {
+        Group {
+            if isStacked {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    ForEach(ReactionKind.allCases) { segment($0) }
+                }
+            } else {
+                HStack(spacing: Space.lg) {
+                    ForEach(ReactionKind.allCases) { segment($0) }
+                    Spacer(minLength: Space.none)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func segment(_ kind: ReactionKind) -> some View {
+        let isMine = model.mine == kind
+        if let action {
+            Button {
+                action(isMine ? nil : kind)
+            } label: {
+                pair(kind, isMine: isMine)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(label(kind))
+            .accessibilityAddTraits(isMine ? [.isButton, .isSelected] : .isButton)
+        } else {
+            pair(kind, isMine: isMine)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(label(kind))
+                .accessibilityAddTraits(isMine ? [.isStaticText, .isSelected] : .isStaticText)
+        }
+    }
+
+    private func label(_ kind: ReactionKind) -> Text {
+        Text(verbatim: Copy.format(
+            "a11y.reaction.count", Copy.string(kind.copyKey), model.counts.count(of: kind)
+        ))
+    }
+
+    /// One mark and its number.
+    ///
+    /// **Three colours, and each says one thing.** The caller's own mark is filled and takes the
+    /// screen's accent, the same selection treatment the bar gave it at the reveal — and it is a
+    /// *shape* change as well as a colour one (`docs/12` §3), so it survives being read by
+    /// somebody who does not see the accent. A kind nobody chose is `inkDim`. A **zero** is
+    /// `inkFaint` (`docs/19` §8.3): it is the one number on the card that is there to be skipped
+    /// over, and the contrast floor `docs/12` §3 sets for body text is not the bar for a figure
+    /// whose whole content is *nobody*, which VoiceOver reads out in full regardless.
+    private func pair(_ kind: ReactionKind, isMine: Bool) -> some View {
+        let count = model.counts.count(of: kind)
+        let tint: Color = isMine ? accent.text : (count == 0 ? Palette.inkFaint : Palette.inkDim)
+        return HStack(spacing: Space.xs) {
+            ReactionMark(kind, isFilled: isMine, scale: .mark)
+                .foregroundStyle(isMine ? accent.mark : tint)
+            Text(verbatim: "\(count)")
+                .typeStyle(.monoS)
+                .foregroundStyle(tint)
+        }
+        .frame(minHeight: Layout.minimumTouchTarget, alignment: .center)
+        .contentShape(Rectangle())
+    }
+}

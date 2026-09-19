@@ -321,6 +321,30 @@ function currentReactions(fileMarks: unknown): { card_no: number; kind: string }
     .sort((a, b) => a.card_no - b.card_no);
 }
 
+/// Merges the live marks onto the **results** payload, counts and all (`docs/19` §8.3).
+///
+/// The answers are the second place a mark can be placed, so a fixture whose results never moved
+/// would let a client that dropped every write pass its own round-trip test — the same reason
+/// `withReactions` exists for the `revealed` round. The counts move with the mark because the
+/// server's counts include the caller's own: a card whose heart lit up while its number sat
+/// still is precisely the defect the client's optimistic arithmetic exists to avoid, and a
+/// fixture that could not show it would not be able to contradict it either.
+function withResultReactions(results: Record<string, unknown>): Record<string, unknown> {
+  const live = new Map(currentReactions([]).map((r) => [r.card_no, r.kind]));
+  const cards = (results.cards as Record<string, unknown>[]).map((card) => {
+    const cardNo = card.card_no as number;
+    const counts = { ...(card.reactions as Record<string, number>) };
+    const was = card.my_reaction as string | null;
+    const now = live.get(cardNo) ?? null;
+    if (was !== now) {
+      if (was) counts[was] = Math.max(0, (counts[was] ?? 0) - 1);
+      if (now) counts[now] = (counts[now] ?? 0) + 1;
+    }
+    return { ...card, reactions: counts, my_reaction: now };
+  });
+  return { ...results, cards };
+}
+
 /// Merges the live marks onto a `revealed` payload. A no-op on every other phase, where
 /// `my_reactions` is absent by contract (`docs/04` §4).
 function withReactions(round: Record<string, unknown>): Record<string, unknown> {
@@ -329,6 +353,25 @@ function withReactions(round: Record<string, unknown>): Record<string, unknown> 
 }
 
 let reactionsSeeded = false;
+
+/// Seeds the live marks from whichever payload owns them for the active phase.
+///
+/// `revealed` carries `my_reactions`; `scored` carries a `my_reaction` per card, because the
+/// results route is a different shape. Both are the same fact, and seeding from the right one is
+/// what keeps the fixture's shipped marks the starting state on either screen.
+async function seedReactions(): Promise<void> {
+  if (reactionsSeeded) return;
+  if (activePhase === "scored") {
+    const results = (await payload("results")) as { cards: Record<string, unknown>[] };
+    currentReactions(
+      results.cards
+        .filter((card) => card.my_reaction != null)
+        .map((card) => ({ card_no: card.card_no as number, kind: card.my_reaction as string })),
+    );
+    return;
+  }
+  currentReactions(((await payload(PHASES[activePhase])) as Record<string, unknown>).my_reactions);
+}
 
 async function reactionResponse(req: Request): Promise<Response> {
   if (!activePhase.startsWith("revealed") && activePhase !== "scored") {
@@ -339,7 +382,7 @@ async function reactionResponse(req: Request): Promise<Response> {
   }
   // Seed from the payload file before the first write, so clearing the mark the fixture ships
   // with actually clears it rather than writing into an empty map beside it.
-  currentReactions(((await payload(PHASES[activePhase])) as Record<string, unknown>).my_reactions);
+  await seedReactions();
   const body = await req.json().catch(() => ({}));
   const cardNo = body.card_no;
   if (typeof cardNo !== "number" || !Number.isInteger(cardNo) || cardNo < 1) {
@@ -590,11 +633,12 @@ async function route(req: Request, url: URL): Promise<Response> {
     // by `activePhase` made both of those 409 in the fixtures while working against the real
     // server, which is a fixture bug that only showed up once something linked to a past night
     // from a screen that was not itself scored.
+    await seedReactions();
     const current = (await payload(PHASES[activePhase])) as { round_id: string };
     if (results[1] === current.round_id && activePhase !== "scored") {
       return fail(409, "WRONG_PHASE", "That's not available right now.", { state: currentState() });
     }
-    return ok(await payload("results"));
+    return ok(withResultReactions(await payload("results") as Record<string, unknown>));
   }
 
   // ─── `:group_id` — E19-01 ──────────────────────────────────────────────────

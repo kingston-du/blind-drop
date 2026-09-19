@@ -35,7 +35,13 @@
         "display_name": "Dee",
         "is_correct": true
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 4,
+        "interesting": 1,
+        "not_for_me": 0
+      },
+      "my_reaction": "loved"
     },
     {
       "card_no": 2,
@@ -65,7 +71,13 @@
         "display_name": "Ben",
         "is_correct": true
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 1,
+        "interesting": 3,
+        "not_for_me": 1
+      },
+      "my_reaction": "interesting"
     },
     {
       "card_no": 3,
@@ -95,7 +107,13 @@
         "display_name": "Hal",
         "is_correct": true
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 0,
+        "interesting": 0,
+        "not_for_me": 0
+      },
+      "my_reaction": null
     },
     {
       "card_no": 4,
@@ -164,7 +182,13 @@
           "guessed_name": "Ben",
           "is_correct": true
         }
-      ]
+      ],
+      "reactions": {
+        "loved": 3,
+        "interesting": 2,
+        "not_for_me": 1
+      },
+      "my_reaction": "loved"
     },
     {
       "card_no": 5,
@@ -194,7 +218,13 @@
         "display_name": "Cal",
         "is_correct": false
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 0,
+        "interesting": 1,
+        "not_for_me": 2
+      },
+      "my_reaction": "not_for_me"
     },
     {
       "card_no": 6,
@@ -224,7 +254,13 @@
         "display_name": "Cal",
         "is_correct": true
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 2,
+        "interesting": 0,
+        "not_for_me": 0
+      },
+      "my_reaction": null
     },
     {
       "card_no": 7,
@@ -254,7 +290,13 @@
         "display_name": "Fay",
         "is_correct": false
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 0,
+        "interesting": 0,
+        "not_for_me": 0
+      },
+      "my_reaction": null
     },
     {
       "card_no": 8,
@@ -284,7 +326,13 @@
         "display_name": "Fay",
         "is_correct": true
       },
-      "guesses": null
+      "guesses": null,
+      "reactions": {
+        "loved": 5,
+        "interesting": 2,
+        "not_for_me": 0
+      },
+      "my_reaction": "loved"
     }
   ],
   "me": {

@@ -69,6 +69,17 @@ struct FlightCard: View {
     /// it. During `revealed` the caller's own card carries none, because the quick pass skips it
     /// and nothing else can place one (`docs/19` §4).
     var myReaction: ReactionKind? = nil
+    /// How the **room** marked this card, and the caller's own mark with it (`E46-03`,
+    /// `docs/19` §8.3). Only ever set on an answer card: there is no count at any URL before the
+    /// round is `scored`, so a reveal card has nothing to be given here.
+    ///
+    /// Drawn only when the tally is non-empty — a card nobody marked draws no row at all rather
+    /// than three zeros, which is also what a night from before this feature shipped renders.
+    var reactions: ReactionCountsRow.Model? = nil
+    /// Places, changes or clears the caller's mark. `nil` leaves the row read-only, which is
+    /// what a night reached through The Record gets: the server has no write path for a round
+    /// that is no longer the circle's current one (`docs/19` §7).
+    var placeReaction: ((ReactionKind?) -> Void)? = nil
     /// Present only while the reveal's once-per-round unseal is being coordinated.
     var unseal: UnsealPresentation? = nil
     /// Present only while the results' once-per-round name-resolve is being coordinated
@@ -164,6 +175,13 @@ struct FlightCard: View {
                 if let preview {
                     PreviewControl(isPlaying: preview.isPlaying, accent: accent, action: preview.toggle)
                 }
+                // The three marks and their counts, each its own element — *"Loved it, 4"*, with
+                // the caller's own announced `.isSelected`. They are **not** also custom actions:
+                // the preview is, because one control hiding inside a collapsed card is easy to
+                // swipe past, but three per card across a twelve-card night would be
+                // thirty-six actions on a rotor whose whole purpose is the few things worth
+                // doing. Reachable as children is reachable.
+                reactionCounts
             }
             // A custom rotor "Songs", so a VoiceOver user jumps between numbers directly
             // (`docs/12` §2). The rotor is declared by the screen that owns the list; the card
@@ -311,6 +329,13 @@ struct FlightCard: View {
                 answerMetadata
             }
             assignmentChip
+            // Directly under the room's bar and its *"4 of 7 got it"*, which is the last thing
+            // `ResolvedAnswer` draws — the same register, one block down (`docs/19` §8.3). Hidden
+            // from VoiceOver here and re-declared in `accessibilityChildren` below, exactly as
+            // the preview control is: the card is one element (`docs/12` §2), and a control
+            // inside that collapse is otherwise reachable by nobody.
+            reactionCounts
+                .accessibilityHidden(true)
         }
         .padding(Layout.cardInset)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -359,6 +384,30 @@ struct FlightCard: View {
         if let myReaction {
             ReactionMark(myReaction, isFilled: true, scale: .mark)
                 .foregroundStyle(Palette.inkDim)
+        }
+    }
+
+    /// The room's marks, on an answer card that has any.
+    ///
+    /// **The emptiness check lives here rather than in the row**, so every caller gets the same
+    /// answer to the same question: a card with an all-zero tally draws nothing (`docs/19` §8.3).
+    /// A pre-feature night decodes to exactly that tally, which is why it renders as it always
+    /// did without a flag saying so.
+    ///
+    /// **It arrives with the card, on the card's own reveal** (`docs/19` §8.3: *"the counts
+    /// arrive with the card in the progressive resolve rather than animating separately — one
+    /// reveal per card, not two"*). So it takes `ResolvedAnswer.room`'s treatment exactly: drawn
+    /// whatever the presentation says, moved only by `opacity`, on `hasName` and the name's
+    /// timing. Without this it sat at full opacity from the first frame — counts floating over a
+    /// card whose owner and bar were still blank, which is what the mid-sequence golden was a
+    /// picture of until a reviewer looked at it.
+    @ViewBuilder private var reactionCounts: some View {
+        if let reactions, !reactions.counts.isEmpty {
+            let presentation = resolve ?? .settled
+            ReactionCountsRow(model: reactions, accent: accent, action: placeReaction)
+                .opacity(presentation.hasName ? 1 : 0)
+                .animation(presentation.reducedMotion ? Motion.Resolve.reduced : Motion.Resolve.name,
+                           value: presentation.hasName)
         }
     }
 

@@ -301,6 +301,31 @@ struct FixtureRoundTests {
         // on every path that reaches it — not only the live round's own host.
         let share = try #require(results.viewState(resolve: nil).share)
         #expect(share.content.groupName == "The Cove")
+
+        // **The counts, and a mark placed against the real route** (`E46-03`, `docs/19` §8.3).
+        // The fixture's own tally, the card nobody marked, and then a round trip: the write goes
+        // to the circle's current round, and the *next* load of the answers comes back with the
+        // mark and with the count moved by it. A client that dropped the write would still show
+        // the optimistic mark, so it is the reload that is the assertion here.
+        let marked = try #require(results.viewState(resolve: nil).reactions[1])
+        #expect(marked.mine == .loved)
+        #expect(marked.counts.loved == 4)
+        #expect(results.viewState(resolve: nil).reactions[3]?.counts.isEmpty == true,
+                "a card nobody marked, which draws no row at all")
+
+        results.mark(.interesting, on: 3)
+        // Reloaded until the write has landed, with a real upper bound: the tap is optimistic by
+        // design, so the only honest way to ask "did the server take it" is to fetch the answers
+        // again and look at what came back.
+        let deadline = ContinuousClock.now + .seconds(5)
+        var card = try #require(results.state.value?.cards.first { $0.cardNumber == 3 })
+        while card.myReaction == nil, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+            await results.load()
+            card = try #require(results.state.value?.cards.first { $0.cardNumber == 3 })
+        }
+        #expect(card.myReaction == .interesting, "the server kept the mark")
+        #expect(card.reactions.interesting == 1, "and counted it")
     }
 
     private func resolvedTrack(_ store: SubmitStore) async -> TrackDTO? {

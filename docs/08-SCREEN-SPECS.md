@@ -521,6 +521,22 @@ ultramarine/inkDim word-mark the resolved cards themselves use, never a green/re
 (`docs/16` §5). This is not a grid: no other card carries this list, and there is no route to
 see who guessed someone else.
 
+**The room's marks** (`E46-03`, `docs/19-REACTIONS.md` §8.3). Under the room's bar, in the same
+`monoS` register: the three marks and their counts, the zeros dimmed to `inkFaint`. **A card
+nobody marked draws no row at all** rather than three zeros — which is also, and identically,
+what a night that scored before reactions shipped renders, because the server sends the same
+three zeros for both. No heading, no denominator, and **no list of who marked what**, on any
+card, ever (`docs/19` §7).
+
+Your own mark is filled in the screen's ultramarine and **stays tappable while this is tonight's
+round** — placing, changing and clearing, optimistically, with the count moving with it. On a
+night reached through The Record the row is read-only, because the write route resolves the
+circle's *current* round and a past night has no write path at all.
+
+**Including the caller's own card**, and nothing about that row says so. The quick pass skips
+your card at the reveal (`docs/19` §8.1), so this is the only screen that ever offers you the
+marks for your own drop — it is simply a card with a reaction row like the rest.
+
 ### 7.2 You
 
 Two equal tiles: **Readability** and **Accuracy**, each showing its percentage and underlying
