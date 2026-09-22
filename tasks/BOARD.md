@@ -670,6 +670,19 @@ guess.** Three closed kinds, anonymous counts, no push, no score. Read `docs/19`
 
 ---
 
+## E47 — Sign in with Apple, as Apple requires it · [file](E47-sign-in-with-apple-name.md)
+
+App Review rejected build 1.0 (2) on 2026-09-21 under guideline 4: the app asked for a display
+name after Sign in with Apple, which the Authentication Services framework had already provided.
+It had, and the app never asked for it — `requestedScopes` was empty. The name now comes from
+Apple, `docs/08` §1.2 is skipped, and 1.3 shows the adopted name with one tap to change it.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E47-01 The name comes from Apple | wip | — | no | Guideline 4 |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -726,4 +739,5 @@ guess.** Three closed kinds, anonymous counts, no push, no score. Read `docs/19`
 | E44 five pieces of polish | 5 / 5 |
 | E45 report a member | 1 / 1 |
 | E46 reactions | 3 / 3 |
-| **Next-progression total** | **30 / 31** |
+| E47 sign in with Apple | 0 / 1 |
+| **Next-progression total** | **30 / 32** |
