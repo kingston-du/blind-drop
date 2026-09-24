@@ -161,6 +161,8 @@ final class SessionStore {
         // A dead session is not walked backwards into onboarding by a response that was already
         // in flight when it ended.
         guard state != .signedOut else { return }
+        // Nor is a sign-in routed on its own reconnaissance — see `adoptAppleName(_:)`.
+        guard !isResolvingSignIn else { return }
 
         switch error {
         case .noProfile:
@@ -184,8 +186,62 @@ final class SessionStore {
         let identity = try await provider.requestIdentity()
         let tokens = try await auth.signIn(with: identity)
         try adopt(tokens)
+        if let suggested = identity.suggestedName {
+            await adoptAppleName(suggested)
+        }
         await loadIdentity()
     }
+
+    /// Saves the name Apple supplied, for a caller who turns out to have no profile yet.
+    ///
+    /// **This is App Review guideline 4's requirement, in one method** (rejection of
+    /// 2026-09-21): a name the Authentication Services framework already provided must not be
+    /// asked for again. When Apple sends one — which it does on the first authorization of an
+    /// Apple ID and never again — the first-run flow skips `docs/08` §1.2 entirely and the user
+    /// lands on 1.3, where `JoinOrCreateScreen` shows them the name and offers to change it. So
+    /// it is adopted, not hidden.
+    ///
+    /// **Nothing here is published, and that is the point of the method existing at all.** The
+    /// obvious version of this — read the identity, look at the state, then write the name —
+    /// assigns `.noProfile` on the way through, and an assignment is a frame: `RootView` puts
+    /// `DisplayNameScreen` up, `.onAppear` raises the keyboard, and a tenth of a second later
+    /// it all goes away again. The user would see the screen this whole slice exists to remove,
+    /// flashing. So the identity read here is made with `isResolvingSignIn` set, which is the
+    /// one thing that stops `noteServerSaid(_:)` routing on it, and the caller's real state is
+    /// assigned once, afterwards, by `loadIdentity()`.
+    ///
+    /// Two guards, both load-bearing:
+    ///
+    /// 1. **`NO_PROFILE` only.** A profile that exists already has a name, chosen by its owner
+    ///    here or in settings, and a sign-in is not an occasion to revise it. Apple's behaviour
+    ///    makes this nearly unreachable — but "nearly" is doing too much work for a write that
+    ///    would rename somebody: an Apple ID revoked in iOS Settings and re-authorized *does*
+    ///    send the name again, over an account that is still perfectly alive.
+    /// 2. **A failure changes nothing.** `loadIdentity()` still runs, the state is still
+    ///    `.noProfile`, and `DisplayNameScreen` asks — which is exactly what a returning Apple
+    ///    ID already gets. A sign-in that worked must not be failed over a name.
+    ///
+    /// The cost is one extra `GET /me` on the sign-in that adopts a name, and none on any
+    /// other. That is the right trade for never showing a screen we are not allowed to show.
+    private func adoptAppleName(_ suggested: String) async {
+        guard let api else { return }
+        isResolvingSignIn = true
+        defer { isResolvingSignIn = false }
+        do {
+            _ = try await api.send(.me)
+            // A profile already. Guard 1: leave its name alone.
+        } catch APIError.noProfile {
+            _ = try? await api.send(.setDisplayName(suggested))
+        } catch {
+            // Offline, or the server is unwell, or the session is not what we think it is.
+            // None of those is this method's business — `loadIdentity()` is about to make the
+            // same request without the suppression and will report it honestly.
+        }
+    }
+
+    /// Set only for the duration of `adoptAppleName(_:)`. See that method for why an identity
+    /// read that routes would put the name screen on the screen for a frame.
+    private var isResolvingSignIn = false
 
     /// App Review fallback. The app exposes sign-in, never account creation; the durable demo
     /// account is provisioned by the owner in Supabase and kept separate from pilot identities.

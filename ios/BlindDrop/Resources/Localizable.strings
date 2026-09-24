@@ -32,6 +32,7 @@
 "onboarding.name.placeholder" = "First name";
 "onboarding.name.error.empty" = "Enter a name to continue.";
 "onboarding.name.error.long" = "Keep it to 24 characters.";
+"onboarding.name.save" = "Save name";
 "onboarding.continue" = "Continue";
 "onboarding.group.title" = "Find your group";
 "onboarding.group.join" = "Join a group";
@@ -39,6 +40,8 @@
 "onboarding.group.code.placeholder" = "6-character code";
 "onboarding.group.help" = "Six to twelve people. Nothing about a group is public.";
 "onboarding.group.code.error" = "No group with that code. Check it and try again.";
+"onboarding.group.identity" = "Playing as %@";
+"onboarding.group.identity.change" = "Change";
 "onboarding.group.create" = "Create a group instead";
 "onboarding.create.title" = "Start a group";
 "onboarding.create.name.placeholder" = "Group name";
@@ -73,6 +76,7 @@
 "error.notsubmitter" = "You didn't drop a song tonight.";
 "error.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "error.roundvoided" = "Not enough drops tonight. Nothing revealed.";
+"error.trackalreadyused" = "You already used this today.";
 "error.alreadyingroup" = "You're already in that group.";
 "error.alreadyinvited" = "They already have an invitation to this group.";
 "error.circlelimitreached" = "You're already in three groups. Leave one to join another.";

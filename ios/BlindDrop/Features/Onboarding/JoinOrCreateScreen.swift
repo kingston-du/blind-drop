@@ -14,7 +14,18 @@ import SwiftUI
 struct JoinOrCreateScreen: View {
     let store: OnboardingStore
 
+    /// The name the caller is playing under, or `nil` before the server has said who they are.
+    ///
+    /// **Passed in rather than read off the session**, which is what lets the goldens render
+    /// this screen with and without a name and without a test-only hook in `SessionStore` — the
+    /// rule `OnboardingSnapshots` already states about the `NOT_FOUND` line.
+    var playingAs: String?
+
     @FocusState private var isCodeFocused: Bool
+    /// The rename sheet. This screen is the first thing a new user sees now that
+    /// `SessionStore.adoptAppleName(_:)` takes the name from Apple, so it is also the first
+    /// chance they get to disagree with it.
+    @State private var isRenaming = false
     /// Where VoiceOver lands when the field arrives already filled.
     @AccessibilityFocusState private var isJoinFocused: Bool
 
@@ -29,6 +40,9 @@ struct JoinOrCreateScreen: View {
             // already complete.
             .onChange(of: store.code) {
                 if InviteCode.isComplete(store.code) { isCodeFocused = false }
+            }
+            .sheet(isPresented: $isRenaming) {
+                DisplayNameSheet(store: store, current: playingAs ?? "")
             }
     }
 
@@ -52,10 +66,16 @@ struct JoinOrCreateScreen: View {
         @Bindable var store = store
 
         return VStack(alignment: .leading, spacing: Layout.blockGap) {
-            Text("onboarding.group.title")
-                .typeStyle(.displayL)
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: Space.sm) {
+                Text("onboarding.group.title")
+                    .typeStyle(.displayL)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let playingAs, !playingAs.isEmpty {
+                    identityRow(playingAs)
+                }
+            }
 
             Spacer(minLength: Space.none)
 
@@ -122,6 +142,56 @@ struct JoinOrCreateScreen: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// **Who you are playing as, and the way to change it.**
+    ///
+    /// This row exists because of App Review's guideline 4 rejection (2026-09-21) and the fix
+    /// for it: the name now arrives from Apple and `docs/08` §1.2 is skipped, so without this
+    /// the first time anybody saw the name they would be guessed by is in tomorrow night's
+    /// guess sheet. It is a statement with one affordance on it, not a step — nothing here
+    /// blocks joining, which is the whole point of the rejection.
+    ///
+    /// Quiet on purpose: the sentence is `inkDim`, only the verb is `ink`, and there is no
+    /// accent on it (`CLAUDE.md` §2.5 — this screen is in neither phase). VoiceOver gets one
+    /// button rather than two labels and a word.
+    private func identityRow(_ name: String) -> some View {
+        let playing = Text(verbatim: Copy.format("onboarding.group.identity", name))
+            .typeStyle(.bodyM)
+            .foregroundStyle(Palette.inkDim)
+        let change = Text("onboarding.group.identity.change")
+            .typeStyle(.bodyM)
+            .foregroundStyle(Palette.ink)
+
+        return Button {
+            isCodeFocused = false
+            isRenaming = true
+        } label: {
+            // **`ViewThatFits`, not `dynamicTypeSize`.** At `.accessibility5` on an SE the two
+            // pieces do not share a line: the sentence wraps to two and the verb floats beside
+            // it, vertically centred against nothing. Every other reflow in the app decides
+            // this from `dynamicTypeSize` (`FlightCard.isStacked`), and that is exactly what
+            // cannot be done here — `snapshotContent` is rendered outside this view's `body`,
+            // where an `@Environment` read resolves to the default and the golden would be a
+            // picture of a screen at `.large` wearing an `.accessibility5` label. A fit is
+            // measured rather than read, so it is true in both places.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Space.sm) {
+                    playing.lineLimit(1)
+                    change.lineLimit(1)
+                }
+
+                VStack(alignment: .leading, spacing: Space.xxs) {
+                    playing.fixedSize(horizontal: false, vertical: true)
+                    change.fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: Layout.minimumTouchTarget, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("onboarding.group.identity.change"))
+        .accessibilityValue(Text(verbatim: name))
     }
 
     /// Prefilled → the button, empty → the field.

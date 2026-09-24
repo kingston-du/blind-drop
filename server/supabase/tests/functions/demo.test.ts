@@ -48,7 +48,12 @@ async function room(name: string, opts: { demo: boolean }): Promise<Room> {
   const { user: owner, group } = await newGroupOwner("Ana", {
     name,
     timezone: zoneWhereLocalHourIs(17),
-    reveal_hour: 18,
+    // **Reveal at 20:00, not 18:00.** `zoneWhereLocalHourIs` can only shift by whole hours, so
+    // the group's local *minute* is the real UTC minute — and with the reveal one hour out, the
+    // gap this file asserts on is `60 - minute` minutes. Any run in the last two minutes of an
+    // hour saw a reveal 69 seconds away and failed the `> 120` bound below, on a suite that
+    // gates the release. Three hours of headroom makes the bound true at every minute.
+    reveal_hour: 20,
     cue_cadence: 0,
   });
 

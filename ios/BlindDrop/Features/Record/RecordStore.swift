@@ -172,6 +172,14 @@ final class RecordStore {
         do {
             let payload = try await api.send(.export(groupID, .spotify))
             spotifyExport = .succeeded(try await spotify.export(payload))
+        } catch SpotifyAuthError.cancelled {
+            // **Closing Spotify's login sheet is not a failure.** It went through the same bare
+            // `catch` as everything else, so backing out of the OAuth screen told the user their
+            // playlist had not been made and to try again — about a thing they had just decided
+            // not to do. Straight back to idle with nothing on screen, which is how `SignInScreen`
+            // treats a cancelled `AppleSignIn` and how `exportToAppleMusic()` below already
+            // treats its own typed failures.
+            spotifyExport = .idle
         } catch {
             spotifyExport = .failed(.failed)
         }

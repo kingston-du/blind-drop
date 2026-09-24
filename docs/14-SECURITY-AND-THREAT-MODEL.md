@@ -119,6 +119,13 @@ helper enforces steps 5–6 in both its read and write paths:
 
 - Sign in with Apple via Supabase Auth. The client never sees a password because there isn't
   one.
+- **The authorization asks for `.fullName` and nothing else.** App Review's guideline 4
+  requires that a name the Authentication Services framework already supplied is not asked for
+  again (rejection of 2026-09-21), so the first authorization's name becomes the display name
+  and onboarding step 1.2 is skipped. The email scope is still never requested: the app sends
+  no mail and stores no address. Apple supplies the name on the **first** authorization of an
+  Apple ID only; every later one carries nothing, and the client only ever writes it when the
+  server has said `NO_PROFILE`, so an existing name cannot be overwritten by signing in.
 - Supabase's platform JWT gate is disabled for these functions so authentication failures can
   use the API's documented error envelope. This does not make a route public: every handler's
   first operation is `requireUser()`, and the release audit asserts every anonymous call
@@ -190,10 +197,28 @@ the binary.
 
 ---
 
+## 8a. Export compliance
+
+`ITSAppUsesNonExemptEncryption` is **`NO`**, declared in the build settings rather than answered
+by hand on every upload. Without the key, App Store Connect parks each build in *Missing
+Compliance* until somebody answers the question in the web UI — which is a submission that
+silently does not happen, on the day it matters.
+
+`NO` is the correct answer and not a convenient one. The app's only cryptography is HTTPS/TLS to
+Supabase and Apple's own frameworks: the Keychain, and `CryptoKit`'s SHA-256 over the Sign in
+with Apple nonce (`AppleSignIn.digest(of:)`), which is a hash rather than encryption. All of that
+falls under the standard exemption. **Adding any encryption of our own — a bundled cipher, an
+encrypted local store, anything that is not the platform's — makes this answer wrong**, and the
+key has to change with it.
+
+---
+
 ## 9. Privacy
 
 - Data collected: Apple sub or phone, display name, group membership, song choices, guesses,
-  APNs token. That is the complete list.
+  APNs token. That is the complete list. The display name is either typed by the user or the
+  given name Apple supplied at the first authorization; it is editable in settings either way,
+  and no other field of Apple's name — no family name, no email — is requested or kept.
 - **No analytics, no telemetry, no crash reporter with PII, no ad SDK, no device fingerprint.**
 - The share card is generated only on explicit action, contains no IDs or join links, and its
   temp file is deleted after sharing (`10-SHARE-CARD-SPEC.md` §5).

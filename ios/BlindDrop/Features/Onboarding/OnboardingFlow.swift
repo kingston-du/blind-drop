@@ -51,7 +51,11 @@ struct OnboardingFlow: View {
             // for one frame is better than rendering a blank.
             switch store.step {
             case .joinOrCreate:
-                JoinOrCreateScreen(store: store)
+                // The name comes from the session rather than from the store: it is a thing the
+                // server said, and 1.3 is now the first screen that shows it at all — Apple's
+                // name is adopted at sign-in and `DisplayNameScreen` is skipped
+                // (`SessionStore.adoptAppleName(_:)`).
+                JoinOrCreateScreen(store: store, playingAs: env.session.user?.displayName)
             case .create:
                 CreateGroupScreen(store: store)
             case .invite(let group):

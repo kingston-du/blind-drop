@@ -44,14 +44,22 @@ interface Revealed {
 /**
  * A revealed round with three submitters and one member who sat it out.
  *
- * 17:00 local with a reveal at 18:00, then the scheduler two hours on — the same real-transition
- * setup `reveal.test.ts` uses, because a round forced into `revealed` by hand would have no
- * `card_order` and this file addresses everything by card number.
+ * 16:00 local with a reveal at 18:00, then the scheduler three hours on — a real transition,
+ * because a round forced into `revealed` by hand would have no `card_order` and this file
+ * addresses everything by card number.
+ *
+ * **16:00 rather than the 17:00 `reveal.test.ts` uses, and a three-hour tick rather than two.**
+ * `zoneWhereLocalHourIs` shifts by whole hours, so the group's local minute is the real UTC
+ * minute. Created at 17:59 with a reveal at 18:00, the round either has sixty seconds left or —
+ * once `ensure_rounds` decides the reveal is already behind — is *tomorrow's*, two hours from
+ * which is nowhere near it. Either way the tick landed on an `open` round and every test in this
+ * file failed at once, for two minutes in every hour. An hour of margin on each side removes the
+ * boundary: the tick is past `reveals_at` and short of `scores_at` at every minute.
  */
 async function revealedRound(name: string): Promise<Revealed> {
   const { user: owner, group } = await newGroupOwner("Ana", {
     name,
-    timezone: zoneWhereLocalHourIs(17),
+    timezone: zoneWhereLocalHourIs(16),
     reveal_hour: 18,
     cue_cadence: 0,
   });
@@ -67,7 +75,7 @@ async function revealedRound(name: string): Promise<Revealed> {
     });
     assertEquals(res.status, 200, `${i} could not submit`);
   }
-  await tickRoundsAt(2);
+  await tickRoundsAt(3);
 
   const res = await call("rounds", "/current", { token: owner.token });
   assertEquals(res.body.data.state, "revealed", `${name} did not reveal`);
@@ -188,7 +196,13 @@ Deno.test("a member who joined after the reveal cannot mark", async () => {
   const card = otherCardNo(data);
 
   // Same clause `cannotGuessReason` checks first: the cards were dealt before they arrived.
-  await setJoinedAt(bystander.id, new Date(Date.now() + 60 * 60 * 1000));
+  //
+  // **Three hours, and it is tied to `revealedRound`'s clock.** The room sits at 16:00 local
+  // with an 18:00 reveal, so `reveals_at` is between one and two hours out depending on the
+  // real minute; a join stamped an hour from now is only reliably *after* it when the room sits
+  // in the 17:00 hour, which is what this used to assume. Anything past the room's two-hour
+  // ceiling is after the reveal at every minute.
+  await setJoinedAt(bystander.id, new Date(Date.now() + 3 * 60 * 60 * 1000));
   const res = await react(bystander.token, card, "loved");
   assertEquals(res.status, 403);
   assertEquals(res.body.error.code, "JOINED_LATE");
@@ -287,7 +301,7 @@ Deno.test("marks survive to the answers, counted and anonymous", async () => {
   await react(bystander.token, card, "not_for_me");
   await react(ana.token, anaCard, "loved"); // her own
 
-  await tickRoundsAt(4); // past scores_at
+  await tickRoundsAt(5); // past scores_at
   const roundId = data.round_id as string;
   const res = await call("rounds", `/${roundId}/results`, { token: ana.token });
   assertEquals(res.status, 200);
