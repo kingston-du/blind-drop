@@ -40,7 +40,7 @@ never ask, always show.
 
 ### E47-01 — The name comes from Apple
 
-**Status:** wip · **Deps:** — · **Parallel:** no
+**Status:** done · **Deps:** — · **Parallel:** no
 **Reads:** `docs/08` §1.1–§1.3, `docs/13` §4, `docs/14` §5 and §9, `CLAUDE.md` §2, this file
 **Touches:** `ios/BlindDrop/Core/Auth/`, `ios/BlindDrop/Features/Onboarding/`,
 `ios/BlindDrop/Features/Settings/SettingsScreen.swift`, `Localizable.strings`,
@@ -66,6 +66,28 @@ nothing in this slice reads or writes round state)
 - [x] `AuthTests` covers all four outcomes (adopted, not overwritten, absent, refused) and the
       name reduction; a `JoinOrCreate-playingas` golden covers the row across the matrix.
 - [x] `docs/08` §1.2, `docs/14` §5 and §9, and the App Review note say what changed and why.
+
+**What the simulator pass actually showed.** The row, the sheet and a rename round-trip were
+driven live on an iPhone 17 against the fixture server with `has_group` flipped to `false` — the
+sheet opens seeded and focused, **Save name** stays disabled while the name is unchanged, and the
+row reads *Playing as Anabel* after saving. **The adoption itself was not exercised live**: the
+fixture session bypasses `signIn(with:)` entirely, and Apple's sheet cannot be driven from a
+simulator. That path is covered by `AuthTests` and nothing else, and it is the one thing to watch
+on the first real device install.
+
+**Two reviewer findings, both taken.** The `playingas` golden's doc claimed to prove something a
+three-letter fixture cannot, so there is now a second golden at `DisplayName.maximumLength` —
+which is also the case most likely to break the row. And `requestsName` had no test at all, so
+`makeRequest(nonce:)` was split out of `requestIdentity()` and
+`theRequestAsksForTheNameAndNeverTheEmail` reads the scopes off the request Apple would have been
+handed, in both modes. That second one is worth more than the gap it closed: **the email scope
+never being requested** was previously a claim backed only by reading the source.
+
+**The server was not ready and is now.** `20260917120000_reactions.sql` had never been pushed and
+`rounds` was still on the version from before `E46`, so the build's reaction UI would have failed
+every write. Both were deployed 2026-09-22 (owner approved); an anonymous
+`PUT /rounds/current/reactions` now answers `401 UNAUTHENTICATED` in the documented envelope
+rather than 404. Recorded in `docs/APP-REVIEW-NOTES.md` §2.
 
 > **Open question:** whether to show the row on 1.4 and 1.5 as well. Left off deliberately —
 > 1.3 is the screen every signed-in user without a circle passes through, and repeating an

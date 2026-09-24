@@ -37,6 +37,18 @@ runbook has been run.
 > Sign in with Apple is the only sign-in method offered to the public. The email/password
 > field is present for this review account.
 >
+> **Sign in with Apple and your name.** Build 1.0 (2) was rejected under guideline 4 because
+> the app asked for a display name after Sign in with Apple. This build requests the `fullName`
+> scope and uses the name Apple returns: signing in goes straight to "Find your group", where
+> the name is shown under the title as *Playing as <name>* with a **Change** control beside it.
+> Nothing asks you to type it, and nothing blocks you if you never touch it. Apple returns a
+> name only on the **first** authorization of a given Apple ID, so if you sign in with an Apple
+> ID that has already authorized Blind Drop *and* its account was since deleted, there is no
+> name for the app to use and it asks for one — Settings → your Apple Account → Sign in with
+> Apple → Blind Drop → Stop using restores the first-time behaviour. The demo account below
+> signs in with email and password and already has a name, so it does not pass through this at
+> all.
+>
 > **What the app does, and for whom.** Blind Drop is a daily guessing game for one private
 > group of friends who already know each other. It is not a music player, a playlist app or a
 > social network: there is no feed, no discovery, no public profile, and no way to reach anyone
@@ -123,8 +135,8 @@ Project `blind-drop` (`ojzwgaffeegssfscoaiv`, `us-west-1`).
 
 | | |
 |---|---|
-| Migrations | `20260815090000_demo_groups`, `20260815090500_demo_lifecycle`, `20260815120000_backfill_demo_groups` — pushed 2026-08-15; `20260910120000_demo_room_of_six` — pushed 2026-09-10 |
-| Edge Function | `rounds` redeployed 2026-08-15 (the two `demo_arm` calls and the `demo_tick` before the round read) |
+| Migrations | `20260815090000_demo_groups`, `20260815090500_demo_lifecycle`, `20260815120000_backfill_demo_groups` — pushed 2026-08-15; `20260910120000_demo_room_of_six` — pushed 2026-09-10; `20260912120000_member_reports` — pushed 2026-09-13; `20260917120000_reactions` — pushed 2026-09-22, the night before the 1.0 (3) resubmission |
+| Edge Function | `rounds` redeployed 2026-08-15 (the two `demo_arm` calls and the `demo_tick` before the round read), and again 2026-09-22 for `E46` reactions — **the app build carries the reaction UI, so this deploy and the migration above are what stop every mark failing.** Verified after: anonymous `PUT /rounds/current/reactions` answers `401 UNAUTHENTICATED` in the documented envelope, which a missing route would not. `groups` was redeployed 2026-09-13 for `E45` reports |
 | Demo group | "App Review", `is_demo = true`. Members: **App Reviewer** (admin, `demo@blinddrop.dev`) plus fixtures Kai, Mo, Nell, Rae, Sol |
 | State | Verified 2026-09-11: six members, seven finished nights in The Record, and one open round already holding the five fixtures' drops and not the reviewer's. The night count grows as the account is played; `seed-app-review-demo.sql` resets it to three. |
 

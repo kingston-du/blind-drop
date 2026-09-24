@@ -3,13 +3,18 @@ import CryptoKit
 import Foundation
 import UIKit
 
-/// What Apple hands back, reduced to the two things Supabase Auth needs.
+/// What Apple hands back: the two things Supabase Auth needs, plus the name Apple already
+/// knows.
 ///
-/// There is no name and no email in here, and that is deliberate: `docs/14` §9 lists the
-/// complete set of data the app collects — *"Apple sub or phone, display name, group
-/// membership, song choices, guesses, APNs token"*. The display name is the one the user types
-/// in `docs/08` §1.2, not the one on their Apple ID, so the request asks for no scopes at all.
-/// A field we do not need is a field we cannot leak.
+/// **The name is here because App Review says it has to be** (guideline 4, 2026-09-21). This
+/// request used to ask for no scopes at all, and the app then made every new user type a name
+/// on `docs/08` §1.2 before it would let them continue — *"users are required to provide their
+/// name … even though that information is already provided by the Authentication Services
+/// framework"*. So the request asks for `.fullName`, and `SessionStore` adopts it rather than
+/// asking a second time.
+///
+/// Still no email. The app has no use for one — there is no mail it sends and no address it
+/// stores (`docs/14` §9) — and a field we do not need is a field we cannot leak.
 struct AppleIdentity: Sendable, Equatable {
     /// The signed JWT from Apple. Verified by Supabase, never by us.
     let identityToken: String
@@ -20,6 +25,15 @@ struct AppleIdentity: Sendable, Equatable {
     /// Apple's short-lived, single-use code. Account deletion exchanges a fresh code
     /// server-side and revokes the resulting Apple token without storing it long term.
     let authorizationCode: String
+    /// The display name to adopt, already cleaned and length-checked, or `nil` when Apple sent
+    /// nothing usable.
+    ///
+    /// **Apple sends this on the first authorization of an Apple ID and never again.** Every
+    /// later sign-in from the same Apple ID — a reinstall, a second device, the re-auth the
+    /// account-deletion flow runs — carries `nil`, whatever scopes were asked for. That is not
+    /// a gap to work around: the profile the first authorization created still holds the name,
+    /// so the only caller who ever needs this is the one creating a profile.
+    var suggestedName: String?
 }
 
 /// The seam the store talks to. `AppleSignIn` is the one implementation; a test supplies its
@@ -39,6 +53,18 @@ protocol AppleIdentityProviding {
 @MainActor
 final class AppleSignIn: NSObject, AppleIdentityProviding {
 
+    /// Whether to ask Apple for the user's name.
+    ///
+    /// True for signing in, where the name is the whole point of asking. **False for the
+    /// account-deletion re-auth**, which needs a fresh authorization code and nothing else: the
+    /// profile being deleted already has a name, and asking to see somebody's again on the way
+    /// out is a permission request with no purpose behind it.
+    private let requestsName: Bool
+
+    init(requestsName: Bool = true) {
+        self.requestsName = requestsName
+    }
+
     private var pending: CheckedContinuation<AppleIdentity, any Error>?
     private var nonce: String?
     /// The controller is retained for the life of the request — `ASAuthorizationController`
@@ -49,10 +75,7 @@ final class AppleSignIn: NSObject, AppleIdentityProviding {
         guard pending == nil else { throw AuthError.busy }
 
         let raw = Self.makeNonce()
-        let request = ASAuthorizationAppleIDProvider().createRequest()
-        // No scopes. See `AppleIdentity`.
-        request.requestedScopes = []
-        request.nonce = Self.digest(of: raw)
+        let request = makeRequest(nonce: raw)
 
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = self
@@ -68,6 +91,22 @@ final class AppleSignIn: NSObject, AppleIdentityProviding {
             pending = continuation
             controller.performRequests()
         }
+    }
+
+    /// The request, built where a test can look at it.
+    ///
+    /// Split out because the two facts that matter about this authorization are both *in the
+    /// request* and neither is observable through `AppleIdentityProviding`: that the name is
+    /// asked for, and that **the email never is**. `ASAuthorizationAppleIDRequest` is inert
+    /// until a controller performs it, so a test can build one and read the scopes back without
+    /// Apple's sheet appearing anywhere.
+    func makeRequest(nonce raw: String) -> ASAuthorizationAppleIDRequest {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        // `.fullName` and nothing else. See `AppleIdentity` for why the name is asked for and
+        // why the email never is.
+        request.requestedScopes = requestsName ? [.fullName] : []
+        request.nonce = Self.digest(of: raw)
+        return request
     }
 
     // MARK: - The nonce
@@ -94,6 +133,35 @@ final class AppleSignIn: NSObject, AppleIdentityProviding {
 
     private static func hex(_ bytes: [UInt8]) -> String {
         bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - The name
+
+    /// Apple's name components reduced to one display name, or `nil` when there is nothing
+    /// usable in them.
+    ///
+    /// **Given name first, the full name only as a fallback.** `docs/08` §1.2 asks for *"the
+    /// one your friends use"*, and the field it replaces is placeheld *"First name"* — a guess
+    /// sheet listing `Ana Beltrán` next to `Dan` is reading like a contact list rather than
+    /// like a room of people. The full name is used only when Apple sent no given name, which
+    /// is a name somebody typed into their Apple ID as one piece, and the alternative there is
+    /// nothing at all.
+    ///
+    /// Cleaned and length-checked by `DisplayName`, so what comes out is a name the server will
+    /// accept — a 30-character Apple ID name, or one padded with invisibles, resolves to `nil`
+    /// and the user is asked, which is the honest outcome rather than a silent truncation of
+    /// somebody's name.
+    static func displayName(from components: PersonNameComponents?) -> String? {
+        guard let components else { return nil }
+        let candidates = [
+            components.givenName,
+            PersonNameComponentsFormatter.localizedString(from: components, style: .default)
+        ]
+        for candidate in candidates.compactMap({ $0 }) {
+            let cleaned = DisplayName.clean(candidate)
+            if DisplayName.problem(with: cleaned) == nil { return cleaned }
+        }
+        return nil
     }
 
     // MARK: - Delegate
@@ -125,7 +193,8 @@ extension AppleSignIn: ASAuthorizationControllerDelegate {
         finish(.success(AppleIdentity(
             identityToken: token,
             nonce: nonce,
-            authorizationCode: authorizationCode
+            authorizationCode: authorizationCode,
+            suggestedName: Self.displayName(from: credential.fullName)
         )))
     }
 

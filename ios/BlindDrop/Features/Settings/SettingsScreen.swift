@@ -33,7 +33,9 @@ struct SettingsScreen: View {
         .alert("settings.delete.confirm.title", isPresented: $confirmsDeletion) {
             Button("settings.delete.confirm.action", role: .destructive) {
                 guard let store else { return }
-                Task { await store.deleteAccount(using: AppleSignIn()) }
+                // `requestsName: false` — deletion needs a fresh authorization code, not a
+                // name. See `AppleSignIn.requestsName`.
+                Task { await store.deleteAccount(using: AppleSignIn(requestsName: false)) }
             }
             Button("settings.cancel", role: .cancel) {}
         } message: {

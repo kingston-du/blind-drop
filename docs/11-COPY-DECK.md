@@ -39,6 +39,7 @@ level up, don't miss out, hurry.*
 | `onboarding.name.placeholder` | First name |
 | `onboarding.name.error.empty` | Enter a name to continue. |
 | `onboarding.name.error.long` | Keep it to 24 characters. |
+| `onboarding.name.save` | Save name |
 | `onboarding.continue` | Continue |
 | `onboarding.group.title` | Find your group |
 | `onboarding.group.join` | Join a group |
@@ -46,6 +47,8 @@ level up, don't miss out, hurry.*
 | `onboarding.group.code.placeholder` | 6-character code |
 | `onboarding.group.help` | Six to twelve people. Nothing about a group is public. |
 | `onboarding.group.code.error` | No group with that code. Check it and try again. |
+| `onboarding.group.identity` | Playing as %@ |
+| `onboarding.group.identity.change` | Change |
 | `onboarding.group.create` | Create a group instead |
 | `onboarding.create.title` | Start a group |
 | `onboarding.create.name.placeholder` | Group name |

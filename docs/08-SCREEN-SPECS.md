@@ -34,7 +34,16 @@ Single screen. App name in `displayL`, one line of what this is, **Sign in with 
 button (Apple's own, black, `Radius.control`). Phone number is behind a build flag and
 disabled in v1 (needs an SMS provider — `01-ARCHITECTURE.md` §5).
 
-### 1.2 Display name
+### 1.2 Display name — *skipped when Apple supplies one* (E47, 2026-09-21)
+**The authorization asks for `.fullName`, and a name Apple supplies is adopted without asking.**
+App Review rejected build 1.0 (2) under guideline 4 for requiring a name the Authentication
+Services framework had already provided, so this step is no longer part of the common path: the
+client saves Apple's given name and goes straight to 1.3. The name is shown there, with one tap
+to change it — adopted, not hidden.
+
+This screen still exists and is still reached whenever the server says `NO_PROFILE` with no
+name to adopt — a returning Apple ID (Apple sends the name on the first authorization only), or
+a name of Apple's that `docs/14` §7 would not accept. Unchanged when it is:
 `displayM` prompt, one text field (`paperSunk`, `Radius.control`, 52pt), **Continue**.
 Copy makes the stakes clear: this is the name people will be guessing with, so use the one
 your friends call you.
@@ -42,6 +51,11 @@ Validation: 1–24 characters after trimming. Inline error under the field in `a
 is disabled until valid.
 
 ### 1.3 Join or create
+Under the title, **Playing as <name> · Change** — a `bodyM` row, the sentence in `inkDim` and
+the verb in `ink`, shown once the server has named the caller. It is a statement, not a step:
+it blocks nothing, and **Change** opens a name sheet built on `GroupNameSheet`'s mechanics.
+Absent when the caller has no name yet.
+
 Two options, join first — most users arrive via a link.
 - **Join a group:** 6-character code field, `monoM`, auto-uppercasing, auto-advancing, paste
   handled. If the app was opened from `blinddrop://join/<CODE>` the field is prefilled and

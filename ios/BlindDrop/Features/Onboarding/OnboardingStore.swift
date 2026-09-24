@@ -148,8 +148,14 @@ final class OnboardingStore {
     /// `PUT /me`, then re-read the session so the **server** decides what comes next
     /// (`docs/13` §4). A client that routed itself to 1.3 would be guessing that the profile
     /// saved.
-    func saveName() async {
-        guard canContinue else { return }
+    ///
+    /// Returns whether the save landed. `DisplayNameScreen` ignores it — the session re-read is
+    /// what moves that screen on — and `DisplayNameSheet` uses it to decide whether to close,
+    /// because a rename from 1.3 does not change the state and so nothing else would tell the
+    /// sheet it is finished.
+    @discardableResult
+    func saveName() async -> Bool {
+        guard canContinue else { return false }
         isSaving = true
         nameFailure = nil
         defer { isSaving = false }
@@ -157,6 +163,7 @@ final class OnboardingStore {
         do {
             _ = try await api.send(.setDisplayName(cleanedName))
             await session.loadIdentity()
+            return true
         } catch let error {
             // The server cleans and length-checks the same string this client just cleaned, so
             // an `INVALID_INPUT` here means the two disagree — which is a bug worth showing the
@@ -164,6 +171,7 @@ final class OnboardingStore {
             nameFailure = error == .invalidInput(field: "display_name")
                 ? DisplayName.Problem.empty.copyKey
                 : error.copyKey
+            return false
         }
     }
 

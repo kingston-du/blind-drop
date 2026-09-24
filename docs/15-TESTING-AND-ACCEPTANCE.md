@@ -7,7 +7,8 @@ a manual check. Each AC names the test that proves it.
 
 ## 1. The acceptance criteria
 
-Eleven at v1; AC-12 was added with reactions (`docs/19-REACTIONS.md`, 2026-09-17).
+Eleven at v1; AC-12 was added with reactions (`docs/19-REACTIONS.md`, 2026-09-17), and
+AC-13 by App Review's guideline 4 rejection of build 1.0 (2) (`tasks/E47`, 2026-09-21).
 
 ### AC-1 — No leak during `open`
 
@@ -200,6 +201,24 @@ regression guard on tap count and animation length, which are the things that ac
 | A mark placed at the answers moves the count with it, reverts with it on a failed write, and survives a refetch that lands mid-write | `ReactionCountTests.swift` |
 | The counts round-trip against the fixture server, and the write carries no round id | `FixtureRoundTests.swift`, `ReactionCountTests.swift` |
 | A past round's row is read-only — no control at all, rather than a disabled one | `PastResultsScreen` passes no `place`; `ResultsSnapshotTests.swift` goldens render that state |
+
+---
+
+### AC-13 — Sign in with Apple does not ask again
+
+> A user who signs in with Apple is never asked for a name or an email address that the
+> Authentication Services framework already supplied, and the name that is adopted is visible
+> and changeable without leaving the flow.
+
+| Test | Location |
+|---|---|
+| A first authorization's name is written with `PUT /me` and the caller lands on 1.3, not on the name screen | `AuthTests.swift` (`appleSuppliedNameIsAdoptedForACallerWithNoProfile`) |
+| An existing profile is never renamed by a later sign-in — no write is made at all | `AuthTests.swift` (`anExistingProfileIsNeverRenamedBySigningInAgain`) |
+| No name from Apple leaves the caller on `docs/08` §1.2, which is allowed: nothing was provided | `AuthTests.swift` (`noNameFromAppleLeavesTheCallerOnTheNameScreen`) |
+| A refused write does not fail the sign-in; the session is live and the state is `.noProfile` | `AuthTests.swift` (`aRefusedNameSaveStillSignsTheCallerIn`) |
+| Apple's components reduce to a given name, cleaned and length-checked, `nil` rather than truncated | `AuthTests.swift` (`appleNameComponentsReduceToOneDisplayName`) |
+| *Playing as <name> · Change* draws as one quiet row across the device and type-size matrix | `OnboardingSnapshotTests.swift` (`JoinOrCreate-playingas`) |
+| The email scope is never requested — `.fullName` is the only scope on the request | `AppleSignIn.requestIdentity()`; reviewed in `E47-01` |
 
 ---
 

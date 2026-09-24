@@ -84,9 +84,28 @@ final class FakeApple: AppleIdentityProviding {
     )
     private(set) var requests = 0
 
+    /// The name Apple sends on a **first** authorization and never again. `nil` is the returning
+    /// Apple ID, which is most sign-ins.
+    func suggests(_ name: String?) {
+        guard case .success(var identity) = result else { return }
+        identity.suggestedName = name
+        result = .success(identity)
+    }
+
     func requestIdentity() async throws -> AppleIdentity {
         requests += 1
         return try result.get()
+    }
+}
+
+/// Every distinct `SessionState` a store passed through, in order. A class because the sampler
+/// that fills it is a `Task`, and Swift 6 will not let one close over a mutable local.
+@MainActor
+final class SessionStateLog {
+    private(set) var states: [SessionState] = []
+
+    func record(_ state: SessionState) {
+        if states.last != state { states.append(state) }
     }
 }
 
@@ -332,6 +351,172 @@ struct AuthHarness {
         await #expect(throws: AuthError.rejected) { try await h.session.signIn(with: h.apple) }
         #expect(h.session.state == .unknown)
         #expect(h.secrets.stored.isEmpty)
+    }
+
+    // MARK: - The name Apple supplies (App Review guideline 4)
+
+    /// **The rejection, as a test** (2026-09-21): *"users are required to provide their name …
+    /// even though that information is already provided by the Authentication Services
+    /// framework"*. A first authorization carries a name, so the app saves it and the caller is
+    /// past `docs/08` §1.2 without ever seeing it.
+    @Test func appleSuppliedNameIsAdoptedForACallerWithNoProfile() async throws {
+        let h = AuthHarness()
+        h.apple.suggests("Ana")
+        AuthStub.arm([
+            .init(status: 409, body: Self.failure("NO_PROFILE")),
+            Self.ok(Self.me),
+            Self.ok(Self.meNoGroup),
+        ])
+
+        try await h.session.signIn(with: h.apple)
+
+        let requests = AuthStub.taken
+        #expect(requests.map(\.httpMethod) == ["GET", "PUT", "GET"])
+        #expect(Self.bodyString(of: requests[1]).contains(#""display_name":"Ana""#))
+        #expect(h.session.state == .noGroup, "1.3, not the name screen")
+        #expect(h.session.user?.displayName == "Ana")
+    }
+
+    /// **The `NO_PROFILE` that decides the write is never published.** `SessionStore` routes on
+    /// any endpoint's `NO_PROFILE` (`noteServerSaid(_:)`), so the reconnaissance read inside
+    /// `adoptAppleName(_:)` would otherwise assign `.noProfile` — and an assignment is a frame
+    /// of `DisplayNameScreen`, keyboard and all, in the middle of the flow built to remove it.
+    /// Asserted from outside: the same 409 that reaches the store here leaves the state alone,
+    /// and only the final read moves it.
+    @Test func adoptingANameNeverRoutesThroughTheNameScreen() async throws {
+        let h = AuthHarness()
+        h.apple.suggests("Ana")
+        AuthStub.arm([
+            .init(status: 409, body: Self.failure("NO_PROFILE")),
+            Self.ok(Self.me),
+            Self.ok(Self.meNoGroup),
+        ])
+
+        let log = SessionStateLog()
+        let sampler = Task { @MainActor in
+            // Sampled on every main-actor turn the sign-in suspends for, which is where a
+            // published `.noProfile` would appear.
+            while !Task.isCancelled {
+                log.record(h.session.state)
+                await Task.yield()
+            }
+        }
+        try await h.session.signIn(with: h.apple)
+        sampler.cancel()
+
+        #expect(!log.states.contains(.noProfile), "the name screen was never routed to")
+        #expect(h.session.state == .noGroup)
+    }
+
+    /// The other half of the same rule: a name is *offered*, never imposed on a profile that
+    /// already has one. Apple sends nothing on a repeat authorization, but the guard says so in
+    /// its own right rather than relying on Apple's behaviour to be the reason.
+    @Test func anExistingProfileIsNeverRenamedBySigningInAgain() async throws {
+        let h = AuthHarness()
+        h.apple.suggests("Someone Else")
+        AuthStub.arm([Self.ok(Self.me)])
+
+        try await h.session.signIn(with: h.apple)
+
+        let requests = AuthStub.taken
+        #expect(!requests.map(\.httpMethod).contains("PUT"), "nothing was written")
+        #expect(requests.count == 2, "the suppressed read, then the one that routes")
+        #expect(h.session.user?.displayName == "Ana")
+        #expect(h.session.state == .ready)
+    }
+
+    /// The returning Apple ID — a reinstall, a second device — gets the name screen, which is
+    /// the same screen everybody used to get and is allowed: nothing was provided to re-ask for.
+    @Test func noNameFromAppleLeavesTheCallerOnTheNameScreen() async throws {
+        let h = AuthHarness()
+        h.apple.suggests(nil)
+        AuthStub.arm([.init(status: 409, body: Self.failure("NO_PROFILE"))])
+
+        try await h.session.signIn(with: h.apple)
+
+        #expect(AuthStub.taken.count == 1, "no name to write")
+        #expect(h.session.state == .noProfile)
+    }
+
+    /// A refused write is not a refused sign-in. The session is real, the state is still
+    /// `.noProfile`, and the user types a name — the same outcome as having no name at all.
+    @Test func aRefusedNameSaveStillSignsTheCallerIn() async throws {
+        let h = AuthHarness()
+        h.apple.suggests("Ana")
+        AuthStub.arm([
+            .init(status: 409, body: Self.failure("NO_PROFILE")),
+            .init(status: 500, body: Self.failure("INTERNAL")),
+            .init(status: 409, body: Self.failure("NO_PROFILE")),
+        ])
+
+        try await h.session.signIn(with: h.apple)
+
+        #expect(AuthStub.taken.map(\.httpMethod) == ["GET", "PUT", "GET"])
+        #expect(h.session.state == .noProfile, "1.2, and the user types one")
+        #expect(h.session.accessToken == "access-1")
+        #expect(h.secrets.stored[Keychain.Account.refreshToken] == "refresh-1")
+    }
+
+    /// Given name first, the full name only when there is no given name, and `nil` for anything
+    /// `DisplayName` would not let a person type — a 24-character limit applies to a name that
+    /// arrived from Apple exactly as it applies to one typed into the field.
+    @Test func appleNameComponentsReduceToOneDisplayName() {
+        var given = PersonNameComponents()
+        given.givenName = "Ana"
+        given.familyName = "Beltrán"
+        #expect(AppleSignIn.displayName(from: given) == "Ana", "the name friends use, not the record")
+
+        var familyOnly = PersonNameComponents()
+        familyOnly.familyName = "Beltrán"
+        #expect(AppleSignIn.displayName(from: familyOnly) == "Beltrán")
+
+        var padded = PersonNameComponents()
+        padded.givenName = "  Ana\u{200B} "
+        #expect(AppleSignIn.displayName(from: padded) == "Ana", "cleaned the way the field cleans")
+
+        var tooLong = PersonNameComponents()
+        tooLong.givenName = String(repeating: "a", count: 25)
+        #expect(AppleSignIn.displayName(from: tooLong) == nil, "asked for rather than truncated")
+
+        #expect(AppleSignIn.displayName(from: PersonNameComponents()) == nil)
+        #expect(AppleSignIn.displayName(from: nil) == nil)
+    }
+
+    /// **The scopes, read off the request Apple would actually be handed.**
+    ///
+    /// Two claims, and the second is the one worth a test: the name *is* asked for (guideline 4,
+    /// 2026-09-21) and the email is **never** asked for, in either mode. `docs/14` §9's list of
+    /// what this app collects has no address on it, and the cheapest way for one to appear is a
+    /// scope somebody adds without noticing. The deletion re-auth asks for nothing at all — it
+    /// needs a fresh authorization code, and a permission prompt on the way out is a prompt with
+    /// no purpose behind it.
+    @Test func theRequestAsksForTheNameAndNeverTheEmail() {
+        let signingIn = AppleSignIn().makeRequest(nonce: "raw-nonce")
+        #expect(signingIn.requestedScopes == [.fullName])
+        #expect(signingIn.nonce == AppleSignIn.digest(of: "raw-nonce"), "Apple gets the digest")
+
+        let reauthenticating = AppleSignIn(requestsName: false).makeRequest(nonce: "raw-nonce")
+        #expect(reauthenticating.requestedScopes?.isEmpty ?? true)
+
+        for request in [signingIn, reauthenticating] {
+            #expect(request.requestedScopes?.contains(.email) != true)
+        }
+    }
+
+    /// `URLSession` moves an `httpBody` into an `httpBodyStream` before a `URLProtocol` sees it.
+    private static func bodyString(of request: URLRequest) -> String {
+        if let body = request.httpBody { return String(decoding: body, as: UTF8.self) }
+        guard let stream = request.httpBodyStream else { return "" }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        while stream.hasBytesAvailable {
+            let read = stream.read(&buffer, maxLength: buffer.count)
+            guard read > 0 else { break }
+            data.append(contentsOf: buffer[..<read])
+        }
+        return String(decoding: data, as: UTF8.self)
     }
 
     // MARK: - Launch

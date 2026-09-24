@@ -76,6 +76,35 @@ private let sizes = SnapshotRenderer.typeSizes
         }
     }
 
+    /// **The common case since App Review's guideline 4 fix**: the name came from Apple, 1.2
+    /// was skipped, and this is the first screen that shows the name the circle will guess
+    /// with. What this golden proves is that the row reads as a quiet statement under the title
+    /// rather than a second control competing with the code field — and, at `.accessibility5`,
+    /// that it reflows to two lines rather than floating **Change** beside a wrapped sentence.
+    @Test(arguments: devices, sizes)
+    func joinOrCreatePlayingAs(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "JoinOrCreate-playingas", device, size) {
+            JoinOrCreateScreen(store: OnboardingFixture.store(), playingAs: "Ana").snapshotContent
+        }
+    }
+
+    /// The other end of the row: a name at `DisplayName.maximumLength`, which is the longest one
+    /// the server will store and therefore the longest this row can ever be asked to draw.
+    ///
+    /// A separate golden rather than a longer fixture on the one above, because the two are
+    /// different claims. That one is what almost everybody sees; this one is the reflow doing
+    /// its job at `.large`, where nothing else on the screen is under pressure and a row that
+    /// simply ran off the edge would be easy to miss.
+    @Test(arguments: devices, sizes)
+    func joinOrCreatePlayingAsLongName(_ device: SnapshotRenderer.Device, _ size: DynamicTypeSize) {
+        verify(named: "JoinOrCreate-playingas-long", device, size) {
+            JoinOrCreateScreen(
+                store: OnboardingFixture.store(),
+                playingAs: String(repeating: "a", count: DisplayName.maximumLength)
+            ).snapshotContent
+        }
+    }
+
     /// Arrived by link: the code is in the field and the button is live (`docs/05` §5). The
     /// golden is what somebody who tapped an invite actually sees before touching anything.
     @Test(arguments: devices, sizes)

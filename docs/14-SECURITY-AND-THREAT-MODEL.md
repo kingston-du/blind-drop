@@ -119,6 +119,13 @@ helper enforces steps 5–6 in both its read and write paths:
 
 - Sign in with Apple via Supabase Auth. The client never sees a password because there isn't
   one.
+- **The authorization asks for `.fullName` and nothing else.** App Review's guideline 4
+  requires that a name the Authentication Services framework already supplied is not asked for
+  again (rejection of 2026-09-21), so the first authorization's name becomes the display name
+  and onboarding step 1.2 is skipped. The email scope is still never requested: the app sends
+  no mail and stores no address. Apple supplies the name on the **first** authorization of an
+  Apple ID only; every later one carries nothing, and the client only ever writes it when the
+  server has said `NO_PROFILE`, so an existing name cannot be overwritten by signing in.
 - Supabase's platform JWT gate is disabled for these functions so authentication failures can
   use the API's documented error envelope. This does not make a route public: every handler's
   first operation is `requireUser()`, and the release audit asserts every anonymous call
@@ -193,7 +200,9 @@ the binary.
 ## 9. Privacy
 
 - Data collected: Apple sub or phone, display name, group membership, song choices, guesses,
-  APNs token. That is the complete list.
+  APNs token. That is the complete list. The display name is either typed by the user or the
+  given name Apple supplied at the first authorization; it is editable in settings either way,
+  and no other field of Apple's name — no family name, no email — is requested or kept.
 - **No analytics, no telemetry, no crash reporter with PII, no ad SDK, no device fingerprint.**
 - The share card is generated only on explicit action, contains no IDs or join links, and its
   temp file is deleted after sharing (`10-SHARE-CARD-SPEC.md` §5).

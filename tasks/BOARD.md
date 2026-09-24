@@ -679,7 +679,7 @@ Apple, `docs/08` §1.2 is skipped, and 1.3 shows the adopted name with one tap t
 
 | Slice | Status | Deps | Parallel | Proves |
 |---|---|---|---|---|
-| E47-01 The name comes from Apple | wip | — | no | Guideline 4 |
+| E47-01 The name comes from Apple | done | — | no | Guideline 4 |
 
 ---
 
@@ -739,5 +739,5 @@ Apple, `docs/08` §1.2 is skipped, and 1.3 shows the adopted name with one tap t
 | E44 five pieces of polish | 5 / 5 |
 | E45 report a member | 1 / 1 |
 | E46 reactions | 3 / 3 |
-| E47 sign in with Apple | 0 / 1 |
-| **Next-progression total** | **30 / 32** |
+| E47 sign in with Apple | 1 / 1 |
+| **Next-progression total** | **31 / 32** |
