@@ -355,16 +355,23 @@ Deno.test("a past round cannot be marked, and still serves the counts it ended w
   // reads.
   const token = await mintToken(SEED_ANA);
 
-  // Tonight, in the seed circle, is `open` — so the write is refused *against tonight's round*,
-  // which is the proof that it resolved tonight rather than reaching back for 2026-08-08. A
-  // route that could address the past round would have answered 200 or a different phase.
+  // Tonight, in the seed circle, has nobody's drop in it — so the write is refused *against
+  // tonight's round*, which is the proof that it resolved tonight rather than reaching back for
+  // 2026-08-08. A route that could address the past round would have answered 200 or a
+  // different phase. Tonight is `open` (WRONG_PHASE) or, once another test's `tickRoundsAt`
+  // has carried the whole database past 20:00 in New York, `voided` (ROUND_VOIDED): every
+  // group ticks, the seed circle included, so which one depends on the hour the suite runs.
+  // Both are tonight; only the scored night would be wrong.
   const write = await call("rounds", "/current/reactions", {
     method: "PUT",
     token,
     body: { card_no: 1, kind: "loved" },
   });
   assertEquals(write.status, 409);
-  assertEquals(write.body.error.code, "WRONG_PHASE");
+  assert(
+    ["WRONG_PHASE", "ROUND_VOIDED"].includes(write.body.error.code),
+    `expected tonight's refusal, got ${JSON.stringify(write.body.error)}`,
+  );
   assert(
     write.body.error.state !== "scored",
     `the write resolved a scored round: ${JSON.stringify(write.body.error)}`,
