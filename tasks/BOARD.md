@@ -683,6 +683,19 @@ Apple, `docs/08` §1.2 is skipped, and 1.3 shows the adopted name with one tap t
 
 ---
 
+## E48 — The core flow holds under failure · [file](E48-the-flow-holds-under-failure.md)
+
+A pre-resubmission audit of the whole core flow, looking for dead ends rather than crashes. No
+leak, no reachable force-unwrap, no client-side phase decision — and six places where the app
+stops having anything to offer, the worst of which is a countdown that never resolves because
+the phase refetch was gated on `scored` alone.
+
+| Slice | Status | Deps | Parallel | Proves |
+|---|---|---|---|---|
+| E48-01 Six dead ends, closed | done | — | no | AC-1 unchanged |
+
+---
+
 ## Progress
 
 | Epic | Done / Total |
@@ -740,4 +753,5 @@ Apple, `docs/08` §1.2 is skipped, and 1.3 shows the adopted name with one tap t
 | E45 report a member | 1 / 1 |
 | E46 reactions | 3 / 3 |
 | E47 sign in with Apple | 1 / 1 |
-| **Next-progression total** | **31 / 32** |
+| E48 the flow holds under failure | 1 / 1 |
+| **Next-progression total** | **32 / 33** |

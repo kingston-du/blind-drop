@@ -190,9 +190,19 @@ final class SubmitStore {
         } catch APIError.offline {
             sealErrorKey = "search.error.offline"
         } catch let error {
-            // *"That didn't seal. Try again."* — one line, in `alert`, and nothing is sealed. A
-            // phase error gets its own words, because trying again will not help at 20:01.
-            sealErrorKey = error == .wrongPhase(state: .revealed) ? error.copyKey : "confirm.error"
+            // *"That didn't seal. Try again."* — one line, in `alert`, and nothing is sealed.
+            //
+            // Two failures get their own words instead, and for the same reason: **trying again
+            // is not the way out of either.** A phase error means it is 20:01 and the window is
+            // shut; `TRACK_ALREADY_USED` means this song is already down today in one of the
+            // caller's circles (`E18-03`) and the only move is a different song. Telling either
+            // of them to try again is an instruction that cannot work.
+            switch error {
+            case .wrongPhase(state: .revealed), .trackAlreadyUsed:
+                sealErrorKey = error.copyKey
+            default:
+                sealErrorKey = "confirm.error"
+            }
         }
         return nil
     }

@@ -30,6 +30,11 @@ enum APIError: Error, Equatable, Sendable {
     case joinedLate
     /// 409. Fewer than three drops; nothing was revealed.
     case roundVoided
+    /// 409. `BD003` — the same track, already dropped today, in any circle the caller is in
+    /// (`E18-03`). Its own case rather than a generic refusal because it is the one seal failure
+    /// that **retrying cannot fix**: the user has to pick a different song, and a screen saying
+    /// *"Try again"* sends them round a loop with no exit.
+    case trackAlreadyUsed
     /// 400. A validation failure, naming the field where the server named one — and never the
     /// offending value.
     case invalidInput(field: String?)
@@ -82,6 +87,7 @@ extension APIError {
         case .notASubmitter: "NOT_A_SUBMITTER"
         case .joinedLate: "JOINED_LATE"
         case .roundVoided: "ROUND_VOIDED"
+        case .trackAlreadyUsed: "TRACK_ALREADY_USED"
         case .invalidInput: "INVALID_INPUT"
         case .alreadyInGroup: "ALREADY_IN_GROUP"
         case .alreadyInvited: "ALREADY_INVITED"
@@ -110,6 +116,7 @@ extension APIError {
         case .notASubmitter: "error.notsubmitter"
         case .joinedLate: "error.joinedlate"
         case .roundVoided: "error.roundvoided"
+        case .trackAlreadyUsed: "error.trackalreadyused"
         case .invalidInput: "error.invalidinput"
         case .alreadyInGroup: "error.alreadyingroup"
         case .alreadyInvited: "error.alreadyinvited"
@@ -140,6 +147,7 @@ extension APIError {
         case "NOT_A_SUBMITTER": self = .notASubmitter
         case "JOINED_LATE": self = .joinedLate
         case "ROUND_VOIDED": self = .roundVoided
+        case "TRACK_ALREADY_USED": self = .trackAlreadyUsed
         case "INVALID_INPUT": self = .invalidInput(field: field)
         case "ALREADY_IN_GROUP": self = .alreadyInGroup
         case "ALREADY_INVITED": self = .alreadyInvited

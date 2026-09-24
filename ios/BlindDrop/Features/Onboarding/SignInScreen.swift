@@ -14,6 +14,16 @@ struct SignInScreen: View {
 
     @State private var isSigningIn = false
     @State private var failure: AuthError?
+    /// A sign-in that worked, followed by a `GET /me` that did not.
+    ///
+    /// `SessionStore.signIn` ends in `loadIdentity()`, which deliberately does **not** throw —
+    /// a transport failure is not evidence about who the caller is, so it lands in
+    /// `SessionStore.loadFailure` and the state stays put. Nothing on this screen read that, so
+    /// the one path that matters on a flaky network — Apple's sheet completes, the token is
+    /// real, the identity read times out — left the user looking at an unchanged sign-in screen
+    /// with no error and no spinner. `OnboardingStore.finish()` and `join()` already read the
+    /// failure back out for exactly this reason; this is the same move on the first screen.
+    @State private var loadFailure: APIError?
     @State private var showsReviewSignIn = false
     @State private var reviewEmail = ""
     @State private var reviewPassword = ""
@@ -53,7 +63,7 @@ struct SignInScreen: View {
                 .foregroundStyle(Palette.inkDim)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if let key = failure?.copyKey {
+            if let key = failure?.copyKey ?? loadFailure?.copyKey {
                 Text(LocalizedStringKey(key))
                     .typeStyle(.bodyM)
                     .foregroundStyle(Palette.alert)
@@ -126,12 +136,17 @@ struct SignInScreen: View {
         guard !isSigningIn else { return }
         isSigningIn = true
         failure = nil
+        loadFailure = nil
         Task {
             do {
                 // Built per attempt, not held: it owns a live continuation for exactly as long
                 // as Apple's sheet is up, and a long-lived instance would be something a second
                 // tap could interrupt.
                 try await env.session.signIn(with: AppleSignIn())
+                // The sign-in threw nothing, so the exchange and the Keychain write both worked.
+                // Whether the *server* answered is a separate question, and this is where it is
+                // asked — see `loadFailure`.
+                loadFailure = env.session.loadFailure
             } catch let error as AuthError {
                 // `.cancelled` and `.busy` resolve to no copy key: the user closed a sheet they
                 // opened, and nothing should appear on screen because of it.
@@ -147,9 +162,11 @@ struct SignInScreen: View {
         guard !isSigningIn else { return }
         isSigningIn = true
         failure = nil
+        loadFailure = nil
         Task {
             do {
                 try await env.session.signIn(email: reviewEmail, password: reviewPassword)
+                loadFailure = env.session.loadFailure
             } catch let error as AuthError {
                 failure = error
             } catch {

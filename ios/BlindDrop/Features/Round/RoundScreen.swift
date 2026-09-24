@@ -602,30 +602,57 @@ struct RoundScreen: View {
         return phase.bleedsToScreenEdge ? Space.none : Layout.screenInset
     }
 
+    /// Identifies the deadline currently being waited on. A change restarts the watcher below;
+    /// an *unchanged* value is the case that matters, because it means the refetch came back
+    /// with the same round in the same phase and the wait is not over.
+    ///
+    /// **Every phase, not just `scored`.** This pair used to be gated on `case .scored`, which
+    /// left the two transitions the game is actually made of — `open → revealed` and
+    /// `revealed → scored` — with nothing but the single `.onChange(of: timer.hasElapsed)` edge
+    /// above. That edge fires exactly once per deadline (`CountdownTimer.refresh()` guards the
+    /// write), so one refetch was the whole retry policy, and `tick_rounds()` runs on a *minute*
+    /// cadence: a refetch fired the instant the countdown hit zero routinely finds the round
+    /// still `open`, and nothing asked again. The screen then sat at `00:00:00` on a stale phase
+    /// until the app was backgrounded and brought forward. That is the reveal never arriving —
+    /// on a good network, with a healthy server — and on the demo account it is what App Review
+    /// would see after the twelve-second countdown in the walkthrough note.
     private func phaseDeadlineID(_ store: RoundStore) -> String? {
-        guard let context = store.state.value,
-              case .scored = context.round.phase,
-              let deadline = deadline(context)
-        else { return nil }
-        return "\(context.round.id)#\(deadline.timeIntervalSinceReferenceDate)"
+        guard let context = store.state.value, let deadline = deadline(context) else { return nil }
+        return "\(context.round.id)#\(context.round.phase)#\(deadline.timeIntervalSinceReferenceDate)"
     }
 
+    /// Waits out the phase's deadline, then keeps asking until the server agrees the phase has
+    /// moved — which is what the task being cancelled and restarted with a new id means.
+    ///
+    /// The backoff is deliberately front-loaded and finite: the server's own tick is what this
+    /// is waiting for, the first ask after the deadline usually lands it (the demo account's
+    /// `demo_tick` runs on the read), and a client that retried forever on a server that is
+    /// simply down would be a screen quietly making a request a second for the rest of the
+    /// evening. After the last attempt the screen still recovers on foreground, which is the
+    /// behaviour that used to be the only one.
     private func refreshAtPhaseDeadline(_ store: RoundStore) async {
-        guard let context = store.state.value,
-              case .scored = context.round.phase,
-              let deadline = deadline(context)
-        else { return }
+        guard let context = store.state.value, let deadline = deadline(context) else { return }
+
+        // 2s, 5s, 10s, then 15s × 8 — a little over two minutes of asking, against a tick that
+        // runs every minute.
+        let backoff: [Duration] = [.seconds(2), .seconds(5), .seconds(10)]
+            + Array(repeating: .seconds(15), count: 8)
+        var attempt = 0
+
         while !Task.isCancelled {
             guard let now = env.clock.now else {
                 try? await Task.sleep(for: .seconds(1))
                 continue
             }
             let remaining = deadline.timeIntervalSince(now)
-            if remaining <= 0 {
-                loadToken += 1
-                return
+            if remaining > 0 {
+                try? await Task.sleep(for: .seconds(min(remaining, 60)))
+                continue
             }
-            try? await Task.sleep(for: .seconds(min(remaining, 60)))
+            loadToken += 1
+            guard attempt < backoff.count else { return }
+            try? await Task.sleep(for: backoff[attempt])
+            attempt += 1
         }
     }
 
@@ -1149,7 +1176,32 @@ private struct ResultsHost: View {
 
     var body: some View {
         Group {
-            if let store {
+            if let store, store.state.isLoading {
+                // **A skeleton, not the finished layout with nothing in it.** The store is
+                // assigned before `load()` is awaited, so without this branch the first frame of
+                // the answers is the headline over zero cards — indistinguishable from a night
+                // nobody played.
+                RoundSkeleton()
+            } else if let store, let error = store.state.error {
+                // **The answers are the one screen that had no error branch**, and it is the
+                // terminal screen of the night. `GET /rounds/current` has already succeeded —
+                // that is why the phase is `scored` — so the chrome's offline banner, which
+                // watches `RoundStore` alone, never appears for a failure of the *results*
+                // request. The screen was the headline and nothing else, permanently, with the
+                // only recovery being to background the app. Same treatment as every other
+                // route in the app, which is the point.
+                VStack(alignment: .leading, spacing: Layout.blockGap) {
+                    Text(LocalizedStringKey(error.copyKey))
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.inkDim)
+
+                    PrimaryButton("error.retry", fill: .neutral) {
+                        Task { await store.load() }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Layout.screenInset)
+            } else if let store {
                 ResultsScreen(
                     state: store.viewState(resolve: resolve),
                     // Tonight's round is the circle's current one, so the marks are placeable

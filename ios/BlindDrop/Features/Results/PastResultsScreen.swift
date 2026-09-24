@@ -27,11 +27,22 @@ struct PastResultsScreen: View {
         Group {
             if let store, store.state.value != nil {
                 ResultsScreen(state: store.viewState(resolve: nil), isPastRound: true, player: player)
-            } else if let error = store?.state.error {
-                Text(LocalizedStringKey(error.copyKey))
-                    .typeStyle(.bodyM)
-                    .foregroundStyle(Palette.alert)
-                    .padding(Layout.screenInset)
+            } else if let store, let error = store.state.error {
+                // The retry was missing here alone. `.task` runs once per appearance, so an
+                // offline first load was a dead end until the user popped the screen and pushed
+                // it again — from The Record, or from the dark hours' *"See last night's
+                // results"*. Every other error state in the app pairs the line with this button.
+                VStack(alignment: .leading, spacing: Layout.blockGap) {
+                    Text(LocalizedStringKey(error.copyKey))
+                        .typeStyle(.bodyM)
+                        .foregroundStyle(Palette.alert)
+
+                    PrimaryButton("error.retry", fill: .neutral) {
+                        Task { await store.load() }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Layout.screenInset)
             } else {
                 PastResultsSkeleton().padding(Layout.screenInset)
             }

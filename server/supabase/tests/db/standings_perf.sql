@@ -194,6 +194,16 @@ declare
   v_taken   numeric;
   v_sink    bigint;
 begin
+  -- One untimed run first. The note above says this budget is about the query and not about
+  -- "whichever machine happened to run the suite", and a cold `shared_buffers` is exactly that:
+  -- straight after `db:reset`, on a machine also running the iOS suite, the first read of 200
+  -- rounds of guesses crossed 150ms while every read after it came in under 80ms. Warming
+  -- outside the timer is what the comment already intended.
+  select count(row_to_json(t)) into v_sink
+    from (select user_id, ear_all_time, ear_correct_total, readability_all_time, band
+            from public.standings
+           where group_id = 'f0000000-0000-4000-8000-000000000001') t;
+
   for i in 1..3 loop
     v_started := clock_timestamp();
     select count(row_to_json(t)) into v_sink
@@ -206,9 +216,16 @@ begin
   return v_best;
 end $$;
 
-select ok(tests.standings_ms() < 150,
+-- **Measured once.** This used to call `tests.standings_ms()` twice — once for the comparison
+-- and once to build the message — which are two independent measurements three runs apart. When
+-- it failed it therefore printed a number that had *passed*: `not ok ... (best of 3: 72.6ms)`
+-- against a 150ms budget, which reads like the assertion is inverted and is how this was found.
+-- One measurement, judged and reported.
+with measured as (select tests.standings_ms() as ms)
+select ok(ms < 150,
           format('standings answers inside 150ms at 12 members x 200 rounds (best of 3: %sms)',
-                 round(tests.standings_ms(), 1)));
+                 round(ms, 1)))
+  from measured;
 
 -- ─── 2. the plan ─────────────────────────────────────────────────────────────
 -- The assertion E05-03 deferred. This is the query behind `GET /rounds/{id}/results`: one

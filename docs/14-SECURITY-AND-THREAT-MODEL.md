@@ -197,6 +197,22 @@ the binary.
 
 ---
 
+## 8a. Export compliance
+
+`ITSAppUsesNonExemptEncryption` is **`NO`**, declared in the build settings rather than answered
+by hand on every upload. Without the key, App Store Connect parks each build in *Missing
+Compliance* until somebody answers the question in the web UI — which is a submission that
+silently does not happen, on the day it matters.
+
+`NO` is the correct answer and not a convenient one. The app's only cryptography is HTTPS/TLS to
+Supabase and Apple's own frameworks: the Keychain, and `CryptoKit`'s SHA-256 over the Sign in
+with Apple nonce (`AppleSignIn.digest(of:)`), which is a hash rather than encryption. All of that
+falls under the standard exemption. **Adding any encryption of our own — a bundled cipher, an
+encrypted local store, anything that is not the platform's — makes this answer wrong**, and the
+key has to change with it.
+
+---
+
 ## 9. Privacy
 
 - Data collected: Apple sub or phone, display name, group membership, song choices, guesses,

@@ -76,6 +76,7 @@
 "error.notsubmitter" = "You didn't drop a song tonight.";
 "error.joinedlate" = "You joined after the reveal. You're in from tomorrow.";
 "error.roundvoided" = "Not enough drops tonight. Nothing revealed.";
+"error.trackalreadyused" = "You already used this today.";
 "error.alreadyingroup" = "You're already in that group.";
 "error.alreadyinvited" = "They already have an invitation to this group.";
 "error.circlelimitreached" = "You're already in three groups. Leave one to join another.";
