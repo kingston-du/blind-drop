@@ -61,11 +61,16 @@ jobs:
 
   ios:
     name: iOS
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_26.app
+        # The newest Xcode 26 on the image. Runner images name it by point release
+        # (Xcode_26.0.app, Xcode_26.1.app, ...), so a fixed path breaks on every image update.
+        run: |
+          ls -d /Applications/Xcode_26*.app
+          sudo xcode-select -switch "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          xcodebuild -version
       - name: Assert zero package dependencies
         # docs/01 §1, docs/13 §1. Two tells: a resolved-package file, or a package reference
         # in the project. Package.resolved is intentionally not gitignored so this can see it.
@@ -103,11 +108,16 @@ jobs:
     # AC-10's loop runs against the fixture server, not the backend, so it is fast and
     # deterministic — but it is still the slowest job, so it is gated to PRs into main.
     if: github.event_name == 'pull_request'
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_26.app
+        # The newest Xcode 26 on the image. Runner images name it by point release
+        # (Xcode_26.0.app, Xcode_26.1.app, ...), so a fixed path breaks on every image update.
+        run: |
+          ls -d /Applications/Xcode_26*.app
+          sudo xcode-select -switch "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          xcodebuild -version
       - uses: actions/setup-node@v4
         with:
           node-version: 22
