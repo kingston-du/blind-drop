@@ -1,184 +1,73 @@
 # Blind Drop
 
-A daily blind music-guessing game for one private friend group (6–12 people).
+A daily music-guessing game for iOS. Everyone in a friend group drops one song in secret, then everyone guesses who picked what. Site: [blinddrop.app](https://blinddrop.app).
 
-Every day each member submits **one song, blind**. At 8:00 PM the songs are revealed as an
-anonymous numbered list. Everyone has two hours to guess who dropped what. At 10:00 PM the
-answers and scores land.
+<p>
+  <img src="docs/screenshots/1-submit.png" width="200" alt="Your song, sealed, with a countdown to the reveal">
+  <img src="docs/screenshots/2-guess.png" width="200" alt="Guessing who dropped song 2 of 8">
+  <img src="docs/screenshots/3-answers.png" width="200" alt="The answers: who dropped each song and how the room did">
+  <img src="docs/screenshots/4-record.png" width="200" alt="The Record, every song the group has dropped">
+</p>
 
-**This is not a music player, a playlist app, or a social network.** It is a daily guessing
-game with a music substrate. Check every implementation decision against that sentence.
+## Why I made it
 
----
+Music taste says a lot about people, and my friends and I were always arguing about who would pick what. I wanted a game that turned that argument into a nightly ritual. It has been on TestFlight for about a month. Around 15 friends play every day, with 6 to 8 songs dropped on a typical night.
 
-## Status
+## How a day works
 
-The backend is complete through push delivery, music bridging, the Record, and export
-endpoints. The native iOS game loop is complete through The Record, per-track links, and
-Spotify/Apple Music playlist export. QA and release hardening is done apart from the two gates
-that need physical hardware: `E14-03` (Instruments on a real device) and `E14-05` (the release
-checklist, which waits on real-device push, Spotify PKCE, and a pilot group).
+1. **Drop.** During the day everyone picks one song. The pick is sealed: nobody can see what anyone else chose, or even whether they have played yet.
+2. **Reveal.** At 8 PM the songs appear as an anonymous numbered list, and everyone has two hours to guess who dropped each one.
+3. **Answers.** At 10 PM the answers land. **Ear** is how many songs you have placed correctly over the group's last 14 rounds, and it is what the standings rank on. **Readability** is how much of the room guessed your song right.
 
-| Area | State |
-|---|---|
-| Spec | Complete — `docs/` |
-| Task board | `tasks/BOARD.md` |
-| Backend | Auth, groups, lifecycle, submissions, reveal, guessing, scoring, push, music bridging, Record, and exports are covered by pgTAP and function tests. |
-| iOS client | Foundation, onboarding, the full daily game loop, results/share, The Record, and both playlist export paths are implemented and covered by unit/snapshot tests. |
+Every song goes into **The Record**, a running archive that exports to a Spotify or Apple Music playlist.
 
----
+## How it's built
 
-## If you are a coding agent picking this up
+- **iOS:** SwiftUI, Swift 6 with strict concurrency, iOS 17.4+. No third-party packages.
+- **Backend:** Supabase Postgres with hand-written Deno Edge Functions. A `pg_cron` job ticks every minute and moves each group's round through its phases.
+- **Music:** song search goes through a server-side Apple Music proxy, and each track is matched to Spotify by ISRC so exports work on either service.
+- **Push:** APNs, sent from an outbox table so a failed send can be retried.
 
-1. Read [`CLAUDE.md`](CLAUDE.md) first. It is the operating manual: conventions, file map,
-   and the rules you must not break.
-2. Open [`tasks/BOARD.md`](tasks/BOARD.md), find the first task whose dependencies are all
-   `done`, and read its epic file in `tasks/`.
-3. Each task names the exact docs you need. **Read only those.** The spec is split so you
-   never have to load all of it.
+A few decisions I care about:
 
-Do not start by reading every file in `docs/`. That is ~40k tokens and almost none of it is
-relevant to any single task.
+- **The server owns the clock.** The app never decides what phase it is. Changing your phone's time or timezone does nothing.
+- **The blind window is enforced in the API, not the UI.** While songs are sealed, no response contains another player's song, a submission count, or anything you could work one out from. I turned off Supabase's auto-generated REST API for clients because it leaks row counts through response headers. `npm run audit:leak` checks all of this with golden-payload tests plus response-size and timing checks.
+- **Tested at every layer.** 819 pgTAP assertions on the database, Deno tests on every Edge Function, and 700+ iOS unit and snapshot tests. The snapshots render at several Dynamic Type sizes.
+- **Written down first.** [`docs/`](docs) has the specs I build from: data model, API contract, threat model, scoring rules, and motion.
 
----
+## Running it
 
-## The one-paragraph architecture
+You need Docker, Node 22+, and Xcode 26.
 
-Native SwiftUI iOS app (iOS 17.4+) talking to a Supabase-hosted Postgres over hand-written
-Edge Functions — **never** over auto-generated table endpoints. All phase state is
-server-authoritative; the client never decides what time it is. Song search runs through a
-server-side Apple Music API proxy (so no MusicKit permission prompt and the server always
-captures the ISRC), and every track is bridged to Spotify by ISRC so the group's archive
-exports to either service.
-
-Full detail: [`docs/01-ARCHITECTURE.md`](docs/01-ARCHITECTURE.md).
-
----
-
-## The three things that must not break
-
-1. **The blind window.** During the `open` phase the API must not return another user's
-   submission, a submission count, a member's submission status, or anything you can derive
-   one from. Not filtered in the client — *absent from the payload*. See
-   [`docs/14-SECURITY-AND-THREAT-MODEL.md`](docs/14-SECURITY-AND-THREAT-MODEL.md).
-2. **Server-authoritative time.** Changing the device clock or timezone must have zero
-   effect on what phase the app believes it is in.
-3. **The seal.** The ~600ms seal animation is the moment the app is remembered by. It gets
-   disproportionate effort. See [`docs/09-MOTION-SPEC.md`](docs/09-MOTION-SPEC.md).
-
----
-
-## Doc index
-
-| File | What it covers | Read it when |
-|---|---|---|
-| `docs/00-PROJECT-BRIEF.md` | Product intent, goals, non-goals, pilot success criteria | Onboarding to the project |
-| `docs/01-ARCHITECTURE.md` | Stack, repo layout, ADRs | Any structural decision |
-| `docs/02-DOMAIN-RULES.md` | Phase machine, edge cases, scoring math | Any logic task, client or server |
-| `docs/03-DATA-MODEL.md` | Postgres schema, RLS, indexes | Any DB task |
-| `docs/04-API-CONTRACT.md` | Every endpoint, exact payloads, error codes | Any client↔server task |
-| `docs/05-JOBS-AND-NOTIFICATIONS.md` | Scheduler, idempotency, APNs | Round lifecycle, push |
-| `docs/06-MUSIC-INTEGRATION.md` | Apple Music proxy, ISRC, Spotify bridge + export | Search, previews, links, export |
-| `docs/07-DESIGN-SYSTEM.md` | Light-mode palette, type scale, spacing, components | Any UI task |
-| `docs/08-SCREEN-SPECS.md` | Screen-by-screen, every state | Building a screen |
-| `docs/09-MOTION-SPEC.md` | Seal, unseal, reduced motion | Animation tasks |
-| `docs/10-SHARE-CARD-SPEC.md` | Share image render spec | Results/share task |
-| `docs/11-COPY-DECK.md` | Every user-facing string | Any UI task |
-| `docs/12-ACCESSIBILITY.md` | Dynamic Type, VoiceOver, contrast | Any UI task |
-| `docs/13-IOS-APP-ARCHITECTURE.md` | SwiftUI module layout, state, file tree | Any iOS task |
-| `docs/14-SECURITY-AND-THREAT-MODEL.md` | Leak rules, auth, token handling | Backend + auth tasks |
-| `docs/15-TESTING-AND-ACCEPTANCE.md` | Acceptance criteria mapped to tests | Before calling anything done |
-| `docs/16-OUT-OF-SCOPE.md` | What not to build | When you feel like adding something |
-| `docs/17-NEXT-FEATURES.md` | The post-v1 feature specs, `E29`–`E34` | Those epics |
-| `docs/18-CUES.md` | Cues: catalog, selection, cadence | Anything touching a round's cue |
-| `docs/19-REACTIONS.md` | Reactions: the seal, the three kinds, the API | `E46` |
-
----
-
-## Local setup
-
-Requires Docker. Everything else — the Supabase CLI and Deno — installs as a local
-devDependency, so there is nothing to install globally.
+**Backend and tests.** This starts a local Supabase stack on ports 54421 to 54424, so it won't collide with another local project.
 
 ```bash
 cd server
-npm install          # Supabase CLI + Deno, pinned in package.json
-npm run db:start     # first run pulls images and takes a few minutes
+npm install
+npm run db:start
+npm test
 ```
 
-`db:start` applies every migration in `supabase/migrations/` and loads `supabase/seed.sql`,
-so you land on the `docs/02` §4.4 fixture: one group, nine profiles (Ana…Ivy), and three
-rounds — 2026-08-08 `scored`, 2026-08-09 `revealed`, 2026-08-10 `open`.
-
-This stack runs on the **544xx** ports, not Supabase's 543xx defaults, so it coexists with
-any other local Supabase project:
-
-| Service | URL |
-|---|---|
-| API / Edge Functions | `http://127.0.0.1:54421` |
-| Postgres | `postgresql://postgres:postgres@127.0.0.1:54422/postgres` |
-| Studio | `http://127.0.0.1:54423` |
-| Mail (Mailpit) | `http://127.0.0.1:54424` |
-
-### Scheduler settings
-
-The `tick` and `push` cron jobs are installed by migration. The push job reads its function
-host and service credential from target-database settings so neither value is committed or
-stored in `cron.job`. Set them once in each environment, using the SQL editor or `psql`
-connected to that database:
-
-```sql
-alter database postgres set app.functions_url = 'https://<project-ref>.supabase.co/functions/v1';
-alter database postgres set app.service_key = '<that environment service-role key>';
-```
-
-For the local Docker stack, use `http://kong:8000/functions/v1` for `app.functions_url` and
-the `SERVICE_ROLE_KEY` reported by `supabase status -o env`. `kong` is the internal hostname
-reachable from the database container; `127.0.0.1:54421` is only the host-machine address.
-`ALTER DATABASE` applies to new sessions, including the next cron invocation. The local seed
-pauses both jobs so its dated fixture cannot advance under the real clock; after setting the
-values, opt into the live local scheduler explicitly:
-
-```sql
-select public.set_blind_drop_jobs_active(true);
-```
-
-```bash
-npm run db:reset     # re-run all migrations + seed from scratch
-npm run db:stop      # stop the stack
-```
-
-Secrets: copy `server/.env.example` to `server/.env` and fill it in. `.env` is git-ignored
-and must never be committed. Deployed environments read the same names from Supabase
-function secrets (`docs/01` §5).
-
-### Tests
-
-```bash
-cd server
-npm run test:db              # pgTAP, against the running local database
-npm run test:db -- seed      # just one file
-npm run test:functions       # Deno, the Edge Functions
-npm run audit:leak           # the AC-1 group — see docs/15 §1
-npm test                     # all three
-```
-
-`npm run audit:leak` is the most important command in this repo. It runs the golden payload,
-byte-length, timing-correlation, and PostgREST-lockdown suites and gates release in E14-01.
-
-The pgTAP suite never sleeps. Lifecycle code calls `public.now_()` rather than `now()`, and
-tests move the clock with `tests.set_test_now(…)`; the runner fails the run if `pg_sleep`
-appears anywhere in `tests/db/`.
-
-### The iOS fixture server
-
-The iOS lane does not need the backend. `ios/Fixtures/server.ts` serves canned responses for
-every endpoint in `docs/04`:
+**The app, without the backend.** `ios/Fixtures/server.ts` serves canned responses for every endpoint. `PHASE` can be `open`, `revealed`, or `scored`.
 
 ```bash
 cd ios/Fixtures
-PHASE=open ../../server/node_modules/.bin/deno run --allow-net --allow-read --allow-env server.ts
+PHASE=revealed ../../server/node_modules/.bin/deno run --allow-net --allow-read --allow-env server.ts
 ```
 
-`PHASE` is one of `open | sealed | revealed | scored | voided`, and `LATENCY_MS` adds delay
-so the 400ms search budget can be exercised. See `ios/Fixtures/README.md`.
+Then, in a second terminal from the repo root:
+
+```bash
+xcodebuild -project ios/BlindDrop.xcodeproj -scheme BlindDrop -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build build
+xcrun simctl boot "iPhone 17 Pro"
+xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/BlindDrop.app
+xcrun simctl launch booted com.blinddrop.app -apiBaseURL http://127.0.0.1:8787 -fixtureSession
+```
+
+Or in Xcode, add `-apiBaseURL http://127.0.0.1:8787 -fixtureSession` to the scheme's launch arguments and press Run.
+
+The full reference (scheduler settings, secrets, and test details) is in [`docs/LOCAL-SETUP.md`](docs/LOCAL-SETUP.md).
+
+## What's next
+
+- Get it on the App Store. The remaining release checks need real hardware: an Instruments pass on the reveal animations, and confirming that tapping a notification opens the right screen on a physical phone.
